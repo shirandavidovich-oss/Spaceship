@@ -567,7 +567,11 @@ const WEAPONS = {
   torpedo: { name: "טורפדו הדף",  dmg: 0,  speed: 1.4, life: 0.95, cool: 1.8, ammo: 3, refill: 5.4, r: 0.06, color: "#ffb03a", blast: 1.3, blastDmg: 22, push: 1.6 },
   // PUFF. needles: 3 in a narrow fan. bubble: slow, swells as it floats; pops on a ship (`dmg` and a shove of `knock`)
   needles: { name: "מחטי נחושת", dmg: 6,  speed: 2.8, life: 0.8, cool: 0.4, ammo: 18, refill: 6, r: 0.025, color: "#e08a4a", pellets: 3, fan: 0.18 },
-  bubble:  { name: "בועת לחץ",   dmg: 16, speed: 1.0, life: 2.2, cool: 1.6, ammo: 3,  refill: 5, r: 0.1,   color: "#9fe8d8", knock: 0.8 },
+  // PUFF's bubble (puff-bubble.js): held, it is blown bigger in five pushes of air (radius by BUBBLE_STAGES, px of the
+  //   560 canvas); let go, it leaves at that size: the bigger, the slower (`speed` .. `speed` - `slow`), the harder it
+  //   hits (`dmg` .. `dmg` + `dmgMax`) and shoves (`knock` .. `knock` + `knockMax`). `r`: the hit radius of a bubble
+  //   fired without a charge (the bot's)
+  bubble:  { name: "בועת לחץ",   dmg: 8, dmgMax: 22, speed: 1.4, slow: 0.5, life: 2.4, cool: 1.2, ammo: 3,  refill: 5, r: 0.1,   color: "#9fe8d8", knock: 0.5, knockMax: 1.3, hold: true },
   // REPRISE. `delays`: seconds after the press each shot leaves; `modules`: which building fires it (from its top edge)
   amber:   { name: "בריח ענבר",  dmg: 14, speed: 2.8, life: 1.2, cool: 0.56, ammo: 14, refill: 6, r: 0.035, color: "#ffb23a", delays: [0.18], modules: [0] },
   floors:  { name: "מטח קומות",  dmg: 5,  speed: 2.0, life: 0.92, cool: 1.15, ammo: 4, refill: 5, r: 0.03, color: "#b48cff", delays: [0.13, 0.26, 0.39], modules: [1, 2, 3] },
@@ -762,6 +766,17 @@ function cinderEngines(ms, dir) {
   const e = (v) => { const t = Math.max(0, Math.min(1, v)); return t * t * (3 - 2 * t); };
   const piv = ms < 0 ? 0 : e(ms / 170) * (1 - e((ms - 330) / 330)), flare = ms < 0 ? 0 : e((ms - 90) / 85) * (1 - e((ms - 255) / 135));
   return [20, -20].map((rest) => ({ angle: (rest + (dir * 83 - rest) * piv) * Math.PI / 180, flare: 0.18 + 0.82 * flare }));
+}
+// PUFF's bubble while held: [ms since the press, radius in px of the 560 canvas]; past the last it wobbles at full size.
+// pump: each push of air (0..1), stretch: the bubble pulled long by it
+const BUBBLE_STAGES = [[0, 18], [380, 43], [850, 72], [1340, 104], [1880, 139], [2450, 176]];
+function bubbleCharge(ms) {
+  const sm = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); }, last = BUBBLE_STAGES[BUBBLE_STAGES.length - 1];
+  ms = Math.max(0, ms);
+  const next = BUBBLE_STAGES.findIndex((q) => q[0] > ms);
+  if (next < 0) { const w = Math.sin((ms - last[0]) * 0.006) * sm((ms - last[0]) / 160); return { stage: 5, radius: last[1], pump: 0.14 * w, stretch: 1 + w * 0.023, max: true }; }
+  const a = BUBBLE_STAGES[next - 1], b = BUBBLE_STAGES[next], push = sm(((ms - a[0]) / (b[0] - a[0]) - 0.1) / 0.72), pulse = Math.sin(Math.PI * push);
+  return { stage: next - 1, radius: a[1] + (b[1] - a[1]) * push, pump: pulse, stretch: 1 + pulse * 0.105, max: false };
 }
 // PUFF puffed up: where its 12 spines sit (px of the 560 canvas from the middle) and which way each points (degrees)
 const PUFF_SPINES = [[0, -184.2, 0], [96.3, -159.5, 30], [166.7, -92.1, 60], [192.5, 0, 90], [166.7, 92.1, 120], [96.3, 159.5, 150],
@@ -2727,9 +2742,10 @@ function phaseStep(s, Wp, dt) {
 // VANTA's drops swell: 0 just fired .. 1 a full, thin ball (its life waits inside the planet, so this does too)
 function swellOf(s, Wp) { return Wp.swell ? Math.min(1, s.life / Wp.swell) : 0; }
 // how big a shot is now (its hit radius and drawing)
-function shotScale(s, Wp) { return Wp.swell ? 1 + (Wp.grow - 1) * swellOf(s, Wp) : 1; }
+function shotScale(s, Wp) { return s.sz ? s.sz : Wp.swell ? 1 + (Wp.grow - 1) * swellOf(s, Wp) : 1; }
 // what a shot does on a hit (VANTA: its colour, out of the planet boosted, thinner the more it has swollen)
 function shotHit(s, Wp) {
+  if (s.ch != null && Wp.dmgMax) return { ...Wp, dmg: Math.round(Wp.dmg + Wp.dmgMax * s.ch), knock: Wp.knock + Wp.knockMax * s.ch };   // PUFF's bubble: by its size
   const thin = Wp.swell ? 1 - Wp.thin * swellOf(s, Wp) : 1;
   if (!Wp.phase) return thin < 1 ? { ...Wp, dmg: Math.max(1, Math.round(Wp.dmg * thin)) } : Wp;
   const T = VANTA_TINTS[s.lvl || 0];
@@ -3368,6 +3384,12 @@ function talusPicture(S, stage, colors) {
   return cv2;
 }
 // the light ring around a TALUS after it grew: white -> yellow -> ... -> black like the thrust button, then gone
+// TALUS just grown (ring: seconds of it left): a soft glow hugging its shape, slowly running through the colours, fading out
+function talusGlow(ring) {
+  if (!(ring > 0)) return null;
+  const a = 0.6 * Math.min(1, ring / 1.5) * (0.75 + 0.25 * Math.sin(time * 2.6));
+  return { c: `hsla(${Math.round((time * 55) % 360)},95%,62%,${a.toFixed(3)})`, blur: 0.3 };
+}
 function drawTalusRing(x, y, size, ring) {
   if (!(ring > 0)) return;
   const f = ring / GROW.ring, c = fuelColor(f), r = size * 0.62;
@@ -3776,7 +3798,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null;
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -3829,7 +3851,8 @@ function updateWeapons(dt) {
   enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
-    if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].converge) { crossHold(dt); continue; }   // KRAAL: hold to aim, let go to fire
+    if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].converge) { crossHold(dt); continue; }
+    if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].hold) { bubbleHold(dt); continue; }   // PUFF: hold to blow, let go to fire   // KRAAL: hold to aim, let go to fire
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].flail) {   // ZORIAN's ball: each press is one swing
       if (game.fire[1] !== null && !game.trapLatch && game.cool[1] <= 0) { game.trapLatch = true; flailSwing(); }
       if (game.fire[1] === null) game.trapLatch = false;
@@ -3887,12 +3910,12 @@ function updateWeapons(dt) {
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
       if (Math.hypot(dx, dy) < size * 0.42 + Wp.r * shotScale(s, Wp) * size) {
         if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
-        hitEnemy(s, shotHit(s, Wp)); shots.splice(k, 1);
+        const Hw = shotHit(s, Wp); hitEnemy(s, Hw); shots.splice(k, 1);
         if (Wp.tag) { enemy.markT = Wp.tag; audio.sfx("vanta", "mark_hit"); }   // VANTA's marking drop: the stain
         if (Wp.knock && s.w === "bubble") {   // PUFF's bubble pops: a shove
-          const sp = Math.hypot(s.vx, s.vy) || 1;
-          if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + s.vx / sp * Wp.knock, vy: enemy.vy / U + s.vy / sp * Wp.knock });
-          else { enemy.vx += s.vx / sp * Wp.knock * U; enemy.vy += s.vy / sp * Wp.knock * U; }
+          const sp = Math.hypot(s.vx, s.vy) || 1, kn = Hw.knock;
+          if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + s.vx / sp * kn, vy: enemy.vy / U + s.vy / sp * kn });
+          else { enemy.vx += s.vx / sp * kn * U; enemy.vy += s.vy / sp * kn * U; }
           burstAt(s.x, s.y, 20, ["#ffffff", "#9fe8d8", "#cfe8e0"], 0.5, 0.6); audio.tone(700, 0.08, "sine", 0.06, 0.3); audio.noise(0.08, 0.1, 4000);
         }
         if (Wp.hack) {   // GLITCH's pulse: hacked
@@ -4444,6 +4467,11 @@ function drawShip(S, x, y, size, o = {}) {
     // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
     // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
     const k = S.anim ? S.anim.size / (S.anim.base || img.width) : 1 / Math.max(img.width, img.height);
+    if (o.glow) {   // a dim halo round the ship's own outline (its shadow, blurred; the ship drawn over it hides the copy)
+      ctx.save(); ctx.shadowColor = o.glow.c; ctx.shadowBlur = size * o.glow.blur;
+      for (let i = 0; i < 2; i++) ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
+      ctx.restore();
+    }
     ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
     if (halfClip) ctx.restore();
     if (S.anim && S.anim.ribbon && img === artImage(framePath(S.anim.dir, S.anim.ribbon))) drawRibbon(S, o.tint || 0);
@@ -5105,6 +5133,38 @@ function updatePuff(dt) {
   else { enemy.vx += dx / d * M.knock * U; enemy.vy += dy / d * M.knock * U; enemy.spin = 5; }
   burstAt(game.x + dx / d * reach * 0.8, game.y + dy / d * reach * 0.8, 18, ["#ffffff", "#e8b040", "#c86a30"], 0.5, 0.7); shake(0.4); buzz(120);
 }
+// PUFF's bubble: a press starts it on the nozzle (puffed up, the press lets the spines go instead); it grows while held;
+// letting go (or dying) sends it off. game.bub: { t } seconds held
+function bubbleHold(dt) {
+  const held = game.fire[1] !== null, B = game.bub;
+  if (!B) {
+    if (!held) { game.bubLatch = false; return; }
+    if (game.bubLatch || game.cool[1] > 0 || slotAmmo(1) < 1 || waitsForFrames(1) || game.dive) return;
+    game.bubLatch = true;
+    if (game.puff && game.puff.st === "full") { if (game.puff.armed) puffBurst(); return; }
+    game.bub = { t: 0, stage: 0 }; game.cool[1] = WEAPONS.bubble.cool; game.ammo[1] -= 1;
+    audio.tone(260, 0.12, "sine", 0.04, 1.4); buzz(15);
+    return;
+  }
+  B.t += dt;
+  const P = bubbleCharge(B.t * 1000);
+  if (P.stage > B.stage) { B.stage = P.stage; audio.tone(180 + P.stage * 50, 0.18, "sine", 0.05, 1.5); audio.noise(0.12, 0.05, 1800); buzz(10); }   // a push of air
+  if (!held || game.dead || (game.puff && game.puff.st === "down")) releaseBubble();
+}
+// where the held bubble is: on the nozzle, past the nose; R: its radius (px of the 560 canvas)
+function bubbleAt(o, P) {
+  const k = 2.0 / 560 * shipSize(), nose = (131 + 12 * P.pump) * k, r = P.radius * k, d = nose + r * P.stretch;
+  return { x: o.x + Math.sin(o.ang) * d, y: o.y - Math.cos(o.ang) * d, r, mx: o.x + Math.sin(o.ang) * nose, my: o.y - Math.cos(o.ang) * nose, nose };
+}
+function releaseBubble() {
+  const B = game.bub; game.bub = null;
+  if (!B || game.dead) return;
+  const Wp = WEAPONS.bubble, P = bubbleCharge(B.t * 1000), A = bubbleAt(game, P), ch = (P.radius - 18) / (176 - 18), v = (Wp.speed - Wp.slow * ch) * U;
+  const q = { w: "bubble", x: A.x, y: A.y, vx: game.vx + Math.sin(game.ang) * v, vy: game.vy - Math.cos(game.ang) * v, life: 0, sz: A.r / (Wp.r * shipSize()), ch, st: P.stretch };
+  shots.push(q);
+  if (duel.stage === "on") { q.id = ++shotSeq; duelSend({ t: "f", w: "bubble", ...netPos(q), s: game.ship, id: q.id, z: +q.sz.toFixed(3), c: +ch.toFixed(3) }); }
+  audio.tone(520 - ch * 260, 0.14, "triangle", 0.05, 0.5); audio.noise(0.06, 0.08, 3500); buzz(30);   // the nozzle snaps back
+}
 // the press: all 12 spines fly off at once, and the hull, losing its air, shoots off a random way
 function puffBurst() {
   const S = shipById(game.ship), M = MAGIC.inflate, Wp = WEAPONS.spine, size = shipSize(), k = S.anim.size / 560, v = Wp.speed * U;
@@ -5140,14 +5200,50 @@ function updatePuffJet(dt, S, M) {
 }
 // a pressure bubble: see-through, a shine, swelling a little as it floats
 function drawBubble(s) {
-  const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), r = Wp.r * shipSize() * (1 + 0.6 * Math.min(1, s.life / Wp.life)) * (1 + 0.05 * Math.sin(time * 9 + s.life * 4));
-  ctx.save();
-  const g = ctx.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, r);
-  g.addColorStop(0, "rgba(159,232,216,0.08)"); g.addColorStop(0.85, "rgba(159,232,216,0.3)"); g.addColorStop(1, "rgba(220,255,250,0.7)");
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
-  ctx.strokeStyle = "rgba(230,255,250,0.8)"; ctx.lineWidth = Math.max(1, r * 0.06); ctx.stroke();
-  ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.beginPath(); ctx.ellipse(p.x - r * 0.35, p.y - r * 0.4, r * 0.22, r * 0.12, -0.6, 0, TAU); ctx.fill();
+  const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y);
+  if (!s.sz) {   // a bubble without a charge (the bot's): a little bigger as it floats
+    drawBubbleBall(p.x, p.y, Wp.r * shipSize() * (1 + 0.6 * Math.min(1, s.life / Wp.life)), 1 + 0.05 * Math.sin(time * 9 + s.life * 4), Math.atan2(s.vx, -s.vy), s.x, s.y);
+    return;
+  }
+  // its first 0.42 s the film still wobbles from being let go
+  const st = 1 + ((s.st || 1) - 1) * Math.max(0, 1 - s.life / 0.42) + Math.sin(s.life * 21) * 0.13 * Math.max(0, 1 - s.life / 0.42);
+  drawBubbleBall(p.x, p.y, Wp.r * shipSize() * s.sz, st, Math.atan2(s.vx, -s.vy), s.x, s.y);
+}
+// a soap bubble at screen (x, y), radius r, pulled `st` long along `ang` (0 = up). The film and its glints from the
+// drawings, the star's colour caught on the rim on the side facing it (and a cooler light opposite), clipped to it
+function drawBubbleBall(x, y, r, st, ang, wx, wy) {
+  const shell = artImage(framePath("puff", "bubble_shell.webp")), glints = artImage(framePath("puff", "bubble_glints.webp")), D = r * 512 / 240;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(1 / Math.sqrt(st), st); ctx.rotate(-ang);
+  if (shell) ctx.drawImage(shell, -D / 2, -D / 2, D, D);
+  else { ctx.fillStyle = "rgba(159,232,216,0.15)"; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill(); }
+  ctx.save(); ctx.beginPath(); ctx.arc(0, 0, r * 0.99, 0, TAU); ctx.clip(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+  const sx = wrapDelta(WW / 2 - wx, WW), sy = wrapDelta(WH / 2 - wy, WH), dist = Math.hypot(sx, sy), toStar = Math.atan2(sy, sx);
+  const lights = [[toStar, body().color, Math.min(1, 1.6 / (1 + dist / (U * 1.2)))], [toStar + Math.PI, "#9fd8ff", 0.35]];
+  for (const [a, c, k] of lights) {
+    ctx.save(); ctx.rotate(a); ctx.globalAlpha = k * (0.9 + 0.1 * Math.sin(time * 2.4));
+    ctx.strokeStyle = c; ctx.lineWidth = r * 0.07; ctx.beginPath(); ctx.arc(0, 0, r * 0.9, -0.95, -0.2); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, r * 0.9, 0.25, 0.75); ctx.stroke();
+    ctx.lineWidth = r * 0.025; ctx.globalAlpha *= 0.7; ctx.beginPath(); ctx.arc(0, 0, r * 0.95, -0.15, 0.2); ctx.stroke();
+    const g = ctx.createRadialGradient(r * 0.62, -r * 0.35, 0, r * 0.62, -r * 0.35, r * 0.35); g.addColorStop(0, hexA(c, 0.35)); g.addColorStop(1, hexA(c, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(r * 0.62, -r * 0.35, r * 0.35, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  // a faint rainbow sheen drifting over the film
+  ctx.globalAlpha = 0.12; const h = (time * 40) % 360, cg = ctx.createLinearGradient(-r, -r, r, r);
+  cg.addColorStop(0, `hsl(${h},90%,60%)`); cg.addColorStop(0.5, `hsl(${(h + 120) % 360},90%,60%)`); cg.addColorStop(1, `hsl(${(h + 240) % 360},90%,60%)`);
+  ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
   ctx.restore();
+  if (glints) ctx.drawImage(glints, -D / 2, -D / 2, D, D);
+  ctx.restore();
+}
+// the held bubble on PUFF's nozzle (the nozzle a copper cone, wider with each push of air)
+function drawHeldBubble(o, ms) {
+  const P = bubbleCharge(ms), A = bubbleAt(o, P), m = toScreen(A.mx, A.my), c = toScreen(A.x, A.y), k = 2.0 / 560 * shipSize();
+  ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(o.ang);
+  const w = (9 + 5 * P.pump) * k;
+  ctx.fillStyle = "#b8743a"; ctx.strokeStyle = "#5a3a10"; ctx.lineWidth = Math.max(1, k * 2);
+  ctx.beginPath(); ctx.moveTo(-w * 0.6, 14 * k); ctx.lineTo(w * 0.6, 14 * k); ctx.lineTo(w, -2 * k); ctx.lineTo(-w, -2 * k); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  drawBubbleBall(c.x, c.y, A.r, P.stretch, o.ang, A.x, A.y);
 }
 // PUFF's magic button: a round puffer with its spines out
 function drawPuffButton(b, M, ready, k) {
@@ -6274,20 +6370,20 @@ function draw() {
       if (shown === S && game.soak) drawSoakHalo(p.x, p.y, shipSize(), game.soak.heat, game.soak.held, magicOf(S));
       if (shown === S && game.soak && game.soak.boost && game.power > 0.3 && Math.random() < 0.6)   // twice as fast: a trail of light
         for (const e of exhausts(game, S)) burstAt(e.x, e.y, 2, ["#fff8ce", "#ffcc63"], 0.12, 0.5, game.vx * 0.3, game.vy * 0.3);
-      if (shown === S && S.grows) drawTalusRing(p.x, p.y, shipSize() * sc, game.talus.ring);
       const dug = shown === S && game.dive;
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
-          half: shown === S && game.splitUsed ? "rear" : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
+          half: shown === S && game.splitUsed ? "rear" : null, glow: shown === S && S.grows ? talusGlow(game.talus.ring) : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
       if (dug) ctx.restore();
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
       if (shown === S) drawDevour(game, S, game.devour);
       if (shown === S) drawDash();
       if (shown === S) drawChordGuides();
+      if (shown === S && game.bub) drawHeldBubble(game, game.bub.t * 1000);
       if (shown === S && trapOpen()) drawSuck(game, S);
       if (shown === S && S.clouds) drawNimbusClouds(game, game.anim, "me");
       if (shown === S) { drawFlail(game, S, game.flail); drawAnchor(p.x, p.y, shipSize()); }
@@ -6530,10 +6626,10 @@ function drawEnemy() {
     const st = shipStats(E);
     if (enemy.remote) drawTail(duel.tail, E);
     const esc = enemy.remote && enemy.talus ? enemy.talus.scale : 1;
-    if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
     const dv = enemy.remote && duel.net && duel.net.dv;
+    if (enemy.remote && duel.net && duel.net.bb) drawHeldBubble(enemy, duel.net.bb);
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
+    drawShip(E, p.x, p.y, size * esc, { glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
@@ -7531,7 +7627,7 @@ function duelLink(event, data) {
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
     const S = shipById(m.s), a0 = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
     const art = a0 && a0.files && m.ix != null ? { ...a0, file: a0.files[m.ix] } : a0;   // CANTOR: each bolt its groove's colour
-    duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, lvl: m.v || 0, ix: m.ix,
+    duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
     if (duel.shots.length < 60) audio.shot(m.w);
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
@@ -7727,7 +7823,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
@@ -7962,7 +8058,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 function tryShip(id) {
   game.ship = id;
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();

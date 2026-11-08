@@ -182,6 +182,12 @@ next fresh press of a fire button: all 12 spines fly off at once (12 each), and 
 random way like a let-go balloon (1.1 s, up to 3x its top speed, wobbling). A ship it hits on that flight is blown up.
 It stays crumpled until it puffs up again (6 s recharge, counted from the spines).
 
+Button 2 (puff-bubble.js) is held: a bubble is blown on a nozzle in five pushes of air (2.45 s to full size) and leaves
+when the button is let go: the bigger, the slower, and the harder it hits (8 to 30) and shoves. The soap film catches the
+star's colour on the side facing it.
+
+**TALUS** just grown: a dim glow hugging its outline, slowly running through the colours as it fades (`talusGlow`).
+
 **THUL's smoke** is a green chemical haze: an enemy inside it loses 12 health a second (`MAGIC.smoke.chem.dps`).
 
 **CINDER**, the blockade runner (`art/ships/cinder/`: a hull and two engines on swivel joints, put together in code).
