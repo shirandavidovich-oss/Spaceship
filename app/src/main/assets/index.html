@@ -31,7 +31,7 @@ const UNLOCK     = 0.2;  // after the fuel runs out, the button comes back when 
 const ENEMY      = true; // an enemy ship flies with you (for now it only flies, no weapons yet)
 const ENEMY_KEEP = 0.9;  // how close the enemy likes to stay to you, in screen-widths
 const ZOOM_MIN   = 0.4;  // like Star Control: the view zooms out (down to this much) to keep both ships on screen
-const TRY_SHIP   = "brass"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
+const TRY_SHIP   = "vexar"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
 const RAM_DAMAGE = 25;   // damage from crashing into the enemy at full speed (both ships take it)
@@ -125,8 +125,27 @@ const SHIPS = [
       secondary: frames("cannon", 23, (n) => n <= 8 ? 75 : n === 9 ? 120 : 60, { 10: "fire" }),
       // the magic button: the vent covers slide open, the vents pulse, the smoke starts pouring at 450 ms (frame 7), covers close. 1,725 ms
       smoke: frames("smoke", 23, () => 75, { 7: "release" }),
-      // the cannonball drawing: 64 px across at the hull's scale (64 / 512 * 1.2)
-      ball: { file: "cannonball.webp", size: 0.15 } } }
+      // drawings for the shots: the cannonball, 64 px across at the hull's scale (64 / 512 * 1.2), rolling as it flies
+      shotArt: { iris: { file: "cannonball.webp", size: 0.15, spin: 6 } } } },
+  // VEXAR, the green hunting ship (art/ships/vexar/, 512 x 512, center pivot, nose up), from vexar-animation.json.
+  // Button 1: thorns from the two claw launchers, taking turns. Button 2: the mandibles spread, the armor covers
+  // swing open and an egg is laid; it drifts to a stop, pulses, and hatches 3 hunters that chase the enemy.
+  // The enemy can crush the egg by flying into it before it hatches (then no hunters).
+  // magic: the tail button (a stinger tail that trails behind and drains whoever touches it)
+  { id: "vexar", name: "VEXAR", rarity: "epic", mass: 1.0, fuel: 30, refill: 15, magic: "tail",
+    hull: "#3fae2a", wingC: "#10240f", trim: "#b8ff3a", flame: "#b8ff3a",
+    body: [], wing: [], nozzles: [0], engineY: 0.33, cockpit: [0, -0.2, 0.05, 0.1],
+    weapons: ["thorn", "hive"],
+    // anchors: thornLeft (166,97), thornRight (347,97), egg chamber (256,321)
+    guns: { thorn: [[-0.211, -0.373], [0.213, -0.373]], hive: [[0, 0.152]] },
+    tailY: 0.3,   // where the tail comes out (the end of the abdomen, pixel y 384)
+    anim: { dir: "vexar", size: 1.2, idle: "idle.webp",
+      primary:   frames("primary", 5, () => 63, { 2: "left", 4: "right" }),     // 315 ms: left at 63, right at 189
+      secondary: frames("hunt", 15, () => 64, { 8: "fire" }),                   // 960 ms: the egg leaves at 448
+      shotArt: { thorn: { file: "thorn.webp", size: 0.3 } },                     // 128 px at the hull's scale
+      // the egg: pulses while it waits, then cracks and bursts; the hunters come out at the "swarm" frame (180 ms)
+      egg: { pulse: frames("egg", 8, () => 75), hatch: frames("hatch", 12, () => 45, { 5: "swarm" }),
+        hunter: frames("hunter", 4, () => 60), size: 0.45, hunterSize: 0.3, incubate: 1150 } } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -148,6 +167,11 @@ const shipById = (id) => SHIPS.find((s) => s.id === id) || null;
 const WEAPONS = {
   twin:    { name: "תותח כפול", dmg: 4,  speed: 2.4, life: 1.0, cool: 0.11, ammo: 40, refill: 8,  r: 0.018, color: "#ffd166" },
   iris:    { name: "עין הפליז", dmg: 30, speed: 1.1, life: 3.2, cool: 0.8,  ammo: 5,  refill: 10, r: 0.05,  color: "#ffb347", homing: 2.6 },
+  thorn:   { name: "קוצים",     dmg: 5,  speed: 2.6, life: 1.0, cool: 0.16, ammo: 30, refill: 8,  r: 0.02,  color: "#b8ff3a" },
+  // hive: lays an egg (speed: how fast it is pushed out, then it drifts to a stop). dmg: per hunter
+  //   swarm: hunters per egg   hunterSpeed: screens per second   hunterTurn: radians per second   hunterLife: seconds
+  hive:    { name: "קן ציידים", dmg: 9,  speed: 0.9, life: 1.15, cool: 1.0, ammo: 3,  refill: 12, r: 0.12,  color: "#b8ff3a",
+             egg: true, swarm: 3, hunterSpeed: 1.7, hunterTurn: 4, hunterLife: 4.5 },
   laser:   { name: "לייזר",     dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -157,8 +181,19 @@ const LOOT = ["laser", "missile", "spread"];
 // ---- magic (its own button, not a weapon; each ship's magic button looks like the ship's style) ----
 //   pour: seconds of smoke pouring out   hide: seconds the enemy loses track of you   cool: seconds until it can be used again
 const MAGIC = {
-  smoke: { name: "מסך עשן", pour: 3.5, hide: 6, cool: 14, look: "gear", color: "#e0b060" }
+  smoke: { name: "מסך עשן", pour: 3.5, hide: 6, cool: 14, look: "gear", color: "#e0b060" },
+  // the tail: grows out behind the ship over `out` seconds, stays `hold`, pulls back in over `back`.
+  //   len: its full length in ship-lengths   drain: health per second taken from a ship touching it
+  tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 3.2, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
 };
+// how much of the tail is out at time t (seconds since the button): 0..1, or -1 once it is back in
+function tailOut(M, t) {
+  if (t < 0) return 0;
+  if (t < M.out) return 1 - Math.pow(1 - t / M.out, 2);
+  if (t < M.out + M.hold) return 1;
+  if (t < M.out + M.hold + M.back) return 1 - Math.pow((t - M.out - M.hold) / M.back, 2);
+  return -1;
+}
 // how the steam engine misbehaves (chances per second while the engine runs)
 const STEAM = { dies: 0.09, out: [0.5, 1.3], backfire: 0.35, creak: 0.3 };
 // crash damage for an impact at `speed` screens per second (gentle bumps do nothing)
@@ -398,6 +433,8 @@ const audio = {
     if (w === "twin") { this.tone(1900, 0.03, "square", 0.04, 0.5); this.noise(0.06, 0.14, 2600); [0.04, 0.07, 0.1].forEach((d) => this.tone(700, 0.025, "triangle", 0.02, 0.8, d)); }
     // iris: the heavy release (the gear grind and the latch come first, in windUp)
     else if (w === "iris") this.cannon();
+    else if (w === "thorn") { this.tone(1100, 0.05, "triangle", 0.06, 0.4); this.noise(0.05, 0.1, 4000); }
+    else if (w === "hive") { }   // (the jaws already made their sound)
     else if (w === "laser") this.tone(1500, 0.12, "sawtooth", 0.05, 0.3);
     else if (w === "missile") { this.tone(320, 0.35, "triangle", 0.1, 0.4); this.noise(0.3, 0.08, 1200); }
     else this.noise(0.12, 0.2, 1800);
@@ -448,6 +485,14 @@ const audio = {
     else this.tone(1300 + Math.random() * 900, 0.14, "triangle", 0.025, 0.8);   // squeak
     if (r > 0.8) this.tone(2400, 0.04, "square", 0.02, 1, 0.1);   // a rattle
   },
+  // VEXAR: a thorn leaves the claw (a wet flick); the jaws spread and the egg is pushed out (a soft chitin creak, a plop)
+  jaws() { this.tone(120, 0.4, "sawtooth", 0.035, 0.6); this.tone(900, 0.06, "triangle", 0.03, 0.5, 0.05); this.tone(700, 0.06, "triangle", 0.03, 0.5, 0.22); this.tone(180, 0.18, "sine", 0.25, 0.4, 0.42); },
+  // the egg cracks open (crackle + a buzzing swarm), or is crushed (just the crackle)
+  hatch(swarm) { for (let i = 0; i < 5; i++) this.tone(1800 + Math.random() * 1500, 0.025, "square", 0.03, 0.6, i * 0.035); this.noise(0.15, 0.2, 3000);
+    if (swarm) [0.2, 0.26, 0.31].forEach((d, i) => this.tone(210 + i * 40, 0.5, "sawtooth", 0.03, 1.3, d)); },
+  // the tail: a whip-like lash going out; a zap while it drains someone
+  lash() { this.tone(300, 0.5, "sawtooth", 0.05, 0.35); this.noise(0.4, 0.15, 2200); this.tone(1400, 0.12, "triangle", 0.04, 0.5, 0.35); },
+  zap() { this.tone(900 + Math.random() * 300, 0.07, "square", 0.04, 0.4); },
   // the smoke hatches: the vent covers slide open (a metal scrape and a clunk)
   hatch() { this.noise(0.35, 0.18, 3500); this.tone(420, 0.3, "sawtooth", 0.03, 1.6); this.tone(90, 0.12, "square", 0.08, 0.6, 0.3); },
   // the smoke screen: a long hiss, and a little magic chime
@@ -508,6 +553,7 @@ const game = {
   dead: 0,          // seconds until your ship comes back after blowing up (0 = flying)
   shakeT: 0,        // how hard the screen is shaking right now
   deaths: 0,
+  tail: null,       // VEXAR's tail while it is out: { t: seconds, pts: the segments in space, zap, touch }
   magicWait: false, // the gear was tapped during the cannon shot: the smoke follows right after
   anim: null        // the ship's drawings playing now: { seq: "primary" | "secondary" | "smoke", t: ms, pending, release }
 };
@@ -833,6 +879,11 @@ function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
 function useMagic() {
   const S = shipById(game.ship), M = magicOf(S);
   if (!M || game.magicCool > 0 || game.dead) return;
+  if (M.look === "tail") {   // the stinger tail grows out behind the ship
+    game.magicCool = M.cool; game.tail = { t: 0, pts: null, zap: 0, touch: 0 };
+    audio.lash(); buzz(50);
+    return;
+  }
   // a ship with smoke drawings: the vent covers open first, and the smoke leaves at the "release" frame
   if (S.anim && S.anim.smoke) {
     if (game.anim && game.anim.seq === "secondary") { game.magicWait = true; return; }   // after the cannon shot
@@ -853,6 +904,7 @@ function releaseSmoke() {
 }
 function updateMagic(dt) {
   const S = shipById(game.ship), M = magicOf(S);
+  updateTail(dt);
   game.magicCool = Math.max(0, game.magicCool - dt);
   game.hidden = Math.max(0, game.hidden - dt);
   game.gear += dt * (game.magicPour > 0 ? 9 : game.magicCool > 0 ? 0.25 : 1.2);   // the gear button turns
@@ -860,6 +912,96 @@ function updateMagic(dt) {
   game.magicPour -= dt;
   // thick smoke pours from the engines and hangs in space
   if (Math.random() < 30 * dt) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, 2.6 + Math.random() * 1.5, M.hide - 0.5);
+}
+
+// ---------- the tail (VEXAR's magic) ----------
+// A chain of segments: the first one sits at the end of the ship's abdomen, every next one follows the one before
+// at a fixed spacing, leaning back behind the ship. So when the ship turns or flies, the tail drags and swings
+// after it. A ship touching it loses health. When it has been all the way out, it pulls back into the ship.
+const TAIL_SEGS = 16;
+function tailBase(S) { const size = shipSize(), p = rotatePt(0, (S.tailY || 0.4) * size, game.ang); return { x: game.x + p.x, y: game.y + p.y }; }
+function updateTail(dt) {
+  const T = game.tail, S = shipById(game.ship), M = magicOf(S);
+  if (!T) return;
+  if (!M || M.look !== "tail") { game.tail = null; return; }
+  T.t += dt;
+  const out = tailOut(M, T.t);
+  if (out < 0) { game.tail = null; return; }
+  const size = shipSize(), base = tailBase(S), step = out * M.len * size / TAIL_SEGS;
+  const bx = -Math.sin(game.ang), by = Math.cos(game.ang), lean = 1 - Math.exp(-dt * 2.5);
+  // it starts as a short straight line behind the ship (so every segment knows which way is "back")
+  if (!T.pts) T.pts = Array.from({ length: TAIL_SEGS + 1 }, (_, i) => ({ x: base.x + bx * i * 0.5, y: base.y + by * i * 0.5 }));
+  const old = T.pts.slice();
+  T.pts[0] = base;
+  for (let i = 1; i <= TAIL_SEGS; i++) {
+    const a = T.pts[i - 1], b = old[i];
+    // the way this segment pointed a moment ago
+    let ox = wrapDelta(b.x - old[i - 1].x, WW), oy = wrapDelta(b.y - old[i - 1].y, WH), od = Math.hypot(ox, oy);
+    if (od < 1e-6) { ox = bx; oy = by; od = 1; }
+    ox /= od; oy /= od;
+    // follow: point from the segment before (where it is now) to where this one was. That makes the tail drag.
+    // (while the tail grows, that could fold it back on itself: then it keeps pointing the way it did)
+    let dx = wrapDelta(b.x - a.x, WW), dy = wrapDelta(b.y - a.y, WH), d = Math.hypot(dx, dy);
+    if (d < 1e-6 || dx * ox + dy * oy <= 0) { dx = ox; dy = oy; d = 1; }
+    dx = dx / d * (1 - lean) + bx * lean; dy = dy / d * (1 - lean) + by * lean;   // leans back behind the ship
+    const n = Math.hypot(dx, dy) || 1;
+    T.pts[i] = { x: a.x + dx / n * step, y: a.y + dy / n * step };
+  }
+  // touching the enemy: it loses health while it stays on the tail
+  T.zap -= dt; T.touch = Math.max(0, T.touch - dt);
+  if (!enemy.on || enemy.warp >= 0.5) return;
+  for (let i = 3; i <= TAIL_SEGS; i++) {
+    const q = T.pts[i];
+    if (Math.hypot(wrapDelta(enemy.x - q.x, WW), wrapDelta(enemy.y - q.y, WH)) < size * (0.42 + tailWidth(i) / 2)) {
+      enemy.hp -= M.drain * dt; enemy.hurt = 0.15; T.touch = 0.2;
+      if (T.zap <= 0) { T.zap = 0.12; audio.zap(); buzz(15); burstAt(q.x, q.y, 5, [M.color, "#ffffff"], 0.2, 0.5, enemy.vx, enemy.vy); }
+      if (enemy.hp <= 0) destroyEnemy();
+      break;
+    }
+  }
+}
+// the tail's width at segment i, in ship-lengths: thick at the ship, thin at the stinger
+function tailWidth(i) { return 0.05 + 0.13 * (1 - i / TAIL_SEGS); }
+// the tail, drawn under the ship: dark green chitin plates with lime edges and a glowing stripe, a thorn for a stinger
+function drawTail() {
+  const T = game.tail;
+  if (!T || !T.pts || game.dead) return;
+  const S = shipById(game.ship), size = shipSize(), pts = T.pts.map((q, i) => {
+    const p = toScreen(q.x, q.y);
+    if (i === 0) return p;
+    // a living wave runs down the tail
+    const a = T.pts[i - 1], dx = wrapDelta(q.x - a.x, WW), dy = wrapDelta(q.y - a.y, WH), d = Math.hypot(dx, dy) || 1;
+    const w = Math.sin(time * 7 - i * 0.55) * size * 0.035 * (i / TAIL_SEGS);
+    return { x: p.x - dy / d * w, y: p.y + dx / d * w };
+  });
+  const glow = T.touch > 0 ? 1 : 0.5 + 0.2 * Math.sin(time * 6);
+  ctx.save();
+  // the spine underneath
+  ctx.strokeStyle = "#0a1a0a"; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = size * 0.06;
+  ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
+  // the stinger: VEXAR's own thorn drawing, pointing out along the tail
+  const a = pts[TAIL_SEGS - 1], z = pts[TAIL_SEGS], st = artImage(framePath(S.anim ? S.anim.dir : "vexar", "thorn.webp"));
+  if (st) {
+    const d = size * 0.34;
+    ctx.save(); ctx.translate(z.x, z.y); ctx.rotate(Math.atan2(z.x - a.x, -(z.y - a.y)));
+    if (T.touch > 0) { ctx.shadowColor = "#b8ff3a"; ctx.shadowBlur = size * 0.15; }
+    ctx.drawImage(st, -d / 2, -d * 0.35, d, d); ctx.restore();
+  }
+  // the plates, from the tip back to the ship (so the ones nearer the ship lie on top)
+  for (let i = TAIL_SEGS; i >= 1; i--) {
+    const p = pts[i - 1], q = pts[i], mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+    const len = Math.hypot(q.x - p.x, q.y - p.y), w = tailWidth(i) * size;
+    if (len < 0.5) continue;
+    ctx.save(); ctx.translate(mx, my); ctx.rotate(Math.atan2(q.y - p.y, q.x - p.x));
+    const g = ctx.createLinearGradient(0, -w / 2, 0, w / 2);
+    g.addColorStop(0, "#0f2a10"); g.addColorStop(0.35, "#3fae2a"); g.addColorStop(0.5, "#9fe04a"); g.addColorStop(0.65, "#2e7d1e"); g.addColorStop(1, "#0b1f0b");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, len * 0.72, w / 2, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = hexA("#b8ff3a", 0.55 * glow + 0.2); ctx.lineWidth = Math.max(1, size * 0.008); ctx.stroke();
+    // the glowing stripe down the middle, like the ship's abdomen
+    ctx.fillStyle = hexA("#d8ff5a", 0.45 + 0.5 * glow); ctx.beginPath(); ctx.ellipse(0, 0, len * 0.4, Math.max(1, w * 0.1), 0, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
 }
 
 // ======================================================================
@@ -945,7 +1087,7 @@ function damageShip(n) {
 // health gone: the ship blows up, and comes back near where it started a few seconds later
 function blowUpShip() {
   const S = shipById(game.ship);
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null;
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
   for (let k = 0; k < 10; k++) smokeAt(game.x, game.y, game, S, 2.5, 2.5);
   rings.push({ x: game.x, y: game.y, t: 0, max: 0.8, r: shipSize() * 2.6, c: S.flame });
@@ -976,6 +1118,7 @@ function updateWeapons(dt) {
   const S = shipById(game.ship);
   weaponsOf(S).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt); });
   updateAnim(dt);
+  updateEggs(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
     if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && slotAmmo(i) >= 1 && !waitsForFrames(i)) shoot(i);
@@ -1019,7 +1162,7 @@ function shoot(i) {
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
   if (A && i === 1) {   // the secondary waits for its wind-up
     game.anim = { seq: "secondary", t: 0, pending: w };
-    audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000);
+    if (w === "iris") audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000); else audio.jaws();
     return;
   }
   const guns = gunsOf(S, w), b = game.barrel[i]++ % guns.length;
@@ -1034,14 +1177,16 @@ function spawnShots(w, g) {
   const Wp = WEAPONS[w], S = shipById(game.ship), size = shipSize();
   const m = rotatePt(g[0] * size, g[1] * size, game.ang);
   const x = game.x + m.x, y = game.y + m.y;
+  if (Wp.egg) { layEgg(x, y, Wp, S); return; }
   for (const a of pelletAngles(Wp)) {
     const dir = game.ang + a, v = Wp.speed * U;
     shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * v, vy: game.vy - Math.cos(dir) * v, life: 0 });
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
   if (!S.anim) burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
-  // (THUL's heavy cannon has its flash, shock ring and sparks in the drawings; it gets a cannonball drawing)
-  if (w === "iris" && S.anim && S.anim.ball) for (const s of shots.slice(-pelletAngles(Wp).length)) s.ball = { src: framePath(S.anim.dir, S.anim.ball.file), d: S.anim.ball.size };
+  // shots with their own drawing (THUL's cannonball, VEXAR's thorns). THUL's flash, shock ring and sparks are in its frames
+  const art = S.anim && S.anim.shotArt && S.anim.shotArt[w];
+  if (art) for (const s of shots.slice(-pelletAngles(Wp).length)) s.art = { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0 };
   // the big brass shot kicks the ship back a little
   if (w === "iris") {
     game.vx -= Math.sin(game.ang) * U * 0.16; game.vy += Math.cos(game.ang) * U * 0.16;
@@ -1050,6 +1195,83 @@ function spawnShots(w, g) {
     for (let k = 0; k < 4; k++) smokeAt(x, y, { ang: game.ang + Math.PI, vx: game.vx, vy: game.vy }, S, 1.4, 1.2);
   }
 }
+// ---------- VEXAR's eggs and hunters ----------
+// An egg is pushed out of the chamber, drifts to a stop and pulses; after `incubate` ms it cracks and,
+// at the "swarm" frame, lets out its hunters. The enemy can crush it by flying into it before then (no hunters).
+const eggs = [], hunters = [];
+function layEgg(x, y, Wp, S) {
+  const v = Wp.speed * U;
+  eggs.push({ x, y, vx: game.vx * 0.5 + Math.sin(game.ang) * v, vy: game.vy * 0.5 - Math.cos(game.ang) * v, ang: game.ang,
+    t: 0, ht: -1, crushed: false, w: "hive", E: S.anim.egg, dir: S.anim.dir });
+}
+function updateEggs(dt) {
+  const size = shipSize();
+  for (let k = eggs.length - 1; k >= 0; k--) {
+    const e = eggs[k], Wp = WEAPONS[e.w];
+    e.vx *= Math.exp(-dt * 2.2); e.vy *= Math.exp(-dt * 2.2);   // drifts to a stop
+    e.x = (((e.x + e.vx * dt) % WW) + WW) % WW; e.y = (((e.y + e.vy * dt) % WH) + WH) % WH;
+    e.t += dt * 1000;
+    const swarm = cueTime(e.E.hatch, "swarm");
+    // the enemy flies into it before the hunters are out: crushed, only the shell pieces fly
+    if (!e.crushed && e.ht < swarm && enemy.on && enemy.warp < 0.5 &&
+        Math.hypot(wrapDelta(enemy.x - e.x, WW), wrapDelta(enemy.y - e.y, WH)) < size * 0.42 + Wp.r * size) {
+      e.crushed = true; e.ht = swarm; audio.hatch(false);
+      burstAt(e.x, e.y, 14, ["#b8ff3a", "#3fae2a", "#e9ffd0"], 0.35, 0.7, enemy.vx * 0.3, enemy.vy * 0.3);
+      continue;
+    }
+    if (e.ht < 0) { if (e.t >= e.E.incubate) { e.ht = 0; audio.hatch(true); } continue; }
+    const before = e.ht; e.ht += dt * 1000;
+    if (!e.crushed && before < swarm && e.ht >= swarm) releaseHunters(e, Wp);
+    if (seqFrame(e.E.hatch, e.ht) < 0) eggs.splice(k, 1);
+  }
+  for (let k = hunters.length - 1; k >= 0; k--) {
+    const h = hunters[k], Wp = WEAPONS[h.w];
+    h.life += dt;
+    // speed up to full, and turn toward the enemy no faster than hunterTurn
+    const sp = Math.min(Wp.hunterSpeed * U, Math.hypot(h.vx, h.vy) + Wp.hunterSpeed * U * 2 * dt);
+    let a = Math.atan2(h.vy, h.vx);
+    if (enemy.on) {
+      const want = Math.atan2(wrapDelta(enemy.y - h.y, WH), wrapDelta(enemy.x - h.x, WW));
+      let d = want - a; d = Math.atan2(Math.sin(d), Math.cos(d));
+      a += clamp(d, -Wp.hunterTurn * dt, Wp.hunterTurn * dt);
+    }
+    a += Math.sin(time * 9 + h.seed) * 0.6 * dt;   // a little wobble, like a wasp
+    h.vx = Math.cos(a) * sp; h.vy = Math.sin(a) * sp;
+    h.x = (((h.x + h.vx * dt) % WW) + WW) % WW; h.y = (((h.y + h.vy * dt) % WH) + WH) % WH;
+    const gone = () => { burstAt(h.x, h.y, 6, ["#b8ff3a", "#ffffff"], 0.15, 0.5); hunters.splice(k, 1); };
+    if (h.life > Wp.hunterLife) { gone(); continue; }
+    if (Math.hypot(wrapDelta(h.x - WW / 2, WW), wrapDelta(h.y - WH / 2, WH)) < U * PLANET_R) { gone(); continue; }
+    if (enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - h.x, WW), wrapDelta(enemy.y - h.y, WH)) < shipSize() * 0.45) {
+      hitEnemy(h, Wp); hunters.splice(k, 1);
+    }
+  }
+}
+// three different hunters, spread out a little, all heading for the enemy (or straight out the way the egg faced)
+function releaseHunters(e, Wp) {
+  const base = enemy.on ? Math.atan2(wrapDelta(enemy.y - e.y, WH), wrapDelta(enemy.x - e.x, WW)) : e.ang - Math.PI / 2;
+  for (let i = 0; i < Wp.swarm; i++) {
+    const a = base + (i / Math.max(1, Wp.swarm - 1) - 0.5) * 1.6, v = Wp.hunterSpeed * U * 0.35;
+    hunters.push({ w: e.w, x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, seed: i * 2.1 + Math.random(),
+      frames: e.E.hunter, d: e.E.hunterSize, dir: e.dir, phase: i * 70 });
+  }
+}
+function drawEggs() {
+  const size = shipSize();
+  for (const e of eggs) {
+    const p = toScreen(e.x, e.y), d = e.E.size * size;
+    const seq = e.ht < 0 ? e.E.pulse : e.E.hatch, t = e.ht < 0 ? e.t % seqLength(e.E.pulse) : e.ht, f = seqFrame(seq, t);
+    const img = f >= 0 && artImage(framePath(e.dir, seq[f][0]));
+    if (!img) continue;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(e.ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+  }
+  for (const h of hunters) {
+    const p = toScreen(h.x, h.y), d = h.d * size, f = seqFrame(h.frames, (h.life * 1000 + h.phase) % seqLength(h.frames));
+    const img = artImage(framePath(h.dir, h.frames[Math.max(0, f)][0]));
+    if (!img) continue;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(h.vx, -h.vy)); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+  }
+}
+
 // moves the firing drawings along; each shot cue fires once, even if a slow frame jumps past it
 function updateAnim(dt) {
   const a = game.anim, A = shipById(game.ship).anim;
@@ -1276,7 +1498,8 @@ function preloadArt() {
     const A = S.anim;
     if (!A) continue;
     const all = [A.idle, ...[A.primary, A.secondary, A.smoke].filter(Boolean).flatMap((q) => q.map((x) => x[0]))];
-    if (A.ball) all.push(A.ball.file);
+    for (const k in A.shotArt || {}) all.push(A.shotArt[k].file);
+    if (A.egg) all.push(...[A.egg.pulse, A.egg.hatch, A.egg.hunter].flatMap((q) => q.map((x) => x[0])));
     for (const f of all) artImage(framePath(A.dir, f));
   }
 }
@@ -1440,6 +1663,7 @@ function draw() {
     drawCrate();
     drawEnemy();
     if (!game.dead) {
+      drawTail();
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize(),
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping });
@@ -1449,6 +1673,7 @@ function draw() {
       }
     }
     drawShots();
+    drawEggs();
     drawParts();
     drawRings();
     ctx.restore();
@@ -1607,13 +1832,14 @@ function drawShots() {
       ctx.strokeStyle = hexA(Wp.color, 0.35); ctx.lineWidth = wd * 2.6;
       ctx.beginPath(); ctx.moveTo(p.x - ux * len, p.y - uy * len); ctx.lineTo(p.x, p.y); ctx.stroke();
       ctx.strokeStyle = "#ffffff"; ctx.lineWidth = wd * 0.8; ctx.stroke();
-    } else if (s.w === "iris" && s.ball && artImage(s.ball.src)) {
-      // THUL's cannonball drawing, rolling as it flies, with a faint hot glow behind it
-      const img = artImage(s.ball.src), d = s.ball.d * size;
-      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, d * 1.1);
-      g.addColorStop(0, "rgba(255,170,60,0.35)"); g.addColorStop(1, "rgba(255,120,0,0)");
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, d * 1.1, 0, TAU); ctx.fill();
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s.life * 6);
+    } else if (s.art && artImage(s.art.src)) {
+      // a shot with its own drawing: the cannonball rolls as it flies (spin); a thorn points where it flies.
+      // A faint glow in the weapon's color behind it
+      const img = artImage(s.art.src), d = s.art.d * size;
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, d * (s.art.spin ? 1.1 : 0.45));
+      g.addColorStop(0, hexA(Wp.color, 0.35)); g.addColorStop(1, hexA(Wp.color, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, d * (s.art.spin ? 1.1 : 0.45), 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s.art.spin ? s.life * s.art.spin : Math.atan2(ux, -uy));
       ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
     } else if (s.w === "iris") {
       // a glowing brass orb with a turning swirl
@@ -1668,6 +1894,12 @@ function weaponIcon(w, x, y, r, color) {
   } else if (w === "iris") {
     ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, TAU); ctx.stroke();
     for (let i = 0; i < 6; i++) { const a = i * TAU / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8); ctx.quadraticCurveTo(Math.cos(a + 0.9) * r * 0.5, Math.sin(a + 0.9) * r * 0.5, Math.cos(a + 1.6) * r * 0.2, Math.sin(a + 1.6) * r * 0.2); ctx.stroke(); }
+  } else if (w === "thorn") {   // two curved thorns
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * r * 0.15, -r * 0.95); ctx.quadraticCurveTo(sx * r * 0.65, -r * 0.1, sx * r * 0.45, r * 0.9);
+      ctx.lineTo(sx * r * 0.2, r * 0.75); ctx.quadraticCurveTo(sx * r * 0.35, -r * 0.1, sx * r * 0.15, -r * 0.95); ctx.fill(); }
+  } else if (w === "hive") {    // an egg with a crack
+    ctx.beginPath(); ctx.ellipse(0, r * 0.08, r * 0.6, r * 0.82, 0, 0, TAU); ctx.stroke();
+    ctx.lineWidth = Math.max(1.5, r * 0.12); ctx.beginPath(); ctx.moveTo(-r * 0.45, r * 0.05); ctx.lineTo(-r * 0.15, -r * 0.15); ctx.lineTo(0, r * 0.12); ctx.lineTo(r * 0.2, -r * 0.2); ctx.lineTo(r * 0.45, 0); ctx.stroke();
   } else if (w === "laser") {
     ctx.beginPath(); ctx.moveTo(-r * 0.3, -r * 0.9); ctx.lineTo(r * 0.2, -r * 0.1); ctx.lineTo(-r * 0.2, r * 0.1); ctx.lineTo(r * 0.3, r * 0.9); ctx.stroke();
   } else if (w === "missile") {
@@ -1717,6 +1949,7 @@ function drawMagic() {
   const M = magicOf(shipById(game.ship));
   if (!M || trade.stage === "swapping") return;
   const b = magicButton(), ready = game.magicCool <= 0, k = ready ? 1 : 1 - game.magicCool / M.cool;
+  if (M.look === "tail") drawTailButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
     // a magic glow when ready
@@ -1763,6 +1996,46 @@ function drawMagic() {
     }
     ctx.restore();
   }
+}
+
+// VEXAR's magic button: a dark chitin shell with a curled, segmented stinger tail inside.
+// Ready: lime glow and the tail sways. Out: the tail uncurls. Recharging: dim, its lime rim fills back in
+function drawTailButton(b, M, ready, k) {
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (ready) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
+    gl.addColorStop(0, `rgba(184,255,58,${0.25 + 0.12 * Math.sin(time * 3)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#2f5a22"); bg.addColorStop(0.7, "#10240f"); bg.addColorStop(1, "#050d05");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  // the rim: lime, filling back in while it recharges
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(184,255,58,0.15)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = M.color; ctx.globalAlpha = ready ? 1 : 0.8;
+  ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  // the tail: plates along a spiral (curled when resting, opening out while the real tail is out)
+  ctx.globalAlpha = ready ? 1 : 0.5;
+  const open = game.tail ? Math.max(0, tailOut(M, game.tail.t)) : 0, sway = ready ? Math.sin(time * 2.5) * 0.15 : 0, n = 9;
+  let last = null, prev = null;
+  for (let j = n - 1; j >= 0; j--) {
+    const u = j / (n - 1), a = -Math.PI * 0.6 + u * (4.2 - open * 2.4) + sway * u, rr = b.r * (0.55 - u * (0.38 - open * 0.25));
+    const x = Math.cos(a) * rr - b.r * 0.05, y = Math.sin(a) * rr + b.r * 0.05, w = b.r * (0.2 - u * 0.12);
+    const g = ctx.createRadialGradient(x - w * 0.3, y - w * 0.3, 0, x, y, w);
+    g.addColorStop(0, "#d8ff5a"); g.addColorStop(0.5, "#3fae2a"); g.addColorStop(1, "#0f2a10");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, w, 0, TAU); ctx.fill();
+    if (j === n - 1) last = { x, y }; if (j === n - 2) prev = { x, y };
+  }
+  // the stinger at the tip
+  if (last && prev) {
+    const a = Math.atan2(last.y - prev.y, last.x - prev.x), L = b.r * 0.32;
+    ctx.fillStyle = ready ? "#e9ffd0" : "#8fa88a";
+    ctx.beginPath(); ctx.moveTo(last.x + Math.cos(a) * L, last.y + Math.sin(a) * L);
+    ctx.lineTo(last.x + Math.cos(a + 1.9) * L * 0.3, last.y + Math.sin(a + 1.9) * L * 0.3);
+    ctx.lineTo(last.x + Math.cos(a - 1.9) * L * 0.3, last.y + Math.sin(a - 1.9) * L * 0.3); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
 }
 
 // the thrust button: white when full, through yellow, orange, red, purple, blue... to black, then gone

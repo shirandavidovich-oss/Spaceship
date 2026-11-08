@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("eleven ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 11);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 11);
+ok("twelve ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 12);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 12);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -131,7 +131,7 @@ ok("THUL smoke hatches: 23 frames, 1,725 ms, smoke starts at 450 ms", () => {
   const A = SHIPS.find((s) => s.id === "brass").anim;
   assert.strictEqual(A.smoke.length, 23); assert.strictEqual(seqLength(A.smoke), 1725);
   assert.strictEqual(cueTime(A.smoke, "release"), 450);
-  assert(Math.abs(A.ball.size - 64 / 512 * A.size) < 1e-9, "cannonball 64 px at the hull's scale");
+  assert(Math.abs(A.shotArt.iris.size - 64 / 512 * A.size) < 1e-9, "cannonball 64 px at the hull's scale");
 });
 ok("THUL twin cannon cues: left barrel at frame 2, right at frame 3", () => {
   const A = SHIPS.find((s) => s.id === "brass").anim;
@@ -145,8 +145,33 @@ ok("THUL muzzles match the drawing's pixels", () => {
 });
 ok("every THUL drawing the game asks for is in art/ships/thul/", () => {
   const A = SHIPS.find((s) => s.id === "brass").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
-  const all = [A.idle, ...[A.primary, A.secondary, A.smoke].flatMap((q) => q.map((x) => x[0])), A.ball.file];
+  const all = [A.idle, ...[A.primary, A.secondary, A.smoke].flatMap((q) => q.map((x) => x[0])), A.shotArt.iris.file];
   for (const f of all) assert(fs.existsSync(path.join(dir, f.includes(".") ? f : f + ".png")), f);
+});
+ok("VEXAR (vexar-animation.json): thorns at 63 and 189 ms, the egg at 448 ms, hunters at 180 ms into the hatch", () => {
+  const A = SHIPS.find((s) => s.id === "vexar").anim;
+  assert.strictEqual(seqLength(A.primary), 315); assert.strictEqual(cueTime(A.primary, "left"), 63); assert.strictEqual(cueTime(A.primary, "right"), 189);
+  assert.strictEqual(seqLength(A.secondary), 960); assert.strictEqual(cueTime(A.secondary, "fire"), 448);
+  assert.strictEqual(seqLength(A.egg.pulse), 600); assert.strictEqual(seqLength(A.egg.hatch), 540); assert.strictEqual(cueTime(A.egg.hatch, "swarm"), 180);
+  assert.strictEqual(A.egg.incubate, 1150); assert.strictEqual(WEAPONS.hive.swarm, 3);
+});
+ok("VEXAR muzzles match the drawing's anchors", () => {
+  const S = SHIPS.find((s) => s.id === "vexar"), px = (v) => Math.round(v / S.anim.size * 512 + 256);
+  const [l, r] = gunsOf(S, "thorn"), [e] = gunsOf(S, "hive");
+  assert.deepStrictEqual([px(l[0]), px(l[1]), px(r[0]), px(r[1]), px(e[0]), px(e[1])], [166, 97, 347, 97, 256, 321]);
+});
+ok("every VEXAR drawing the game asks for is in art/ships/vexar/", () => {
+  const A = SHIPS.find((s) => s.id === "vexar").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
+  const all = [A.idle, ...[A.primary, A.secondary, A.egg.pulse, A.egg.hatch, A.egg.hunter].flatMap((q) => q.map((x) => x[0])), A.shotArt.thorn.file];
+  for (const f of all) assert(fs.existsSync(path.join(dir, f)), f);
+});
+ok("the tail grows out, stays, pulls back in, and is gone after that", () => {
+  const M = MAGIC.tail;
+  assert.strictEqual(tailOut(M, 0), 0); assert(tailOut(M, M.out / 2) > 0.5 && tailOut(M, M.out / 2) < 1);
+  assert.strictEqual(tailOut(M, M.out + M.hold / 2), 1);
+  const back = tailOut(M, M.out + M.hold + M.back / 2); assert(back > 0 && back < 1);
+  assert.strictEqual(tailOut(M, M.out + M.hold + M.back + 0.01), -1);
+  assert(M.cool > M.out + M.hold + M.back, "it can only be used again after it is back in");
 });
 ok("crashing: gentle bumps are free, harder crashes hurt more, never more than RAM_DAMAGE", () => {
   assert.strictEqual(ramDamage(0.2), 0); assert(ramDamage(0.8) > 0 && ramDamage(1.2) > ramDamage(0.8));

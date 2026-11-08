@@ -39,8 +39,17 @@ sprite and 5 twin-cannon frames, plus 23 heavy-cannon frames, 23 smoke-hatch fra
 512 × 512 hull, center pivot, nose up. The new frames are WebP: same pictures, about a tenth of the download). Button 1 plays the twin-cannon frames
 and each shot leaves from the barrel that flashes; button 2 winds up the brass iris and the shot leaves at
 the big flash. Frames are timed in milliseconds, so they run the same on any screen. It has a mechanical steam engine: a ragged flame, backfires, creaks and
-squeaks, and now and then the fire goes out for a moment (no push, only smoke). While testing, everyone
-flies it (`TRY_SHIP` at the top of the game; set it to `""` for the gift's surprise again).
+squeaks, and now and then the fire goes out for a moment (no push, only smoke). 
+**VEXAR**, the green hunting ship, is the second ship with real drawings (`art/ships/vexar/`).
+Button 1 fires thorns from the two claws, taking turns. Button 2: the mandibles spread, the armor covers swing open
+and an egg is laid; it drifts to a stop and pulses, then cracks and lets out 3 hunters that chase the enemy
+(each hit takes 9 health; they fly about 4.5 s). The enemy can crush the egg by flying into it before it hatches: then no hunters.
+Its magic button is a curled stinger tail: tap it and a long segmented tail grows out behind the ship and drags
+and swings after it as you fly and turn. A ship touching it loses health (28 a second) while it touches. After it has
+been all the way out it pulls back into the ship (about 3.3 s), and the button recharges (9 s).
+
+While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"vexar"`; `"brass"` for THUL,
+`""` for the gift's surprise again).
 Swipe up to offer a trade with a phone nearby; the swap happens only if both players say yes.
 
 ## Install on the phone
