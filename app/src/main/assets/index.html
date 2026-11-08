@@ -123,11 +123,8 @@ const SHIPS = [
       // button 2, the heavy cannon (thul_extended.json): the iris winds open, the chamber glows,
       // flash + shock ring at 720 ms (frame 10), then the hull kicks sideways and settles. 1,560 ms
       secondary: frames("cannon", 23, (n) => n <= 8 ? 75 : n === 9 ? 120 : 60, { 10: "fire" }),
-      // the magic button: the vent covers slide open, the vents pulse, the smoke leaves at 450 ms (frame 7), covers close. 1,725 ms
+      // the magic button: the vent covers slide open, the vents pulse, the smoke starts pouring at 450 ms (frame 7), covers close. 1,725 ms
       smoke: frames("smoke", 23, () => 75, { 7: "release" }),
-      // the smoke cloud: stays where it was let out (does not follow the ship), drawn over the ship. 3,500 ms
-      // size: its 768 canvas at the hull's pixel scale (768 / 512 * 1.2)
-      cloud: { frames: frames("cloud", 28, () => 125), size: 1.8 },
       // the cannonball drawing: 64 px across at the hull's scale (64 / 512 * 1.2)
       ball: { file: "cannonball.webp", size: 0.15 } } }
 ];
@@ -839,30 +836,20 @@ function useMagic() {
   // a ship with smoke drawings: the vent covers open first, and the smoke leaves at the "release" frame
   if (S.anim && S.anim.smoke) {
     if (game.anim && game.anim.seq === "secondary") { game.magicWait = true; return; }   // after the cannon shot
-    game.magicCool = M.cool; game.magicPour = M.pour;
+    game.magicCool = M.cool;
     game.anim = { seq: "smoke", t: 0, release: true };
     audio.hatch(); buzz(40);
     return;
   }
-  game.magicCool = M.cool; game.magicPour = M.pour;
+  game.magicCool = M.cool;
   releaseSmoke();
 }
-// the smoke is out: the enemy loses you, and only knows where you were
+// the smoke is out: thick smoke starts pouring from the engines; the enemy loses you, and only knows where you were
 function releaseSmoke() {
-  const S = shipById(game.ship), M = magicOf(S);
-  game.hidden = M.hide;
+  const M = magicOf(shipById(game.ship));
+  game.magicPour = M.pour; game.hidden = M.hide;
   enemy.ghostX = game.x; enemy.ghostY = game.y;
-  if (S.anim && S.anim.cloud) clouds.push({ x: game.x, y: game.y, ang: game.ang, t: 0, cloud: S.anim.cloud, dir: S.anim.dir });
   audio.magic(); buzz(90);
-}
-// smoke clouds: each stays where it was let out, turned the way the ship faced then, and plays out by itself
-const clouds = [];
-function updateClouds(dt) {
-  for (let k = clouds.length - 1; k >= 0; k--) {
-    const c = clouds[k];
-    c.t += dt * 1000;
-    if (seqFrame(c.cloud.frames, c.t) < 0) clouds.splice(k, 1);
-  }
 }
 function updateMagic(dt) {
   const S = shipById(game.ship), M = magicOf(S);
@@ -871,7 +858,6 @@ function updateMagic(dt) {
   game.gear += dt * (game.magicPour > 0 ? 9 : game.magicCool > 0 ? 0.25 : 1.2);   // the gear button turns
   if (!M || game.magicPour <= 0) return;
   game.magicPour -= dt;
-  if (S.anim && S.anim.cloud) return;   // the drawn cloud is the smoke
   // thick smoke pours from the engines and hangs in space
   if (Math.random() < 30 * dt) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, 2.6 + Math.random() * 1.5, M.hide - 0.5);
 }
@@ -990,7 +976,6 @@ function updateWeapons(dt) {
   const S = shipById(game.ship);
   weaponsOf(S).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt); });
   updateAnim(dt);
-  updateClouds(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
     if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && slotAmmo(i) >= 1 && !waitsForFrames(i)) shoot(i);
@@ -1077,7 +1062,7 @@ function updateAnim(dt) {
       spawnShots(a.pending, gunsOf(shipById(game.ship), a.pending)[0]); audio.shot(a.pending); a.pending = null;
     }
   }
-  if (a.release) {   // the smoke hatches: the cloud leaves once, at its frame
+  if (a.release) {   // the smoke hatches: the smoke starts once, at its frame
     const cue = cueTime(seq, "release");
     if (before <= cue && a.t >= cue || seqFrame(seq, a.t) < 0) { releaseSmoke(); a.release = false; }
   }
@@ -1290,7 +1275,7 @@ function preloadArt() {
   for (const S of SHIPS) {
     const A = S.anim;
     if (!A) continue;
-    const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.cloud && A.cloud.frames].filter(Boolean).flatMap((q) => q.map((x) => x[0]))];
+    const all = [A.idle, ...[A.primary, A.secondary, A.smoke].filter(Boolean).flatMap((q) => q.map((x) => x[0]))];
     if (A.ball) all.push(A.ball.file);
     for (const f of all) artImage(framePath(A.dir, f));
   }
@@ -1465,7 +1450,6 @@ function draw() {
     }
     drawShots();
     drawParts();
-    drawClouds();
     drawRings();
     ctx.restore();
     if (enemy.on) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
@@ -1648,18 +1632,6 @@ function drawShots() {
     }
   }
   ctx.restore();
-}
-// the smoke clouds, over the ships: the same pixel scale as the hull, turned the way the ship faced when it let them out
-function drawClouds() {
-  for (const c of clouds) {
-    const f = seqFrame(c.cloud.frames, c.t);
-    if (f < 0) continue;
-    const img = artImage(framePath(c.dir, c.cloud.frames[f][0]));
-    if (!img) continue;
-    const p = toScreen(c.x, c.y), d = c.cloud.size * shipSize();
-    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(c.ang);
-    ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
-  }
 }
 function drawRings() {
   for (const g of rings) {

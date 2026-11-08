@@ -127,12 +127,10 @@ ok("THUL heavy cannon (thul_extended.json): 23 frames, 1,560 ms, the ball leaves
   assert.strictEqual(cueTime(A.secondary, "fire"), 720); assert.strictEqual(seqFrame(A.secondary, 720), 9);
   assert.strictEqual(A.secondary[9][0], "cannon_10.webp"); assert.strictEqual(seqFrame(A.secondary, 1560), -1);
 });
-ok("THUL smoke hatches: 23 frames, 1,725 ms, smoke out at 450 ms; the cloud plays 28 frames over 3,500 ms", () => {
+ok("THUL smoke hatches: 23 frames, 1,725 ms, smoke starts at 450 ms", () => {
   const A = SHIPS.find((s) => s.id === "brass").anim;
   assert.strictEqual(A.smoke.length, 23); assert.strictEqual(seqLength(A.smoke), 1725);
   assert.strictEqual(cueTime(A.smoke, "release"), 450);
-  assert.strictEqual(A.cloud.frames.length, 28); assert.strictEqual(seqLength(A.cloud.frames), 3500);
-  assert(Math.abs(A.cloud.size - 768 / 512 * A.size) < 1e-9, "cloud at the hull's pixel scale");
   assert(Math.abs(A.ball.size - 64 / 512 * A.size) < 1e-9, "cannonball 64 px at the hull's scale");
 });
 ok("THUL twin cannon cues: left barrel at frame 2, right at frame 3", () => {
@@ -147,7 +145,7 @@ ok("THUL muzzles match the drawing's pixels", () => {
 });
 ok("every THUL drawing the game asks for is in art/ships/thul/", () => {
   const A = SHIPS.find((s) => s.id === "brass").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
-  const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.cloud.frames].flatMap((q) => q.map((x) => x[0])), A.ball.file];
+  const all = [A.idle, ...[A.primary, A.secondary, A.smoke].flatMap((q) => q.map((x) => x[0])), A.ball.file];
   for (const f of all) assert(fs.existsSync(path.join(dir, f.includes(".") ? f : f + ".png")), f);
 });
 ok("crashing: gentle bumps are free, harder crashes hurt more, never more than RAM_DAMAGE", () => {
