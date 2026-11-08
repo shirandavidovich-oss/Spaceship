@@ -518,4 +518,12 @@ ok("MIRAGE: charged shots, a seed that splits in three, a false star that only p
   assert.ok(near.ax > 0 && near.ay === 0 && near.ax > far.ax && near.ax <= M.max);
   assert.ok(lensPull(0, -0.01, M).ay < 0);
 });
+ok("RIVET's moving parts: the turn drawn into each frame; stars only bounce BORER and ORIAN", () => {
+  const A = shipById("rivet").anim;
+  for (const k of ["pin", "rail", "scatter", "wave", "magic", "magicBack"]) assert.strictEqual(A[k].length, 12);
+  assert.strictEqual(Math.round(seqLength(A.magic)) - 40, 440); assert.strictEqual(A.magic[0][3], 0); assert.strictEqual(A.magic[11][3], 90);
+  assert.strictEqual(A.magicBack[0][3], 90); assert.strictEqual(A.magicBack[11][3], 0); assert.strictEqual(A.scatter[5][3], 90);
+  assert.strictEqual(A.mech.nails, "wave"); assert.strictEqual(A.mech.magnet, "rail");
+  assert.ok(shipById("borer").starProof && shipById("orian").starProof); assert.ok(!shipById("rivet").starProof);
+});
 console.log(n + " checks passed");

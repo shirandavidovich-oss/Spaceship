@@ -196,6 +196,13 @@ Before it bores, four legs (drawn in code) unfold from its sides and grip the su
 the hull goes in and kick out once as it backs out. The bomb inside beats like a heart, with green cracks of light running
 out through the star.
 
+**RIVET's moving parts** (rivet-mechanics, `art/ships/rivet/pin_*, rail_*, scatter_*, wave_*, magic_*`): each shot moves
+its part (the pin's barrel piston, the feed cover for the magnet balls, the crossarm jaw for the pellets, the emitter for
+the nails), and the flip opens the cover, turns the clutch and shifts the jaw while the hull turns (backwards to turn back).
+The quarter turn is drawn into those frames, so the game does not turn them again (`bakedTurn`).
+
+**Stars that do not burn:** a ship with `starProof: true` (BORER, ORIAN) only bounces off a star, black hole or lava world.
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

@@ -200,7 +200,7 @@ const SHIPS = [
   // light of the body in the middle (rays from it to each mirror, and from the mirrors to the lens), and the lens fires
   // a solar beam at 1,100 ms, straight out the way the nose pointed then, for 290 ms. Its own recorded sounds (sfx/).
   // magic: soak (hold to drink the starlight: 3 charges = double speed until the tank runs dry; 6 = a light blast)
-  { id: "orian", name: "ORIAN", rarity: "legendary", mass: 1.0, fuel: 30, refill: 15, sfx: "orian", busyBlocks: true, magic: "soak",
+  { id: "orian", name: "ORIAN", rarity: "legendary", mass: 1.0, fuel: 30, refill: 15, sfx: "orian", busyBlocks: true, magic: "soak", starProof: true,
     sfxNames: ["mirror_close", "mirror_step", "pulse_fire", "pulse_prime", "solar_beam", "solar_charge"],
     hull: "#2f3fbf", wingC: "#5a4836", trim: "#ffd27a", flame: "#ffc65a",
     body: [], wing: [], nozzles: [0], engineY: 0.39, cockpit: [0, -0.2, 0.05, 0.1],
@@ -359,7 +359,15 @@ const SHIPS = [
     // ports (rivet.js, from the pivot, in 512-px art): pin (113,-179), rail (-37,169); scatter and wave (-163,118) on
     // the hull turned a quarter, so (-118,-163) from the heading
     guns: { pin: [[0.2648, -0.4195]], rail: [[-0.0867, 0.3961]], magnet: [[0, 0.05]], scatter: [[-0.2766, -0.3820]], wave: [[-0.2766, -0.3820]], nails: [[-0.2766, -0.3820]] },
-    anim: { dir: "rivet", size: 1.2, idle: "hull.webp" } },
+    // the moving parts (rivet-mechanics: 12 frames each, the quarter turn already drawn in, the 4th entry of each frame):
+    // pin: the barrel piston kicks back; rail: the long feed cover lifts (also for the magnet balls); scatter: the
+    // crossarm jaw opens; wave: the emitter opens (also for the nails); magic: cover, clutch and jaw while the hull turns
+    anim: { dir: "rivet", size: 1.2, idle: "hull.webp",
+      mech: { pin: "pin", rail: "rail", magnet: "rail", scatter: "scatter", wave: "wave", nails: "wave" },
+      pin: mechFrames("pin", 320, () => 0), rail: mechFrames("rail", 420, () => 0),
+      scatter: mechFrames("scatter", 340, () => 90), wave: mechFrames("wave", 400, () => 90),
+      magic: mechFrames("magic", 440, (i) => { const u = i / 11; return u * u * (3 - 2 * u) * 90; }),
+      magicBack: mechFrames("magic", 440, (i) => { const u = i / 11; return u * u * (3 - 2 * u) * 90; }).reverse() } },
   // GLITCH, the shutter ship (art/ships/glitch/: a core and two shutter panels, put together in code, glitch-motion.js).
   // Button 1: a three-round neon burst from the left of the nose. Button 2: the shutters slide open, the cyan core
   // charges and a hack pulse leaves from the top (the reference 3.3 s clip, played twice as fast: the pulse at 950 ms).
@@ -435,7 +443,7 @@ const SHIPS = [
   // BORER, the star miner (art/ships/borer/idle.webp, 512 x 512, center pivot, the drill up; 512 px = 1.07 ship-lengths).
   // Button 1: a fan of metal shrapnel from the drill tip. Button 2: a drilling mine dropped out of the back; it waits,
   // and when an enemy comes near it spins up and bores into it. Magic: star mine (see MAGIC.starmine)
-  { id: "borer", name: "BORER", rarity: "epic", mass: 1.3, fuel: 30, refill: 15, sfx: null, magic: "starmine",
+  { id: "borer", name: "BORER", rarity: "epic", mass: 1.3, fuel: 30, refill: 15, sfx: null, magic: "starmine", starProof: true,
     hull: "#3c5a50", wingC: "#1e2a26", trim: "#4dff9a", flame: "#b46bff",
     // the two violet engine lights (221,467) and (288,465); the drill tip (256,16)
     body: [], wing: [], nozzles: [-0.073, 0.067], engineY: 0.441, cockpit: [0, 0.1, 0.05, 0.1],
@@ -458,6 +466,16 @@ const SHIPS = [
       secondary: frames("split", 12, (n) => n <= 11 ? 390 / 11 : 70, { 12: "fire" }),  // 390 ms
       lens: frames("magic", 12, (n) => n <= 11 ? 480 / 11 : 70, { 12: "fire" }) } }    // 480 ms, then the false star
 ];
+// RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
+function mechFrames(name, ms, deg) {
+  return Array.from({ length: 12 }, (_, i) => [name + "_" + String(i + 1).padStart(2, "0") + ".webp", i < 11 ? ms / 11 : 40, undefined, deg(i)]);
+}
+// the turn already drawn into the frame showing now (radians), so the hull is not turned twice; 0 for an ordinary frame
+function bakedTurn(S, a) {
+  if (!S || !S.anim || !a || !S.anim[a.seq]) return 0;
+  const q = S.anim[a.seq], f = seqFrame(q, a.t);
+  return f >= 0 && q[f][3] != null ? q[f][3] * Math.PI / 180 : 0;
+}
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
   return Array.from({ length: count }, (_, i) => {
@@ -1859,7 +1877,7 @@ function moveShip(o, S, c, dt) {
     const touching = d < touch + size * 0.08;
     if (myStarTouch(touching)) return 0;   // a BORER's bomb was waiting in the star: shattered
     if (S.grows) talusContact(touching);
-    else if (touching) touchBurn(dt);
+    else if (touching && !S.starProof) touchBurn(dt);   // (starProof: BORER and ORIAN only bounce)
   } else if (o === enemy && !enemy.remote) enemyStarTouch(d < touch + size * 0.08);
   let hit = 0;
   if (d < touch) {
@@ -2032,6 +2050,7 @@ function useMagic(which = 0) {
   if (M.look === "flip") {   // RIVET: the hull turns a quarter round
     if (game.flipT >= 0 || game.dead) return;
     game.flipT = 0; game.magicCool = M.cool;
+    if (S.anim && S.anim.magic) game.anim = { seq: game.flipMode ? "magicBack" : "magic", t: 0 };
     if (game.rail) game.rail.until = 0;   // a rail being laid stops (the laid part stays)
     audio.sfx(S.sfx, "flip"); buzz(30);
     return;
@@ -3862,6 +3881,7 @@ function shoot(i) {
   }
   const guns = gunsOf(S, w), b = Wp.both ? 0 : game.barrel[i]++ % guns.length;
   // the firing frames do not cut into the ship's other sequences (the heavy cannon, the smoke hatches, the jaw...)
+  if (A && A.mech && A.mech[w] && !(game.flipT >= 0)) game.anim = { seq: A.mech[w], t: 0 };   // RIVET: the part that fires moves
   if (A && A.primary && i === 0 && !(game.anim && game.anim.seq !== "primary"))
     game.anim = { seq: "primary", t: Math.max(0, cueTime(A.primary, b === 0 ? "left" : "right")) };
   if (Wp.both) for (const g of guns) spawnShots(w, g); else spawnShots(w, guns[b]);
@@ -5959,6 +5979,7 @@ function preloadArt() {
     if (A.parts) all.push(A.parts.hull, A.parts.left, A.parts.right);
     if (A.idleLoop) all.push(...A.idleLoop);
     if (A.spin) all.push(...A.spin);
+    if (A.mech) for (const k of ["pin", "rail", "scatter", "wave", "magic"]) all.push(...A[k].map((x) => x[0]));
     if (A.lens) all.push(...A.lens.map((x) => x[0]));
     if (A.inflate) all.push(...A.inflate.map((x) => x[0]));
     if (A.swim) all.push(...A.swim.flat());
@@ -6143,7 +6164,7 @@ function draw() {
       const dug = shown === S && game.dive;
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
-        { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
+        { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           half: shown === S && game.splitUsed ? "rear" : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
@@ -6398,7 +6419,7 @@ function drawEnemy() {
     if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? enemy.hullTurn || 0 : 0),
+    drawShip(E, p.x, p.y, size * esc, { drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
