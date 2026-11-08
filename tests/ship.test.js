@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("twenty-six ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 26);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 26);
+ok("twenty-seven ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 27);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 27);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -412,7 +412,7 @@ ok("REPRISE (reprise-motion.js): three shapes, the reassembly returns home after
   const home = reprisePose(P, 0, 0).shape, done = reprisePose(P, 2, 1.85).shape;
   home.forEach((q, i) => { assert(Math.abs(q.x - done[i].x) < 1e-6 && Math.abs(q.y - done[i].y) < 1e-6 && Math.abs(((q.angle - done[i].angle) % 360 + 360) % 360) < 1e-6); });
   assert.strictEqual(WEAPONS.floors.modules.join(), "1,2,3"); assert.strictEqual(WEAPONS.floors.delays.join(), "0.13,0.26,0.39"); assert.strictEqual(WEAPONS.amber.delays[0], 0.18);
-  assert.strictEqual(MAGIC.reassemble.length, 1.85); assert.strictEqual(MAGIC.reassemble.echo, 3);
+  assert.strictEqual(MAGIC.reassemble.length, 1.85); assert(MAGIC.reassemble.rewind > 0 && MAGIC.reassemble.slow > 0 && MAGIC.reassemble.slow < 1, "the other ship goes back, slowly");
   const dir = path.join(__dirname, "../app/src/main/assets/art/ships/reprise");
   for (const m of P) assert(fs.existsSync(path.join(dir, m.file)), m.file);
 });
@@ -429,6 +429,13 @@ ok("NIMBUS (nimbus-motion.js): the bolt at 360 of 750 ms, the storm at 750 of 1,
   assert.strictEqual(A.idleLoop.length, 32);
   for (const f of [A.idle, ...A.idleLoop, ...A.field, ...A.arc, ...A.shotArt.lightning.frames, ...[A.primary, A.secondary, A.rainbow].flatMap((q) => q.map((x) => x[0]))]) assert(fs.existsSync(path.join(dir, f)), f);
   for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
+});
+ok("PUFF (puff-motion.js): 89 frames of 50 ms; compact at rest, puffed up and guarding 1.5-2.9 s, back at the end", () => {
+  const S = SHIPS.find((s) => s.id === "puff"), A = S.anim;
+  assert.strictEqual(A.inflate.length, 89); assert.strictEqual(S.magic, "inflate"); assert.strictEqual(weaponsOf(S).join(), "needles,bubble");
+  assert(puffPose(0).pressure < 0.01 && !puffPose(1400).guard && puffPose(2000).guard && puffPose(2000).pressure > 0.95 && !puffPose(3000).guard && puffPose(4400).pressure < 0.01);
+  const dir = path.join(__dirname, "../app/src/main/assets/art/ships/puff");
+  for (const f of A.inflate.map((x) => x[0])) assert(fs.existsSync(path.join(dir, f)), f);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);

@@ -153,7 +153,7 @@ V shield: the panels swing forward into a V; while it is open, enemy shots reach
 they came (and can hit their owner). Right, the glitch slip: the panels slide past each other and the ship jumps 2.6
 ship-lengths sideways, leaving a flickering decoy for 2.5 s that the enemy goes after.
 
-**NIMBUS**, the stormfront ship (`art/ships/nimbus/`, own recorded sounds). At rest its cloud banks billow (a 32-frame loop). Button 1: lightning charges along the spine,
+**NIMBUS**, the stormfront ship (`art/ships/nimbus/`, own recorded sounds). At rest its cloud banks billow (a 32-frame loop). Little clouds drift over its banks; during the rainbow magic they light up in rainbow colours. Button 1: lightning charges along the spine,
 then a flickering bolt (14). Button 2: the cloud banks swell and a storm is let go ahead of the ship; it drifts on by
 itself and grows, its wind swirls other ships round it, and three marked lightning strikes hit where the warnings show
 (18 each), then it clears into a rainbow (only a picture). Magic: the cloud banks lift and a rainbow arc flies out (20,
@@ -162,8 +162,16 @@ and NIMBUS gets back 10 health).
 **REPRISE**, the modular orbital archive (`art/ships/reprise/`: four building modules put together in code). Button 1:
 light climbs the tall tower and an amber bolt leaves its top (14). Button 2: the three other buildings fire one purple
 shot each, in turn (5 each). Magic: the buildings let go, turn and lock into the next shape (archive steps, crossbar,
-mirror spire; three times round brings it home), which changes where the shots leave from; and a see-through violet
-echo of the ship replays its last 3 s of flying and fires its real shots again. Nothing fires while it rebuilds.
+mirror spire; three times round brings it home), which changes where the shots leave from; and the other ship is sent
+back in time: it flies backward along its last 3 s in slow motion (half speed), and its shots in the air fly back into
+its guns, while a clock ticks and a clock face spins backward over it. It cannot steer or shoot meanwhile, so it is an
+easy target. Nothing fires from REPRISE while it rebuilds.
+
+**PUFF**, the puffer-fish ship (`art/ships/puff/`: 89 inflation frames). Button 1: three copper needles in a narrow fan
+(6 each). Button 2: a slow pressure bubble that swells as it floats and pops on a ship (16 and a shove). Both are drawn in
+code (the package only names them). Magic: it puffs up in three pressure pulses and 12 spines spring out; while they are
+out a ship that touches it is stabbed (15, at most every 0.6 s) and thrown off, and PUFF turns slower; then it vents and
+shrinks back (4.4 s).
 
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.
