@@ -394,8 +394,10 @@ const MAGIC = {
   //   `dash` seconds; reaching it, the hammer-head hits: `dmg`, and the enemy is knocked away (`knock` screens a second)
   hammer: { name: "מכת פטיש", range: 2.2, speed: 3.6, dash: 0.8, dmg: 30, knock: 1.4, cool: 9, look: "hammer", color: "#ff4a3a" },
   ink:   { name: "ענן דיו", pour: 0, hide: 4, cool: 12, look: "ink", color: "#8a7fd6", dmg: 15, stun: 20 },
-  // ZORIAN's anchor: held, the ship stops (it still turns and shoots); let go, it flies on
-  anchor: { name: "עוגן", look: "anchor", cool: 0, color: "#92f8ff", brake: 18 },
+  // ZORIAN's anchor: one tap and the ship stops (`brake`) and spins in place by itself (`spin`: radians a second) for
+  //   `hold` seconds (a second tap ends it sooner); then `cool` seconds to recharge. A thread laid while it spins is
+  //   laid round it at `ring` ship-lengths: a ring of light that enemy shots cannot pass (any thread stops shots)
+  anchor: { name: "עוגן", look: "anchor", hold: 3.5, spin: 6, ring: 0.85, cool: 6, color: "#92f8ff", brake: 18 },
   // VEXAR's tail, held: while the magic button is held the tail grows out (over `out` s) and stays out, and the ship
   //   keeps flying; let go and it pulls back in over `back` s.
   //   At its tip a spiked iron ball (`ball`: radius in ship-lengths): touching the enemy it hits for `hit`
@@ -1129,8 +1131,13 @@ function flyShip(dt) {
     if (game.inked <= 0) game.inkV = null;
     return;
   }
-  const hit = moveShip(game, S, { target, turn, thrust: game.thrust !== null && !anchored }, dt);
-  if (anchored) { const k = Math.exp(-dt * magicOf(S).brake); game.vx *= k; game.vy *= k; }   // ZORIAN's anchor: it stops and holds
+  const hit = moveShip(game, S, anchored ? { target: game.ang, turn: 0, thrust: false } : { target, turn, thrust: game.thrust !== null }, dt);
+  if (anchored) {   // ZORIAN's anchor: it stops, holds and spins; after `hold` seconds it lets go
+    const M = magicOf(S), k = Math.exp(-dt * M.brake);
+    game.vx *= k; game.vy *= k; game.ang = wrapAngle(game.ang + M.spin * dt);
+    game.anchor.t += dt;
+    if (game.anchor.t >= M.hold) { game.anchor = null; game.magicCool = M.cool; }
+  }
   // LYTH: the engine vent plates slide open / shut (a sound only when it changes)
   const burning = game.thrust !== null && !game.locked;
   if (burning !== !!game.burning) { game.burning = burning; if (S.sfx) audio.sfx(S.sfx, burning ? "thrusters_open" : "thrusters_close", 0, 0.7); }
@@ -1294,7 +1301,11 @@ function useMagic() {
   const S = shipById(game.ship), M = magicOf(S);
   if (!M || game.magicCool > 0 || game.dead) return;
   if (M.look === "shatter") { useShatter(S, M); return; }
-  if (M.look === "anchor") { audio.sfx(S.sfx, "thread_arm", 0, 0.6); buzz(30); return; }   // ZORIAN: holding the button holds the ship
+  if (M.look === "anchor") {   // ZORIAN: a tap anchors it (it stops and spins); a second tap lets it go
+    if (game.anchor) { game.anchor = null; game.magicCool = M.cool; return; }
+    game.anchor = { t: 0 }; audio.sfx(S.sfx, "thread_arm", 0, 0.6); buzz(30);
+    return;
+  }
   if (M.look === "hammer") {   // KRAAL: dash at the enemy (if one is near enough) and hit it with the hammer-head
     if (game.dash) return;
     const near = enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < M.range * U;
@@ -1665,8 +1676,8 @@ function drawCrosses() {
 // ---------- ZORIAN: the anchor (magic) and the spiked ball ----------
 function anchoring() {
   const M = magicOf(shipById(game.ship));
-  if (!M || game.magicFinger === null || game.dead || game.stage !== "fly") return false;
-  return M.look === "anchor";
+  if (!M || game.dead || game.stage !== "fly") return false;
+  return M.look === "anchor" && !!game.anchor;
 }
 // the anchor, while held: a ring of light under the ship and three beams fixing it in space
 function drawAnchor(x, y, size) {
@@ -1683,10 +1694,11 @@ function drawAnchor(x, y, size) {
   }
   ctx.restore();
 }
-// the magic button: an anchor of light (bright while held)
+// the magic button: an anchor of light (bright while anchored, dim while it recharges)
 function drawAnchorButton(b, M) {
   const on = anchoring();
   ctx.save(); ctx.translate(b.x, b.y);
+  if (game.magicCool > 0) ctx.globalAlpha = 0.45;
   const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
   gl.addColorStop(0, `rgba(146,248,255,${on ? 0.5 : 0.2})`); gl.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
@@ -1810,6 +1822,26 @@ function threadPress() {
   game.anim = { seq: "projector", t: 0 };
   audio.sfx(S.sfx, "thread_deploy"); buzz(25);
 }
+// where the thread is laid: the stern projector; while anchored and spinning, out on a ring round the ship
+function layPoint(o, S) {
+  if (!anchoring()) return threadPoint(o, S);
+  const r = MAGIC.anchor.ring * shipSize(), m = rotatePt(0, r, o.ang);
+  return { x: o.x + m.x, y: o.y + m.y };
+}
+// does a thread stop shot s (it moved this frame from where it was dt ago)? Every visible thread does
+function threadBlocks(T, s, dt) {
+  if (!T || !T.paths) return false;
+  const Wp = WEAPONS[T.w], ph = threadPhase(Wp, T.t);
+  if (!ph || ph === "charge") return false;
+  const now = { x: s.x, y: s.y }, from = { x: s.x - s.vx * dt, y: s.y - s.vy * dt }, rad = (WEAPONS[s.w].r || 0.03) * shipSize() * 0.6 + 3;
+  for (const q of T.paths) for (let i = 1; i < q.length; i++) {
+    const c = q[i - 1], d = q[i], ox = wrapDelta(c.x - now.x, WW) + now.x - c.x, oy = wrapDelta(c.y - now.y, WH) + now.y - c.y;
+    if (segDistance(from, now, { x: c.x + ox, y: c.y + oy }, { x: d.x + ox, y: d.y + oy }) <= rad) return true;
+  }
+  return false;
+}
+// a shot stopped by a thread: a small blue-white spark
+function threadSpark(s) { burstAt(s.x, s.y, 8, ["#ffffff", "#92f8ff", "#48aef6"], 0.2, 0.5); audio.zap(); }
 function threadPoint(o, S) { const g = S.guns.thread[0], m = rotatePt(g[0] * shipSize(), g[1] * shipSize(), o.ang); return { x: o.x + m.x, y: o.y + m.y }; }
 function updateThread(dt) {
   const T = game.thread, S = shipById(game.ship);
@@ -1820,11 +1852,12 @@ function updateThread(dt) {
   if (!ph) { game.thread = null; return; }
   if (ph === "lay" && !game.dead) {
     let path = T.paths[T.paths.length - 1];
-    const p = threadPoint(game, S), last = path[path.length - 1], d = last ? Math.hypot(p.x - last.x, p.y - last.y) : 0;
+    const p = layPoint(game, S), last = path[path.length - 1], d = last ? Math.hypot(p.x - last.x, p.y - last.y) : 0;
     if (last && d > 105 * k) { path = []; T.paths.push(path); }   // jumped or wrapped: a new piece
     if ((!path.length || d >= 3 * k) && path.length < 256) { path.push(p); T.dirty = true; }
   }
-  if (was === "lay" && ph !== "lay") duelSend({ t: "th", w: T.w, at: T.t, p: T.paths.map((q) => q.map((v) => [+(v.x / WW).toFixed(5), +(v.y / WH).toFixed(5)])) });
+  T.sendT = (T.sendT || 0) - dt;
+  if ((ph === "lay" && T.sendT <= 0) || (was === "lay" && ph !== "lay")) T.sendT = 0.25, duelSend({ t: "th", w: T.w, at: T.t, p: T.paths.map((q) => q.map((v) => [+(v.x / WW).toFixed(5), +(v.y / WH).toFixed(5)])) });
   if (ph === "armed" && !T.armed) {
     T.armed = true;
     if (T.paths.some((q) => q.length > 1)) audio.sfx(S.sfx, "thread_arm");
@@ -1975,6 +2008,7 @@ function updateEnemyShots(dt) {
     if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), body().pull); s.vx += g.ax * dt; s.vy += g.ay * dt; }
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (s.life > Wp.life || Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR()) { eshots.splice(k, 1); continue; }
+    if (threadBlocks(game.thread, s, dt)) { threadSpark(s); eshots.splice(k, 1); continue; }   // my thread stops it
     // SKARN's open jaw: caught (and it powers up SKARN's shards)
     if (trapOpen() && inMouth(game, S, s, dt)) { trapGain(s.x, s.y); eshots.splice(k, 1); continue; }
     // into your ship
@@ -2803,7 +2837,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -2886,6 +2920,8 @@ function updateWeapons(dt) {
     if (Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
       burstAt(s.x, s.y, 5, ["#b8a3ff", "#ffffff"], 0.2, 0.6); shots.splice(k, 1); continue;
     }
+    // into the other player's thread (ZORIAN): stopped
+    if (enemy.remote && threadBlocks(duel.thread, s, dt)) { threadSpark(s); shots.splice(k, 1); continue; }
     // into the other player's open jaw (SKARN): caught, no hit, and their phone is told
     if (enemy.remote && enemy.on && duel.net && duel.net.kc && shipById(enemy.ship).anim && shipById(enemy.ship).anim.trap &&
         inMouth(enemy, shipById(enemy.ship), s, dt)) {
@@ -4740,6 +4776,7 @@ function updateDuel(dt) {
       s.vx = t.vx; s.vy = t.vy;
     }
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
+    if (threadBlocks(game.thread, s, dt)) { threadSpark(s); duel.shots.splice(k, 1); continue; }   // my thread stops it (their phone sees my thread too)
     if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it)
     const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shipSize();
     const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
@@ -4823,7 +4860,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id;
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();

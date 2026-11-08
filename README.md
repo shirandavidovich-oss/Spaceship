@@ -116,8 +116,9 @@ hold to land it on the enemy. The point is fixed when the bolts leave. Its magic
 **ZORIAN**, the light-thread ship (`art/ships/zorian/`, own recorded sounds). Button 1: a blue needle bolt. Button 2:
 the projector at the stern draws a thread of light behind the ship as it flies (for about 1.2 s; standing still draws nothing,
 so fly a curve around the enemy). The thread stays where it was laid, blinks a warning, then arms: an enemy that crosses it
-takes 25, once. It fades 2.4 s later and a new one can be laid. A jump or a wrap across the arena starts a new piece. Its magic (an anchor): hold it and the ship stops dead and
-stays put (it still turns and shoots); let go and it flies on. (A spiked-ball-on-a-chain weapon is in the code, unused.)
+takes 25, once. It fades 2.4 s later and a new one can be laid. A jump or a wrap across the arena starts a new piece. Enemy shots cannot pass through a thread. Its magic (an anchor): one tap and the
+ship stops and spins in place by itself for 3.5 s (a second tap lets it go; then 6 s to recharge). Lay the thread while it
+spins and the thread is laid as a ring round the ship: a shield that stops every shot until it fades. (A spiked-ball-on-a-chain weapon is in the code, unused.)
 
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.

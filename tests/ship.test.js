@@ -328,6 +328,9 @@ ok("ZORIAN (zorian-layout.json): the bolt at 75 ms; the thread lays 150-1,310 ms
 ok("ZORIAN: button 2 is the thread, its magic (the anchor) holds it still; VEXAR's tail ends in a spiked ball", () => {
   const S = SHIPS.find((s) => s.id === "zorian");
   assert.strictEqual(weaponsOf(S).join(), "needle,thread"); assert.strictEqual(S.magic, "anchor"); assert(MAGIC.anchor.brake > 0);
+  const A = MAGIC.anchor, Wt = WEAPONS.thread;
+  assert(A.spin * (Wt.seal - Wt.lay) >= 2 * Math.PI, "spinning while the thread lays makes a whole ring");
+  assert(A.hold > Wt.seal && A.ring > 0.6, "the ring is laid outside the hull, where shots have not hit yet");
   const M = MAGIC.tail; assert(M.ball > 0 && M.hit > 0 && M.every > 0 && M.hold === 0);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
