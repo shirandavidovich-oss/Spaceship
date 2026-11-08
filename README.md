@@ -53,6 +53,10 @@ been all the way out it pulls back into the ship (about 3.3 s), and the button r
 Button 1: the pulse (the shutters slide apart and the emitter flashes). Button 2: the big ring around the hull unlatches
 (amber lights), flies out spinning (the planet pulls it), turns back to wherever the ship is now and locks on again.
 It hurts a ship it passes over, once on the way out and once on the way back. One ring at a time; the pulse still works meanwhile.
+Its magic button is a toothed steel ring (it glows violet and shows its teeth when the enemy is close enough): tap it and a
+tractor beam pulls the enemy in against the ring, the ring spins up, saw teeth slide out of its rim and shred it
+(30 health a second for 1.8 s), then it is thrown off. Too far: a dull sound and a dashed circle shows the reach. In a duel the
+other player's ship is really pulled in on their phone.
 
 While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"lyth"`; `"vexar"` for VEXAR, `"brass"` for THUL,
 `""` for the gift's surprise again).

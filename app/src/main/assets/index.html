@@ -161,7 +161,8 @@ const SHIPS = [
   // Button 1: the pulse (the shutters slide apart, the emitter flashes). Button 2: the big ring around the hull
   // unlatches, flies out (the planet pulls it), turns back, finds the ship wherever it is now and locks on again.
   // It has its own recorded sounds (art/ships/lyth/sfx/)
-  { id: "lyth", name: "LYTH", rarity: "legendary", mass: 1.2, fuel: 30, refill: 15, sfx: "lyth",
+  // magic: the grinder (a tractor beam pulls a nearby enemy in; the outer ring spins and its teeth shred it)
+  { id: "lyth", name: "LYTH", rarity: "legendary", mass: 1.2, fuel: 30, refill: 15, sfx: "lyth", magic: "grind",
     hull: "#a7b9cd", wingC: "#27344a", trim: "#8affff", flame: "#22d4ff",
     // thruster anchors (235,368) and (277,368); muzzle (256,140)
     body: [], wing: [], nozzles: [-0.049, 0.049], engineY: 0.263, cockpit: [0, -0.2, 0.05, 0.1],
@@ -218,6 +219,9 @@ const MAGIC = {
   smoke: { name: "מסך עשן", pour: 3.5, hide: 6, cool: 14, look: "gear", color: "#e0b060" },
   // the tail: grows out behind the ship over `out` seconds, stays `hold`, pulls back in over `back`.
   //   len: its full length in ship-lengths   drain: health per second taken from a ship touching it
+  // the grinder (LYTH): works only when the enemy is within `range` ship-lengths. The beam pulls it in for `pull`
+  // seconds, the ring's teeth shred it for `grind` seconds (`dps` health a second), then `release` lets it go
+  grind: { name: "טבעת גורסת", range: 2.6, pull: 0.9, grind: 1.8, release: 0.35, dps: 30, cool: 12, look: "grinder", color: "#ba99ff" },
   tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 9.6, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
 };
 // VEXAR's tail pieces along a tail `total` art-pixels long (the art is 512 px per 1.2 ship-lengths):
@@ -236,6 +240,13 @@ function tailPieces(total) {
   });
   out.push({ role: "stinger", w: 56, start: at, end: at + sting, ob: 10, oa: 0 });
   return out;
+}
+// the grinder at time t (seconds since it caught the enemy): "pull", "grind", "release", or null when it is over
+function grindPhase(M, t) {
+  if (t < M.pull) return "pull";
+  if (t < M.pull + M.grind) return "grind";
+  if (t < M.pull + M.grind + M.release) return "release";
+  return null;
 }
 // LYTH's ring at time t (seconds since the button): "unlock", "out", "back", "lock", or null once it is home again
 function ringPhase(Wp, t) {
@@ -572,6 +583,10 @@ const audio = {
   // the egg cracks open (crackle + a buzzing swarm), or is crushed (just the crackle)
   hatch(swarm) { for (let i = 0; i < 5; i++) this.tone(1800 + Math.random() * 1500, 0.025, "square", 0.03, 0.6, i * 0.035); this.noise(0.15, 0.2, 3000);
     if (swarm) [0.2, 0.26, 0.31].forEach((d, i) => this.tone(210 + i * 40, 0.5, "sawtooth", 0.03, 1.3, d)); },
+  // LYTH's grinder: the tractor beam hums up; the teeth grind (short metal bursts, called again and again); out of range: a dull no
+  beam() { this.tone(180, 0.9, "sine", 0.12, 2.2); this.tone(360, 0.9, "triangle", 0.04, 2.2); this.tone(90, 0.9, "sawtooth", 0.03, 1.5); },
+  grind() { this.noise(0.09, 0.22, 5200); this.tone(70 + Math.random() * 30, 0.1, "sawtooth", 0.07, 0.8); this.tone(2400 + Math.random() * 1500, 0.04, "square", 0.025, 0.6); },
+  nope() { this.tone(160, 0.12, "square", 0.06, 0.7); this.tone(120, 0.16, "square", 0.05, 0.7, 0.1); },
   // the tail: a whip-like lash going out; a zap while it drains someone
   lash() { this.tone(300, 0.5, "sawtooth", 0.05, 0.35); this.noise(0.4, 0.15, 2200); this.tone(1400, 0.12, "triangle", 0.04, 0.5, 0.35); },
   zap() { this.tone(900 + Math.random() * 300, 0.07, "square", 0.04, 0.4); },
@@ -966,6 +981,15 @@ function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
 function useMagic() {
   const S = shipById(game.ship), M = magicOf(S);
   if (!M || game.magicCool > 0 || game.dead) return;
+  if (M.look === "grinder") {   // LYTH: only if the enemy is near enough (and the ring is home)
+    if (game.grind) return;
+    if (!grindReach() || game.ring) { audio.nope(); buzz(25); game.rangeT = 0.8; return; }
+    const dx = wrapDelta(enemy.x - game.x, WW), dy = wrapDelta(enemy.y - game.y, WH), d = Math.hypot(dx, dy) || 1;
+    game.magicCool = M.cool;
+    game.grind = { t: 0, phase: "pull", spin: 0, teeth: 0, ox: dx, oy: dy, nx: dx / d, ny: dy / d, tick: 0 };
+    audio.beam(); audio.sfx(S.sfx, "latches_unlock", 0.75); buzz(60);
+    return;
+  }
   if (M.look === "tail") {   // the stinger tail grows out behind the ship
     game.magicCool = M.cool; game.tail = { t: 0, pts: null, zap: 0, touch: 0 };
     audio.lash(); buzz(50);
@@ -992,6 +1016,7 @@ function releaseSmoke() {
 function updateMagic(dt) {
   const S = shipById(game.ship), M = magicOf(S);
   updateTail(dt);
+  game.rangeT = Math.max(0, (game.rangeT || 0) - dt);
   game.magicCool = Math.max(0, game.magicCool - dt);
   game.hidden = Math.max(0, game.hidden - dt);
   game.gear += dt * (game.magicPour > 0 ? 9 : game.magicCool > 0 ? 0.25 : 1.2);   // the gear button turns
@@ -999,6 +1024,107 @@ function updateMagic(dt) {
   game.magicPour -= dt;
   // thick smoke pours from the engines and hangs in space
   if (Math.random() < 30 * dt) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, 2.6 + Math.random() * 1.5, M.hide - 0.5);
+}
+
+// ---------- the grinder (LYTH's magic) ----------
+// how far the enemy may be for the beam to catch it
+function grindReach() {
+  const M = magicOf(shipById(game.ship));
+  if (!M || M.look !== "grinder" || !enemy.on || enemy.warp >= 0.5 || game.dead) return false;
+  return Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < M.range * shipSize();
+}
+// where a caught ship is held: just touching the ring's teeth
+function grindHold() { return shipSize() * 0.86; }
+// runs after the enemy has moved: the beam holds it, the teeth shred it
+function updateGrind(dt) {
+  const G = game.grind, S = shipById(game.ship), M = magicOf(S);
+  if (!G) return;
+  if (!M || M.look !== "grinder" || game.dead || !enemy.on) { endGrind(); return; }
+  const was = G.phase;
+  G.t += dt; G.phase = grindPhase(M, G.t);
+  if (!G.phase) { game.grind = null; audio.sfx(S.sfx, "ring_lock"); return; }
+  if (was === "pull" && G.phase === "grind") { shake(0.4); buzz(80); }
+  // the ring speeds up, the teeth slide out while grinding and back in at the release
+  const fast = G.phase === "pull" ? G.t / M.pull * 4 : G.phase === "grind" ? 16 : 16 * (1 - (G.t - M.pull - M.grind) / M.release);
+  G.spin += fast * dt;
+  G.teeth = G.phase === "pull" ? smoothStep((G.t - M.pull + 0.25) / 0.25) : G.phase === "grind" ? 1 : 1 - smoothStep((G.t - M.pull - M.grind) / M.release);
+  // the enemy: pulled in along the beam, then held against the teeth
+  const hold = grindHold(), k = G.phase === "pull" ? smoothStep(G.t / M.pull) : 1;
+  const tx = G.ox + (G.nx * hold - G.ox) * k, ty = G.oy + (G.ny * hold - G.oy) * k;
+  if (!enemy.remote && G.phase !== "release") {
+    enemy.x = ((game.x + tx) % WW + WW) % WW; enemy.y = ((game.y + ty) % WH + WH) % WH;
+    enemy.vx = game.vx; enemy.vy = game.vy; enemy.spin = 0;
+  }
+  if (G.phase === "grind") {
+    harmEnemy(M.dps * dt);
+    G.tick -= dt;
+    if (G.tick <= 0) {   // sparks and metal flying where the teeth bite
+      G.tick = 0.07; audio.grind(); buzz(12);
+      const bx = game.x + G.nx * hold * 0.6, by = game.y + G.ny * hold * 0.6;
+      burstAt(bx, by, 7, ["#ffffff", "#fff3b0", "#ffb347", "#a7b9cd"], 0.3, 0.45, game.vx + G.ny * U * 0.6, game.vy - G.nx * U * 0.6);
+      shake(0.12);
+    }
+  }
+  if (was !== "release" && G.phase === "release" && !enemy.remote) {   // thrown off, spinning
+    enemy.vx = game.vx + G.nx * U * 0.9; enemy.vy = game.vy + G.ny * U * 0.9; enemy.spin = 6;
+  }
+}
+function endGrind() { game.grind = null; }
+// LYTH's ring while grinding (ship units, inside drawShip): spinning, with saw teeth sliding out of its rim
+function drawGrinderRing(S, G) {
+  const ring = artImage(framePath(S.anim.dir, S.anim.ring)), R = S.anim.size;
+  if (!ring) return;
+  ctx.save(); ctx.rotate(G.spin);
+  const t = G.teeth || 0, n = 20, r0 = 0.47, h = 0.14 * t;
+  if (h > 0.003) {
+    for (let i = 0; i < n; i++) {
+      const a = i / n * TAU;
+      ctx.save(); ctx.rotate(a);
+      // a hooked saw tooth: steel, glowing hot at the tip while it bites
+      const g = ctx.createLinearGradient(0, -r0, 0, -r0 - h);
+      g.addColorStop(0, "#5d6d84"); g.addColorStop(0.5, "#ecf3fb"); g.addColorStop(1, G.phase === "grind" ? "#ffb347" : "#a7b9cd");
+      ctx.fillStyle = g; ctx.strokeStyle = "#1e2b40"; ctx.lineWidth = 0.006;
+      ctx.beginPath(); ctx.moveTo(-0.045, -r0 + 0.01); ctx.lineTo(0.03, -r0 - h); ctx.lineTo(0.045, -r0 + 0.01); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.drawImage(ring, -R / 2, -R / 2, R, R);
+  // violet lights racing round the ring
+  ctx.strokeStyle = `rgba(186,153,255,${0.5 + 0.4 * Math.sin(time * 30)})`; ctx.lineWidth = 0.02;
+  for (let i = 0; i < 3; i++) { const a = i * TAU / 3; ctx.beginPath(); ctx.arc(0, 0, 0.42, a, a + 0.5); ctx.stroke(); }
+  ctx.restore();
+}
+// the tractor beam: a wavering violet-cyan beam from the ship to the ship it holds
+function drawBeam(from, to, k) {
+  if (k <= 0) return;
+  const a = toScreen(from.x, from.y), dx = wrapDelta(to.x - from.x, WW), dy = wrapDelta(to.y - from.y, WH);
+  const b = { x: a.x + dx, y: a.y + dy }, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d, size = shipSize();
+  ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+  for (const [w, c] of [[size * 0.32, `rgba(104,104,255,${0.18 * k})`], [size * 0.16, `rgba(159,130,255,${0.35 * k})`], [size * 0.05, `rgba(200,255,255,${0.8 * k})`]]) {
+    ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath();
+    for (let i = 0; i <= 16; i++) {
+      const u = i / 16, wob = Math.sin(time * 18 + u * 12) * size * 0.04 * Math.sin(u * Math.PI);
+      const x = a.x + dx * u + nx * wob, y = a.y + dy * u + ny * wob;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  }
+  // rings of light running along the beam toward the ship
+  for (let i = 0; i < 4; i++) {
+    const u = 1 - ((time * 1.6 + i / 4) % 1), x = a.x + dx * u, y = a.y + dy * u;
+    ctx.strokeStyle = `rgba(186,153,255,${0.7 * k * u})`; ctx.lineWidth = Math.max(1.5, size * 0.015);
+    ctx.beginPath(); ctx.ellipse(x, y, size * 0.2, size * 0.07, Math.atan2(dy, dx) + Math.PI / 2, 0, TAU); ctx.stroke();
+  }
+  ctx.restore();
+}
+// how far the beam can reach: a dashed circle, shown for a moment when the enemy is too far
+function drawRange() {
+  if (!(game.rangeT > 0)) return;
+  const M = magicOf(shipById(game.ship)); if (!M || !M.range) return;
+  const p = shipScreen();
+  ctx.save(); ctx.globalAlpha = Math.min(1, game.rangeT / 0.4) * 0.7; ctx.strokeStyle = "#ba99ff"; ctx.lineWidth = 2; ctx.setLineDash([8, 8]);
+  ctx.lineDashOffset = -time * 40;
+  ctx.beginPath(); ctx.arc(p.x, p.y, M.range * shipSize(), 0, TAU); ctx.stroke(); ctx.restore();
 }
 
 // ---------- the tail (VEXAR's magic) ----------
@@ -1185,6 +1311,8 @@ function updateEnemy(dt) {
     enemy.ghostX += Math.sin(time * 0.7) * U * 0.6 * dt; enemy.ghostY += Math.cos(time * 0.5) * U * 0.6 * dt;
     prey = { x: enemy.ghostX, y: enemy.ghostY, vx: 0, vy: 0 };
   }
+  // held by LYTH's beam: it cannot fly (the grinder moves it)
+  if (game.grind && game.grind.phase !== "release") return;
   const c = enemyControl(enemy, prey, shipStats(E), { ww: WW, wh: WH, u: U, planetR: U * PLANET_R });
   moveShip(enemy, E, c, dt);
   if (!game.dead) bumpShips(game, shipById(game.ship), enemy, E);
@@ -1230,7 +1358,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null;
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
   for (let k = 0; k < 10; k++) smokeAt(game.x, game.y, game, S, 2.5, 2.5);
   rings.push({ x: game.x, y: game.y, t: 0, max: 0.8, r: shipSize() * 2.6, c: S.flame });
@@ -1264,6 +1392,7 @@ function updateWeapons(dt) {
   updateAnim(dt);
   updateEggs(dt);
   if (!game.dead) updateRing(dt);
+  updateGrind(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
     if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && slotAmmo(i) >= 1 && !waitsForFrames(i)) shoot(i);
@@ -1530,7 +1659,7 @@ function updateAnim(dt) {
 }
 // button 2 waits while the heavy cannon or the smoke hatches are still playing (so a shot never cuts a sequence short)
 function waitsForFrames(i) {
-  if (i === 1 && game.ring) return true;   // LYTH: one ring at a time, until it has locked on again
+  if (i === 1 && (game.ring || game.grind)) return true;   // the ring cannot fly while it grinds   // LYTH: one ring at a time, until it has locked on again
   const a = game.anim;
   return i === 1 && !!a && !!shipById(game.ship).anim && (a.seq === "secondary" || a.seq === "smoke");
 }
@@ -1671,14 +1800,16 @@ function drawShip(S, x, y, size, o = {}) {
 
   // a real drawing of the ship, once there is one
   let img = shipArt(S, o.anim);
-  // LYTH with its ring away: only the hull layer (the ring is drawn where it flies)
-  const ringAway = o.ring === "out" || o.ring === "back";
+  // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
+  // Grinding: the hull, and the ring drawn on its own, spinning, with its teeth out
+  const ringAway = o.ring === "out" || o.ring === "back" || !!o.grind;
   if (ringAway && S.anim && S.anim.hull) img = artImage(framePath(S.anim.dir, S.anim.hull)) || img;
   if (img) {
     // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
     // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
     const k = S.anim ? S.anim.size / img.width : 1 / Math.max(img.width, img.height);
     ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
+    if (o.grind && S.anim && S.anim.ring) drawGrinderRing(S, o.grind);
     if (S.anim && S.anim.latches) {
       // the docking latches glow amber while the ring unlatches or locks on
       if (o.ring === "unlock" || o.ring === "lock") for (const [lx, ly] of S.anim.latches) {
@@ -1933,7 +2064,9 @@ function draw() {
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize(),
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
-          ring: shown === S && game.ring ? game.ring.phase : null });
+          ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null });
+      if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
+      drawRange();
       drawRing(game.ring, S);
       if (game.arriveT > 0) {   // coming back after blowing up: a flash
         ctx.save(); ctx.globalAlpha = game.arriveT; ctx.fillStyle = "#ffffff";
@@ -1998,8 +2131,10 @@ function drawEnemy() {
     const st = shipStats(E);
     if (enemy.remote) drawTail(duel.tail, E);
     drawShip(E, p.x, p.y, size, { power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang,
-      anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null });
+      anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
+      grind: enemy.remote ? duel.grind : null });
     if (enemy.remote) drawRing(duel.ring, E);
+    if (enemy.remote && duel.grind && !game.dead) drawBeam(enemy, game, duel.grind.phase === "release" ? 1 - duel.grind.teeth : 1);
     if (enemy.hurt > 0) {   // hit: a quick white flash
       ctx.save(); ctx.globalAlpha = enemy.hurt / 0.15 * 0.45; ctx.fillStyle = "#ffffff";
       ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.45, 0, TAU); ctx.fill(); ctx.restore();
@@ -2237,6 +2372,7 @@ function drawMagic() {
   if (!M || trade.stage === "swapping") return;
   const b = magicButton(), ready = game.magicCool <= 0, k = ready ? 1 : 1 - game.magicCool / M.cool;
   if (M.look === "tail") drawTailButton(b, M, ready, k);
+  if (M.look === "grinder") drawGrinderButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
     // a magic glow when ready
@@ -2285,6 +2421,37 @@ function drawMagic() {
   }
 }
 
+// LYTH's magic button: a steel ring with saw teeth. Ready and the enemy close enough: violet glow, teeth out.
+// Ready but too far: the teeth stay in. Grinding: spins fast. Recharging: dim, its violet rim fills back in
+function drawGrinderButton(b, M, ready, k) {
+  const reach = ready && grindReach(), G = game.grind;
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (reach || G) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.7);
+    gl.addColorStop(0, `rgba(186,153,255,${0.35 + 0.15 * Math.sin(time * 6)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.7, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#4a5870"); bg.addColorStop(1, "#141f2d");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(186,153,255,0.15)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = M.color; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  // the toothed ring
+  ctx.globalAlpha = ready || G ? 1 : 0.5;
+  game.grindIcon = (game.grindIcon || 0) + frameDt * (G ? 14 : reach ? 2 : 0.4);
+  ctx.rotate(game.grindIcon);
+  const out = G ? 1 : reach ? 1 : 0.35, n = 12, r = b.r * 0.5;
+  ctx.fillStyle = "#dfe8f2";
+  for (let i = 0; i < n; i++) {
+    ctx.save(); ctx.rotate(i / n * TAU);
+    ctx.beginPath(); ctx.moveTo(-b.r * 0.07, -r); ctx.lineTo(b.r * 0.05, -r - b.r * 0.2 * out); ctx.lineTo(b.r * 0.07, -r); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  ctx.strokeStyle = "#a7b9cd"; ctx.lineWidth = b.r * 0.14; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = reach || G ? "#ba99ff" : "#8affff"; ctx.lineWidth = b.r * 0.04; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke();
+  ctx.restore();
+}
 // VEXAR's magic button: a dark chitin shell with a curled, segmented stinger tail inside.
 // Ready: lime glow and the tail sways. Out: the tail uncurls. Recharging: dim, its lime rim fills back in
 function drawTailButton(b, M, ready, k) {
@@ -2573,7 +2740,7 @@ function endDuel(tellThem) {
   setTimeout(() => link.stop(), tellThem ? 250 : 0);
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
-  duel.shots.length = 0; duel.tail = null; duel.net = null; duel.ring = null;
+  duel.shots.length = 0; duel.tail = null; duel.net = null; duel.ring = null; duel.grind = null; duel.held = false;
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
   for (let k = hunters.length - 1; k >= 0; k--) if (hunters[k].remote) hunters.splice(k, 1);
   // the computer enemy comes back a little later
@@ -2661,7 +2828,18 @@ function updateRival(dt) {
     R.phase = ph; R.ang = ra; R.lift = rl;
     if (ph === "out" || ph === "back") { R.trace.push({ x: R.x, y: R.y }); if (R.trace.length > 18) R.trace.shift(); }
   } else duel.ring = null;
-  if (!game.dead) bumpShips(game, shipById(game.ship), enemy, E);
+  // their LYTH caught me in its beam: my ship is pulled in and held against the teeth (their phone sends the damage)
+  duel.grind = n.gr ? { phase: n.gr[0], spin: n.gr[1] + (n.gr[0] === "grind" ? 16 * age : 0), teeth: n.gr[2] } : null;
+  if (n.gr && !game.dead) {
+    const [ph, , , nx, ny] = n.gr;
+    if (ph === "pull" || ph === "grind") {
+      const hold = grindHold(), tx = enemy.x + nx * hold, ty = enemy.y + ny * hold, kk = 1 - Math.exp(-dt * (ph === "pull" ? 4 : 20));
+      game.x = (((game.x + wrapDelta(tx - game.x, WW) * kk) % WW) + WW) % WW; game.y = (((game.y + wrapDelta(ty - game.y, WH) * kk) % WH) + WH) % WH;
+      game.vx = enemy.vx; game.vy = enemy.vy; duel.held = true;
+      if (ph === "grind" && Math.random() < dt * 14) { burstAt(game.x - nx * hold * 0.4, game.y - ny * hold * 0.4, 6, ["#ffffff", "#ffb347", "#a7b9cd"], 0.3, 0.45, game.vx, game.vy); audio.grind(); shake(0.12); }
+    } else if (duel.held) { duel.held = false; game.vx = enemy.vx + nx * U * 0.9; game.vy = enemy.vy + ny * U * 0.9; }
+  } else duel.held = false;
+  if (!game.dead && !game.grind && !duel.held) bumpShips(game, shipById(game.ship), enemy, E);
 }
 function updateDuel(dt) {
   if (!duel.stage) return;
@@ -2695,7 +2873,8 @@ function updateDuel(dt) {
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
       hd: game.hidden > 0 ? 1 : 0, tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
-        +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0 });
+        +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
+      gr: game.grind ? [game.grind.phase, +game.grind.spin.toFixed(2), +game.grind.teeth.toFixed(2), +game.grind.nx.toFixed(3), +game.grind.ny.toFixed(3)] : 0 });
     duel.outDmg = 0;
   }
 }
