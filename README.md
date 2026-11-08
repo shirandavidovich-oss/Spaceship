@@ -7,7 +7,11 @@ around, with a planet in the middle that pulls the ship. Tilting the phone point
 (all the way round, 360°); held at the usual angle (about 35° from flat) the nose stays where it is.
 The round button for the left thumb fires the engine toward the nose. Its fuel runs out over the
 ship's `fuel` seconds (30 for now): the button goes white → yellow → orange → red → purple → blue →
-black, and then disappears.
+black, and then disappears. It fills back up by itself (`refill` seconds per ship, 15 for now)
+and the button returns once the tank is 20% full.
+
+An enemy ship flies with you (no weapons yet): it chases you, keeps a little distance and stays
+off the planet, using the same flying rules as you. The view zooms out to keep both ships on screen.
 Swipe up to offer a trade with a phone nearby; the swap happens only if both players say yes.
 
 ## Install on the phone

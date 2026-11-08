@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -61,5 +61,32 @@ ok("every ship has fuel; the current ones last 30 seconds", () => { for (const s
 ok("fuel button: white when full, black when empty, colored on the way", () => {
   assert.strictEqual(fuelColor(1), "#ffffff"); assert.strictEqual(fuelColor(0), "#000000");
   for (const f of [0.9, 0.7, 0.5, 0.35, 0.2]) assert(!["#ffffff", "#000000"].includes(fuelColor(f)), f);
+});
+ok("fuel burns, runs dry, locks, then fills back up by itself", () => {
+  const st = shipStats(SHIPS[0]); let f = { fuel: st.fuel, locked: false }, t = 0;
+  while (!f.locked && t < 100) { f = fuelStep(f.fuel, f.locked, true, st, 0.1); t += 0.1; }
+  assert(Math.abs(t - st.fuel) < 0.2, "burned for " + t);
+  f = fuelStep(f.fuel, f.locked, true, st, 0.1); assert(f.locked && f.fuel > 0, "holding while dry does nothing, tank refills");
+  t = 0; while (f.locked) { f = fuelStep(f.fuel, f.locked, false, st, 0.1); t += 0.1; }
+  assert(Math.abs(t - st.refill * UNLOCK) < 0.3, "unlocks after " + t);
+  for (let i = 0; i < 400; i++) f = fuelStep(f.fuel, f.locked, false, st, 0.1);
+  assert.strictEqual(f.fuel, st.fuel);
+});
+const W0 = { ww: 4000, wh: 8000, u: 400, planetR: 200 };
+ok("enemy far away: points at you and fires its engine", () => {
+  const st = shipStats(SHIPS[1]);
+  const e = { x: 2000, y: 1000, vx: 0, vy: 0, ang: Math.PI / 2, fuel: 30, locked: false };
+  const c = enemyControl(e, { x: 3500, y: 1000, vx: 0, vy: 0 }, st, W0);
+  assert.strictEqual(deg(c.target), 90); assert.strictEqual(c.thrust, true);
+});
+ok("enemy heading into the planet: turns away from it", () => {
+  const st = shipStats(SHIPS[1]);
+  const e = { x: 2000, y: 3300, vx: 0, vy: 500, ang: Math.PI, fuel: 30, locked: false };   // just above the planet, falling in
+  const c = enemyControl(e, { x: 2000, y: 5000, vx: 0, vy: 0 }, st, W0);              // player on the far side
+  assert(Math.abs(deg(c.target)) < 90, "should push up, away from the planet: " + deg(c.target));
+});
+ok("every engine is stronger than the planet's pull (no ship gets stuck on it)", () => {
+  const g = gravityAt(1, 0, 1, 0.5);
+  for (const s of SHIPS) assert(shipStats(s).push > Math.abs(g.ax), s.id);
 });
 console.log(n + " checks passed");
