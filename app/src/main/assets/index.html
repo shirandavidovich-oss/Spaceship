@@ -114,13 +114,31 @@ const SHIPS = [
     hull: "#ff6a1a", wingC: "#3a3a40", trim: "#e0b060", flame: "#ff8c1a",
     body: [], wing: [], nozzles: [-0.166, 0.173], engineY: 0.47, cockpit: [0, -0.3, 0.05, 0.1],
     weapons: ["twin", "iris"],
-    // muzzles from thul_animation.json: primaryLeft (117,130), primaryRight (144,127), secondary (378,146)
-    guns: { twin: [[-0.326, -0.295], [-0.262, -0.302]], iris: [[0.286, -0.258]] },
+    // muzzles from thul_animation.json: primaryLeft (117,130), primaryRight (144,127);
+    // the heavy cannon from thul_extended.json: muzzleAtLaunch (362,194), measured on the recoiling frame
+    guns: { twin: [[-0.326, -0.295], [-0.262, -0.302]], iris: [[0.248, -0.145]] },
     anim: { dir: "thul", size: 1.2, idle: "idle",
       // frame durations (ms) and the moment each shot leaves, from thul_animation.json
       primary:   [["primary_01", 50], ["primary_02", 70, "left"], ["primary_03", 70, "right"], ["primary_04", 75], ["primary_05", 110]],
-      secondary: [["secondary_01", 120], ["secondary_02", 155], ["secondary_03", 210, "fire"], ["secondary_04", 115], ["secondary_05", 190]] } }
+      // button 2, the heavy cannon (thul_extended.json): the iris winds open, the chamber glows,
+      // flash + shock ring at 720 ms (frame 10), then the hull kicks sideways and settles. 1,560 ms
+      secondary: frames("cannon", 23, (n) => n <= 8 ? 75 : n === 9 ? 120 : 60, { 10: "fire" }),
+      // the magic button: the vent covers slide open, the vents pulse, the smoke leaves at 450 ms (frame 7), covers close. 1,725 ms
+      smoke: frames("smoke", 23, () => 75, { 7: "release" }),
+      // the smoke cloud: stays where it was let out (does not follow the ship), drawn over the ship. 3,500 ms
+      // size: its 768 canvas at the hull's pixel scale (768 / 512 * 1.2)
+      cloud: { frames: frames("cloud", 28, () => 125), size: 1.8 },
+      // the cannonball drawing: 64 px across at the hull's scale (64 / 512 * 1.2)
+      ball: { file: "cannonball.webp", size: 0.15 } } }
 ];
+// a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
+function frames(name, count, ms, cues = {}) {
+  return Array.from({ length: count }, (_, i) => {
+    const n = i + 1, f = [name + "_" + String(n).padStart(2, "0") + ".webp", ms(n)];
+    if (cues[n]) f.push(cues[n]);
+    return f;
+  });
+}
 const shipById = (id) => SHIPS.find((s) => s.id === id) || null;
 
 // ---- weapons ----
@@ -388,7 +406,12 @@ const audio = {
     else this.noise(0.12, 0.2, 1800);
   },
   // the iris winding up: a rising gear grind, then the latch clicks
-  windUp() { this.tone(70, 0.28, "sawtooth", 0.06, 3); this.tone(140, 0.28, "square", 0.025, 2.5); this.tone(2200, 0.03, "square", 0.05, 0.6, 0.25); },
+  // (len: seconds until the shot, so the crank rises right up to the boom)
+  windUp(len = 0.28) {
+    this.tone(70, len, "sawtooth", 0.06, 3); this.tone(140, len, "square", 0.025, 2.5);
+    for (let d = 0.08; d < len - 0.1; d += 0.11) this.tone(1200 + d * 900, 0.02, "square", 0.02, 0.7, d);   // the crank's ratchet
+    this.tone(2200, 0.03, "square", 0.05, 0.6, len - 0.04);   // the latch
+  },
   hit() { this.tone(950, 0.05, "square", 0.04, 0.5); },
   // the cannon: a deep thump, a sharp blast, a long rumble, and an echo across space
   cannon() {
@@ -428,6 +451,8 @@ const audio = {
     else this.tone(1300 + Math.random() * 900, 0.14, "triangle", 0.025, 0.8);   // squeak
     if (r > 0.8) this.tone(2400, 0.04, "square", 0.02, 1, 0.1);   // a rattle
   },
+  // the smoke hatches: the vent covers slide open (a metal scrape and a clunk)
+  hatch() { this.noise(0.35, 0.18, 3500); this.tone(420, 0.3, "sawtooth", 0.03, 1.6); this.tone(90, 0.12, "square", 0.08, 0.6, 0.3); },
   // the smoke screen: a long hiss, and a little magic chime
   magic() { this.noise(2.8, 0.3, 1400); [988, 1319, 1568, 1976].forEach((f, i) => this.tone(f, 0.5, "sine", 0.06, 1, 0.08 * i)); },
   // engine hum that follows the throttle
@@ -486,7 +511,8 @@ const game = {
   dead: 0,          // seconds until your ship comes back after blowing up (0 = flying)
   shakeT: 0,        // how hard the screen is shaking right now
   deaths: 0,
-  anim: null        // the firing drawings playing now: { seq: "primary" | "secondary", t: ms, pending }
+  magicWait: false, // the gear was tapped during the cannon shot: the smoke follows right after
+  anim: null        // the ship's drawings playing now: { seq: "primary" | "secondary" | "smoke", t: ms, pending, release }
 };
 function fillAmmo() { const S = shipById(game.ship); game.ammo = weaponsOf(S).map((w) => WEAPONS[w].ammo); }
 // start: just above the planet, so its pull is felt at once
@@ -808,12 +834,35 @@ function smokeAt(x, y, o, S, big = 1, life = 1.6) {
 // ---------- magic: the gear button ----------
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
 function useMagic() {
-  const M = magicOf(shipById(game.ship));
+  const S = shipById(game.ship), M = magicOf(S);
   if (!M || game.magicCool > 0 || game.dead) return;
-  game.magicCool = M.cool; game.magicPour = M.pour; game.hidden = M.hide;
-  // the enemy only knows where you were
+  // a ship with smoke drawings: the vent covers open first, and the smoke leaves at the "release" frame
+  if (S.anim && S.anim.smoke) {
+    if (game.anim && game.anim.seq === "secondary") { game.magicWait = true; return; }   // after the cannon shot
+    game.magicCool = M.cool; game.magicPour = M.pour;
+    game.anim = { seq: "smoke", t: 0, release: true };
+    audio.hatch(); buzz(40);
+    return;
+  }
+  game.magicCool = M.cool; game.magicPour = M.pour;
+  releaseSmoke();
+}
+// the smoke is out: the enemy loses you, and only knows where you were
+function releaseSmoke() {
+  const S = shipById(game.ship), M = magicOf(S);
+  game.hidden = M.hide;
   enemy.ghostX = game.x; enemy.ghostY = game.y;
+  if (S.anim && S.anim.cloud) clouds.push({ x: game.x, y: game.y, ang: game.ang, t: 0, cloud: S.anim.cloud, dir: S.anim.dir });
   audio.magic(); buzz(90);
+}
+// smoke clouds: each stays where it was let out, turned the way the ship faced then, and plays out by itself
+const clouds = [];
+function updateClouds(dt) {
+  for (let k = clouds.length - 1; k >= 0; k--) {
+    const c = clouds[k];
+    c.t += dt * 1000;
+    if (seqFrame(c.cloud.frames, c.t) < 0) clouds.splice(k, 1);
+  }
 }
 function updateMagic(dt) {
   const S = shipById(game.ship), M = magicOf(S);
@@ -822,6 +871,7 @@ function updateMagic(dt) {
   game.gear += dt * (game.magicPour > 0 ? 9 : game.magicCool > 0 ? 0.25 : 1.2);   // the gear button turns
   if (!M || game.magicPour <= 0) return;
   game.magicPour -= dt;
+  if (S.anim && S.anim.cloud) return;   // the drawn cloud is the smoke
   // thick smoke pours from the engines and hangs in space
   if (Math.random() < 30 * dt) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, 2.6 + Math.random() * 1.5, M.hide - 0.5);
 }
@@ -909,7 +959,7 @@ function damageShip(n) {
 // health gone: the ship blows up, and comes back near where it started a few seconds later
 function blowUpShip() {
   const S = shipById(game.ship);
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false;
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
   for (let k = 0; k < 10; k++) smokeAt(game.x, game.y, game, S, 2.5, 2.5);
   rings.push({ x: game.x, y: game.y, t: 0, max: 0.8, r: shipSize() * 2.6, c: S.flame });
@@ -940,9 +990,10 @@ function updateWeapons(dt) {
   const S = shipById(game.ship);
   weaponsOf(S).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt); });
   updateAnim(dt);
+  updateClouds(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
-    if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && slotAmmo(i) >= 1) shoot(i);
+    if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && slotAmmo(i) >= 1 && !waitsForFrames(i)) shoot(i);
   }
   // button 3 grows in when picked up, and shrinks away once it is empty
   if (game.loot) {
@@ -983,11 +1034,12 @@ function shoot(i) {
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
   if (A && i === 1) {   // the secondary waits for its wind-up
     game.anim = { seq: "secondary", t: 0, pending: w };
-    audio.windUp();
+    audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000);
     return;
   }
   const guns = gunsOf(S, w), b = game.barrel[i]++ % guns.length;
-  if (A && i === 0 && !(game.anim && game.anim.seq === "secondary"))
+  // the twin cannon's frames do not cut into the heavy cannon or the smoke hatches (its shots still fly)
+  if (A && i === 0 && !(game.anim && (game.anim.seq === "secondary" || game.anim.seq === "smoke")))
     game.anim = { seq: "primary", t: Math.max(0, cueTime(A.primary, b === 0 ? "left" : "right")) };
   spawnShots(w, guns[b]);
   audio.shot(w);
@@ -1003,7 +1055,8 @@ function spawnShots(w, g) {
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
   if (!S.anim) burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
-  else if (w === "iris") burstAt(x, y, 10, ["#fff3b0", "#ffb347"], 0.3, 0.6, game.vx, game.vy);
+  // (THUL's heavy cannon has its flash, shock ring and sparks in the drawings; it gets a cannonball drawing)
+  if (w === "iris" && S.anim && S.anim.ball) for (const s of shots.slice(-pelletAngles(Wp).length)) s.ball = { src: framePath(S.anim.dir, S.anim.ball.file), d: S.anim.ball.size };
   // the big brass shot kicks the ship back a little
   if (w === "iris") {
     game.vx -= Math.sin(game.ang) * U * 0.16; game.vy += Math.cos(game.ang) * U * 0.16;
@@ -1024,7 +1077,19 @@ function updateAnim(dt) {
       spawnShots(a.pending, gunsOf(shipById(game.ship), a.pending)[0]); audio.shot(a.pending); a.pending = null;
     }
   }
-  if (seqFrame(seq, a.t) < 0) game.anim = null;   // after frame 5: back to idle
+  if (a.release) {   // the smoke hatches: the cloud leaves once, at its frame
+    const cue = cueTime(seq, "release");
+    if (before <= cue && a.t >= cue || seqFrame(seq, a.t) < 0) { releaseSmoke(); a.release = false; }
+  }
+  if (seqFrame(seq, a.t) < 0) {   // after the last frame: back to idle
+    game.anim = null;
+    if (game.magicWait) { game.magicWait = false; useMagic(); }   // the gear was tapped during the cannon shot
+  }
+}
+// button 2 waits while the heavy cannon or the smoke hatches are still playing (so a shot never cuts a sequence short)
+function waitsForFrames(i) {
+  const a = game.anim;
+  return i === 1 && !!a && !!shipById(game.ship).anim && (a.seq === "secondary" || a.seq === "smoke");
 }
 // which drawing the player's ship shows now
 function shipFrame(S) {
@@ -1206,6 +1271,7 @@ function drawShip(S, x, y, size, o = {}) {
 //   ships with frames (anim): art/ships/<anim.dir>/<frame>.png  (all frames are loaded at the start, so firing never waits)
 //   ships with one drawing (art: true): art/ships/<id>.png
 const artCache = {};
+function framePath(dir, f) { return "art/ships/" + dir + "/" + f + (f.includes(".") ? "" : ".png"); }
 function artImage(src) {
   let a = artCache[src];
   if (!a) { a = artCache[src] = new Image(); a.src = src; }
@@ -1213,16 +1279,21 @@ function artImage(src) {
 }
 function shipArt(S) {
   if (S.anim) {
-    const idle = artImage("art/ships/" + S.anim.dir + "/" + S.anim.idle + ".png");
-    const f = artImage("art/ships/" + S.anim.dir + "/" + shipFrame(S) + ".png");
+    const idle = artImage(framePath(S.anim.dir, S.anim.idle));
+    const f = artImage(framePath(S.anim.dir, shipFrame(S)));
     return f || idle;   // a frame still loading: show idle meanwhile
   }
   if (!S.art) return null;
   return artImage("art/ships/" + S.id + ".png");
 }
 function preloadArt() {
-  for (const S of SHIPS) if (S.anim) for (const f of [S.anim.idle, ...S.anim.primary.map((x) => x[0]), ...S.anim.secondary.map((x) => x[0])])
-    artImage("art/ships/" + S.anim.dir + "/" + f + ".png");
+  for (const S of SHIPS) {
+    const A = S.anim;
+    if (!A) continue;
+    const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.cloud && A.cloud.frames].filter(Boolean).flatMap((q) => q.map((x) => x[0]))];
+    if (A.ball) all.push(A.ball.file);
+    for (const f of all) artImage(framePath(A.dir, f));
+  }
 }
 function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
 function shade(hex, k) {
@@ -1394,6 +1465,7 @@ function draw() {
     }
     drawShots();
     drawParts();
+    drawClouds();
     drawRings();
     ctx.restore();
     if (enemy.on) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
@@ -1503,7 +1575,7 @@ function rattle(S) {
   let k = 0;
   if (S.steam) k += game.power * 0.006 + (game.sputter > 0 ? 0.01 : 0);
   if (game.anim && game.anim.seq === "secondary") {
-    const t = game.anim.t, fire = 275;
+    const t = game.anim.t, fire = Math.max(1, cueTime(S.anim.secondary, "fire"));
     k += t < fire ? 0.004 + 0.016 * t / fire : 0.03 * Math.max(0, 1 - (t - fire) / 350);
   }
   if (game.anim && game.anim.seq === "primary") k += 0.004;
@@ -1551,6 +1623,14 @@ function drawShots() {
       ctx.strokeStyle = hexA(Wp.color, 0.35); ctx.lineWidth = wd * 2.6;
       ctx.beginPath(); ctx.moveTo(p.x - ux * len, p.y - uy * len); ctx.lineTo(p.x, p.y); ctx.stroke();
       ctx.strokeStyle = "#ffffff"; ctx.lineWidth = wd * 0.8; ctx.stroke();
+    } else if (s.w === "iris" && s.ball && artImage(s.ball.src)) {
+      // THUL's cannonball drawing, rolling as it flies, with a faint hot glow behind it
+      const img = artImage(s.ball.src), d = s.ball.d * size;
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, d * 1.1);
+      g.addColorStop(0, "rgba(255,170,60,0.35)"); g.addColorStop(1, "rgba(255,120,0,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, d * 1.1, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s.life * 6);
+      ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
     } else if (s.w === "iris") {
       // a glowing brass orb with a turning swirl
       const r = Wp.r * size * (1 + 0.12 * Math.sin(time * 20));
@@ -1568,6 +1648,18 @@ function drawShots() {
     }
   }
   ctx.restore();
+}
+// the smoke clouds, over the ships: the same pixel scale as the hull, turned the way the ship faced when it let them out
+function drawClouds() {
+  for (const c of clouds) {
+    const f = seqFrame(c.cloud.frames, c.t);
+    if (f < 0) continue;
+    const img = artImage(framePath(c.dir, c.cloud.frames[f][0]));
+    if (!img) continue;
+    const p = toScreen(c.x, c.y), d = c.cloud.size * shipSize();
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(c.ang);
+    ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+  }
 }
 function drawRings() {
   for (const g of rings) {

@@ -24,13 +24,20 @@ A new enemy arrives a few seconds later.
 crash = more damage). The screen edges flash red when you are hit, and the bar pulses under a quarter.
 At zero your ship blows up and comes back 3 seconds later with full health (lives are unlimited).
 The cannonball (button 2) fires with a deep boom and an echo, kicks the ship back, and shakes the screen.
+On THUL it is the heavy cannon: the brass iris winds open with a rising crank, the chamber glows, and at 0.72 s
+the flash and shock ring fire and a real cannonball drawing flies out; the hull kicks sideways and settles (1.56 s in all).
+Button 2 waits for that to finish before the next shot.
 
 **Magic (left thumb, above thrust):** each ship's magic button looks like the ship's style. The brass ship's
 is a turning brass gear: tap it and thick smoke pours from the engines; for a few seconds the enemy
 cannot see you and searches where it last saw you. Then the gear recharges (its brass fills back in).
+On THUL the two orange vent covers slide open, the vents pulse, and at 0.45 s a drawn smoke cloud is let out: it stays
+where it left the ship (it does not follow you), grows over the ship and fades over 3.5 s. Tapped during a cannon shot,
+the smoke follows right after it.
 
 **THUL**, the orange mechanical gunship, is the first ship with real drawings (`art/ships/thul/`: an idle
-sprite and 5 firing frames per weapon, 512 × 512, center pivot, nose up). Button 1 plays the twin-cannon frames
+sprite and 5 twin-cannon frames, plus 23 heavy-cannon frames, 23 smoke-hatch frames, 28 smoke-cloud frames and a cannonball;
+512 × 512 hull, center pivot, nose up. The new frames are WebP: same pictures, about a tenth of the download). Button 1 plays the twin-cannon frames
 and each shot leaves from the barrel that flashes; button 2 winds up the brass iris and the shot leaves at
 the big flash. Frames are timed in milliseconds, so they run the same on any screen. It has a mechanical steam engine: a ragged flame, backfires, creaks and
 squeaks, and now and then the fire goes out for a moment (no push, only smoke). While testing, everyone

@@ -116,21 +116,39 @@ ok("homing shots turn toward the enemy, keep their speed, not more than allowed"
   const v = steerShot(100, 0, 0, 100, 0.1); assert(Math.abs(Math.hypot(v.vx, v.vy) - 100) < 1e-9); assert(Math.abs(Math.atan2(v.vy, v.vx) - 0.1) < 1e-9);
 });
 ok("hidden in the smoke, the enemy cannot see you", () => { assert(!enemySees(2)); assert(enemySees(0)); });
-ok("THUL firing frames: 5 each, timed in ms, back to idle after frame 5", () => {
+ok("THUL twin cannon: 5 frames timed in ms, back to idle after frame 5", () => {
   const A = SHIPS.find((s) => s.id === "brass").anim;
-  for (const k of ["primary", "secondary"]) { assert.strictEqual(A[k].length, 5); assert.strictEqual(seqFrame(A[k], 0), 0); assert.strictEqual(seqFrame(A[k], seqLength(A[k])), -1); }
-  assert.strictEqual(seqLength(A.primary), 375); assert.strictEqual(seqLength(A.secondary), 790);
+  assert.strictEqual(A.primary.length, 5); assert.strictEqual(seqFrame(A.primary, 0), 0);
+  assert.strictEqual(seqLength(A.primary), 375); assert.strictEqual(seqFrame(A.primary, 375), -1);
 });
-ok("THUL shot cues: left barrel at frame 2, right at frame 3, iris fires at frame 3", () => {
+ok("THUL heavy cannon (thul_extended.json): 23 frames, 1,560 ms, the ball leaves at 720 ms on frame 10", () => {
+  const A = SHIPS.find((s) => s.id === "brass").anim;
+  assert.strictEqual(A.secondary.length, 23); assert.strictEqual(seqLength(A.secondary), 1560);
+  assert.strictEqual(cueTime(A.secondary, "fire"), 720); assert.strictEqual(seqFrame(A.secondary, 720), 9);
+  assert.strictEqual(A.secondary[9][0], "cannon_10.webp"); assert.strictEqual(seqFrame(A.secondary, 1560), -1);
+});
+ok("THUL smoke hatches: 23 frames, 1,725 ms, smoke out at 450 ms; the cloud plays 28 frames over 3,500 ms", () => {
+  const A = SHIPS.find((s) => s.id === "brass").anim;
+  assert.strictEqual(A.smoke.length, 23); assert.strictEqual(seqLength(A.smoke), 1725);
+  assert.strictEqual(cueTime(A.smoke, "release"), 450);
+  assert.strictEqual(A.cloud.frames.length, 28); assert.strictEqual(seqLength(A.cloud.frames), 3500);
+  assert(Math.abs(A.cloud.size - 768 / 512 * A.size) < 1e-9, "cloud at the hull's pixel scale");
+  assert(Math.abs(A.ball.size - 64 / 512 * A.size) < 1e-9, "cannonball 64 px at the hull's scale");
+});
+ok("THUL twin cannon cues: left barrel at frame 2, right at frame 3", () => {
   const A = SHIPS.find((s) => s.id === "brass").anim;
   assert.strictEqual(seqFrame(A.primary, cueTime(A.primary, "left")), 1);
   assert.strictEqual(seqFrame(A.primary, cueTime(A.primary, "right")), 2);
-  assert.strictEqual(cueTime(A.secondary, "fire"), 275); assert.strictEqual(seqFrame(A.secondary, 275), 2);
 });
 ok("THUL muzzles match the drawing's pixels", () => {
   const S = SHIPS.find((s) => s.id === "brass"), px = (v) => Math.round(v / S.anim.size * 512 + 256);
   const [l, r] = gunsOf(S, "twin"), [e] = gunsOf(S, "iris");
-  assert.deepStrictEqual([px(l[0]), px(l[1]), px(r[0]), px(r[1]), px(e[0]), px(e[1])], [117, 130, 144, 127, 378, 146]);
+  assert.deepStrictEqual([px(l[0]), px(l[1]), px(r[0]), px(r[1]), px(e[0]), px(e[1])], [117, 130, 144, 127, 362, 194]);
+});
+ok("every THUL drawing the game asks for is in art/ships/thul/", () => {
+  const A = SHIPS.find((s) => s.id === "brass").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
+  const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.cloud.frames].flatMap((q) => q.map((x) => x[0])), A.ball.file];
+  for (const f of all) assert(fs.existsSync(path.join(dir, f.includes(".") ? f : f + ".png")), f);
 });
 ok("crashing: gentle bumps are free, harder crashes hurt more, never more than RAM_DAMAGE", () => {
   assert.strictEqual(ramDamage(0.2), 0); assert(ramDamage(0.8) > 0 && ramDamage(1.2) > ramDamage(0.8));
