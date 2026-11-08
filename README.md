@@ -102,7 +102,9 @@ the ship jumps back to the mark, keeping its heading and speed, with pink bursts
 **XELTAR**, the frozen squid (`art/ships/xeltar/`, own recorded sounds). Button 1: three small ice shards from the nose.
 Button 2: its four arms curl round a growing ice crystal and launch it **backward** out of the stern; to hit something,
 turn your nose away from it. Its magic (a swirl of ink): the body swells and an ink cloud bursts from the stern; the cloud
-stays where it was let out and spreads for 3.4 s, and the enemy loses sight of you for 4 s. No engine flame: it swims.
+stays where it was let out and spreads for 3.4 s, and the enemy loses sight of you for 4 s. A ship that touches the cloud
+is covered in black ink: it loses 15 health and for 20 s it cannot steer, thrust or shoot; it drifts on the way it was going,
+at the speed it had (only the planet bounces it). In a duel the inked player's own phone does that to their ship. No engine flame: it swims.
 
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR), with its weapons and magic; tap one to fly it right away.

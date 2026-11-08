@@ -258,7 +258,7 @@ const SHIPS = [
       secondary: frames("rear", 16, (n) => [80, 80, 80, 90, 110, 110, 120, 120, 120, 110, 50, 70, 80, 100, 110, 110][n - 1], { 12: "fire" }),   // 1,540 ms, launch at 1,070
       smoke: frames("ink", 13, (n) => [80, 80, 90, 95, 95, 80, 50, 80, 85, 85, 100, 80, 60][n - 1], { 8: "release" }),   // 1,060 ms, ink at 570
       // the ink cloud: stays where it was let out, turned the way the ship faced; its canvas is the ship's (512 -> 1.2)
-      cloud: { frames: frames("cloud", 15, (n) => [90, 90, 90, 110, 130, 180, 210, 250, 330, 320, 400, 380, 400, 270, 150][n - 1]), size: 1.2, y: 0.307 },
+      cloud: { frames: frames("cloud", 15, (n) => [90, 90, 90, 110, 130, 180, 210, 250, 330, 320, 400, 380, 400, 270, 150][n - 1]), size: 1.9, y: 0.307 },
       shotArt: { ice: { file: "small_crystal.webp", size: 0.3 }, crystal: { file: "large_crystal.webp", size: 0.45, spin: 1.6 } } } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
@@ -336,7 +336,9 @@ const MAGIC = {
   // bites `bites` times (`dmg` each, `bite` seconds a bite) holding it, then reels back in
   devour: { name: "בליעה בשלשלאות", range: 4.5, speed: 3.2, bites: 3, bite: 0.32, dmg: 10, cool: 10, look: "chain", color: "#ff6a3d" },
   // XELTAR's ink: like the smoke screen (hide: seconds the enemy cannot see you), but a drawn ink cloud and no pouring smoke
-  ink:   { name: "ענן דיו", pour: 0, hide: 4, cool: 12, look: "ink", color: "#8a7fd6" },
+  //   a ship that touches the cloud is covered in black ink: it loses `dmg` health and for `stun` seconds it cannot steer,
+  //   thrust or shoot; it drifts on the way it was going, at the speed it had (only the planet bounces it)
+  ink:   { name: "ענן דיו", pour: 0, hide: 4, cool: 12, look: "ink", color: "#8a7fd6", dmg: 15, stun: 20 },
   tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 9.6, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
 };
 // VEXAR's tail pieces along a tail `total` art-pixels long (the art is 512 px per 1.2 ship-lengths):
@@ -1034,6 +1036,14 @@ function flyShip(dt) {
   // out of fuel: the engine stops, but a thumb still holding keeps steering, and the engine
   // starts again by itself once the tank has refilled enough
   if (soaking()) turn *= magicOf(S).steer;   // ORIAN drinking light: hard to steer
+  if (game.inked > 0) {   // covered in the other player's ink: no steering, no engine, drifting on (the planet bounces it)
+    game.inked -= dt;
+    const v = game.inkV || { vx: game.vx, vy: game.vy };
+    const h = moveShip(game, S, { target: game.ang, turn: 0, thrust: false }, dt);
+    if (h) game.inkV = { vx: game.vx, vy: game.vy }; else { game.vx = v.vx; game.vy = v.vy; game.inkV = v; }
+    if (game.inked <= 0) game.inkV = null;
+    return;
+  }
   const hit = moveShip(game, S, { target, turn, thrust: game.thrust !== null }, dt);
   // LYTH: the engine vent plates slide open / shut (a sound only when it changes)
   const burning = game.thrust !== null && !game.locked;
@@ -1253,21 +1263,77 @@ function releaseSmoke() {
 }
 // ink clouds (anyone's): each plays its frames where it was let out, turned the way its ship faced then
 const clouds = [];
+// where a cloud is now and how big (it spreads toward the stern side, growing for its first 0.9 s, then fades)
+function cloudArea(c) {
+  const C = shipById(c.ship).anim.cloud, d = C.size * shipSize(), m = rotatePt(0, d * 0.09, c.ang);
+  const grow = Math.min(1, c.t / 900), fade = 1 - smoothStep((c.t - 2600) / 800);
+  return { x: c.x + m.x, y: c.y + m.y, r: d * 0.36 * (0.35 + 0.65 * grow), fade };
+}
 function updateClouds(dt) {
   for (let k = clouds.length - 1; k >= 0; k--) {
     const c = clouds[k], C = shipById(c.ship).anim.cloud;
     c.t += dt * 1000;
-    if (seqFrame(C.frames, c.t) < 0) clouds.splice(k, 1);
+    if (seqFrame(C.frames, c.t) < 0) { clouds.splice(k, 1); continue; }
+    // my cloud catches the enemy (once per cloud): covered in ink
+    const A = cloudArea(c);
+    if (!c.remote && !c.inked && A.fade > 0.3 && enemy.on && enemy.warp < 0.5 &&
+        Math.hypot(wrapDelta(enemy.x - A.x, WW), wrapDelta(enemy.y - A.y, WH)) < A.r + shipSize() * 0.3) {
+      c.inked = true; inkEnemy(magicOf(shipById(c.ship)) || MAGIC.ink);
+    }
   }
+}
+// the enemy covered in ink: hurt, and drifting out of control (in a duel, the other phone does it to its own ship)
+function inkEnemy(M) {
+  harmEnemy(M.dmg);
+  burstAt(enemy.x, enemy.y, 30, ["#0a0612", "#1c1030", "#3a2a60"], 0.5, 1.0, enemy.vx, enemy.vy);
+  audio.sfx("xeltar", "ink_release", 0, 0.8); buzz(60);
+  if (enemy.remote) { link.send({ t: "inked", n: M.stun }); enemy.inked = M.stun; return; }
+  enemy.inked = M.stun; enemy.inkV = { vx: enemy.vx, vy: enemy.vy };
 }
 function drawClouds() {
   for (const c of clouds) {
     const S = shipById(c.ship), C = S.anim.cloud, f = seqFrame(C.frames, c.t);
     const img = f >= 0 && artImage(framePath(S.anim.dir, C.frames[f][0]));
     if (!img) continue;
-    const p = toScreen(c.x, c.y), d = C.size * shipSize();
-    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(c.ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+    const p = toScreen(c.x, c.y), d = C.size * shipSize(), A = cloudArea(c), q = toScreen(A.x, A.y);
+    // a deep black-violet body under the drawing, so the ink reads clearly against space
+    const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, A.r * 1.15);
+    g.addColorStop(0, `rgba(6,3,14,${0.85 * A.fade})`); g.addColorStop(0.6, `rgba(20,10,40,${0.6 * A.fade})`); g.addColorStop(1, "rgba(30,15,60,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(q.x, q.y, A.r * 1.15, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(c.ang);
+    ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.drawImage(img, -d / 2, -d / 2, d, d);   // twice: darker
+    ctx.restore();
+    // soft billows curling at its edge, drifting slowly outward
+    for (let i = 0; i < 9; i++) {
+      const a = i * 0.7 + c.ang + Math.sin(c.t / 900 + i) * 0.35, rr = A.r * (0.55 + 0.25 * Math.sin(c.t / 600 + i * 2)), br = A.r * (0.32 + 0.1 * Math.sin(i * 3));
+      const x = q.x + Math.cos(a) * rr, y = q.y + Math.sin(a) * rr, bg = ctx.createRadialGradient(x, y, 0, x, y, br);
+      bg.addColorStop(0, `rgba(8,4,18,${0.55 * A.fade})`); bg.addColorStop(1, "rgba(25,12,50,0)");
+      ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(x, y, br, 0, TAU); ctx.fill();
+    }
   }
+}
+// ink on a ship: black blots over it, dripping; they fade out as the time runs down (k: how much is left, 1..0)
+function drawInkOn(x, y, size, k, seed) {
+  if (!(k > 0)) return;
+  ctx.save(); ctx.globalAlpha = Math.min(1, k * 3);
+  for (let i = 0; i < 16; i++) {   // thick black blots all over the ship
+    const a = seed + i * 2.39996, rr = size * 0.38 * Math.sqrt((i * 0.618 + 0.1) % 1), bx = x + Math.cos(a) * rr, by = y + Math.sin(a) * rr;
+    const r = size * (0.11 + 0.08 * ((i * 0.37) % 1));
+    const g = ctx.createRadialGradient(bx, by, 0, bx, by, r);
+    g.addColorStop(0, "rgba(3,1,8,0.97)"); g.addColorStop(0.65, "rgba(6,3,14,0.92)"); g.addColorStop(1, "rgba(20,10,40,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(bx, by, r, 0, TAU); ctx.fill();
+  }
+  // drips running off it
+  ctx.fillStyle = "#050210";
+  for (let i = 0; i < 4; i++) {
+    const dx = x + (i - 1.5) * size * 0.16, len = size * (0.12 + 0.1 * ((time * 0.6 + i * 0.37) % 1));
+    ctx.beginPath(); ctx.ellipse(dx, y + size * 0.3 + len / 2, size * 0.025, len / 2, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(dx, y + size * 0.3 + len, size * 0.035, 0, TAU); ctx.fill();
+  }
+  // a violet sheen on the wet ink
+  ctx.globalAlpha *= 0.4; ctx.strokeStyle = "#8a7fd6"; ctx.lineWidth = Math.max(1, size * 0.012);
+  ctx.beginPath(); ctx.arc(x - size * 0.06, y - size * 0.08, size * 0.12, 3.6, 4.6); ctx.stroke();
+  ctx.restore();
 }
 function updateMagic(dt) {
   const S = shipById(game.ship), M = magicOf(S);
@@ -1418,6 +1484,7 @@ const eshots = [];
 function enemyShoot(dt) {
   if (!ENEMY_GUNS || enemy.remote || !enemy.on || enemy.warp > 0.2 || game.dead || !enemySees(game.hidden) || game.stage !== "fly") return;
   if ((game.grind && game.grind.phase !== "release") || (game.devour && game.devour.phase === "bite")) return;   // held: it cannot shoot
+  if (enemy.inked > 0) return;   // blinded by ink
   const E = shipById(enemy.ship), guns = enemyGuns(E);
   enemy.cool = enemy.cool || [0, 0]; enemy.ammo = enemy.ammo || guns.map((w) => WEAPONS[w].ammo);
   const dx = wrapDelta(game.x - enemy.x, WW), dy = wrapDelta(game.y - enemy.y, WH), d = Math.hypot(dx, dy);
@@ -2186,6 +2253,7 @@ const enemy = { on: false, ship: null, x: 0, y: 0, vx: 0, vy: 0, ang: 0, spin: 0
   hp: ENEMY_HP, hurt: 0, respawn: 0 };
 function spawnEnemy() {
   if (!ENEMY) return;
+  enemy.inked = 0;
   enemy.cool = null; enemy.ammo = null;   // a new enemy comes with full guns
   setBody(nextBody(cosmos.body), cosmos.started);   // each round: a new thing in the middle
   cosmos.started = true;
@@ -2225,6 +2293,15 @@ function updateEnemy(dt) {
   // held by LYTH's beam (the grinder moves it) or in SKARN's jaw: it cannot fly
   if (game.grind && game.grind.phase !== "release") return;
   if (game.devour && game.devour.phase === "bite") return;
+  if (enemy.inked > 0) {   // covered in ink: no steering, no engine; it drifts on as it was going (the planet bounces it)
+    enemy.inked -= dt;
+    const before = enemy.inkV;
+    const hit = moveShip(enemy, E, { target: enemy.ang, turn: 0, thrust: false }, dt);
+    if (hit) enemy.inkV = { vx: enemy.vx, vy: enemy.vy }; else { enemy.vx = before.vx; enemy.vy = before.vy; }
+    if (Math.random() < dt * 6) burstAt(enemy.x, enemy.y, 1, ["#0a0612", "#2a1a48"], 0.08, 0.8, enemy.vx * 0.5, enemy.vy * 0.5);   // ink drips
+    if (!game.dead) bumpShips(game, shipById(game.ship), enemy, E);
+    return;
+  }
   const c = enemyControl(enemy, prey, shipStats(E), { ww: WW, wh: WH, u: U, planetR: planetR() });
   moveShip(enemy, E, c, dt);
   if (!game.dead) bumpShips(game, shipById(game.ship), enemy, E);
@@ -2270,7 +2347,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -2605,6 +2682,7 @@ function updateAnim(dt) {
 }
 // button 2 waits while the heavy cannon or the smoke hatches are still playing (so a shot never cuts a sequence short)
 function waitsForFrames(i) {
+  if (game.inked > 0) return true;   // inked: its guns are clogged
   // SKARN: the shards only while the jaw is shut (empty or loaded)
   if (i === 0 && game.trap && game.trap.mode !== "idle" && game.trap.mode !== "loaded") return true;
   if (i === 1 && (game.ring || game.grind)) return true;
@@ -3038,6 +3116,7 @@ function draw() {
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
       if (shown === S) drawDevour(game, S, game.devour);
+      if (game.inked > 0) drawInkOn(p.x, p.y, shipSize(), game.inked / MAGIC.ink.stun, 0.4);
       drawRange();
       drawRing(game.ring, S);
       if (game.arriveT > 0) {   // coming back after blowing up: a flash
@@ -3263,6 +3342,7 @@ function drawEnemy() {
     drawShip(E, p.x, p.y, size * esc, { talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang,
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
+    drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
     if (enemy.remote) drawRing(duel.ring, E);
     if (enemy.remote) drawDevour(enemy, E, duel.devour);
     if (enemy.remote) {
@@ -4047,7 +4127,10 @@ function duelLink(event, data) {
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
   } else if (m.t === "ink" && shipById(m.s)) {   // their XELTAR's ink cloud
-    clouds.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, ship: m.s }); audio.sfx("xeltar", "ink_release", 0, 0.7);
+    clouds.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, ship: m.s, remote: true }); audio.sfx("xeltar", "ink_release", 0, 0.7);
+  } else if (m.t === "inked") {   // their ink got my ship (their phone saw it touch the cloud; the damage comes with their state)
+    game.inked = m.n || MAGIC.ink.stun; game.inkV = { vx: game.vx, vy: game.vy }; game.thrust = null;
+    burstAt(game.x, game.y, 30, ["#0a0612", "#1c1030", "#3a2a60"], 0.5, 1.0, game.vx, game.vy); shake(0.4); buzz(150);
   } else if (m.t === "rift") {   // their DRAKON jumped: bursts at both ends, and it is there at once
     const fx = m.fx * WW, fy = m.fy * WH, x = m.x * WW, y = m.y * WH;
     riftBursts.push({ x: fx, y: fy, t: 0 }, { x, y, t: 0 }, { line: true, x: fx, y: fy, x2: x, y2: y, t: 0 });
@@ -4117,6 +4200,7 @@ function updateRival(dt) {
     enemy.talus = { stage: st, scale: sc, ring: rg, colors: cols ? cols.split(",") : [], t: tt };
     if (st > was) spawnChips(enemy, shipSize() * sc, enemy.talus.colors[st - 1] || "#e8dcc4");
   } else enemy.talus = null;
+  enemy.inked = n.ik || 0;   // their ship covered in my ink (to draw it)
   // their SKARN's jaw on chains: shown here; while it bites, my ship is held in it (their phone sends the damage)
   duel.devour = n.dv ? { phase: n.dv[0], x: n.dv[1] * WW, y: n.dv[2] * WH, open: n.dv[3], ang: n.dv[4] } : null;
   if (duel.devour && duel.devour.phase === "bite" && !game.dead) {
@@ -4174,7 +4258,7 @@ function updateDuel(dt) {
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
       ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
-      kn: game.trap ? game.trap.stored : 0, kc: trapOpen() ? 1 : 0,
+      kn: game.trap ? game.trap.stored : 0, kc: trapOpen() ? 1 : 0, ik: game.inked > 0 ? +game.inked.toFixed(1) : 0,
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
       gr: game.grind ? [game.grind.phase, +game.grind.spin.toFixed(2), +game.grind.teeth.toFixed(2), +game.grind.nx.toFixed(3), +game.grind.ny.toFixed(3)] : 0 });
@@ -4237,7 +4321,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id;
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();

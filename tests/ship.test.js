@@ -292,6 +292,9 @@ ok("XELTAR (xeltar-layout.json): shards at 78 ms; the crystal at 1,070 ms flies 
   for (const x of [A.idle, ...[A.primary, A.secondary, A.smoke, A.cloud.frames].flatMap((q) => q.map((y) => y[0])), A.shotArt.ice.file, A.shotArt.crystal.file]) assert(fs.existsSync(path.join(dir, x)), x);
   for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
+ok("XELTAR's ink: a ship touching the cloud takes damage and drifts out of control for 20 s", () => {
+  const M = MAGIC.ink; assert.strictEqual(M.stun, 20); assert(M.dmg > 0); assert(M.cool < M.stun, "it can ink again while the first one still drifts");
+});
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
   for (const f of [A.idle, A.hull, A.ring, ...A.primary.map((x) => x[0])]) assert(fs.existsSync(path.join(dir, f)), f);
