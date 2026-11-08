@@ -41,6 +41,9 @@ is a turning brass gear: tap it and thick smoke pours from the engines; for a fe
 cannot see you and searches where it last saw you. Then the gear recharges (its brass fills back in).
 On THUL the two orange vent covers slide open, the vents pulse, and at 0.45 s the thick smoke starts pouring out.
 Tapped during a cannon shot, the smoke follows right after it.
+THUL's magic button is split in two. Left, the gear: the smoke screen (three times as thick as before). Right, a brass
+vent: a steam burst: the vents blast steam backward for 2.5 s, shoving the ship forward, and the trail of steam scalds a
+ship inside it (20 a second). Each half recharges on its own (keyboard: V and B).
 
 **THUL**, the orange mechanical gunship, is the first ship with real drawings (`art/ships/thul/`: an idle
 sprite and 5 twin-cannon frames, plus 23 heavy-cannon frames, 23 smoke-hatch frames and a cannonball;
@@ -148,6 +151,12 @@ keeps its own ammo and cooldown while it is put away. (The rail and the arc wave
 three-round neon burst from the left of the nose (5 each). Button 2: the shutters slide open, the cyan core charges and a
 hack pulse leaves (10). A ship it hits is hacked for 2 s: its next firing goes off a quarter turn clockwise (all of it,
 once). No magic yet.
+
+**NIMBUS**, the stormfront ship (`art/ships/nimbus/`, own recorded sounds). Button 1: lightning charges along the spine,
+then a flickering bolt (14). Button 2: the cloud banks swell and a storm is let go ahead of the ship; it drifts on by
+itself and grows, its wind swirls other ships round it, and three marked lightning strikes hit where the warnings show
+(18 each), then it clears into a rainbow (only a picture). Magic: the cloud banks lift and a rainbow arc flies out (20,
+and NIMBUS gets back 10 health).
 
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.

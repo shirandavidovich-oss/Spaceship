@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("twenty-four ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 24);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 24);
+ok("twenty-five ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 25);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 25);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -393,6 +393,24 @@ ok("RIVET (rivet.js): spine pin + rail, turned a quarter: scatter (5 pellets, +-
   assert(WEAPONS.rail.lay === 2 && WEAPONS.rail.last === 2.8 && WEAPONS.wave.dur === 0.34);
   const dir = path.join(__dirname, "../app/src/main/assets/art/ships/rivet");
   assert(fs.existsSync(path.join(dir, A.idle)));
+  for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
+});
+ok("THUL: two magics on a split button (smoke, three times as thick; steam)", () => {
+  const S = SHIPS.find((s) => s.id === "brass");
+  assert.strictEqual(S.magic, "smoke"); assert.strictEqual(S.magic2, "steam"); assert.strictEqual(MAGIC.smoke.rate, 90);
+  assert(MAGIC.steam.burst > 0 && MAGIC.steam.push > 0 && MAGIC.steam.scald > 0);
+});
+ok("NIMBUS (nimbus-motion.js): the bolt at 360 of 750 ms, the storm at 750 of 1,150, the rainbow at 720 of 1,320; muzzle (256,95)", () => {
+  const S = SHIPS.find((s) => s.id === "nimbus"), A = S.anim, px = (v) => Math.round(v / A.size * 512 + 256);
+  assert.strictEqual(seqLength(A.primary), 750); assert.strictEqual(cueTime(A.primary, "bolt"), 360);
+  assert.strictEqual(seqLength(A.secondary), 1150); assert.strictEqual(cueTime(A.secondary, "fire"), 750);
+  assert.strictEqual(seqLength(A.rainbow), 1320); assert.strictEqual(cueTime(A.rainbow, "rain"), 720);
+  assert.strictEqual(px(gunsOf(S, "lightning")[0][1]), 95); assert.strictEqual(A.field.length, 79); assert.strictEqual(A.arc.length, 33);
+  const P = stormPose(0), Q = stormPose(1.5); assert(P.travel === 0 && Q.travel === 1 && Q.grow === 1 && Q.live && !stormPose(3).live);
+  assert(rainbowPose(1.25).opacity < 0.01 && rainbowPose(0.6).opacity > 0.9);
+  assert.strictEqual(WEAPONS.storm.strikes.map((q) => q[0]).join(), "1.23,1.83,2.48");
+  const dir = path.join(__dirname, "../app/src/main/assets/art/ships/nimbus");
+  for (const f of [A.idle, ...A.field, ...A.arc, ...A.shotArt.lightning.frames, ...[A.primary, A.secondary, A.rainbow].flatMap((q) => q.map((x) => x[0]))]) assert(fs.existsSync(path.join(dir, f)), f);
   for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
