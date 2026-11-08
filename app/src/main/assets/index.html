@@ -730,7 +730,8 @@ const MAGIC = {
   //   keeps flying; let go and it pulls back in over `back` s.
   //   At its tip a spiked iron ball (`ball`: radius in ship-lengths): touching the enemy it hits for `hit`
   //   (at most once every `every` s) and knocks it away (`knock` screens a second)
-  tail:  { name: "זנב כדור קוצים", out: 0.8, hold: 0, back: 0.7, len: 9.6, cool: 0.4, look: "tail", color: "#b8ff3a",
+  // VEXAR's tail: one tap; it grows out (`out` s), stays out `hold` s, and pulls back in (`back` s); `cool` s more after
+  tail:  { name: "זנב כדור קוצים", out: 0.8, hold: 8, back: 0.7, len: 9.6, cool: 1, look: "tail", color: "#b8ff3a",
            ball: 0.22, hit: 20, every: 0.6, knock: 1.0 }
 };
 // VEXAR's tail pieces along a tail `total` art-pixels long (the art is 512 px per 1.2 ship-lengths):
@@ -2194,10 +2195,10 @@ function useMagic(which = 0) {
     audio.beam(); audio.sfx(S.sfx, "latches_unlock", 0.75); buzz(60);
     return;
   }
-  if (M.look === "tail") {   // the stinger tail grows out behind the ship
-    game.magicCool = M.cool;
-    if (game.tail) { const o = Math.max(0, tailOut(M, game.tail.t)); game.tail.t = M.out * (1 - Math.sqrt(1 - o)); }   // pulling in: out again
-    else game.tail = { t: 0, pts: null, zap: 0, touch: 0, hitT: 0 };
+  if (M.look === "tail") {   // the stinger tail grows out behind the ship, stays out, and comes back by itself
+    if (game.tail) return;
+    game.magicCool = M.out + M.hold + M.back + M.cool;
+    game.tail = { t: 0, pts: null, zap: 0, touch: 0, hitT: 0 };
     audio.lash(); buzz(50);
     return;
   }
@@ -3592,9 +3593,6 @@ function updateTail(dt) {
   if (!T) return;
   if (!M || M.look !== "tail") { game.tail = null; return; }
   T.t += dt;
-  const held = game.magicFinger !== null;
-  if (held && T.t > M.out) T.t = M.out;   // held: it stays all the way out
-  if (!held && T.t < M.out) { const o = Math.max(0, tailOut(M, T.t)); T.t = M.out + M.back * Math.sqrt(1 - o); }   // let go early: in from here
   const tip0 = T.pts ? T.pts[TAIL_SEGS] : null;
   if (!moveTail(T, game, S, M, dt)) { game.tail = null; return; }
   const size = shipSize(), b = T.pts[TAIL_SEGS];

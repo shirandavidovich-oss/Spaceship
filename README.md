@@ -233,6 +233,8 @@ VEXAR's egg forms in the open (vexar-egg-deploy): the wings swing out, the chamb
 swells in three pulses into the egg (its kind is picked at the press), which wobbles up and springs out at 1,140 ms
 (55 frames, 1,650 ms); outside it settles and incubates as before.
 
+VEXAR's tail is one tap now: it grows out, stays out 8 s, and pulls back in by itself (`MAGIC.tail.hold`).
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

@@ -191,7 +191,7 @@ ok("the tail grows out, stays, pulls back in, and is gone after that", () => {
   assert.strictEqual(tailOut(M, M.out + M.hold / 2), 1);
   const back = tailOut(M, M.out + M.hold + M.back / 2); assert(back > 0 && back < 1);
   assert.strictEqual(tailOut(M, M.out + M.hold + M.back + 0.01), -1);
-  assert(M.cool < 1, "held magic: ready again almost at once");
+  assert.strictEqual(M.hold, 8, "one tap: out for 8 s, then back by itself");
 });
 ok("VEXAR tail pieces: mount, narrowing vertebrae, stinger; they fill the tail's length exactly", () => {
   const P = tailPieces(1620);
@@ -333,7 +333,7 @@ ok("ZORIAN: button 2 is the thread, its magic (the anchor) holds it still; VEXAR
   const A = MAGIC.anchor, Wt = WEAPONS.thread;
   assert(A.spin * (Wt.seal - Wt.lay) >= 2 * Math.PI, "spinning while the thread lays makes a whole ring");
   assert(A.hold > Wt.seal && A.ring > 0.6, "the ring is laid outside the hull, where shots have not hit yet");
-  const M = MAGIC.tail; assert(M.ball > 0 && M.hit > 0 && M.every > 0 && M.hold === 0);
+  const M = MAGIC.tail; assert(M.ball > 0 && M.hit > 0 && M.every > 0 && M.hold === 8);
 });
 ok("VANTA (vanta-layout.json): the drop at 112 ms of 360, the phase drop at 690 of 1,020; muzzle at (256,51)", () => {
   const S = SHIPS.find((s) => s.id === "vanta"), A = S.anim, px = (v) => Math.round(v / A.size * 512 + 256);
