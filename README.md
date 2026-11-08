@@ -209,6 +209,13 @@ The quarter turn is drawn into those frames, so the game does not turn them agai
 
 **Stars that do not burn:** a ship with `starProof: true` (BORER, ORIAN) only bounces off a star, black hole or lava world.
 
+**Moving armour (art updates):** SKARN's six ribs close in a cascade for its shards (17 frames, lock at 76 ms) and
+climb forward for the return salvo (20 frames, lock at 135 ms). CINDER fires through recoil frames (a blaster's barrel
+slides back and the hull kicks; the torpedo doors open, it kicks back, the doors shut), except during a side slip, when
+the swivelling engines are drawn instead. BORER's thrust armour: pushing, its side plates slide out, the pistons and
+cooling bays light up and the rear nozzles reach out with a purple exhaust (open 420 ms, held loop, close 320 ms;
+`borerThrust`, turning back mid-way from where it is). Its 640 px frames keep the 512 px scale (`anim.base`).
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

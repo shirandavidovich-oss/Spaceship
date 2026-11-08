@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, starMinePose, starMineCheck, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,borerThrust,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, starMinePose, starMineCheck, borerThrust, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -248,8 +248,8 @@ ok("ORIAN soak: a charge for each stretch held; 3 = double speed, 6 = full (then
 });
 ok("SKARN (skarn-layout.json): shards at 76 ms from both muzzles; jaw catches in front only; spit at 135 ms", () => {
   const S = SHIPS.find((s) => s.id === "skarn"), A = S.anim, px = (v) => Math.round(v / A.size * 512 + 256);
-  assert.strictEqual(seqLength(A.primary), 285); assert.strictEqual(cueTime(A.primary, "left"), 76);
-  assert.strictEqual(seqLength(A.open), 285); assert.strictEqual(seqLength(A.slam), 230); assert.strictEqual(seqLength(A.spit), 360); assert.strictEqual(cueTime(A.spit, "fire"), 135);
+  assert.strictEqual(seqLength(A.primary), 305); assert.strictEqual(cueTime(A.primary, "left"), 76);
+  assert.strictEqual(seqLength(A.open), 285); assert.strictEqual(seqLength(A.slam), 230); assert.strictEqual(seqLength(A.spit), 380); assert.strictEqual(cueTime(A.spit, "fire"), 135);
   const [l, r] = gunsOf(S, "spike"); assert.strictEqual([px(l[0]), px(l[1]), px(r[0]), px(r[1])].join(), "144,113,368,113");
   assert(WEAPONS.spike.both && WEAPONS.spike.pellets === 2);
   assert(inTrap(A.trap, 0, 120), "straight ahead, in the mouth"); assert(!inTrap(A.trap, 0, 40), "too close"); assert(!inTrap(A.trap, 0, -120), "behind");
@@ -530,5 +530,20 @@ ok("RIVET's moving parts: the turn drawn into each frame; stars only bounce BORE
   assert.strictEqual(A.magicBack[0][3], 90); assert.strictEqual(A.magicBack[11][3], 0); assert.strictEqual(A.scatter[5][3], 90);
   assert.strictEqual(A.mech.nails, "wave"); assert.strictEqual(A.mech.magnet, "rail");
   assert.ok(shipById("borer").starProof && shipById("orian").starProof); assert.ok(!shipById("rivet").starProof);
+});
+ok("CINDER fires through its recoil frames; BORER's thrust armour opens, holds, closes, and turns back mid-way", () => {
+  const C = shipById("cinder").anim, B = shipById("borer").anim, T = { pos: 0, hold: 0, opening: false };
+  assert.strictEqual(C.fireL.length, 11); assert.strictEqual(C.fireR.length, 11); assert.strictEqual(C.torpedo.length, 33);
+  assert.strictEqual(borerThrust(T, false, 0.05, B.thrust), null);
+  assert.strictEqual(borerThrust(T, true, 0.001, B.thrust), "thrust_open_01.webp");
+  assert.strictEqual(borerThrust(T, true, 0.5, B.thrust), "thrust_hold_01.webp");
+  assert.strictEqual(borerThrust(T, true, 0.035, B.thrust), "thrust_hold_02.webp");
+  assert.strictEqual(borerThrust(T, false, 0.16, B.thrust), "thrust_close_09.webp");   // half way shut
+  assert.strictEqual(borerThrust(T, true, 0.1, B.thrust), "thrust_open_11.webp");     // back open from there
+  assert.strictEqual(borerThrust(T, false, 1, B.thrust), null);
+  const fs = require("fs"), path = require("path"), dir = (d) => path.join(__dirname, "../app/src/main/assets/art/ships", d);
+  for (const f of [...C.fireL, ...C.fireR, ...C.torpedo].map((x) => x[0])) assert(fs.existsSync(path.join(dir("cinder"), f)), f);
+  for (const k of ["open", "hold", "close"]) for (let i = 1; i <= B.thrust[k]; i++) assert(fs.existsSync(path.join(dir("borer"), "thrust_" + k + "_" + String(i).padStart(2, "0") + ".webp")));
+  for (const f of [...shipById("skarn").anim.primary, ...shipById("skarn").anim.spit].map((x) => x[0])) assert(fs.existsSync(path.join(dir("skarn"), f)), f);
 });
 console.log(n + " checks passed");

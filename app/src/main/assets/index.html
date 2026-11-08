@@ -223,10 +223,12 @@ const SHIPS = [
     // muzzles (144,113) and (368,113); the mouth (spit anchor) (256,94)
     guns: { spike: [[-0.2625, -0.335], [0.2625, -0.335]], trap: [[0, -0.38]] },
     anim: { dir: "skarn", size: 1.2, idle: "idle.webp",
-      primary: frames("primary", 7, (n) => [40, 36, 39, 45, 50, 40, 35][n - 1], { 3: "left" }),   // 285 ms, shards at 76
+      // the six armour ribs close in a cascade and lock at 76 ms (the shards), then spread back (17 frames, 305 ms)
+      primary: frames("primary", 17, (n) => [15, 15, 15, 15, 16, 14, 15, 15, 20, 20, 20, 20, 25, 20, 22, 18, 20][n - 1], { 6: "left" }),
       open: frames("open", 6, (n) => [50, 50, 50, 50, 35, 50][n - 1]),                            // the jaw parts (235 ms)
       slam: frames("slam", 6, (n) => [40, 40, 40, 50, 35, 25][n - 1]),                            // 230 ms
-      spit: frames("spit", 8, () => 45, { 4: "fire" }),                                            // 360 ms, the salvo at 135
+      // the ribs climb forward from the rear and lock at 135 ms as the jaw lets the stored rounds go (20 frames)
+      spit: frames("spit", 20, (n) => [20, 20, 20, 20, 20, 15, 20, 15, 20, 20, 15, 20, 20, 20, 20, 20, 20, 20, 15, 20][n - 1], { 8: "fire" }),
       loaded: [1, 2, 3, 4, 5].map((n) => "loaded_" + n + ".webp"),
       // the trap: art pixels in front of the center (forward 84-180, side up to 68 + a bit more further out)
       // catch: seconds the mouth stays open. suck: enemy shots within this many ship-lengths of the mouth are pulled
@@ -443,18 +445,26 @@ const SHIPS = [
     // the blasters (+-71,-188 px from the pivot), the torpedo (0,-197); 512 px canvas = 1.45 ship-lengths
     guns: { blaster: [[-0.2011, -0.5325], [0.2011, -0.5325]], torpedo: [[0, -0.558]] },
     anim: { dir: "cinder", size: 1.45, idle: "idle.webp",
-      parts: { hull: "hull.webp", left: "engine_left.webp", right: "engine_right.webp" } } },
+      parts: { hull: "hull.webp", left: "engine_left.webp", right: "engine_right.webp" },
+      // firing poses (cinder-firing: 20 ms frames, muzzle flash and vents drawn in; the last is the resting pose):
+      // a blaster's barrel slides back and the hull kicks to the other side; the torpedo doors slide apart, it kicks
+      // back hard, the thrusters flare and the doors shut. Not during a side slip (then the engines are drawn swivelling)
+      fireAnim: { blaster: ["fireL", "fireR"], torpedo: ["torpedo"] },
+      fireL: frames("fire_left", 11, () => 20), fireR: frames("fire_right", 11, () => 20), torpedo: frames("torpedo", 33, () => 20) } },
   // BORER, the star miner (art/ships/borer/idle.webp, 512 x 512, center pivot, the drill up; 512 px = 1.07 ship-lengths).
   // Button 1: a fan of metal shrapnel from the drill tip. Button 2: a drilling mine dropped out of the back; it waits,
   // and when an enemy comes near it spins up and bores into it. Magic: star mine (see MAGIC.starmine)
   { id: "borer", name: "BORER", rarity: "epic", mass: 1.3, fuel: 30, refill: 15, sfx: null, magic: "starmine", starProof: true,
-    hull: "#3c5a50", wingC: "#1e2a26", trim: "#4dff9a", flame: "#b46bff",
+    hull: "#3c5a50", wingC: "#1e2a26", trim: "#4dff9a", flame: "#b46bff", noFlame: true,   // (its exhaust is in the thrust frames)
     // the two violet engine lights (221,467) and (288,465); the drill tip (256,16)
     body: [], wing: [], nozzles: [-0.073, 0.067], engineY: 0.441, cockpit: [0, 0.1, 0.05, 0.1],
     weapons: ["shrapnel", "drillmine"],
     guns: { shrapnel: [[0, -0.5]], drillmine: [[0, 0.5]] },
     // the drill's 24 turning frames (same canvas): shown while it bores in and out (borerDrill)
-    anim: { dir: "borer", size: 1.07, idle: "idle.webp", spin: Array.from({ length: 24 }, (_, i) => "spin_" + String(i + 1).padStart(2, "0") + ".webp") } },
+    // thrust (borer-thrust): pushing, the side plates slide out and pivot, the pistons and cooling bays light up and the
+    // two rear nozzles reach out with a purple exhaust (open: 15 frames, 420 ms; held: 20 frames looping, 600 ms;
+    // let go: 17 frames, 320 ms). Those frames are 640 x 640 at the same pixel scale (base: 512 px = size)
+    anim: { dir: "borer", size: 1.07, base: 512, idle: "idle.webp", thrust: { open: 15, hold: 20, close: 17, openMs: 420, holdMs: 600, closeMs: 320 }, spin: Array.from({ length: 24 }, (_, i) => "spin_" + String(i + 1).padStart(2, "0") + ".webp") } },
   // MIRAGE, the prism ship (art/ships/mirage/, 512 x 512, center pivot, nose up; 512 px = 1.14 ship-lengths, the muzzle
   // (256,48)). Each button charges first (light runs up the prism to the nose; 12 frames) and fires at the end of it.
   // Button 1: a focused pulse, one narrow fast amber shot (280 ms). Button 2: a violet seed (390 ms); 0.46 s after it
@@ -1114,6 +1124,17 @@ function lensPull(dx, dy, M) {
   if (r === 0 || r >= M.radius) return { ax: 0, ay: 0 };
   const a = Math.min(M.max, M.strength / (r * r + M.soft * M.soft)) * (1 - (r / M.radius) ** 2);
   return { ax: dx / r * a, ay: dy / r * a };
+}
+// BORER's thrust armour: where it is (0 shut .. 1 open) after dt s, held or not, and the drawing for it.
+// T: { pos, hold, opening } (kept on the ship). Reversing mid-way goes on from where it is
+function borerThrust(T, held, dt, C) {
+  if (held) { const was = T.pos; T.pos = Math.min(1, T.pos + dt * 1000 / C.openMs); T.hold = T.pos >= 1 ? T.hold + (was >= 1 ? dt : 0) : 0; T.opening = true; }
+  else { T.pos = Math.max(0, T.pos - dt * 1000 / C.closeMs); T.hold = 0; T.opening = false; }
+  if (T.pos <= 0) return null;
+  const pad = (n) => String(n).padStart(2, "0");
+  if (T.opening && T.pos >= 1) return "thrust_hold_" + pad(Math.floor(T.hold * 1000 / (C.holdMs / C.hold)) % C.hold + 1) + ".webp";
+  if (T.opening) return "thrust_open_" + pad(Math.round(T.pos * (C.open - 1)) + 1) + ".webp";
+  return "thrust_close_" + pad(Math.round((1 - T.pos) * (C.close - 1)) + 1) + ".webp";
 }
 // can BORER start a dive here? gap: from its edge to the star's surface, in ship-lengths
 function starMineCheck(gap, busy, M) { return busy ? "occupied" : !(gap >= 0) || gap > M.reach ? "range" : "ok"; }
@@ -3927,6 +3948,7 @@ function shoot(i) {
   if (A && A.mech && A.mech[w] && !(game.flipT >= 0)) game.anim = { seq: A.mech[w], t: 0 };   // RIVET: the part that fires moves
   if (A && A.primary && i === 0 && !(game.anim && game.anim.seq !== "primary"))
     game.anim = { seq: "primary", t: Math.max(0, cueTime(A.primary, b === 0 ? "left" : "right")) };
+  if (A && A.fireAnim && A.fireAnim[w] && !game.dash2) game.anim = { seq: A.fireAnim[w][b % A.fireAnim[w].length], t: 0 };   // CINDER's recoil
   if (Wp.both) for (const g of guns) spawnShots(w, g); else spawnShots(w, guns[b]);
   if (Wp.burst) game.burstQ = { w, g: guns[b], left: Wp.burst - 1, t: Wp.gap, rot: spawnShots.rot };   // GLITCH: the rest of the burst
   audio.shot(w);
@@ -4421,7 +4443,7 @@ function drawShip(S, x, y, size, o = {}) {
   if (img) {
     // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
     // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
-    const k = S.anim ? S.anim.size / img.width : 1 / Math.max(img.width, img.height);
+    const k = S.anim ? S.anim.size / (S.anim.base || img.width) : 1 / Math.max(img.width, img.height);
     ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
     if (halfClip) ctx.restore();
     if (S.anim && S.anim.ribbon && img === artImage(framePath(S.anim.dir, S.anim.ribbon))) drawRibbon(S, o.tint || 0);
@@ -4898,6 +4920,12 @@ function drawBorerLegs(x, y, size, ang, k) {
     ctx.fillStyle = `rgba(77,255,154,${0.5 + 0.5 * k})`; ctx.beginPath(); ctx.arc(kx, ky, 0.014, 0, TAU); ctx.fill();
   }
   ctx.restore();
+}
+// BORER's thrust frame for a ship (kept on it, stepped by the time since it was last drawn)
+function thrustFrame(o, S, held) {
+  const T = o.bthr || (o.bthr = { pos: 0, hold: 0, opening: false, at: time }), dt = Math.min(0.1, Math.max(0, time - T.at));
+  T.at = time;
+  return borerThrust(T, held, dt, S.anim.thrust);
 }
 // cracks of green light from the bomb out through the star (made once, when it is planted): each a jagged line
 function mineVeins(bx, by) {
@@ -6021,7 +6049,7 @@ function cinderPicture(S, c) {
   return cinderCanvas;
 }
 function shipArt(S, a, stored, tint, rep, cin, pw) {
-  if (S.anim && S.anim.parts) return cinderPicture(S, cin);
+  if (S.anim && S.anim.parts && !(a && S.anim[a.seq] && seqFrame(S.anim[a.seq], a.t) >= 0)) return cinderPicture(S, cin);   // (CINDER firing: its frames)
   if (S.anim && S.anim.layers) return glitchPicture(S, a);
   if (S.anim && S.anim.modules) return reprisePicture(S, rep);
   if (S.anim) {
@@ -6058,6 +6086,8 @@ function preloadArt() {
     if (A.parts) all.push(A.parts.hull, A.parts.left, A.parts.right);
     if (A.idleLoop) all.push(...A.idleLoop);
     if (A.spin) all.push(...A.spin);
+    if (A.thrust) for (const [k, n] of [["open", A.thrust.open], ["hold", A.thrust.hold], ["close", A.thrust.close]]) for (let i = 1; i <= n; i++) all.push("thrust_" + k + "_" + String(i).padStart(2, "0") + ".webp");
+    if (A.fireAnim) for (const k of ["fireL", "fireR", "torpedo"]) all.push(...A[k].map((x) => x[0]));
     if (A.mech) for (const k of ["pin", "rail", "scatter", "wave", "magic"]) all.push(...A[k].map((x) => x[0]));
     if (A.lens) all.push(...A.lens.map((x) => x[0]));
     if (A.inflate) all.push(...A.inflate.map((x) => x[0]));
@@ -6251,7 +6281,7 @@ function draw() {
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
-          half: shown === S && game.splitUsed ? "rear" : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
+          half: shown === S && game.splitUsed ? "rear" : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
       if (dug) ctx.restore();
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
@@ -6503,7 +6533,7 @@ function drawEnemy() {
     if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
+    drawShip(E, p.x, p.y, size * esc, { frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
