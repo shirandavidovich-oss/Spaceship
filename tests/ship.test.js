@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("twenty-three ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 23);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 23);
+ok("twenty-four ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 24);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 24);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -368,9 +368,25 @@ ok("CANTOR's magic: rings of sound that scramble a ship for a minute", () => {
   const S = SHIPS.find((s) => s.id === "cantor"), M = MAGIC[S.magic];
   assert.strictEqual(S.magic, "resonance"); assert.strictEqual(M.scramble, 60); assert(M.range > 0 && M.speed > 0);
 });
+ok("RIVET's heavy weapons: magnet balls (spine) and nail mines (crossarm)", () => {
+  const S = SHIPS.find((s) => s.id === "rivet");
+  assert.strictEqual(weaponsOf(S).join(), "pin,magnet"); assert.strictEqual(weaponsOf(S, 1).join(), "scatter,nails");
+  assert(WEAPONS.magnet.magnet > 0 && WEAPONS.magnet.pellets === WEAPONS.magnet.colors.length);
+  const N = WEAPONS.nails; assert(N.mines > 1 && N.stop < N.arm && N.arm < N.stay && N.max >= N.mines);
+});
+ok("GLITCH (glitch-motion.js): shutters shut at rest, open and the core glowing at the pulse, shut again at the end", () => {
+  const S = SHIPS.find((s) => s.id === "glitch"), A = S.anim;
+  assert.strictEqual(weaponsOf(S).join(), "neon,hack");
+  assert.strictEqual(shutterPose(0).open, 0); assert.strictEqual(shutterPose(3300).open, 0);
+  const P = shutterPose(1900); assert(P.open > 0.99 && P.glow > 0.9 && P.lx === -45 * P.open && P.rx === 45 * P.open);
+  assert.strictEqual(cueTime(A.secondary, "fire") * 2, 1900); assert.strictEqual(seqLength(A.secondary) * 2, 3300);
+  assert(WEAPONS.neon.burst === 3 && WEAPONS.hack.status === 2);
+  const dir = path.join(__dirname, "../app/src/main/assets/art/ships/glitch");
+  for (const f of Object.values(A.layers)) assert(fs.existsSync(path.join(dir, f)), f);
+});
 ok("RIVET (rivet.js): spine pin + rail, turned a quarter: scatter (5 pellets, +-24 degrees) + wave; ports from the pivot", () => {
   const S = SHIPS.find((s) => s.id === "rivet"), A = S.anim, px = (v) => Math.round(v / A.size * 512);
-  assert.strictEqual(weaponsOf(S).join(), "pin,rail"); assert.strictEqual(weaponsOf(S, 1).join(), "scatter,wave"); assert.strictEqual(S.magic, "flip");
+  assert.strictEqual(S.magic, "flip");
   assert.strictEqual(MAGIC.flip.turn, 0.44);
   assert.strictEqual(JSON.stringify(["pin", "rail", "scatter"].map((w) => gunsOf(S, w)[0].map(px))), "[[113,-179],[-37,169],[-118,-163]]");
   assert.strictEqual(pelletAngles(WEAPONS.scatter).map((a) => Math.round(a * 180 / Math.PI)).join(), "-24,-12,0,12,24");

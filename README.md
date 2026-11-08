@@ -139,10 +139,15 @@ reach is scrambled for a whole minute: its steering is reversed and its shots fl
 
 **RIVET**, the L-shaped ship (`art/ships/rivet/`, own recorded sounds). Its magic turns the whole hull a quarter round
 (and back on the next tap), keeping its heading and speed; the other corner then leads, with two other weapons. Nothing
-fires during the 0.44 s turn. Spine: button 1 a fast pin (12); button 2 a red-hot rail laid behind the ship for 2 s that
-hurts a ship crossing it (10, at most every 0.5 s) for 2.8 s. Crossarm: button 1 five short-range pellets (4 each);
-button 2 an arc wave that grows from the broad tip and shoves the enemy away (8). Each weapon keeps its own ammo and
-cooldown while it is put away.
+fires during the 0.44 s turn. Spine: button 1 a fast pin (12); button 2 eight coloured magnet balls that scatter all
+round and are pulled into the planet (7 each). Crossarm: button 1 five short-range pellets (4 each); button 2 a fan of
+four nails that fly a little way, stop and stay as mines for 14 s (14, and a shove, when a ship touches one). Each weapon
+keeps its own ammo and cooldown while it is put away. (The rail and the arc wave are still in the code, unused.)
+
+**GLITCH**, the shutter ship (`art/ships/glitch/`: a core and two shutter panels, put together in code). Button 1: a
+three-round neon burst from the left of the nose (5 each). Button 2: the shutters slide open, the cyan core charges and a
+hack pulse leaves (10). A ship it hits is hacked for 2 s: its next firing goes off a quarter turn clockwise (all of it,
+once). No magic yet.
 
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.
