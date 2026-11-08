@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("twenty-seven ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 27);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 27);
+ok("twenty-eight ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 28);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 28);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -437,6 +437,19 @@ ok("PUFF (puff-motion.js): 89 frames of 50 ms; compact at rest, puffed up and gu
   assert(puffPose(0).pressure < 0.01 && !puffPose(1400).guard && puffPose(2000).guard && puffPose(2000).pressure > 0.95 && !puffPose(3000).guard && puffPose(4400).pressure < 0.01);
   const dir = path.join(__dirname, "../app/src/main/assets/art/ships/puff");
   for (const f of A.inflate.map((x) => x[0])) assert(fs.existsSync(path.join(dir, f)), f);
+});
+ok("CINDER (cinder-combat.js): two guns taking turns; engines swivel to the side and settle back; the slip at 170 ms", () => {
+  const S = SHIPS.find((s) => s.id === "cinder"), A = S.anim, px = (v) => Math.round(v / A.size * 512);
+  assert.strictEqual(weaponsOf(S).join(), "blaster,torpedo"); assert.strictEqual(S.magic, "dashL"); assert.strictEqual(S.magic2, "dashR");
+  assert.strictEqual(JSON.stringify(gunsOf(S, "blaster").map((g) => g.map(px))), "[[-71,-188],[71,-188]]");
+  assert.strictEqual(px(gunsOf(S, "torpedo")[0][1]), -197);
+  const rest = cinderEngines(-1, 1), mid = cinderEngines(200, 1), left = cinderEngines(200, -1), end = cinderEngines(660, 1);
+  assert(Math.abs(rest[0].angle - 20 * Math.PI / 180) < 1e-9 && Math.abs(rest[1].angle + 20 * Math.PI / 180) < 1e-9);
+  assert(mid[0].angle > 1.3 && mid[1].angle > 1.3 && left[0].angle < -1.3, "both swivel toward the side");
+  assert(Math.abs(end[0].angle - rest[0].angle) < 1e-6, "and settle back");
+  assert(MAGIC.dashR.at === 0.17 && MAGIC.dashR.dir === 1 && MAGIC.dashL.dir === -1 && WEAPONS.torpedo.life === 0.95);
+  const dir = path.join(__dirname, "../app/src/main/assets/art/ships/cinder");
+  for (const f of Object.values(A.parts).concat(A.idle)) assert(fs.existsSync(path.join(dir, f)), f);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);

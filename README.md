@@ -174,6 +174,12 @@ code (the package only names them). Magic: it puffs up in three pressure pulses 
 out a ship that touches it is stabbed (15, at most every 0.6 s) and thrown off, and PUFF turns slower; then it vents and
 shrinks back (4.4 s).
 
+**CINDER**, the blockade runner (`art/ships/cinder/`: a hull and two engines on swivel joints, put together in code).
+Button 1: red bolts taking turns from the two front blasters (8). Button 2: an amber concussion torpedo; it blows up on a
+ship or after 0.95 s, and the blast hurts (up to 22) and throws back every enemy near it. Magic, split into left and right
+(one shared recharge, 3.4 s; keyboard V and B): both engines swivel to that side and the ship is kicked sideways; it keeps
+facing the same way and keeps its speed, and it can fire all the while.
+
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.
 It is only for trying them: the choice is not saved, and in the real game each player has the one ship from the gift,

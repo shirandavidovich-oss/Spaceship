@@ -407,7 +407,20 @@ const SHIPS = [
     body: [], wing: [], nozzles: [0], engineY: 0.42, cockpit: [0, -0.2, 0.05, 0.1],
     weapons: ["needles", "bubble"],
     guns: { needles: [[0, -0.45]], bubble: [[0, -0.45]] },
-    anim: { dir: "puff", size: 2.0, idle: "inflate_01.webp", inflate: frames("inflate", 89, () => 50) } }   // 4,450 ms
+    anim: { dir: "puff", size: 2.0, idle: "inflate_01.webp", inflate: frames("inflate", 89, () => 50) } },   // 4,450 ms
+  // CINDER, the blockade runner (art/ships/cinder/: a hull and two engines on swivel joints, put together in code from
+  // cinder-combat.js). Button 1: red bolts, taking turns from the two front blasters. Button 2: an amber concussion
+  // torpedo: it blows up on a ship or after 0.95 s; the blast hurts and throws back every enemy near it. Magic, split
+  // left and right: both engines swivel to that side and at 170 ms the ship is kicked sideways; it keeps facing the
+  // same way and keeps its speed, and it can fire all the while
+  { id: "cinder", name: "CINDER", rarity: "rare", mass: 1.2, fuel: 30, refill: 15, sfx: null, magic: "dashL", magic2: "dashR",
+    hull: "#d8c8a8", wingC: "#4a3a2a", trim: "#d0402a", flame: "#ffa040", noFlame: true,
+    body: [], wing: [], nozzles: [-0.23, 0.23], engineY: 0.45, cockpit: [0, -0.2, 0.05, 0.1],
+    weapons: ["blaster", "torpedo"],
+    // the blasters (+-71,-188 px from the pivot), the torpedo (0,-197); 512 px canvas = 1.45 ship-lengths
+    guns: { blaster: [[-0.2011, -0.5325], [0.2011, -0.5325]], torpedo: [[0, -0.558]] },
+    anim: { dir: "cinder", size: 1.45, idle: "idle.webp",
+      parts: { hull: "hull.webp", left: "engine_left.webp", right: "engine_right.webp" } } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -477,6 +490,10 @@ const WEAPONS = {
              // `zapR` of its radius gets a bolt (`zapDmg`, at most every `zapEvery` s). At most `max` of yours at once
              holdAt: 2.6, hold: 180, zapR: 1.6, zapDmg: 10, zapEvery: 1.4, max: 3,
              strikes: [[1.23, -39, 15], [1.83, 44, -19], [2.48, -3, -41]] },
+  // CINDER. blaster: two guns taking turns. torpedo: blows up on a ship or at the end of its life; the blast reaches
+  //   `blast` ship-lengths, hurts up to `blastDmg` and throws back up to `push` screens a second (less farther out)
+  blaster: { name: "בלסטר",       dmg: 8,  speed: 3.0, life: 0.7, cool: 0.205, ammo: 20, refill: 6, r: 0.03, color: "#ff4a3a" },
+  torpedo: { name: "טורפדו הדף",  dmg: 0,  speed: 1.4, life: 0.95, cool: 1.8, ammo: 3, refill: 5.4, r: 0.06, color: "#ffb03a", blast: 1.3, blastDmg: 22, push: 1.6 },
   // PUFF. needles: 3 in a narrow fan. bubble: slow, swells as it floats; pops on a ship (`dmg` and a shove of `knock`)
   needles: { name: "מחטי נחושת", dmg: 6,  speed: 2.8, life: 0.8, cool: 0.4, ammo: 18, refill: 6, r: 0.025, color: "#e08a4a", pellets: 3, fan: 0.18 },
   bubble:  { name: "בועת לחץ",   dmg: 16, speed: 1.0, life: 2.2, cool: 1.6, ammo: 3,  refill: 5, r: 0.1,   color: "#9fe8d8", knock: 0.8 },
@@ -568,6 +585,10 @@ const MAGIC = {
   // GLITCH's slip: at `at` s into the slide the ship jumps `jump` ship-lengths sideways; a decoy flickers where it was
   //   for `ghost` s, and the enemy goes after the decoy
   slip:    { name: "קפיצת תקלה", look: "slip", cool: 7, at: 0.4, jump: 2.6, ghost: 2.5, color: "#38f6ff" },
+  // CINDER's side slip (dashL to the left, dashR to the right, one shared recharge): the engines swivel for `turn` s,
+  //   and at `at` s the ship is kicked `kick` screens a second sideways (its own sideways, its heading untouched)
+  dashL: { name: "החלקה שמאלה", look: "dash", dir: -1, cool: 3.4, turn: 0.66, at: 0.17, kick: 1.8, color: "#ffa040" },
+  dashR: { name: "החלקה ימינה", look: "dash", dir: 1,  cool: 3.4, turn: 0.66, at: 0.17, kick: 1.8, color: "#ffa040" },
   // PUFF's inflation: while the spines are out (`guard`, seconds) a touching ship is stabbed (`dmg`, at most every
   //   `every` s) and thrown off (`knock`); it turns at `turn` of its speed while puffed up
   inflate: { name: "התנפחות", look: "inflate", cool: 8, guard: [1.5, 2.9], dmg: 15, every: 0.6, knock: 1.3, turn: 0.4, color: "#e8b040" },
@@ -629,6 +650,12 @@ function segDistance(a, b, c, d) {
     if (t >= 0 && t <= 1 && u >= 0 && u <= 1) return 0;
   }
   return Math.min(pd(a, c, d), pd(b, c, d), pd(c, a, b), pd(d, a, b));
+}
+// CINDER (cinder-combat.js enginePose): each engine's turn (radians, clockwise) and its flare, ms into a slip to side dir
+function cinderEngines(ms, dir) {
+  const e = (v) => { const t = Math.max(0, Math.min(1, v)); return t * t * (3 - 2 * t); };
+  const piv = ms < 0 ? 0 : e(ms / 170) * (1 - e((ms - 330) / 330)), flare = ms < 0 ? 0 : e((ms - 90) / 85) * (1 - e((ms - 255) / 135));
+  return [20, -20].map((rest) => ({ angle: (rest + (dir * 83 - rest) * piv) * Math.PI / 180, flare: 0.18 + 0.82 * flare }));
 }
 // PUFF (puff-motion.js): how puffed up it is ms into the inflation: the membrane's half-width (px of the 560 canvas),
 // and whether the spines guard
@@ -1045,6 +1072,8 @@ const audio = {
     else if (w === "tone") this.sfx("cantor", "resonance_fire", 0, 0.8);
     else if (w === "pin") this.sfx("rivet", "pin", 0, 0.8);
     else if (w === "lightning") this.sfx("nimbus", "lightning-fire", 0, 0.9);
+    else if (w === "blaster") { this.tone(880, 0.07, "sawtooth", 0.04, 0.35); this.noise(0.04, 0.08, 3000); }
+    else if (w === "torpedo") { this.tone(160, 0.35, "triangle", 0.07, 2); this.noise(0.25, 0.1, 900); }
     else if (w === "needles") { this.tone(2200, 0.03, "square", 0.03, 0.5); this.tone(1500, 0.05, "triangle", 0.03, 0.7, 0.02); }
     else if (w === "bubble") { this.tone(300, 0.2, "sine", 0.06, 2.2); }
     else if (w === "amber") { this.tone(780, 0.12, "triangle", 0.06, 1.8); this.tone(1560, 0.05, "sine", 0.03, 1); }
@@ -1346,7 +1375,7 @@ function update(dt) {
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
-  rewindTicks(dt); updatePuff(dt);
+  rewindTicks(dt); updatePuff(dt); updateCinder(dt);
   updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
@@ -1590,6 +1619,7 @@ function useMagic(which = 0) {
   if (which === 1) {   // the second magic, on the right half of a split button
     if (!S.magic2 || game.magicCool2 > 0 || game.dead) return;
     const M2 = MAGIC[S.magic2];
+    if (M2.look === "dash") { cinderSlip(M2); return; }   // CINDER: slip right
     if (M2.look === "slip") {   // GLITCH: the panels slide past each other; the jump comes at `at` (updateGlitchMagic)
       if (game.anim) return;
       game.magicCool2 = M2.cool; game.anim = { seq: "slide", t: 0 }; game.slip = { t: 0, jumped: false };
@@ -1610,6 +1640,7 @@ function useMagic(which = 0) {
     game.anchor = { t: 0 }; audio.sfx(S.sfx, "thread_arm", 0, 0.6); buzz(30);
     return;
   }
+  if (M.look === "dash") { cinderSlip(M); return; }   // CINDER: slip left
   if (M.look === "inflate") {   // PUFF: puff up (the frames play; the spines guard in their window: updatePuff)
     if (game.anim) return;
     game.magicCool = M.cool; game.anim = { seq: "inflate", t: 0 };
@@ -2456,7 +2487,8 @@ function updateEnemyShots(dt) {
     // into your ship
     if (!game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < size * 0.42 * shipScale() + Wp.r * shotScale(s, Wp) * size) {
       burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 6, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);
-      damageShip(Math.max(1, Math.round(shotHit(s, Wp).dmg * ENEMY_DMG)));
+      damageShip(Math.max(1, Math.round((Wp.blast ? Wp.blastDmg : shotHit(s, Wp).dmg) * ENEMY_DMG)));
+      if (Wp.blast) { torpedoBlast(s, Wp, false); const d = Math.hypot(game.x - s.x, game.y - s.y) || 1; game.vx += (game.x - s.x) / d * Wp.push * U; game.vy += (game.y - s.y) / d * Wp.push * U; }
       if (Wp.hack) game.hacked = Wp.status;   // the bot's GLITCH pulse hacked me
       eshots.splice(k, 1);
     }
@@ -3282,7 +3314,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = [];
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -3370,7 +3402,7 @@ function updateWeapons(dt) {
     if (s.w === "missile" && Math.random() < 0.6) burstAt(s.x, s.y, 1, ["#b8fff0", "#ffffff"], 0.05, 0.6);
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;   // VANTA's drop inside the planet
     if (Wp.phase) phaseTrail(s);
-    if (s.life > Wp.life) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); shots.splice(k, 1); continue; }
+    if (s.life > Wp.life) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); if (Wp.blast) torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }
     // into the planet: a puff, and it is gone
     if (Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
       if (Wp.magnet) burstAt(s.x, s.y, 10, [Wp.colors[(s.ix || 0) % Wp.colors.length], "#ffffff"], 0.35, 0.7);
@@ -3390,6 +3422,7 @@ function updateWeapons(dt) {
     if (enemy.on && enemy.warp < 0.5) {
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
       if (Math.hypot(dx, dy) < size * 0.42 + Wp.r * shotScale(s, Wp) * size) {
+        if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
         hitEnemy(s, shotHit(s, Wp)); shots.splice(k, 1);
         if (Wp.tag) { enemy.markT = Wp.tag; audio.sfx("vanta", "mark_hit"); }   // VANTA's marking drop: the stain
         if (Wp.knock && s.w === "bubble") {   // PUFF's bubble pops: a shove
@@ -3888,7 +3921,7 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.fillStyle = glow; ctx.fillRect(-0.7, -0.6, 1.4, 1.3);
 
   // a real drawing of the ship, once there is one
-  let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep);
+  let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep, o.cin || { power: o.power });
   // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
   // Grinding: the hull, and the ring drawn on its own, spinning, with its teeth out
   const ringAway = o.ring === "out" || o.ring === "back" || !!o.grind;
@@ -4092,6 +4125,75 @@ function drawWavesButton(b, M, ready, k) {
   ctx.restore();
 }
 
+// ---------- CINDER: the side slip and the torpedo's blast ----------
+// game.dash2: { t, dir, kicked } (dash was taken by KRAAL)
+function cinderSlip(M) {
+  if (game.dash2 || game.dead) return;
+  game.magicCool = game.magicCool2 = M.cool;   // one recharge for both sides
+  game.dash2 = { t: 0, dir: M.dir, kicked: false };
+  audio.tone(240, 0.18, "sawtooth", 0.04, 1.6); audio.tone(900, 0.04, "square", 0.03, 0.5, 0.12); buzz(30);
+}
+function updateCinder(dt) {
+  const D = game.dash2;
+  if (!D) return;
+  D.t += dt;
+  const M = MAGIC[D.dir < 0 ? "dashL" : "dashR"];
+  if (!D.kicked && D.t >= M.at && !game.dead) {
+    D.kicked = true;
+    const k = rotatePt(M.kick * U * D.dir, 0, game.ang);   // its own sideways
+    game.vx += k.x; game.vy += k.y;
+    for (const e of exhausts(game, shipById(game.ship))) burstAt(e.x, e.y, 14, ["#ffffff", "#ffd27a", "#ff7a1a"], 0.5, 0.8, game.vx * 0.3, game.vy * 0.3);
+    audio.noise(0.3, 0.2, 1800); audio.tone(110, 0.3, "sawtooth", 0.06, 0.5); shake(0.3); buzz(80);
+  }
+  if (D.t >= M.turn) game.dash2 = null;
+}
+// a torpedo blows up at (x, y): mine hurts and throws back the enemy (by distance); theirs only shows here
+function torpedoBlast(s, Wp, mine) {
+  const size = shipSize(), R = Wp.blast * size;
+  burstAt(s.x, s.y, 46, ["#ffffff", "#ffe08a", "#ffb03a", "#ff6a1a", "#6a4a3a"], 1.0, 1.1);
+  rings.push({ x: s.x, y: s.y, t: 0, max: 0.4, r: R, c: "#ffb03a" }, { x: s.x, y: s.y, t: -0.06, max: 0.45, r: R * 1.2, c: "#ffffff" });
+  audio.boom(); shake(0.6); buzz(mine ? 140 : 80);
+  if (!mine || !enemy.on || enemy.warp >= 0.5) return;
+  const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH), d = Math.hypot(dx, dy);
+  if (d >= R + size * 0.3) return;
+  const k = 1 - Math.max(0, d - size * 0.3) / R, nx = d ? dx / d : 0, ny = d ? dy / d : -1;
+  harmEnemy(Math.ceil(Wp.blastDmg * k)); enemy.hurt = 0.3;
+  if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + nx * Wp.push * k, vy: enemy.vy / U + ny * Wp.push * k });
+  else { enemy.vx += nx * Wp.push * k * U; enemy.vy += ny * Wp.push * k * U; enemy.spin = 4; }
+}
+// the torpedo: an amber capsule with a glowing tail
+function drawTorpedo(s) {
+  const p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, size = shipSize(), L = size * 0.16;
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(s.vx / sp, -s.vy / sp));
+  const g = ctx.createRadialGradient(0, L * 0.6, 0, 0, L * 0.6, L * 1.4); g.addColorStop(0, `rgba(255,176,58,${0.6 + 0.3 * Math.sin(time * 30)})`); g.addColorStop(1, "rgba(255,120,30,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, L * 0.6, L * 1.4, 0, TAU); ctx.fill();
+  ctx.fillStyle = "#c89a5a"; ctx.beginPath(); ctx.ellipse(0, 0, L * 0.28, L * 0.6, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = "#ffb03a"; ctx.beginPath(); ctx.ellipse(0, -L * 0.25, L * 0.2, L * 0.25, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = "#d0402a"; ctx.fillRect(-L * 0.28, L * 0.1, L * 0.56, L * 0.12);
+  ctx.restore();
+}
+// CINDER's magic buttons: an engine pod with an arrow to its side
+function drawDashButton(b, M, ready, k) {
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (ready) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
+    gl.addColorStop(0, `rgba(255,160,64,${0.22 + 0.1 * Math.sin(time * 3)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#4a3a2a"); bg.addColorStop(1, "#140e08");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(255,160,64,0.18)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = M.color; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  ctx.globalAlpha = ready ? 1 : 0.45; ctx.scale(M.dir, 1);   // (drawn for the right; mirrored for the left)
+  ctx.fillStyle = "#d8c8a8"; ctx.beginPath(); ctx.ellipse(-b.r * 0.15, 0, b.r * 0.32, b.r * 0.18, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = "#d0402a"; ctx.fillRect(-b.r * 0.2, -b.r * 0.18, b.r * 0.1, b.r * 0.36);
+  ctx.fillStyle = "#ffa040"; ctx.beginPath(); ctx.moveTo(-b.r * 0.47, -b.r * 0.1); ctx.lineTo(-b.r * 0.72, 0); ctx.lineTo(-b.r * 0.47, b.r * 0.1); ctx.fill();   // its flame
+  ctx.strokeStyle = "#fff2d0"; ctx.lineWidth = Math.max(2, b.r * 0.08);   // the arrow: it goes the other way
+  ctx.beginPath(); ctx.moveTo(b.r * 0.22, 0); ctx.lineTo(b.r * 0.62, 0); ctx.moveTo(b.r * 0.48, -b.r * 0.14); ctx.lineTo(b.r * 0.62, 0); ctx.lineTo(b.r * 0.48, b.r * 0.14); ctx.stroke();
+  ctx.restore();
+}
 // ---------- PUFF: puffed up, the spines; the bubbles ----------
 function puffing(o, a) { return !!a && a.seq === "inflate"; }
 function updatePuff(dt) {
@@ -4934,7 +5036,27 @@ function glitchPicture(S, a) {
   }
   return glitchCanvas;
 }
-function shipArt(S, a, stored, tint, rep) {
+// CINDER put together: both engines on their joints (turned, with a flame in their flare), then the hull over them
+let cinderCanvas = null;
+function cinderPicture(S, c) {
+  const A = S.anim, P = A.parts, hull = artImage(framePath(A.dir, P.hull)), L = artImage(framePath(A.dir, P.left)), R = artImage(framePath(A.dir, P.right));
+  if (!hull || !L || !R) return artImage(framePath(A.dir, A.idle));
+  if (!cinderCanvas) { cinderCanvas = document.createElement("canvas"); cinderCanvas.width = cinderCanvas.height = 512; }
+  const x = cinderCanvas.getContext("2d"), E = cinderEngines(c && c.dash ? c.dash[0] : -1, c && c.dash ? c.dash[1] : 1), power = c ? c.power || 0 : 0;
+  x.clearRect(0, 0, 512, 512);
+  [[L, -80, E[0]], [R, 80, E[1]]].forEach(([img, jx, q]) => {
+    x.save(); x.translate(256 + jx, 256 + 31); x.rotate(q.angle);
+    const f = Math.max(q.flare, 0.18 + 0.5 * power), len = 30 + 110 * f;   // the exhaust flame along the engine's +y
+    x.save(); x.globalCompositeOperation = "lighter";
+    const g = x.createLinearGradient(0, 100, 0, 100 + len); g.addColorStop(0, `rgba(255,240,200,${0.9 * f + 0.1})`); g.addColorStop(0.3, `rgba(255,160,64,${0.8 * f})`); g.addColorStop(1, "rgba(255,80,20,0)");
+    x.fillStyle = g; x.beginPath(); x.moveTo(-16, 100); x.lineTo(16, 100); x.lineTo(0, 100 + len); x.closePath(); x.fill(); x.restore();
+    x.drawImage(img, -38, -19); x.restore();
+  });
+  x.drawImage(hull, 256 - hull.width / 2, 256 - 65 - hull.height / 2);
+  return cinderCanvas;
+}
+function shipArt(S, a, stored, tint, rep, cin) {
+  if (S.anim && S.anim.parts) return cinderPicture(S, cin);
   if (S.anim && S.anim.layers) return glitchPicture(S, a);
   if (S.anim && S.anim.modules) return reprisePicture(S, rep);
   if (S.anim) {
@@ -4963,6 +5085,7 @@ function preloadArt() {
     if (A.ribbon) all.push(A.ribbon, A.boosted, A.markGlow, A.exitWarn);
     if (A.layers) all.push(A.layers.left, A.layers.right);
     if (A.modules) all.push(...A.modules.map((m) => m.file));
+    if (A.parts) all.push(A.parts.hull, A.parts.left, A.parts.right);
     if (A.idleLoop) all.push(...A.idleLoop);
     if (A.inflate) all.push(...A.inflate.map((x) => x[0]));
     if (A.field) all.push(...A.field, ...A.arc, ...A.rainbow.map((x) => x[0]), ...A.shotArt.lightning.frames);
@@ -5147,7 +5270,7 @@ function draw() {
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
-          rep: shown === S ? repView() : null });
+          rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
       if (shown === S) drawDevour(game, S, game.devour);
@@ -5388,7 +5511,7 @@ function drawEnemy() {
     if (enemy.remote) drawTail(duel.tail, E);
     const esc = enemy.remote && enemy.talus ? enemy.talus.scale : 1;
     if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
-    drawShip(E, p.x, p.y, size * esc, { rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? enemy.hullTurn || 0 : 0),
+    drawShip(E, p.x, p.y, size * esc, { cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? enemy.hullTurn || 0 : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
@@ -5576,7 +5699,8 @@ function drawShots(list = shots) {
   for (const s of list) {
     if (s.inside) { drawExitMark(s); continue; }
     if (s.w === "magnet") { drawMagnetBall(s); continue; }
-    if (s.w === "bubble") { drawBubble(s); continue; }   // VANTA's drop inside the planet: only the exit mark, at the end
+    if (s.w === "bubble") { drawBubble(s); continue; }
+    if (s.w === "torpedo") { drawTorpedo(s); continue; }   // VANTA's drop inside the planet: only the exit mark, at the end
     const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
     if (s.w === "hack") {   // GLITCH's pulse: a cyan diamond in a jittering square, with magenta ghosts
       const r = size * 0.11, j = () => (Math.random() - 0.5) * r * 0.25;
@@ -5588,8 +5712,8 @@ function drawShots(list = shots) {
       ctx.restore();
       continue;
     }
-    if (s.w === "twin" || s.w === "laser" || s.w === "spread" || s.w === "neon" || s.w === "amber" || s.w === "floors" || s.w === "needles") {
-      const len = size * (s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : s.w === "neon" ? 0.2 : s.w === "amber" ? 0.22 : s.w === "floors" ? 0.14 : s.w === "needles" ? 0.13 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
+    if (s.w === "twin" || s.w === "laser" || s.w === "spread" || s.w === "neon" || s.w === "amber" || s.w === "floors" || s.w === "needles" || s.w === "blaster") {
+      const len = size * (s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : s.w === "neon" ? 0.2 : s.w === "amber" ? 0.22 : s.w === "floors" ? 0.14 : s.w === "needles" ? 0.13 : s.w === "blaster" ? 0.22 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
       ctx.strokeStyle = hexA(Wp.color, 0.35); ctx.lineWidth = wd * 2.6;
       ctx.beginPath(); ctx.moveTo(p.x - ux * len, p.y - uy * len); ctx.lineTo(p.x, p.y); ctx.stroke();
       ctx.strokeStyle = s.w === "neon" ? "#ffd2f0" : "#ffffff"; ctx.lineWidth = wd * 0.8; ctx.stroke();
@@ -5725,6 +5849,11 @@ function weaponIcon(w, x, y, r, color) {
     for (let i = 0; i < 8; i++) { const a = i * TAU / 8; ctx.beginPath(); ctx.moveTo(r * 0.3 + Math.cos(a - 0.3) * r * 0.3, r * 0.3 + Math.sin(a - 0.3) * r * 0.3); ctx.lineTo(r * 0.3 + Math.cos(a) * r * 0.6, r * 0.3 + Math.sin(a) * r * 0.6); ctx.lineTo(r * 0.3 + Math.cos(a + 0.3) * r * 0.3, r * 0.3 + Math.sin(a + 0.3) * r * 0.3); ctx.fill(); }
   } else if (w === "needle") {   // a thin needle bolt
     ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.14, r * 0.2); ctx.lineTo(0, r * 0.85); ctx.lineTo(-r * 0.14, r * 0.2); ctx.closePath(); ctx.fill();
+  } else if (w === "blaster") {   // two red bolts side by side
+    for (const x of [-0.3, 0.3]) { ctx.beginPath(); ctx.ellipse(x * r, -r * 0.05, r * 0.11, r * 0.6, 0, 0, TAU); ctx.fill(); }
+  } else if (w === "torpedo") {   // a torpedo and a blast ring
+    ctx.beginPath(); ctx.ellipse(0, r * 0.25, r * 0.18, r * 0.45, 0, 0, TAU); ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.1); ctx.beginPath(); ctx.arc(0, -r * 0.35, r * 0.42, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
   } else if (w === "needles") {   // three needles in a narrow fan
     for (const a of [-0.25, 0, 0.25]) { ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0, -r * 0.9); ctx.lineTo(r * 0.07, r * 0.6); ctx.lineTo(-r * 0.07, r * 0.6); ctx.fill(); ctx.restore(); }
   } else if (w === "bubble") {   // a bubble with a shine
@@ -5918,6 +6047,7 @@ function drawMagicButton(b, M, ready, k) {
   if (M.look === "vshield" || M.look === "slip") drawGlitchMagicButton(b, M, ready, k);
   if (M.look === "reassemble") drawRepriseButton(b, M, ready, k);
   if (M.look === "inflate") drawPuffButton(b, M, ready, k);
+  if (M.look === "dash") drawDashButton(b, M, ready, k);
   if (M.look === "rainbow") drawRainbowButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
@@ -6527,6 +6657,7 @@ function updateDuel(dt) {
     const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shotScale(s, Wp) * shipSize();
     const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
     if (near || inPlanet || s.life > Wp.life) {
+      if (Wp.blast && !inPlanet) torpedoBlast(s, Wp, false);   // their torpedo going off (their phone counts it)
       if (near) burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 5, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);
       duel.shots.splice(k, 1);
     }
@@ -6538,7 +6669,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
@@ -6607,7 +6738,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id;
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = [];
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();
