@@ -31,7 +31,8 @@ const UNLOCK     = 0.2;  // after the fuel runs out, the button comes back when 
 const ENEMY      = true; // an enemy ship flies with you (for now it only flies, no weapons yet)
 const ENEMY_KEEP = 0.9;  // how close the enemy likes to stay to you, in screen-widths
 const ZOOM_MIN   = 0.4;  // like Star Control: the view zooms out (down to this much) to keep both ships on screen
-const TRY_SHIP   = "drakon"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
+const TRY_SHIP   = "";     // everyone flies this ship (for testing). "" = the gift's surprise, as in the real game
+const HANGAR     = true;   // for now: a hangar button (under the duel swords) to try every drawn ship. false = the real game only
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
 const RAM_DAMAGE = 25;   // damage from crashing into the enemy at full speed (both ships take it)
@@ -837,7 +838,9 @@ let swipe = null;
 cv.addEventListener("pointerdown", (e) => {
   audio.wake();
   if (trade.stage && tradeTap(e.clientX, e.clientY)) return;
+  if (hangar.open) { hangarTap(e.clientX, e.clientY); return; }
   if (game.stage === "fly" && !trade.stage && hitDuel(e.clientX, e.clientY)) { duelButton(); return; }
+  if (game.stage === "fly" && !trade.stage && !duel.stage && hitHangar(e.clientX, e.clientY)) { hangar.open = true; hangar.t = 0; audio.pop(); return; }
   // the left thumb on the thrust button (another finger can still swipe at the same time)
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
     game.thrust = e.pointerId; buzz(12);
@@ -896,6 +899,7 @@ addEventListener("keyup", (e) => {
 
 // Android back: close the bubble or card first, then leave
 window.shipBack = () => {
+  if (hangar.open) { hangar.open = false; return true; }
   if (trade.stage && trade.stage !== "swapping") { if (trade.stage === "offer" || trade.stage === "waiting") link.send({ t: "no" }); endTrade(); return true; }
   if (game.card > 0) { game.card = 0; return true; }
   return false;
@@ -966,6 +970,7 @@ function update(dt) {
   }
   updateTrade(dt);
   updateDuel(dt);
+  if (hangar.open) hangar.t += dt;
 
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.life += dt;
@@ -2787,11 +2792,13 @@ function draw() {
     drawHealth();
     if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
     drawDuel();
+    drawHangarButton();
     drawBodyLabel();
     drawNova();
   } else drawParts();
 
   drawTrade();
+  drawHangar();
 }
 
 // the planet in the middle of space (Star Control's melee planet)
@@ -3921,6 +3928,83 @@ function drawDuel() {
   }
   // the other player left
   if (duel.stage === "over" && duel.t < 1.6) { ctx.save(); ctx.globalAlpha = 1 - duel.t / 1.6; cross(b.x, b.y, b.r * 0.8); ctx.restore(); }
+}
+
+// ======================================================================
+//  TEST HANGAR (for now): every ship with real drawings, to try them. Picking one only flies it now;
+//  it is not saved (the gift's ship is still yours, and comes back when the game restarts)
+// ======================================================================
+const hangar = { open: false, t: 0, cards: [] };
+function hangarShips() { return SHIPS.filter((S) => S.anim); }
+function hangarBtn() { const d = duelBtn(); return { x: d.x, y: d.y + d.r * 2.7, r: d.r }; }
+function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.4; }
+// fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
+function tryShip(id) {
+  game.ship = id;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null;
+  game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
+  game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
+  game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();
+  game.card = 3; game.arriveT = 1; audio.whoosh(); buzz(30);
+}
+function hangarTap(x, y) {
+  for (const c of hangar.cards) if (x > c.x && x < c.x + c.w && y > c.y && y < c.y + c.h) {
+    if (c.close) { hangar.open = false; audio.pop(); return; }
+    tryShip(c.id); hangar.open = false; return;
+  }
+}
+function drawHangarButton() {
+  if (!HANGAR || duel.stage || trade.stage) return;
+  const b = hangarBtn();
+  ctx.save(); ctx.translate(b.x, b.y);
+  ctx.fillStyle = "rgba(10,12,32,0.7)"; ctx.strokeStyle = "rgba(79,195,255,0.8)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill(); ctx.stroke();
+  // a little hangar: a roof over a ship
+  ctx.strokeStyle = "#ffffff"; ctx.lineWidth = Math.max(2, b.r * 0.1); ctx.lineJoin = "round"; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-b.r * 0.55, -b.r * 0.05); ctx.lineTo(0, -b.r * 0.5); ctx.lineTo(b.r * 0.55, -b.r * 0.05); ctx.stroke();
+  ctx.fillStyle = "#4fc3ff"; ctx.beginPath(); ctx.moveTo(0, -b.r * 0.15); ctx.lineTo(b.r * 0.22, b.r * 0.45); ctx.lineTo(0, b.r * 0.32); ctx.lineTo(-b.r * 0.22, b.r * 0.45); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function drawHangar() {
+  hangar.cards = [];
+  if (!hangar.open) return;
+  const list = hangarShips(), pop = ease(Math.min(1, hangar.t / 0.25));
+  ctx.save(); ctx.globalAlpha = pop;
+  ctx.fillStyle = "rgba(5,6,18,0.88)"; ctx.fillRect(0, 0, W, H);
+  // the title, and a close button
+  const f = Math.round(U * 0.055);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl"; ctx.fillStyle = "#ffffff";
+  ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.fillText("האנגר בדיקות", W / 2, U * 0.08);
+  ctx.font = `500 ${Math.round(f * 0.45)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#9fb4d8";
+  ctx.fillText("לבדיקה בלבד: הבחירה לא נשמרת. במשחק כל שחקן מקבל חללית אחת", W / 2, U * 0.08 + f * 0.85);
+  const cr = U * 0.045, cx = W - U * 0.06 - cr, cy = U * 0.08;
+  cross(cx, cy, cr * 0.45, "#ffffff"); hangar.cards.push({ close: true, x: cx - cr * 1.4, y: cy - cr * 1.4, w: cr * 2.8, h: cr * 2.8 });
+  // the cards: as many columns as fit
+  // as many columns as make the cards biggest on this screen (2 to 4)
+  const top = U * 0.08 + f * 1.6, gap = U * 0.025;
+  let cols = 2, best = 0;
+  for (let c = 2; c <= 4; c++) {
+    const r = Math.ceil(list.length / c), w = (W - gap * (c + 1)) / c, h = (H - top - gap * (r + 1)) / r, k = Math.min(w, h / 1.15);
+    if (k > best) { best = k; cols = c; }
+  }
+  const rows = Math.ceil(list.length / cols), cw = (W - gap * (cols + 1)) / cols, ch = Math.min((H - top - gap * (rows + 1)) / rows, cw * 1.25);
+  list.forEach((S, i) => {
+    const x = gap + (i % cols) * (cw + gap), y = top + gap + Math.floor(i / cols) * (ch + gap), R = RARITY[S.rarity], mine = S.id === game.ship;
+    ctx.fillStyle = mine ? "rgba(79,195,255,0.18)" : "rgba(20,24,52,0.9)"; roundRect(x, y, cw, ch, ch * 0.08); ctx.fill();
+    ctx.strokeStyle = mine ? "#4fc3ff" : R.color; ctx.lineWidth = mine ? 3 : 1.5; ctx.stroke();
+    // the ship, hovering and turning a little
+    const sz = Math.min(cw, ch) * 0.48;
+    drawShip(S, x + cw / 2, y + ch * 0.38 + Math.sin(time * 2 + i) * ch * 0.015, sz, { power: 0.35, ang: Math.sin(time * 0.8 + i) * 0.25 });
+    // its name, its weapons and its magic
+    ctx.textAlign = "center"; ctx.direction = "ltr"; ctx.fillStyle = "#ffffff"; ctx.font = `800 ${Math.round(ch * 0.085)}px Rubik, Arial, sans-serif`;
+    ctx.fillText(S.name, x + cw / 2, y + ch * 0.74);
+    const ws = weaponsOf(S), M = magicOf(S), ir = ch * 0.045;
+    ws.forEach((w, j) => weaponIcon(w, x + cw / 2 + (j - (ws.length - 1) / 2) * ir * 3, y + ch * 0.86, ir, WEAPONS[w].color));
+    ctx.direction = "rtl"; ctx.fillStyle = M ? M.color : "#6c6c78"; ctx.font = `600 ${Math.round(ch * 0.055)}px Rubik, Arial, sans-serif`;
+    ctx.fillText(M ? M.name : "בלי קסם עדיין", x + cw / 2, y + ch * 0.95);
+    hangar.cards.push({ id: S.id, x, y, w: cw, h: ch });
+  });
+  ctx.restore();
 }
 
 // ======================================================================

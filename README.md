@@ -95,9 +95,11 @@ from one press. Button 2, the rift: the first press marks the spot where the shi
 for 8 s; off screen, a pink arrow at the edge points to it). Fly off; the second press opens the glowing seam in the hull and
 the ship jumps back to the mark, keeping its heading and speed, with pink bursts at both ends. No magic yet.
 
-While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"drakon"`; `"skarn"` for SKARN, `"orian"` for ORIAN, `"talus"` for TALUS, `"lyth"` for LYTH, `"vexar"` for VEXAR, `"brass"` for THUL,
-`""` for the gift's surprise again).
-Swipe up to offer a trade with a phone nearby; the swap happens only if both players say yes.
+**Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
+real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON), with its weapons and magic; tap one to fly it right away.
+It is only for trying them: the choice is not saved, and in the real game each player has the one ship from the gift,
+changed only by trading. To turn the hangar off: `HANGAR = false` at the top of the game. `TRY_SHIP` (a ship id) still
+makes everyone fly one ship; `""` is the gift's surprise.
 
 **Duel (two phones, one fight):** tap the crossed swords under the map on both phones (close to each other, Bluetooth on).
 They find each other with no internet, count 3-2-1, and each player sees the other's own ship in the same space,
