@@ -124,7 +124,9 @@ spins and the thread is laid as a ring round the ship: a shield that stops every
 chamber. Button 1: a marking drop (6): the ship it hits glows with a lime stain for 1.75 s, seen even through smoke and ink.
 Button 2: the ribbon squeezes together and one heavy drop leaves on a fixed line (20). Fired into the planet it slips inside,
 a pulsing mark shows where it will come out just before it does (time to dodge), and it comes out bigger and stronger (42).
-No magic yet.
+It leaves with a bang (a kick, a shock ring, a shake), trails glowing sparks, and bursts with rings when it hits.
+Its magic changes the liquid's colour, one step a tap (every 4 s): lime, blue (x1.4), red (x1.9), glowing white with
+flames round the drop (x2.6). The next heavy drop does that much more damage and uses the colour up (back to lime).
 
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.

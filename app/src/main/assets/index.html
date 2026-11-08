@@ -301,8 +301,10 @@ const SHIPS = [
   // Button 1: a marking drop peels off the ribbon (at 112 ms): a light hit, and the target glows with a stain for 1.75 s,
   // seen even through smoke and ink. Button 2: the ribbon squeezes together (690 ms) and one heavy drop leaves on a fixed
   // line. Flying into the planet it slips inside it, a pulsing mark shows where it will come out (the last 0.21 s),
-  // and out on the far side it is bigger and stronger. Missing the planet it stays normal. No magic yet.
-  { id: "vanta", name: "VANTA", rarity: "rare", mass: 1.0, fuel: 30, refill: 15, sfx: "vanta",
+  // and out on the far side it is bigger and stronger. Missing the planet it stays normal.
+  // magic: tint (each tap turns the liquid the next colour: lime, blue, red, glowing white with flames; the next phase
+  // drop is that much stronger and uses the colour up)
+  { id: "vanta", name: "VANTA", rarity: "rare", mass: 1.0, fuel: 30, refill: 15, sfx: "vanta", magic: "tint",
     sfxNames: ["drop_launch", "mark_hit", "phase_charge", "phase_exit", "phase_launch"],
     hull: "#3a2a48", wingC: "#160f20", trim: "#caff38", flame: "#9a7cff",
     body: [], wing: [], nozzles: [0], engineY: 0.47, cockpit: [0, -0.2, 0.05, 0.1],
@@ -312,7 +314,7 @@ const SHIPS = [
     anim: { dir: "vanta", size: 1.2, idle: "idle.webp", ribbon: "hull.webp",
       primary: frames("mark", 8, (n) => [35, 40, 37, 43, 52, 58, 50, 45][n - 1], { 4: "left" }),   // 360 ms, the drop at 112
       secondary: frames("phase", 16, (n) => [60, 70, 70, 70, 70, 70, 70, 70, 70, 60, 10, 52, 70, 72, 73, 63][n - 1], { 12: "fire" }),   // 1,020 ms, fired at 690
-      shotArt: { mark: { file: "drop.webp", size: 0.3 }, phase: { file: "bolt.webp", size: 0.3 } },
+      shotArt: { mark: { file: "drop.webp", size: 0.3 }, phase: { file: "bolt.webp", size: 0.42 } },
       boosted: "boosted.webp", markGlow: "mark_glow.webp", exitWarn: "exit_warning.webp" } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
@@ -416,6 +418,9 @@ const MAGIC = {
   // KRAAL's hammer: dashes at `speed` screens a second at an enemy within `range` screens (or straight ahead), for at most
   //   `dash` seconds; reaching it, the hammer-head hits: `dmg`, and the enemy is knocked away (`knock` screens a second)
   hammer: { name: "מכת פטיש", range: 2.2, speed: 3.6, dash: 0.8, dmg: 30, knock: 1.4, cool: 9, look: "hammer", color: "#ff4a3a" },
+  // VANTA's tint: each tap (every `cool` s) turns the liquid the next colour (VANTA_TINTS): the next phase drop does
+  //   `mult` times its damage for that colour, and firing it uses the colour up (back to lime). After white: lime again
+  tint:  { name: "צבע הנוזל", look: "tint", cool: 4, color: "#caff38", mult: [1, 1.4, 1.9, 2.6] },
   ink:   { name: "ענן דיו", pour: 0, hide: 4, cool: 12, look: "ink", color: "#8a7fd6", dmg: 15, stun: 20 },
   // ZORIAN's anchor: one tap and the ship stops (`brake`) and spins in place by itself (`spin`: radians a second) for
   //   `hold` seconds (a second tap ends it sooner); then `cool` seconds to recharge. A thread laid while it spins is
@@ -513,6 +518,13 @@ function ringPhase(Wp, t) {
   return null;
 }
 function smoothStep(v) { const t = Math.min(1, Math.max(0, v)); return t * t * (3 - 2 * t); }
+// VANTA's liquid colours: the ribbon's three strokes, the shot's glow, and the hue the drawings' lime turns to
+const VANTA_TINTS = [
+  { name: "ליים", ribbon: ["#89bf20", "#caff38", "#f4ffac"], color: "#caff38", fx: ["#ffffff", "#e8ff67", "#caff38"] },
+  { name: "כחול", ribbon: ["#1c5fc4", "#4fb4ff", "#dff3ff"], color: "#4fb4ff", hue: 208, fx: ["#ffffff", "#9ad8ff", "#2f8cff"] },
+  { name: "אדום", ribbon: ["#a8150f", "#ff4433", "#ffd6cc"], color: "#ff4433", hue: 3, fx: ["#ffffff", "#ff9a7a", "#ff2a1a"] },
+  { name: "לבן זוהר", ribbon: ["#b9c8ff", "#ffffff", "#ffffff"], color: "#ffffff", white: true, fx: ["#ffffff", "#ffe08a", "#ff9a3a", "#ff5a1f"] }
+];
 // how much the pulse emitter glows (charge) and flashes, t ms into the pulse (for drawing it on the bare hull)
 function pulseGlow(t) {
   return { charge: smoothStep(t / 158) * (1 - smoothStep((t - 168) / 160)), flash: t >= 168 ? 1 - smoothStep((t - 168) / 160) : 0 };
@@ -1096,6 +1108,7 @@ function shipSize() { return U * 0.26; }
 
 function update(dt) {
   time += dt; game.t += dt;
+  tintStep();
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
   gift.squash = Math.max(0, gift.squash - dt * 5);
@@ -1337,6 +1350,15 @@ function useMagic() {
   if (M.look === "anchor") {   // ZORIAN: a tap anchors it (it stops and spins); a second tap lets it go
     if (game.anchor) { game.anchor = null; game.magicCool = M.cool; return; }
     game.anchor = { t: 0 }; audio.sfx(S.sfx, "thread_arm", 0, 0.6); buzz(30);
+    return;
+  }
+  if (M.look === "tint") {   // VANTA: the liquid turns the next colour
+    game.vtint = ((game.vtint || 0) + 1) % VANTA_TINTS.length; game.magicCool = M.cool;
+    if (game.vtint) tintPreload(game.vtint);
+    const T = VANTA_TINTS[game.vtint];
+    burstAt(game.x, game.y, 24, T.fx, 0.4, 0.8, game.vx, game.vy);
+    rings.push({ x: game.x, y: game.y, t: 0, max: 0.4, r: shipSize() * 0.9, c: T.color });
+    audio.sfx(S.sfx, "phase_exit", 0, 0.6); buzz(40);
     return;
   }
   if (M.look === "hammer") {   // KRAAL: dash at the enemy (if one is near enough) and hit it with the hammer-head
@@ -1727,6 +1749,37 @@ function drawAnchor(x, y, size) {
   }
   ctx.restore();
 }
+// VANTA's magic button: a glass drop in the liquid's colour now, three dots for blue, red, white, and the next colour
+// on the rim while it recharges
+function drawTintButton(b, M, ready, k) {
+  const lvl = game.vtint || 0, T = VANTA_TINTS[lvl], N = VANTA_TINTS[(lvl + 1) % VANTA_TINTS.length];
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (ready) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
+    gl.addColorStop(0, hexA(N.color, 0.25 + 0.1 * Math.sin(time * 3))); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#3a2a48"); bg.addColorStop(1, "#120c18");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = hexA(N.color, 0.18); ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = N.color; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  // the drop, in the colour it has now
+  const wob = Math.sin(time * 3) * b.r * 0.02, rr = b.r * 0.5;
+  ctx.save(); ctx.translate(0, -b.r * 0.08 + wob);
+  if (T.white) { ctx.shadowColor = "#ffffff"; ctx.shadowBlur = b.r * 0.4; }
+  const g = ctx.createRadialGradient(-rr * 0.25, rr * 0.1, 0, 0, rr * 0.2, rr);
+  g.addColorStop(0, "#ffffff"); g.addColorStop(0.35, T.ribbon[1]); g.addColorStop(1, T.ribbon[0]);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, -rr); ctx.quadraticCurveTo(rr * 0.66, -rr * 0.1, rr * 0.5, rr * 0.38);
+  ctx.quadraticCurveTo(0, rr * 0.95, -rr * 0.5, rr * 0.38); ctx.quadraticCurveTo(-rr * 0.66, -rr * 0.1, 0, -rr); ctx.fill();
+  ctx.restore();
+  for (let i = 1; i <= 3; i++) {   // how far up it is: blue, red, white
+    ctx.fillStyle = i <= lvl ? VANTA_TINTS[i].color : "rgba(255,255,255,0.18)";
+    ctx.beginPath(); ctx.arc((i - 2) * b.r * 0.28, b.r * 0.62, b.r * 0.08, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
 // the magic button: an anchor of light (bright while anchored, dim while it recharges)
 function drawAnchorButton(b, M) {
   const on = anchoring();
@@ -1885,7 +1938,10 @@ function phaseStep(s, Wp, dt) {
     s.inside = null; s.boost = true;   // out: bigger and stronger
     const A = shipById("vanta").anim;
     if (s.art) s.art = { ...s.art, src: framePath(A.dir, A.boosted), d: s.art.d * 1.15 };
-    burstAt(s.x, s.y, 16, ["#ffffff", "#e8ff67", "#caff38"], 0.35, 0.6, s.vx * 0.3, s.vy * 0.3);
+    const T = VANTA_TINTS[s.lvl || 0];
+    burstAt(s.x, s.y, 40 + (s.lvl || 0) * 12, T.fx, 0.7, 0.9, s.vx * 0.3, s.vy * 0.3);
+    rings.push({ x: s.x, y: s.y, t: 0, max: 0.45, r: shipSize() * 1.1, c: T.color });
+    if (Math.hypot(wrapDelta(s.x - game.x, WW), wrapDelta(s.y - game.y, WH)) < shipSize() * 8) shake(0.5);
     audio.sfx("vanta", "phase_exit");
     return false;
   }
@@ -1897,11 +1953,21 @@ function phaseStep(s, Wp, dt) {
   if (!c) return false;
   s.inside = { t: 0, dur: Math.max(Wp.transit, (c.exit - c.entry) / sp), ax: x0 + dx * c.entry, ay: y0 + dy * c.entry, bx: x0 + dx * c.exit, by: y0 + dy * c.exit };
   s.x = s.inside.ax; s.y = s.inside.ay;
-  burstAt(s.x, s.y, 8, ["#e8ff67", "#ffd97e"], 0.2, 0.5);
+  burstAt(s.x, s.y, 18, [VANTA_TINTS[s.lvl || 0].color, "#ffd97e", "#ffffff"], 0.35, 0.7);
   return true;
 }
 // what a shot does on a hit (VANTA's drop out of the planet: its boosted damage)
-function shotHit(s, Wp) { return s.boost && Wp.boost ? { ...Wp, dmg: Wp.boost } : Wp; }
+function shotHit(s, Wp) {
+  if (!Wp.phase) return Wp;
+  const T = VANTA_TINTS[s.lvl || 0];
+  return { ...Wp, dmg: Math.round((s.boost ? Wp.boost : Wp.dmg) * MAGIC.tint.mult[s.lvl || 0]), color: T.color };
+}
+// VANTA's phase drop on its way: a glowing trail in its colour (more once boosted; white: flames)
+function phaseTrail(s) {
+  if (s.inside) return;
+  const T = VANTA_TINTS[s.lvl || 0], n = (s.boost ? 3 : 1) + (T.white ? 3 : 0);
+  if (Math.random() < 0.8) burstAt(s.x, s.y, n, T.fx, s.boost ? 0.16 : 0.08, s.boost ? 0.9 : 0.6, s.vx * 0.25, s.vy * 0.25);
+}
 // a shot stopped by a thread: a small blue-white spark
 function threadSpark(s) { burstAt(s.x, s.y, 8, ["#ffffff", "#92f8ff", "#48aef6"], 0.2, 0.5); audio.zap(); }
 function threadPoint(o, S) { const g = S.guns.thread[0], m = rotatePt(g[0] * shipSize(), g[1] * shipSize(), o.ang); return { x: o.x + m.x, y: o.y + m.y }; }
@@ -2070,6 +2136,7 @@ function updateEnemyShots(dt) {
     if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), body().pull); s.vx += g.ax * dt; s.vy += g.ay * dt; }
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;
+    if (Wp.phase) phaseTrail(s);
     if (s.life > Wp.life || Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR()) { eshots.splice(k, 1); continue; }
     if (threadBlocks(game.thread, s, dt)) { threadSpark(s); eshots.splice(k, 1); continue; }   // my thread stops it
     // SKARN's open jaw: caught (and it powers up SKARN's shards)
@@ -2900,7 +2967,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -2979,6 +3046,7 @@ function updateWeapons(dt) {
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (s.w === "missile" && Math.random() < 0.6) burstAt(s.x, s.y, 1, ["#b8fff0", "#ffffff"], 0.05, 0.6);
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;   // VANTA's drop inside the planet
+    if (Wp.phase) phaseTrail(s);
     if (s.life > Wp.life) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); shots.splice(k, 1); continue; }
     // into the planet: a puff, and it is gone
     if (Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
@@ -2998,7 +3066,12 @@ function updateWeapons(dt) {
       if (Math.hypot(dx, dy) < size * 0.42 + Wp.r * size) {
         hitEnemy(s, shotHit(s, Wp)); shots.splice(k, 1);
         if (Wp.tag) { enemy.markT = Wp.tag; audio.sfx("vanta", "mark_hit"); }   // VANTA's marking drop: the stain
-        if (s.boost) { rings.push({ x: s.x, y: s.y, t: 0, max: 0.38, r: size * 0.8, c: Wp.color }); shake(0.4); }
+        if (Wp.phase) {   // the heavy drop bursts: rings and a shake, more for a boosted or coloured one
+          const T = VANTA_TINTS[s.lvl || 0], big = (s.boost ? 1 : 0) + (s.lvl || 0) * 0.5;
+          burstAt(s.x, s.y, 40 + big * 25, T.fx, 0.8 + big * 0.3, 1.1, enemy.vx, enemy.vy);
+          rings.push({ x: s.x, y: s.y, t: 0, max: 0.4, r: size * (0.8 + big * 0.4), c: T.color }, { x: s.x, y: s.y, t: -0.08, max: 0.5, r: size * (1.2 + big * 0.5), c: "#ffffff" });
+          shake(0.5 + big * 0.25); buzz(140 + big * 40);
+        }
       }
     }
   }
@@ -3050,8 +3123,21 @@ function spawnShots(w, g) {
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
   if (!S.anim) burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
+  // VANTA: the drops carry the liquid's colour; the phase drop uses it up, and leaves with a bang
+  if (S.anim && S.anim.ribbon) {
+    const lvl = game.vtint || 0;
+    for (const q of shots.slice(-pelletAngles(Wp).length)) q.lvl = lvl;
+    if (Wp.phase) {
+      const T = VANTA_TINTS[lvl];
+      game.vtint = 0;
+      burstAt(x, y, 26 + lvl * 10, T.fx, 0.6 + lvl * 0.15, 0.9, game.vx, game.vy);
+      rings.push({ x, y, t: 0, max: 0.35, r: shipSize() * (0.6 + lvl * 0.15), c: T.color });
+      game.vx -= Math.sin(game.ang) * U * 0.14; game.vy += Math.cos(game.ang) * U * 0.14;   // the kick
+      shake(0.45 + lvl * 0.15); buzz(110 + lvl * 30);
+    }
+  }
   // in a duel the other phone shows these shots too
-  if (duel.stage === "on") for (const s of shots.slice(-pelletAngles(Wp).length)) { s.id = ++shotSeq; duelSend({ t: "f", w, ...netPos(s), s: S.id, id: s.id }); }
+  if (duel.stage === "on") for (const s of shots.slice(-pelletAngles(Wp).length)) { s.id = ++shotSeq; duelSend({ t: "f", w, ...netPos(s), s: S.id, id: s.id, v: s.lvl || 0 }); }
   // shots with their own drawing (THUL's cannonball, VEXAR's thorns). THUL's flash, shock ring and sparks are in its frames
   const art = S.anim && S.anim.shotArt && S.anim.shotArt[w];
   if (art) for (const s of shots.slice(-pelletAngles(Wp).length)) s.art = { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0 };
@@ -3399,7 +3485,7 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.fillStyle = glow; ctx.fillRect(-0.7, -0.6, 1.4, 1.3);
 
   // a real drawing of the ship, once there is one
-  let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored);
+  let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0);
   // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
   // Grinding: the hull, and the ring drawn on its own, spinning, with its teeth out
   const ringAway = o.ring === "out" || o.ring === "back" || !!o.grind;
@@ -3409,7 +3495,7 @@ function drawShip(S, x, y, size, o = {}) {
     // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
     const k = S.anim ? S.anim.size / img.width : 1 / Math.max(img.width, img.height);
     ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
-    if (S.anim && S.anim.ribbon && img === artImage(framePath(S.anim.dir, S.anim.ribbon))) drawRibbon(S);
+    if (S.anim && S.anim.ribbon && img === artImage(framePath(S.anim.dir, S.anim.ribbon))) drawRibbon(S, o.tint || 0);
     // TALUS just took in new rock: a brief red glow
     if (o.talus && o.talus.t > GROW.fly && o.talus.t < GROW.glow) {
       const a = Math.sin((o.talus.t - GROW.fly) / (GROW.glow - GROW.fly) * Math.PI) * 0.6;
@@ -3484,9 +3570,53 @@ function artImage(src) {
   if (!a) { a = artCache[src] = new Image(); a.src = src; }
   return a.complete && a.naturalWidth ? a : null;
 }
+// VANTA's drawings in another liquid colour: the lime pixels turned blue, red or glowing white. Made a couple a frame
+// in the background (tintStep), the lime drawing shown until it is ready
+const tintCache = {}, tintQueue = [];
+function tintedArt(src, lvl) {
+  if (!lvl) return artImage(src);
+  const c = tintCache[src + "#" + lvl];
+  if (c && c !== "wait") return c;
+  if (!c) { tintCache[src + "#" + lvl] = "wait"; tintQueue.push([src, lvl]); }
+  return artImage(src);
+}
+function tintStep() {
+  for (let n = 0; n < 2 && tintQueue.length; n++) {
+    const [src, lvl] = tintQueue[0], img = artImage(src);
+    if (!img) return;   // still loading
+    tintQueue.shift();
+    tintCache[src + "#" + lvl] = recolor(img, VANTA_TINTS[lvl]) || img;
+  }
+}
+// every VANTA drawing in colour lvl, made ready ahead (so the shot's frames are already blue when it fires)
+function tintPreload(lvl) {
+  const A = shipById("vanta").anim;
+  for (const f of [...A.primary, ...A.secondary].map((x) => x[0]).concat(A.shotArt.mark.file, A.shotArt.phase.file, A.boosted)) tintedArt(framePath(A.dir, f), lvl);
+}
+function recolor(img, T) {
+  try {
+    const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const x = c.getContext("2d"); x.drawImage(img, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+    for (let i = 0; i < p.length; i += 4) {
+      if (p[i + 3] < 6) continue;
+      const r = p[i] / 255, g = p[i + 1] / 255, b = p[i + 2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), dd = mx - mn, l = (mx + mn) / 2;
+      if (dd < 0.1) continue;
+      const sat = dd / (1 - Math.abs(2 * l - 1) || 1);
+      let h = mx === r ? ((g - b) / dd) % 6 : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4; h *= 60; if (h < 0) h += 360;
+      if (h < 45 || h > 125 || sat < 0.28) continue;   // only the lime liquid
+      const H = T.white ? 225 : T.hue, S = T.white ? 0.35 : sat, L = T.white ? Math.min(1, 0.55 + l * 0.5) : l;
+      const q = L < 0.5 ? L * (1 + S) : L + S - L * S, pp = 2 * L - q;
+      const ch = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? pp + (q - pp) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? pp + (q - pp) * (2 / 3 - t) * 6 : pp; };
+      p[i] = ch(H / 360 + 1 / 3) * 255; p[i + 1] = ch(H / 360) * 255; p[i + 2] = ch(H / 360 - 1 / 3) * 255;
+    }
+    x.putImageData(d, 0, 0);
+    return c;
+  } catch (e) { return null; }   // (a drawing from another site cannot be read: it stays lime)
+}
 // VANTA's liquid: a lime ribbon that waves inside the glass chamber (art pixels from the pivot, clipped to the glass)
-function drawRibbon(S) {
-  const k = S.anim.size / 512, t = time * 1000, top = -106, bot = 107, cx = 21;
+function drawRibbon(S, lvl = 0) {
+  const k = S.anim.size / 512, T = VANTA_TINTS[lvl] || VANTA_TINTS[0], t = time * 1000, top = -106, bot = 107, cx = 21;
   ctx.save(); ctx.scale(k, k);
   ctx.beginPath(); ctx.moveTo(23, -128); ctx.lineTo(51, -99); ctx.lineTo(51, 75); ctx.lineTo(28, 117); ctx.lineTo(13, 117); ctx.lineTo(-10, 77); ctx.lineTo(-10, -100); ctx.closePath(); ctx.clip();
   ctx.beginPath();
@@ -3495,10 +3625,11 @@ function drawRibbon(S) {
     i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
   }
   ctx.lineJoin = "round"; ctx.lineCap = "round";
-  for (const [w, c, a] of [[18, "#89bf20", 0.39], [9, "#caff38", 0.84], [2.2, "#f4ffac", 0.87]]) { ctx.strokeStyle = c; ctx.globalAlpha = a; ctx.lineWidth = w; ctx.stroke(); }
+  if (T.white) { ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 18 + 6 * Math.sin(t * 0.012); }   // white: it glows
+  for (const [w, c, a] of [[18, T.ribbon[0], 0.39], [9, T.ribbon[1], 0.84], [2.2, T.ribbon[2], 0.87]]) { ctx.strokeStyle = c; ctx.globalAlpha = a; ctx.lineWidth = w; ctx.stroke(); }
   ctx.restore();
 }
-function shipArt(S, a, stored) {
+function shipArt(S, a, stored, tint) {
   if (S.anim) {
     // SKARN holding caught shots: its mouth glows by how many (when no other frames are playing)
     if (stored > 0 && S.anim.loaded && !(a && S.anim[a.seq] && seqFrame(S.anim[a.seq], a.t) >= 0)) {
@@ -3508,7 +3639,7 @@ function shipArt(S, a, stored) {
     const idle = artImage(framePath(S.anim.dir, S.anim.idle));
     // VANTA idle: the bare hull (its ribbon is drawn live on top, drawRibbon)
     if (S.anim.ribbon && shipFrame(S, a) === S.anim.idle) return artImage(framePath(S.anim.dir, S.anim.ribbon)) || idle;
-    const f = artImage(framePath(S.anim.dir, shipFrame(S, a)));
+    const f = tint ? tintedArt(framePath(S.anim.dir, shipFrame(S, a)), tint) : artImage(framePath(S.anim.dir, shipFrame(S, a)));
     return f || idle;   // a frame still loading: show idle meanwhile
   }
   if (!S.art) return null;
@@ -3703,7 +3834,7 @@ function draw() {
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
-          talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0 });
+          talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0 });
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
       if (shown === S) drawDevour(game, S, game.devour);
@@ -3936,7 +4067,7 @@ function drawEnemy() {
     if (enemy.remote) drawTail(duel.tail, E);
     const esc = enemy.remote && enemy.talus ? enemy.talus.scale : 1;
     if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
-    drawShip(E, p.x, p.y, size * esc, { talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang,
+    drawShip(E, p.x, p.y, size * esc, { tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang,
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
@@ -4044,6 +4175,29 @@ function drawHealth() {
 }
 
 // the shots, each weapon its own look
+// VANTA's heavy drop: a big pulsing halo in its colour, the drawing (in its colour), and, glowing white, flames round it
+function drawPhaseDrop(s, p, ux, uy, size) {
+  const T = VANTA_TINTS[s.lvl || 0], img = tintedArt(s.art.src, s.lvl || 0), d = s.art.d * size, beat = 0.85 + 0.15 * Math.sin(time * 18 + s.life * 7);
+  const R = d * (s.boost ? 1.5 : 1.1) * beat;
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R);
+  g.addColorStop(0, hexA(T.color, 0.55)); g.addColorStop(0.4, hexA(T.color, 0.22)); g.addColorStop(1, hexA(T.color, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); ctx.fill();
+  if (T.white) {   // flames licking back from it
+    const ang = Math.atan2(uy, ux) + Math.PI;
+    for (let i = 0; i < 9; i++) {
+      const a = ang + (i - 4) * 0.32 + Math.sin(time * 13 + i * 1.7) * 0.12, len = d * (0.75 + 0.45 * Math.abs(Math.sin(time * 11 + i * 2.3))) * (s.boost ? 1.3 : 1);
+      const fx = p.x + Math.cos(a) * len * 0.55, fy = p.y + Math.sin(a) * len * 0.55;
+      const fg = ctx.createRadialGradient(fx, fy, 0, fx, fy, len * 0.55);
+      fg.addColorStop(0, "rgba(255,240,190,0.75)"); fg.addColorStop(0.45, "rgba(255,150,50,0.45)"); fg.addColorStop(1, "rgba(255,70,20,0)");
+      ctx.fillStyle = fg; ctx.beginPath(); ctx.ellipse(fx, fy, len * 0.55, len * 0.22, a, 0, TAU); ctx.fill();
+    }
+  }
+  ctx.restore();
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy));
+  if (T.white) { ctx.shadowColor = "#ffffff"; ctx.shadowBlur = d * 0.6; }
+  ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+}
 // VANTA: where the drop will come out of the planet, pulsing for its last `warn` seconds inside
 function drawExitMark(s) {
   const I = s.inside, Wp = WEAPONS[s.w], A = shipById("vanta").anim, img = artImage(framePath(A.dir, A.exitWarn));
@@ -4071,10 +4225,12 @@ function drawShots(list = shots) {
       ctx.strokeStyle = hexA(Wp.color, 0.35); ctx.lineWidth = wd * 2.6;
       ctx.beginPath(); ctx.moveTo(p.x - ux * len, p.y - uy * len); ctx.lineTo(p.x, p.y); ctx.stroke();
       ctx.strokeStyle = "#ffffff"; ctx.lineWidth = wd * 0.8; ctx.stroke();
+    } else if (s.w === "phase" && s.art && artImage(s.art.src)) {
+      drawPhaseDrop(s, p, ux, uy, size);
     } else if (s.art && artImage(s.art.src)) {
       // a shot with its own drawing: the cannonball rolls as it flies (spin); a thorn points where it flies.
       // A faint glow in the weapon's color behind it
-      const img = artImage(s.art.src), d = s.art.d * size;
+      const img = s.lvl ? tintedArt(s.art.src, s.lvl) : artImage(s.art.src), d = s.art.d * size;
       const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, d * (s.art.spin ? 1.1 : 0.45));
       g.addColorStop(0, hexA(Wp.color, 0.35)); g.addColorStop(1, hexA(Wp.color, 0));
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, d * (s.art.spin ? 1.1 : 0.45), 0, TAU); ctx.fill();
@@ -4327,6 +4483,7 @@ function drawMagic() {
   if (M.look === "ink") drawInkButton(b, M, ready, k);
   if (M.look === "hammer") drawHammerButton(b, M, ready, k);
   if (M.look === "anchor") drawAnchorButton(b, M);
+  if (M.look === "tint") drawTintButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
     // a magic glow when ready
@@ -4762,7 +4919,7 @@ function duelLink(event, data) {
     if (typeof m.h === "number" && m.h > 0) damageShip(m.h);   // what my ship took from their weapons
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
     const S = shipById(m.s), art = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
-    duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id,
+    duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, lvl: m.v || 0,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0 } : null });
     if (duel.shots.length < 60) audio.shot(m.w);
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
@@ -4850,6 +5007,7 @@ function updateRival(dt) {
     if (st > was) spawnChips(enemy, shipSize() * sc, enemy.talus.colors[st - 1] || "#e8dcc4");
   } else enemy.talus = null;
   enemy.inked = n.ik || 0;   // their ship covered in my ink (to draw it)
+  enemy.vtint = n.vt || 0;   // their VANTA's liquid colour
   // their ZORIAN's spiked ball
   if (n.fl) { const R = duel.flail || (duel.flail = { w: "flail", x: n.fl[0] * WW, y: n.fl[1] * WH, vx: 0, vy: 0, spin: 0, swing: -1 });
     const kk = 1 - Math.exp(-dt * 15); R.x += wrapDelta(n.fl[0] * WW - R.x, WW) * kk; R.y += wrapDelta(n.fl[1] * WH - R.y, WH) * kk; R.swing = n.fl[2] ? 0 : -1; R.spin += dt * (n.fl[2] ? 12 : 3); }
@@ -4894,6 +5052,7 @@ function updateDuel(dt) {
     }
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;   // their VANTA drop inside the planet (the exit mark warns me)
+    if (Wp.phase) phaseTrail(s);
     if (threadBlocks(game.thread, s, dt)) { threadSpark(s); duel.shots.splice(k, 1); continue; }   // my thread stops it (their phone sees my thread too)
     if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it)
     const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shipSize();
@@ -4910,7 +5069,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
       ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
@@ -4978,7 +5137,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id;
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();
