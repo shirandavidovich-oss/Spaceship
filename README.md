@@ -52,6 +52,13 @@ While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `
 `""` for the gift's surprise again).
 Swipe up to offer a trade with a phone nearby; the swap happens only if both players say yes.
 
+**Duel (two phones, one fight):** tap the crossed swords under the map on both phones (close to each other, Bluetooth on).
+They find each other with no internet, count 3-2-1, and each player sees the other's own ship in the same space,
+starting on opposite sides of the planet. Everything is seen on both phones: flying, firing frames, shots, eggs and
+hunters, the tail, the smoke. Your weapons decide what they hit on your screen and send the damage to the other phone.
+The score under your health bar: your wins (green) : theirs (red). Tap the swords again to leave; the computer enemy comes back.
+On a computer: open the game in two windows of the same browser and press the swords in both.
+
 ## Install on the phone
 
 Every push to `main` builds a new APK automatically (GitHub Actions, about 3–5 minutes):

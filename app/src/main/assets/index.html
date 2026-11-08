@@ -603,6 +603,7 @@ let swipe = null;
 cv.addEventListener("pointerdown", (e) => {
   audio.wake();
   if (trade.stage && tradeTap(e.clientX, e.clientY)) return;
+  if (game.stage === "fly" && !trade.stage && hitDuel(e.clientX, e.clientY)) { duelButton(); return; }
   // the left thumb on the thrust button (another finger can still swipe at the same time)
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
     game.thrust = e.pointerId; buzz(12);
@@ -727,6 +728,7 @@ function update(dt) {
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
   }
   updateTrade(dt);
+  updateDuel(dt);
 
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.life += dt;
@@ -756,7 +758,7 @@ function flyShip(dt) {
   // alone, it leads a little in the direction of flight
   const lk = 1 - Math.exp(-dt * 2);
   let tx = clamp(game.vx * 0.22, -W * 0.22, W * 0.22), ty = clamp(game.vy * 0.22, -H * 0.22, H * 0.22);
-  if (enemy.on) {
+  if (enemyShown()) {
     const lim = 0.5 / ZOOM_MIN - 0.15;   // keep our own ship on screen even when fully zoomed out
     tx = clamp(wrapDelta(enemy.x - game.x, WW) / 2, -W * lim, W * lim);
     ty = clamp(wrapDelta(enemy.y - game.y, WH) / 2, -H * lim, H * lim);
@@ -764,7 +766,7 @@ function flyShip(dt) {
   game.lx = lerp(game.lx, tx, lk); game.ly = lerp(game.ly, ty, lk);
   // zoom out just enough to see the enemy too (zooming in again is slower and calmer)
   let z = 1;
-  if (enemy.on) {
+  if (enemyShown()) {
     const e = toScreen(enemy.x, enemy.y), m = shipSize() * 0.7;
     const dx = Math.abs(e.x - W / 2), dy = Math.abs(e.y - H / 2);
     z = clamp(Math.min(dx ? (W / 2 - m) / dx : 1, dy ? (H / 2 - m) / dy : 1, 1), ZOOM_MIN, 1);
@@ -920,16 +922,34 @@ function updateMagic(dt) {
 // after it. A ship touching it loses health. When it has been all the way out, it pulls back into the ship.
 const TAIL_SEGS = 40;   // more segments for the long tail, so it bends smoothly
 const TAIL_STIFF = 0.35;  // how stiff the tail is: 0 = a loose rope, 1 = a straight stick
-function tailBase(S) { const size = shipSize(), p = rotatePt(0, (S.tailY || 0.4) * size, game.ang); return { x: game.x + p.x, y: game.y + p.y }; }
+function tailBase(o, S) { const size = shipSize(), p = rotatePt(0, (S.tailY || 0.4) * size, o.ang); return { x: o.x + p.x, y: o.y + p.y }; }
+// your tail: it moves with your ship, and it hurts the enemy
 function updateTail(dt) {
   const T = game.tail, S = shipById(game.ship), M = magicOf(S);
   if (!T) return;
   if (!M || M.look !== "tail") { game.tail = null; return; }
   T.t += dt;
+  if (!moveTail(T, game, S, M, dt)) { game.tail = null; return; }
+  const size = shipSize();
+  // touching the enemy: it loses health while it stays on the tail
+  T.zap -= dt; T.touch = Math.max(0, T.touch - dt);
+  if (!enemy.on || enemy.warp >= 0.5) return;
+  for (let i = 3; i <= TAIL_SEGS; i++) {
+    const q = T.pts[i];
+    if (Math.hypot(wrapDelta(enemy.x - q.x, WW), wrapDelta(enemy.y - q.y, WH)) < size * (0.42 + tailWidth(i) / 2)) {
+      T.touch = 0.2;
+      if (T.zap <= 0) { T.zap = 0.12; audio.zap(); buzz(15); burstAt(q.x, q.y, 5, [M.color, "#ffffff"], 0.2, 0.5, enemy.vx, enemy.vy); }
+      harmEnemy(M.drain * dt);
+      break;
+    }
+  }
+}
+// moves a tail along with its ship o (yours or the other player's). False once it is all the way back in
+function moveTail(T, o, S, M, dt) {
   const out = tailOut(M, T.t);
-  if (out < 0) { game.tail = null; return; }
-  const size = shipSize(), base = tailBase(S), step = out * M.len * size / TAIL_SEGS;
-  const bx = -Math.sin(game.ang), by = Math.cos(game.ang), lean = 1 - Math.exp(-dt * 2.5);
+  if (out < 0) return false;
+  const size = shipSize(), base = tailBase(o, S), step = out * M.len * size / TAIL_SEGS;
+  const bx = -Math.sin(o.ang), by = Math.cos(o.ang), lean = 1 - Math.exp(-dt * 2.5);
   // it starts as a short straight line behind the ship (so every segment knows which way is "back")
   if (!T.pts) T.pts = Array.from({ length: TAIL_SEGS + 1 }, (_, i) => ({ x: base.x + bx * i * 0.5, y: base.y + by * i * 0.5 }));
   const old = T.pts.slice();
@@ -952,26 +972,14 @@ function updateTail(dt) {
     px = dx / n; py = dy / n;
     T.pts[i] = { x: a.x + px * step, y: a.y + py * step };
   }
-  // touching the enemy: it loses health while it stays on the tail
-  T.zap -= dt; T.touch = Math.max(0, T.touch - dt);
-  if (!enemy.on || enemy.warp >= 0.5) return;
-  for (let i = 3; i <= TAIL_SEGS; i++) {
-    const q = T.pts[i];
-    if (Math.hypot(wrapDelta(enemy.x - q.x, WW), wrapDelta(enemy.y - q.y, WH)) < size * (0.42 + tailWidth(i) / 2)) {
-      enemy.hp -= M.drain * dt; enemy.hurt = 0.15; T.touch = 0.2;
-      if (T.zap <= 0) { T.zap = 0.12; audio.zap(); buzz(15); burstAt(q.x, q.y, 5, [M.color, "#ffffff"], 0.2, 0.5, enemy.vx, enemy.vy); }
-      if (enemy.hp <= 0) destroyEnemy();
-      break;
-    }
-  }
+  return true;
 }
 // the tail's width at segment i, in ship-lengths: thick at the ship, thin at the stinger
 function tailWidth(i) { return 0.05 + 0.13 * (1 - i / TAIL_SEGS); }
 // the tail, drawn under the ship: dark green chitin plates with lime edges and a glowing stripe, a thorn for a stinger
-function drawTail() {
-  const T = game.tail;
-  if (!T || !T.pts || game.dead) return;
-  const S = shipById(game.ship), size = shipSize(), pts = T.pts.map((q, i) => {
+function drawTail(T, S) {
+  if (!T || !T.pts) return;
+  const size = shipSize(), pts = T.pts.map((q, i) => {
     const p = toScreen(q.x, q.y);
     if (i === 0) return p;
     // a living wave runs down the tail
@@ -1034,6 +1042,7 @@ function spawnEnemy() {
   enemy.on = true; enemy.warp = 1;
 }
 function updateEnemy(dt) {
+  if (enemy.remote) { updateRival(dt); return; }
   if (!enemy.on) {
     if (enemy.respawn > 0) { enemy.respawn -= dt; if (enemy.respawn <= 0) spawnEnemy(); }
     return;
@@ -1070,7 +1079,7 @@ function bumpShips(a, A, b, B) {
   const ram = ramDamage(-vn / U);
   if (ram > 0) {
     damageShip(ram);
-    if (enemy.on) { enemy.hp -= ram; enemy.hurt = 0.15; if (enemy.hp <= 0) destroyEnemy(); }
+    if (enemy.on && !enemy.remote) harmEnemy(ram);   // (in a duel, the other phone counts its own crash)
   }
   if (-vn > U * 0.1) {
     audio.bump(); buzz(Math.min(80, -vn / U * 60));
@@ -1092,6 +1101,7 @@ function damageShip(n) {
 // health gone: the ship blows up, and comes back near where it started a few seconds later
 function blowUpShip() {
   const S = shipById(game.ship);
+  if (duel.stage === "on") duel.lost++;
   game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null;
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
   for (let k = 0; k < 10; k++) smokeAt(game.x, game.y, game, S, 2.5, 2.5);
@@ -1101,6 +1111,7 @@ function blowUpShip() {
 }
 function respawnShip() {
   game.dead = 0; placeShip(); game.zoom = 1;
+  if (duel.stage === "on" || duel.stage === "count") duelPlace();
   game.arriveT = 1;   // a flash as it comes back
   audio.whoosh();
 }
@@ -1189,6 +1200,8 @@ function spawnShots(w, g) {
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
   if (!S.anim) burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
+  // in a duel the other phone shows these shots too
+  if (duel.stage === "on") for (const s of shots.slice(-pelletAngles(Wp).length)) duelSend({ t: "f", w, ...netPos(s), s: S.id });
   // shots with their own drawing (THUL's cannonball, VEXAR's thorns). THUL's flash, shock ring and sparks are in its frames
   const art = S.anim && S.anim.shotArt && S.anim.shotArt[w];
   if (art) for (const s of shots.slice(-pelletAngles(Wp).length)) s.art = { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0 };
@@ -1206,22 +1219,30 @@ function spawnShots(w, g) {
 const eggs = [], hunters = [];
 function layEgg(x, y, Wp, S) {
   const v = Wp.speed * U;
-  eggs.push({ x, y, vx: game.vx * 0.5 + Math.sin(game.ang) * v, vy: game.vy * 0.5 - Math.cos(game.ang) * v, ang: game.ang,
-    t: 0, ht: -1, crushed: false, w: "hive", E: S.anim.egg, dir: S.anim.dir });
+  const e = { x, y, vx: game.vx * 0.5 + Math.sin(game.ang) * v, vy: game.vy * 0.5 - Math.cos(game.ang) * v, ang: game.ang,
+    t: 0, ht: -1, crushed: false, w: "hive", ship: S.id };
+  eggs.push(e);
+  duelSend({ t: "e", ...netPos(e), a: e.ang, s: S.id });   // the other phone shows it too
+}
+// who an egg's hunters go after: mine chase the enemy; the other player's (in a duel) chase me
+function eggTarget(e) {
+  if (e.remote) return game.dead ? null : game;
+  return enemy.on && enemy.warp < 0.5 ? enemy : null;
 }
 function updateEggs(dt) {
   const size = shipSize();
   for (let k = eggs.length - 1; k >= 0; k--) {
-    const e = eggs[k], Wp = WEAPONS[e.w];
+    const e = eggs[k], Wp = WEAPONS[e.w], A = shipById(e.ship).anim, tg = eggTarget(e);
+    e.E = A.egg; e.dir = A.dir;
     e.vx *= Math.exp(-dt * 2.2); e.vy *= Math.exp(-dt * 2.2);   // drifts to a stop
     e.x = (((e.x + e.vx * dt) % WW) + WW) % WW; e.y = (((e.y + e.vy * dt) % WH) + WH) % WH;
     e.t += dt * 1000;
     const swarm = cueTime(e.E.hatch, "swarm");
     // the enemy flies into it before the hunters are out: crushed, only the shell pieces fly
-    if (!e.crushed && e.ht < swarm && enemy.on && enemy.warp < 0.5 &&
-        Math.hypot(wrapDelta(enemy.x - e.x, WW), wrapDelta(enemy.y - e.y, WH)) < size * 0.42 + Wp.r * size) {
+    if (!e.crushed && e.ht < swarm && tg &&
+        Math.hypot(wrapDelta(tg.x - e.x, WW), wrapDelta(tg.y - e.y, WH)) < size * 0.42 + Wp.r * size) {
       e.crushed = true; e.ht = swarm; audio.hatch(false);
-      burstAt(e.x, e.y, 14, ["#b8ff3a", "#3fae2a", "#e9ffd0"], 0.35, 0.7, enemy.vx * 0.3, enemy.vy * 0.3);
+      burstAt(e.x, e.y, 14, ["#b8ff3a", "#3fae2a", "#e9ffd0"], 0.35, 0.7, tg.vx * 0.3, tg.vy * 0.3);
       continue;
     }
     if (e.ht < 0) { if (e.t >= e.E.incubate) { e.ht = 0; audio.hatch(true); } continue; }
@@ -1230,13 +1251,13 @@ function updateEggs(dt) {
     if (seqFrame(e.E.hatch, e.ht) < 0) eggs.splice(k, 1);
   }
   for (let k = hunters.length - 1; k >= 0; k--) {
-    const h = hunters[k], Wp = WEAPONS[h.w];
+    const h = hunters[k], Wp = WEAPONS[h.w], tg = h.remote ? (game.dead ? null : game) : (enemy.on ? enemy : null);
     h.life += dt;
     // speed up to full, and turn toward the enemy no faster than hunterTurn
     const sp = Math.min(Wp.hunterSpeed * U, Math.hypot(h.vx, h.vy) + Wp.hunterSpeed * U * 2 * dt);
     let a = Math.atan2(h.vy, h.vx);
-    if (enemy.on) {
-      const want = Math.atan2(wrapDelta(enemy.y - h.y, WH), wrapDelta(enemy.x - h.x, WW));
+    if (tg) {
+      const want = Math.atan2(wrapDelta(tg.y - h.y, WH), wrapDelta(tg.x - h.x, WW));
       let d = want - a; d = Math.atan2(Math.sin(d), Math.cos(d));
       a += clamp(d, -Wp.hunterTurn * dt, Wp.hunterTurn * dt);
     }
@@ -1246,18 +1267,22 @@ function updateEggs(dt) {
     const gone = () => { burstAt(h.x, h.y, 6, ["#b8ff3a", "#ffffff"], 0.15, 0.5); hunters.splice(k, 1); };
     if (h.life > Wp.hunterLife) { gone(); continue; }
     if (Math.hypot(wrapDelta(h.x - WW / 2, WW), wrapDelta(h.y - WH / 2, WH)) < U * PLANET_R) { gone(); continue; }
-    if (enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - h.x, WW), wrapDelta(enemy.y - h.y, WH)) < shipSize() * 0.45) {
-      hitEnemy(h, Wp); hunters.splice(k, 1);
+    if (tg && (h.remote || enemy.warp < 0.5) && Math.hypot(wrapDelta(tg.x - h.x, WW), wrapDelta(tg.y - h.y, WH)) < shipSize() * 0.45) {
+      // mine hit the enemy; the other player's reaching me only vanish here (their phone sends the damage)
+      if (h.remote) burstAt(h.x, h.y, 8, [Wp.color, "#ffffff"], 0.25, 0.6, game.vx, game.vy);
+      else hitEnemy(h, Wp);
+      hunters.splice(k, 1);
     }
   }
 }
 // three different hunters, spread out a little, all heading for the enemy (or straight out the way the egg faced)
 function releaseHunters(e, Wp) {
-  const base = enemy.on ? Math.atan2(wrapDelta(enemy.y - e.y, WH), wrapDelta(enemy.x - e.x, WW)) : e.ang - Math.PI / 2;
+  const tg = eggTarget(e);
+  const base = tg ? Math.atan2(wrapDelta(tg.y - e.y, WH), wrapDelta(tg.x - e.x, WW)) : e.ang - Math.PI / 2;
   for (let i = 0; i < Wp.swarm; i++) {
     const a = base + (i / Math.max(1, Wp.swarm - 1) - 0.5) * 1.6, v = Wp.hunterSpeed * U * 0.35;
     hunters.push({ w: e.w, x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, seed: i * 2.1 + Math.random(),
-      frames: e.E.hunter, d: e.E.hunterSize, dir: e.dir, phase: i * 70 });
+      frames: e.E.hunter, d: e.E.hunterSize, dir: e.dir, phase: i * 70, remote: !!e.remote });
   }
 }
 function drawEggs() {
@@ -1304,23 +1329,30 @@ function waitsForFrames(i) {
   return i === 1 && !!a && !!shipById(game.ship).anim && (a.seq === "secondary" || a.seq === "smoke");
 }
 // which drawing the player's ship shows now
-function shipFrame(S) {
+// a: the drawings playing on that ship ({ seq, t }), or nothing (idle)
+function shipFrame(S, a) {
   if (!S.anim) return null;
-  const a = game.anim;
-  if (a && S.id === game.ship) { const f = seqFrame(S.anim[a.seq], a.t); if (f >= 0) return S.anim[a.seq][f][0]; }
+  if (a && S.anim[a.seq]) { const f = seqFrame(S.anim[a.seq], a.t); if (f >= 0) return S.anim[a.seq][f][0]; }
   return S.anim.idle;
 }
 
+// the enemy loses health. In a duel the other phone decides: the damage is sent there
+function harmEnemy(n) {
+  if (n <= 0 || !enemy.on) return;
+  enemy.hurt = 0.15;
+  if (enemy.remote) { duel.outDmg += n; return; }
+  enemy.hp -= n;
+  if (enemy.hp <= 0) destroyEnemy();
+}
 function hitEnemy(s, Wp) {
   const E = shipById(enemy.ship);
-  enemy.hp -= Wp.dmg; enemy.hurt = 0.15;
   // the hit nudges the enemy (heavier ships less)
   const sp = Math.hypot(s.vx - enemy.vx, s.vy - enemy.vy) || 1, push = Wp.dmg * U * 0.004 / E.mass;
   enemy.vx += (s.vx - enemy.vx) / sp * push; enemy.vy += (s.vy - enemy.vy) / sp * push;
   burstAt(s.x, s.y, Wp.dmg > 15 ? 22 : 6, [Wp.color, "#ffffff", E.trim], Wp.dmg > 15 ? 0.5 : 0.25, 0.7, enemy.vx, enemy.vy);
   if (Wp.dmg > 15) rings.push({ x: s.x, y: s.y, t: 0, max: 0.4, r: shipSize() * 0.6, c: Wp.color });
   audio.hit();
-  if (enemy.hp <= 0) destroyEnemy();
+  harmEnemy(Wp.dmg);
 }
 
 function destroyEnemy() {
@@ -1432,7 +1464,7 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.fillStyle = glow; ctx.fillRect(-0.7, -0.6, 1.4, 1.3);
 
   // a real drawing of the ship, once there is one
-  const img = shipArt(S);
+  const img = shipArt(S, o.anim);
   if (img) {
     // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
     // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
@@ -1489,10 +1521,10 @@ function artImage(src) {
   if (!a) { a = artCache[src] = new Image(); a.src = src; }
   return a.complete && a.naturalWidth ? a : null;
 }
-function shipArt(S) {
+function shipArt(S, a) {
   if (S.anim) {
     const idle = artImage(framePath(S.anim.dir, S.anim.idle));
-    const f = artImage(framePath(S.anim.dir, shipFrame(S)));
+    const f = artImage(framePath(S.anim.dir, shipFrame(S, a)));
     return f || idle;   // a frame still loading: show idle meanwhile
   }
   if (!S.art) return null;
@@ -1668,26 +1700,28 @@ function draw() {
     drawCrate();
     drawEnemy();
     if (!game.dead) {
-      drawTail();
+      drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize(),
-        { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping });
+        { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null });
       if (game.arriveT > 0) {   // coming back after blowing up: a flash
         ctx.save(); ctx.globalAlpha = game.arriveT; ctx.fillStyle = "#ffffff";
         ctx.beginPath(); ctx.arc(p.x, p.y, shipSize() * (1.2 - game.arriveT * 0.6), 0, TAU); ctx.fill(); ctx.restore();
       }
     }
     drawShots();
+    drawShots(duel.shots);
     drawEggs();
     drawParts();
     drawRings();
     ctx.restore();
-    if (enemy.on) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
+    if (enemyShown()) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
     if (crate.on) edgeArrow(crate.x, crate.y, WEAPONS[crate.w].color);
     drawCard(shown, Math.min(1, game.card * 2));
     drawRadar();
     drawHealth();
     if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
+    drawDuel();
   } else drawParts();
 
   drawTrade();
@@ -1731,7 +1765,9 @@ function drawEnemy() {
     ctx.save(); ctx.strokeStyle = `rgba(255,77,109,${0.5 + 0.2 * Math.sin(time * 4)})`; ctx.lineWidth = 3 / game.zoom;
     ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.58, 0, TAU); ctx.stroke(); ctx.restore();
     const st = shipStats(E);
-    drawShip(E, p.x, p.y, size, { power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang });
+    if (enemy.remote) drawTail(duel.tail, E);
+    drawShip(E, p.x, p.y, size, { power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang,
+      anim: enemy.remote ? enemy.anim : null, out: !!enemy.out });
     if (enemy.hurt > 0) {   // hit: a quick white flash
       ctx.save(); ctx.globalAlpha = enemy.hurt / 0.15 * 0.45; ctx.fillStyle = "#ffffff";
       ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.45, 0, TAU); ctx.fill(); ctx.restore();
@@ -1775,7 +1811,7 @@ function drawRadar() {
   ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1;
   const vw = W / game.zoom, vh = H / game.zoom;
   ctx.strokeRect(x0 + (game.x + game.lx - vw / 2) * k, y0 + (game.y + game.ly - vh / 2) * k, vw * k, vh * k);
-  if (enemy.on) { ctx.fillStyle = "#ff4d6d"; ctx.beginPath(); ctx.arc(x0 + enemy.x * k, y0 + enemy.y * k, 3, 0, TAU); ctx.fill(); }
+  if (enemyShown()) { ctx.fillStyle = "#ff4d6d"; ctx.beginPath(); ctx.arc(x0 + enemy.x * k, y0 + enemy.y * k, 3, 0, TAU); ctx.fill(); }
   if (crate.on) { ctx.fillStyle = WEAPONS[crate.w].color; ctx.fillRect(x0 + crate.x * k - 2.5, y0 + crate.y * k - 2.5, 5, 5); }
   ctx.translate(sx, sy); ctx.rotate(game.ang);
   ctx.fillStyle = shipById(game.ship).hull;
@@ -1827,10 +1863,10 @@ function drawHealth() {
 }
 
 // the shots, each weapon its own look
-function drawShots() {
+function drawShots(list = shots) {
   const size = shipSize();
   ctx.save(); ctx.lineCap = "round";
-  for (const s of shots) {
+  for (const s of list) {
     const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
     if (s.w === "twin" || s.w === "laser" || s.w === "spread") {
       const len = size * (s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
@@ -2096,23 +2132,39 @@ function drawThrust() {
 // ======================================================================
 const trade = { stage: null, t: 0, peer: null, myYes: false, peerYes: false, buttons: [], incoming: null };
 const fakePeer = params.has("fake");   // on a computer: ?fake pretends another phone answered
+// On a computer (no phone link): two windows of the game find each other through the browser (BroadcastChannel)
+const bc = !native && !fakePeer && typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("ship-link") : null;
 const link = {
+  name: null, peer: null,
   start(name) {
     if (native && native.tradeStart) { try { native.tradeStart(name); } catch (e) {} return; }
-    if (fakePeer) setTimeout(() => window.shipLink("connected", ""), 1200);
+    if (fakePeer) { setTimeout(() => window.shipLink("connected", ""), 1200); return; }
+    if (bc) { link.name = name; link.peer = null; bc.postMessage({ k: "hi", from: name }); }
   },
   send(obj) {
     if (native && native.tradeSend) { try { native.tradeSend(JSON.stringify(obj)); } catch (e) {} return; }
+    if (bc && link.peer) { bc.postMessage({ k: "msg", from: link.name, to: link.peer, data: JSON.stringify(obj) }); return; }
     if (!fakePeer) return;
     if (obj.t === "offer") setTimeout(() => window.shipLink("message", JSON.stringify({ t: "offer", s: SHIPS.filter((s) => s.id !== game.ship)[Math.floor(Math.random() * 9)].id })), 500);
     if (obj.t === "yes") setTimeout(() => window.shipLink("message", JSON.stringify({ t: "yes" })), 900);
   },
-  stop() { try { native && native.tradeStop && native.tradeStop(); } catch (e) {} }
+  stop() {
+    try { native && native.tradeStop && native.tradeStop(); } catch (e) {}
+    if (bc && link.peer) bc.postMessage({ k: "bye", from: link.name, to: link.peer });
+    link.name = link.peer = null;
+  }
+};
+if (bc) bc.onmessage = (e) => {
+  const m = e.data;
+  if (!link.name || m.from === link.name) return;
+  if (m.k === "hi" && !link.peer) { link.peer = m.from; bc.postMessage({ k: "hi", from: link.name }); window.shipLink("connected", ""); }
+  else if (m.k === "msg" && m.from === link.peer && m.to === link.name) window.shipLink("message", m.data);
+  else if (m.k === "bye" && m.from === link.peer) { link.peer = null; window.shipLink("lost", ""); }
 };
 function setTrade(stage) { trade.stage = stage; trade.t = 0; }
 function endTrade() { link.stop(); trade.stage = null; trade.peer = null; trade.myYes = trade.peerYes = false; }
 function openTrade() {
-  if (trade.stage || game.stage !== "fly") return;
+  if (trade.stage || duel.stage || game.stage !== "fly") return;
   setTrade("ask"); audio.pop(); buzz(15);
 }
 function startLooking() {
@@ -2121,6 +2173,7 @@ function startLooking() {
   link.start(game.ship + "|" + Math.random().toString(36).slice(2, 10));
 }
 window.shipLink = (event, data) => {
+  if (duel.stage) { duelLink(event, data); return; }
   if (!trade.stage) return;
   if (event === "connected") {
     link.send({ t: "offer", s: game.ship });
@@ -2248,6 +2301,192 @@ function cross(x, y, r, color = "#ff6b6b") {
 }
 
 // ======================================================================
+//  DUEL: two phones, one fight. Each player sees the other's ship (the one they got) in the same space.
+// ======================================================================
+// Tap the crossed swords (under the map) on both phones: they find each other over Bluetooth / Wi-Fi (no internet),
+// count 3-2-1, and start on opposite sides of the planet. Tap the swords again to leave.
+// How it stays fair and smooth: each phone flies its own ship and tells the other where it is 20 times a second;
+// the other phone glides the ship between those messages. Your weapons decide what they hit on your screen and
+// send the damage; the other phone takes it off its own health. Places are sent as parts of space (0..1), so
+// phones with different screens still agree where things are.
+const DUEL_RATE = 20;   // messages per second about your ship
+const duel = { stage: null, t: 0, me: 0, side: 0, sendT: 0, won: 0, lost: 0, outDmg: 0, shots: [], tail: null, net: null, smokeT: 0 };
+function netPos(o) { return { x: o.x / WW, y: o.y / WH, vx: o.vx / WW, vy: o.vy / WH }; }
+function duelSend(m) { if (duel.stage === "on" || duel.stage === "count") link.send(m); }
+function enemyShown() { return enemy.on && !(enemy.remote && enemy.hidden); }
+function duelButton() {
+  audio.pop(); buzz(15);
+  if (!duel.stage) {   // look for the other phone
+    if (game.stage !== "fly") return;
+    duel.stage = "looking"; duel.t = 0; duel.me = Math.random();
+    link.start("duel|" + Math.random().toString(36).slice(2, 10));
+  } else endDuel(true);
+}
+function endDuel(tellThem) {
+  if (tellThem && (duel.stage === "on" || duel.stage === "count")) link.send({ t: "bye" });
+  setTimeout(() => link.stop(), tellThem ? 250 : 0);
+  const was = duel.stage;
+  duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
+  duel.shots.length = 0; duel.tail = null; duel.net = null;
+  for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
+  for (let k = hunters.length - 1; k >= 0; k--) if (hunters[k].remote) hunters.splice(k, 1);
+  // the computer enemy comes back a little later
+  enemy.remote = false; enemy.on = false; enemy.respawn = 2.5; enemy.anim = null; enemy.hidden = false;
+}
+// where each player starts: one above the planet facing it, one below
+function duelPlace() {
+  game.x = WW / 2; game.y = WH / 2 + (duel.side ? 1 : -1) * U * 1.6;
+  game.ang = duel.side ? Math.PI : 0; game.vx = game.vy = 0; game.lx = game.ly = 0;
+}
+function duelLink(event, data) {
+  if (event === "connected") { link.send({ t: "hi", s: game.ship, r: duel.me }); return; }
+  if (event === "lost" || event === "error" || event === "denied") { if (duel.stage !== "over") endDuel(false); return; }
+  if (event !== "message") return;
+  let m = null; try { m = JSON.parse(data); } catch (e) { return; }
+  if (m.t === "hi" && duel.stage === "looking" && shipById(m.s)) {
+    // the bigger random number takes the bottom side
+    duel.side = duel.me > m.r ? 1 : 0;
+    duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.outDmg = 0;
+    duel.shots.length = 0; duel.tail = null; duel.net = null;
+    for (let k = eggs.length - 1; k >= 0; k--) eggs.splice(k, 1);
+    hunters.length = 0; shots.length = 0; crate.on = false;
+    game.hp = SHIP_HP; game.dead = 0; game.tail = null; game.anim = null; fillAmmo(); duelPlace();
+    Object.assign(enemy, { remote: true, on: true, ship: m.s, hp: SHIP_HP, warp: 1, hurt: 0, anim: null, hidden: false,
+      x: WW / 2, y: WH / 2 + (duel.side ? -1 : 1) * U * 1.6, vx: 0, vy: 0, ang: duel.side ? 0 : Math.PI, power: 0 });
+    audio.reveal(2); buzz(60);
+    return;
+  }
+  if (!(duel.stage === "on" || duel.stage === "count")) return;
+  if (m.t === "s") {   // where the other ship is now, and what it is doing
+    duel.net = { ...m, at: performance.now() };
+    if (shipById(m.s)) enemy.ship = m.s;
+    if (typeof m.h === "number" && m.h > 0) damageShip(m.h);   // what my ship took from their weapons
+  } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
+    const S = shipById(m.s), art = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
+    duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0,
+      art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0 } : null });
+    if (duel.shots.length < 60) audio.shot(m.w);
+  } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
+    eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, remote: true });
+  } else if (m.t === "bye") endDuel(false);
+}
+// the other player's ship on this phone: glide toward where it said it is (moved on by its speed since then)
+function updateRival(dt) {
+  const n = duel.net;
+  enemy.warp = Math.max(0, enemy.warp - dt); enemy.hurt = Math.max(0, enemy.hurt - dt);
+  if (!n) return;
+  const age = Math.min(0.3, (performance.now() - n.at) / 1000);
+  const tx = (n.x + n.vx * age) * WW, ty = (n.y + n.vy * age) * WH;
+  enemy.vx = n.vx * WW; enemy.vy = n.vy * WH;
+  let ex = wrapDelta(tx - enemy.x, WW), ey = wrapDelta(ty - enemy.y, WH);
+  if (Math.hypot(ex, ey) > U * 1.5) { enemy.x = tx; enemy.y = ty; ex = ey = 0; }   // too far off: jump there
+  const k = 1 - Math.exp(-dt * 10);
+  enemy.x = ((enemy.x + enemy.vx * dt + ex * k) % WW + WW) % WW; enemy.y = ((enemy.y + enemy.vy * dt + ey * k) % WH + WH) % WH;
+  enemy.ang += wrapAngle(n.a - enemy.ang) * (1 - Math.exp(-dt * 14));
+  enemy.power = n.p || 0; enemy.out = !!n.o; enemy.hp = n.hp; enemy.hidden = !!n.hd;
+  enemy.anim = n.an ? { seq: n.an[0], t: n.an[1] + age * 1000 } : null;
+  const E = shipById(enemy.ship);
+  // their ship blew up / came back
+  if (n.d && enemy.on) {
+    enemy.on = false; duel.won++;
+    burstAt(enemy.x, enemy.y, 90, ["#ffffff", "#ffd166", E.flame, E.hull, E.trim, "#ff6b35"], 1.4, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
+    rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.7, r: shipSize() * 2.2, c: "#ffd166" });
+    audio.boom(); buzz(220);
+    Object.assign(crate, { on: true, w: lootOf(E), x: enemy.x, y: enemy.y, vx: enemy.vx * 0.4, vy: enemy.vy * 0.4, t: 0 });
+  } else if (!n.d && !enemy.on) { enemy.on = true; enemy.warp = 1; enemy.x = tx; enemy.y = ty; }
+  if (!enemy.on) return;
+  // THUL's smoke pouring out of their engines
+  if (n.mp && Math.random() < 30 * dt) for (const e of exhausts(enemy, E)) smokeAt(e.x, e.y, enemy, E, 2.6 + Math.random() * 1.5, 5.5);
+  // VEXAR's tail: it moves with their ship here (their phone decides what it touches)
+  const M = magicOf(E);
+  if (n.tl >= 0 && M && M.look === "tail") {
+    if (!duel.tail) duel.tail = { t: n.tl, pts: null, touch: 0 };
+    duel.tail.t += dt;
+    if (Math.abs(duel.tail.t - (n.tl + age)) > 0.25) duel.tail.t = n.tl + age;
+    if (!moveTail(duel.tail, enemy, E, M, dt)) duel.tail = null;
+  } else duel.tail = null;
+  if (!game.dead) bumpShips(game, shipById(game.ship), enemy, E);
+}
+function updateDuel(dt) {
+  if (!duel.stage) return;
+  duel.t += dt;
+  if (duel.stage === "looking" && duel.t > LOOK_FOR) { endDuel(false); duel.stage = null; audio.bump(); return; }
+  if (duel.stage === "over") { if (duel.t > 2) duel.stage = null; return; }
+  if (duel.stage === "count" && duel.t > 3) { duel.stage = "on"; duel.t = 0; audio.open(); buzz(80); }
+  if (duel.stage !== "on" && duel.stage !== "count") return;
+  // their shots fly here too (only to be seen: their phone decides the hits). Homing ones come for me
+  for (let k = duel.shots.length - 1; k >= 0; k--) {
+    const s = duel.shots[k], Wp = WEAPONS[s.w];
+    s.life += dt;
+    if (Wp.homing && !game.dead && s.life > 0.12) {
+      const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), Wp.homing * dt);
+      s.vx = t.vx; s.vy = t.vy;
+    }
+    s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
+    const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shipSize();
+    const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < U * PLANET_R;
+    if (near || inPlanet || s.life > Wp.life) {
+      if (near) burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 5, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);
+      duel.shots.splice(k, 1);
+    }
+  }
+  // tell the other phone about my ship, 20 times a second (and the damage my weapons did to theirs)
+  duel.sendT -= dt;
+  if (duel.sendT <= 0) {
+    duel.sendT = 1 / DUEL_RATE;
+    const a = game.anim;
+    link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
+      hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1) });
+    duel.outDmg = 0;
+  }
+}
+// the duel button: crossed swords under the map
+function duelBtn() {
+  const k = U * 0.26 / Math.max(WW, WH), r = Math.max(18, U * 0.045);
+  return { x: W - U * 0.04 - WW * k / 2, y: U * 0.04 + WH * k + U * 0.03 + r, r };
+}
+function hitDuel(x, y) { const b = duelBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.4; }
+function drawDuel() {
+  if (trade.stage === "swapping") return;
+  const b = duelBtn(), on = duel.stage === "on" || duel.stage === "count";
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (duel.stage === "looking") for (let i = 0; i < 3; i++) {   // looking: rings going out
+    const k = (time * 0.8 + i / 3) % 1;
+    ctx.globalAlpha = 1 - k; ctx.strokeStyle = "#ff4d6d"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, b.r * (1 + k * 1.2), 0, TAU); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = on ? "rgba(255,77,109,0.85)" : "rgba(10,12,32,0.7)"; ctx.strokeStyle = "rgba(255,77,109,0.8)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill(); ctx.stroke();
+  // two crossed swords
+  ctx.strokeStyle = "#ffffff"; ctx.lineCap = "round"; ctx.lineWidth = Math.max(2, b.r * 0.13);
+  for (const sx of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(sx * b.r * 0.5, -b.r * 0.5); ctx.lineTo(-sx * b.r * 0.4, b.r * 0.4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-sx * b.r * 0.55, b.r * 0.2); ctx.lineTo(-sx * b.r * 0.2, b.r * 0.55); ctx.stroke();   // the guard
+  }
+  ctx.restore();
+  // the score, under the health bar: my wins (green) : theirs (red)
+  if (on || duel.stage === "over") {
+    const f = Math.round(U * 0.06), x = U * 0.06, y = U * 0.05 + Math.max(12, U * 0.032) + U * 0.02 + f * 0.6;
+    ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.direction = "ltr"; ctx.textAlign = "left";
+    const won = String(duel.won), colon = " : ";
+    ctx.fillStyle = "#4ade80"; ctx.fillText(won, x, y);
+    ctx.fillStyle = "#ffffff"; ctx.fillText(colon, x + ctx.measureText(won).width, y);
+    ctx.fillStyle = "#ff4d6d"; ctx.fillText(String(duel.lost), x + ctx.measureText(won + colon).width, y);
+    ctx.restore();
+  }
+  // 3, 2, 1 in the middle, then the fight starts
+  if (duel.stage === "count") {
+    const n = 3 - Math.floor(duel.t), k = duel.t % 1, f = Math.round(U * 0.3 * (1.3 - k * 0.4));
+    ctx.save(); ctx.globalAlpha = 1 - k * 0.7; ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `900 ${f}px Rubik, Arial, sans-serif`; ctx.fillText(String(Math.max(1, n)), W / 2, H * 0.4); ctx.restore();
+  }
+  // the other player left
+  if (duel.stage === "over" && duel.t < 1.6) { ctx.save(); ctx.globalAlpha = 1 - duel.t / 1.6; cross(b.x, b.y, b.r * 0.8); ctx.restore(); }
+}
+
+// ======================================================================
 //  LOOP
 // ======================================================================
 resize();
@@ -2261,7 +2500,7 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 // test hooks (used by the screenshot checks on a computer)
-window.__ship = { SHIPS, damageShip, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic };
+window.__ship = { SHIPS, damageShip, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic, duel, duelButton, eggs, hunters };
 </script>
 </body>
 </html>
