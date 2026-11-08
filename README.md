@@ -43,9 +43,10 @@ squeaks, and now and then the fire goes out for a moment (no push, only smoke).
 **VEXAR**, the green hunting ship, is the second ship with real drawings (`art/ships/vexar/`).
 Button 1 fires thorns from the two claws, taking turns. Button 2: the mandibles spread, the armor covers swing open
 and an egg is laid; it drifts to a stop and pulses, then cracks and lets out 3 hunters that chase the enemy
-(each hit takes 9 health; they fly about 4.5 s). The enemy can crush the egg by flying into it before it hatches: then no hunters.
+(each hit takes 9 health; they fly about 4.5 s). Each egg is one of 4 kinds, picked at random: the green egg holds
+one of each insect (an orange wasp, a turquoise beetle, a pink-violet moth); the orange, turquoise and magenta eggs hold 3 of one kind. The enemy can crush the egg by flying into it before it hatches: then no hunters.
 Its magic button is a curled stinger tail: tap it and a long segmented tail (9.6 ship-lengths) grows out behind the ship and drags
-and swings after it as you fly and turn. A ship touching it loses health (28 a second) while it touches. After it has
+and swings after it as you fly and turn. It is drawn from VEXAR's tail art: a mount, vertebrae that narrow toward the end, and a stinger. A ship touching it loses health (28 a second) while it touches. After it has
 been all the way out it pulls back into the ship (about 3.3 s), and the button recharges (9 s).
 
 **LYTH**, the mechanical ring duelist (`art/ships/lyth/`), with its own recorded sounds (`sfx/`).

@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -152,8 +152,14 @@ ok("VEXAR (vexar-animation.json): thorns at 63 and 189 ms, the egg at 448 ms, hu
   const A = SHIPS.find((s) => s.id === "vexar").anim;
   assert.strictEqual(seqLength(A.primary), 315); assert.strictEqual(cueTime(A.primary, "left"), 63); assert.strictEqual(cueTime(A.primary, "right"), 189);
   assert.strictEqual(seqLength(A.secondary), 960); assert.strictEqual(cueTime(A.secondary, "fire"), 448);
-  assert.strictEqual(seqLength(A.egg.pulse), 600); assert.strictEqual(seqLength(A.egg.hatch), 540); assert.strictEqual(cueTime(A.egg.hatch, "swarm"), 180);
-  assert.strictEqual(A.egg.incubate, 1150); assert.strictEqual(WEAPONS.hive.swarm, 3);
+  for (const k of ["mixed", "ember", "azure", "prism"]) {
+    const B = A.egg.broods[k];
+    assert.strictEqual(seqLength(B.pulse), 600); assert.strictEqual(seqLength(B.hatch), 540); assert.strictEqual(cueTime(B.hatch, "swarm"), 180);
+    assert.strictEqual(B.brood.length, 3);
+  }
+  assert.strictEqual(A.egg.broods.mixed.brood.join(), "ember,azure,prism"); assert.strictEqual(A.egg.broods.azure.brood.join(), "azure,azure,azure");
+  for (const k of ["ember", "azure", "prism"]) assert.strictEqual(seqLength(A.egg.insects[k].flight), 240);
+  assert.strictEqual(A.egg.incubate, 1150);
 });
 ok("VEXAR muzzles match the drawing's anchors", () => {
   const S = SHIPS.find((s) => s.id === "vexar"), px = (v) => Math.round(v / S.anim.size * 512 + 256);
@@ -162,7 +168,9 @@ ok("VEXAR muzzles match the drawing's anchors", () => {
 });
 ok("every VEXAR drawing the game asks for is in art/ships/vexar/", () => {
   const A = SHIPS.find((s) => s.id === "vexar").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
-  const all = [A.idle, ...[A.primary, A.secondary, A.egg.pulse, A.egg.hatch, A.egg.hunter].flatMap((q) => q.map((x) => x[0])), A.shotArt.thorn.file];
+  const B = A.egg.broods, I = A.egg.insects;
+  const all = [A.idle, ...[A.primary, A.secondary, ...Object.values(B).flatMap((b) => [b.pulse, b.hatch]), ...Object.values(I).map((i) => i.flight)].flatMap((q) => q.map((x) => x[0])),
+    A.shotArt.thorn.file, A.tailArt.mount, A.tailArt.vertebra, A.tailArt.stinger];
   for (const f of all) assert(fs.existsSync(path.join(dir, f)), f);
 });
 ok("the tail grows out, stays, pulls back in, and is gone after that", () => {
@@ -172,6 +180,14 @@ ok("the tail grows out, stays, pulls back in, and is gone after that", () => {
   const back = tailOut(M, M.out + M.hold + M.back / 2); assert(back > 0 && back < 1);
   assert.strictEqual(tailOut(M, M.out + M.hold + M.back + 0.01), -1);
   assert(M.cool > M.out + M.hold + M.back, "it can only be used again after it is back in");
+});
+ok("VEXAR tail pieces: mount, narrowing vertebrae, stinger; they fill the tail's length exactly", () => {
+  const P = tailPieces(1620);
+  assert.strictEqual(P[0].role, "mount"); assert.strictEqual(P[P.length - 1].role, "stinger");
+  assert(Math.abs(P[P.length - 1].end - 1620) < 1e-6); assert.strictEqual(P.length, 20, "the layout's own 18 vertebrae at 4 ship-lengths");
+  for (let i = 1; i < P.length; i++) assert(Math.abs(P[i].start - P[i - 1].end) < 1e-6);
+  const V = P.filter((p) => p.role === "vertebra"); assert.strictEqual(V[0].w, 72); assert(Math.abs(V[V.length - 1].w - 29) < 1e-9);
+  const long = tailPieces(MAGIC.tail.len * 512 / 1.2); assert(Math.abs(long[long.length - 1].end - MAGIC.tail.len * 512 / 1.2) < 1e-6);
 });
 ok("LYTH (lyth-layout.json): pulse 480 ms, the shot at 168 ms; muzzle and thrusters match the anchors", () => {
   const S = SHIPS.find((s) => s.id === "lyth"), A = S.anim, px = (v) => Math.round(v / A.size * 512 + 256);

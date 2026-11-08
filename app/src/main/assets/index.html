@@ -138,14 +138,25 @@ const SHIPS = [
     weapons: ["thorn", "hive"],
     // anchors: thornLeft (166,97), thornRight (347,97), egg chamber (256,321)
     guns: { thorn: [[-0.211, -0.373], [0.213, -0.373]], hive: [[0, 0.152]] },
-    tailY: 0.3,   // where the tail comes out (the end of the abdomen, pixel y 384)
+    tailY: 0.328,   // where the tail is mounted on the hull (tail-layout.json shipAnchor: pixel y 396)
     anim: { dir: "vexar", size: 1.2, idle: "idle.webp",
       primary:   frames("primary", 5, () => 63, { 2: "left", 4: "right" }),     // 315 ms: left at 63, right at 189
       secondary: frames("hunt", 15, () => 64, { 8: "fire" }),                   // 960 ms: the egg leaves at 448
       shotArt: { thorn: { file: "thorn.webp", size: 0.3 } },                     // 128 px at the hull's scale
-      // the egg: pulses while it waits, then cracks and bursts; the hunters come out at the "swarm" frame (180 ms)
-      egg: { pulse: frames("egg", 8, () => 75), hatch: frames("hatch", 12, () => 45, { 5: "swarm" }),
-        hunter: frames("hunter", 4, () => 60), size: 0.45, hunterSize: 0.3, incubate: 1150 } } },
+      // the egg: pulses while it waits, then cracks and bursts; the insects come out at the "swarm" frame (180 ms).
+      // Each egg is one of 4 kinds (picked at random when it is laid, kept to the end): the green "mixed" one holds
+      // one of each insect; the orange, turquoise and magenta ones hold 3 of one kind
+      egg: { size: 0.45, hunterSize: 0.34, incubate: 1150,
+        broods: Object.fromEntries(["mixed", "ember", "azure", "prism"].map((k) => [k, {
+          pulse: frames(k + "_egg", 8, () => 75), hatch: frames(k + "_hatch", 12, () => 45, { 5: "swarm" }),
+          brood: k === "mixed" ? ["ember", "azure", "prism"] : [k, k, k] }])),
+        // the insects: an orange wasp, a turquoise beetle, a pink-violet moth (4 wingbeat frames each, 60 ms)
+        insects: {
+          ember: { name: "צרעת גחלת", color: "#ff8b31", flight: frames("ember_flight", 4, () => 60) },
+          azure: { name: "חיפושית טורקיז", color: "#27e7fc", flight: frames("azure_flight", 4, () => 60) },
+          prism: { name: "עש פריזמה", color: "#ff49bd", flight: frames("prism_flight", 4, () => 60) } } },
+      // the tail's drawings (tail-layout.json): a mount, vertebrae getting narrower, a stinger. They point down
+      tailArt: { mount: "tail_mount.webp", vertebra: "tail_vertebra.webp", stinger: "tail_stinger.webp" } } },
   // LYTH, the mechanical ring duelist (art/ships/lyth/, 512 x 512, center pivot, nose up), from lyth-layout.json.
   // Button 1: the pulse (the shutters slide apart, the emitter flashes). Button 2: the big ring around the hull
   // unlatches, flies out (the planet pulls it), turns back, finds the ship wherever it is now and locks on again.
@@ -209,6 +220,23 @@ const MAGIC = {
   //   len: its full length in ship-lengths   drain: health per second taken from a ship touching it
   tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 9.6, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
 };
+// VEXAR's tail pieces along a tail `total` art-pixels long (the art is 512 px per 1.2 ship-lengths):
+// the mount, then vertebrae narrowing from 72 to 29 px wide, then the stinger, like tail-layout.json but as many
+// vertebrae as the length needs. start / end: art pixels from the mount; ob / oa: how far each overlaps the next
+function tailPieces(total) {
+  const mount = 64, sting = 122, room = Math.max(0, total - mount - sting);
+  const n = Math.max(1, Math.round(room / 79.66)), out = [{ role: "mount", w: 86, start: 0, end: mount, ob: 0, oa: 10 }];
+  let at = mount, sum = 0;
+  const raw = Array.from({ length: n }, (_, i) => 90.82 + (68.51 - 90.82) * (n > 1 ? i / (n - 1) : 0));
+  raw.forEach((v) => { sum += v; });
+  raw.forEach((v, i) => {
+    const span = v * room / sum;
+    out.push({ role: "vertebra", w: 72 + (29 - 72) * (n > 1 ? i / (n - 1) : 0), start: at, end: at + span, ob: 8, oa: 9 });
+    at += span;
+  });
+  out.push({ role: "stinger", w: 56, start: at, end: at + sting, ob: 10, oa: 0 });
+  return out;
+}
 // LYTH's ring at time t (seconds since the button): "unlock", "out", "back", "lock", or null once it is home again
 function ringPhase(Wp, t) {
   if (t < Wp.unlock) return "unlock";
@@ -1031,6 +1059,48 @@ function moveTail(T, o, S, M, dt) {
   }
   return true;
 }
+// the tail from VEXAR's own drawings: each piece laid along the bending tail by distance from the mount,
+// pointing from its start to its end. While it grows, the stinger rides at the tip and the vertebrae fill in behind it.
+// Returns false if the drawings are not loaded yet (then the drawn-in-code tail is shown)
+function drawTailArt(T, S, pts, size) {
+  const A = S.anim, art = A.tailArt, img = (f) => artImage(framePath(A.dir, f));
+  const mount = img(art.mount), vert = img(art.vertebra), sting = img(art.stinger);
+  if (!mount || !vert || !sting) return false;
+  const k = size * A.size / 512, M = magicOf(S);   // screen pixels per art pixel
+  if (!art.pieces || art.len !== M.len) { art.len = M.len; art.pieces = tailPieces(M.len * 512 / A.size); }
+  // distances along the tail (screen pixels), and a point at any distance
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+  const L = cum[cum.length - 1];
+  if (L < 1) return true;
+  const at = (d) => {
+    d = Math.max(0, Math.min(L, d));
+    let i = 1; while (i < cum.length - 1 && cum[i] < d) i++;
+    const s = cum[i] - cum[i - 1] || 1, u = (d - cum[i - 1]) / s;
+    return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * u, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * u };
+  };
+  const P = art.pieces, sp = P[P.length - 1], stingLen = (sp.end - sp.start) * k, room = L - stingLen;
+  const piece = (im, p, d0, d1) => {
+    const a = at(d0), b = at(d1), ang = Math.atan2(b.y - a.y, b.x - a.x) - Math.PI / 2, w = p.w * k;
+    ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(ang);
+    ctx.drawImage(im, -w / 2, -p.ob * k, w, (d1 - d0) + (p.ob + p.oa) * k);
+    ctx.restore();
+  };
+  ctx.save();
+  // the stinger at the tip (glowing while it touches a ship)
+  if (T.touch > 0) { ctx.shadowColor = "#b8ff3a"; ctx.shadowBlur = size * 0.2; }
+  piece(sting, sp, Math.max(0, room), L);
+  ctx.shadowBlur = 0;
+  // the vertebrae that fit, from the tip back to the mount (so the ones nearer the ship lie on top)
+  for (let i = P.length - 2; i >= 1; i--) {
+    const p = P[i], d0 = p.start * k;
+    if (d0 >= room) continue;
+    piece(vert, p, d0, Math.min(p.end * k, room));
+  }
+  piece(mount, P[0], 0, Math.min(P[0].end * k, Math.max(1, room)));
+  ctx.restore();
+  return true;
+}
 // the tail's width at segment i, in ship-lengths: thick at the ship, thin at the stinger
 function tailWidth(i) { return 0.05 + 0.13 * (1 - i / TAIL_SEGS); }
 // the tail, drawn under the ship: dark green chitin plates with lime edges and a glowing stripe, a thorn for a stinger
@@ -1045,6 +1115,7 @@ function drawTail(T, S) {
     return { x: p.x - dy / d * w, y: p.y + dx / d * w };
   });
   const glow = T.touch > 0 ? 1 : 0.5 + 0.2 * Math.sin(time * 6);
+  if (S.anim && S.anim.tailArt && drawTailArt(T, S, pts, size)) return;
   ctx.save();
   // the spine underneath
   ctx.strokeStyle = "#0a1a0a"; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = size * 0.06;
@@ -1350,10 +1421,11 @@ function drawRing(R, S) {
 const eggs = [], hunters = [];
 function layEgg(x, y, Wp, S) {
   const v = Wp.speed * U;
+  const kinds = Object.keys(S.anim.egg.broods), kind = kinds[Math.floor(Math.random() * kinds.length)];
   const e = { x, y, vx: game.vx * 0.5 + Math.sin(game.ang) * v, vy: game.vy * 0.5 - Math.cos(game.ang) * v, ang: game.ang,
-    t: 0, ht: -1, crushed: false, w: "hive", ship: S.id };
+    t: 0, ht: -1, crushed: false, w: "hive", ship: S.id, kind };
   eggs.push(e);
-  duelSend({ t: "e", ...netPos(e), a: e.ang, s: S.id });   // the other phone shows it too
+  duelSend({ t: "e", ...netPos(e), a: e.ang, s: S.id, k: kind });   // the other phone shows it too (the same kind)
 }
 // who an egg's hunters go after: mine chase the enemy; the other player's (in a duel) chase me
 function eggTarget(e) {
@@ -1364,11 +1436,11 @@ function updateEggs(dt) {
   const size = shipSize();
   for (let k = eggs.length - 1; k >= 0; k--) {
     const e = eggs[k], Wp = WEAPONS[e.w], A = shipById(e.ship).anim, tg = eggTarget(e);
-    e.E = A.egg; e.dir = A.dir;
+    e.E = A.egg; e.dir = A.dir; e.B = A.egg.broods[e.kind] || A.egg.broods.mixed;
     e.vx *= Math.exp(-dt * 2.2); e.vy *= Math.exp(-dt * 2.2);   // drifts to a stop
     e.x = (((e.x + e.vx * dt) % WW) + WW) % WW; e.y = (((e.y + e.vy * dt) % WH) + WH) % WH;
     e.t += dt * 1000;
-    const swarm = cueTime(e.E.hatch, "swarm");
+    const swarm = cueTime(e.B.hatch, "swarm");
     // the enemy flies into it before the hunters are out: crushed, only the shell pieces fly
     if (!e.crushed && e.ht < swarm && tg &&
         Math.hypot(wrapDelta(tg.x - e.x, WW), wrapDelta(tg.y - e.y, WH)) < size * 0.42 + Wp.r * size) {
@@ -1379,7 +1451,7 @@ function updateEggs(dt) {
     if (e.ht < 0) { if (e.t >= e.E.incubate) { e.ht = 0; audio.hatch(true); } continue; }
     const before = e.ht; e.ht += dt * 1000;
     if (!e.crushed && before < swarm && e.ht >= swarm) releaseHunters(e, Wp);
-    if (seqFrame(e.E.hatch, e.ht) < 0) eggs.splice(k, 1);
+    if (seqFrame(e.B.hatch, e.ht) < 0) eggs.splice(k, 1);
   }
   for (let k = hunters.length - 1; k >= 0; k--) {
     const h = hunters[k], Wp = WEAPONS[h.w], tg = h.remote ? (game.dead ? null : game) : (enemy.on ? enemy : null);
@@ -1395,13 +1467,13 @@ function updateEggs(dt) {
     a += Math.sin(time * 9 + h.seed) * 0.6 * dt;   // a little wobble, like a wasp
     h.vx = Math.cos(a) * sp; h.vy = Math.sin(a) * sp;
     h.x = (((h.x + h.vx * dt) % WW) + WW) % WW; h.y = (((h.y + h.vy * dt) % WH) + WH) % WH;
-    const gone = () => { burstAt(h.x, h.y, 6, ["#b8ff3a", "#ffffff"], 0.15, 0.5); hunters.splice(k, 1); };
+    const gone = () => { burstAt(h.x, h.y, 6, [h.color || "#b8ff3a", "#ffffff"], 0.15, 0.5); hunters.splice(k, 1); };
     if (h.life > Wp.hunterLife) { gone(); continue; }
     if (Math.hypot(wrapDelta(h.x - WW / 2, WW), wrapDelta(h.y - WH / 2, WH)) < U * PLANET_R) { gone(); continue; }
     if (tg && (h.remote || enemy.warp < 0.5) && Math.hypot(wrapDelta(tg.x - h.x, WW), wrapDelta(tg.y - h.y, WH)) < shipSize() * 0.45) {
       // mine hit the enemy; the other player's reaching me only vanish here (their phone sends the damage)
-      if (h.remote) burstAt(h.x, h.y, 8, [Wp.color, "#ffffff"], 0.25, 0.6, game.vx, game.vy);
-      else hitEnemy(h, Wp);
+      if (h.remote) burstAt(h.x, h.y, 8, [h.color || Wp.color, "#ffffff"], 0.25, 0.6, game.vx, game.vy);
+      else { hitEnemy(h, Wp); burstAt(h.x, h.y, 8, [h.color || Wp.color, "#ffffff"], 0.25, 0.6, enemy.vx, enemy.vy); }
       hunters.splice(k, 1);
     }
   }
@@ -1410,17 +1482,19 @@ function updateEggs(dt) {
 function releaseHunters(e, Wp) {
   const tg = eggTarget(e);
   const base = tg ? Math.atan2(wrapDelta(tg.y - e.y, WH), wrapDelta(tg.x - e.x, WW)) : e.ang - Math.PI / 2;
-  for (let i = 0; i < Wp.swarm; i++) {
-    const a = base + (i / Math.max(1, Wp.swarm - 1) - 0.5) * 1.6, v = Wp.hunterSpeed * U * 0.35;
+  const brood = e.B.brood, n = brood.length;   // one insect per entry, in the egg's own kinds
+  brood.forEach((sp, i) => {
+    const I = e.E.insects[sp], a = base + (i / Math.max(1, n - 1) - 0.5) * 1.6, v = Wp.hunterSpeed * U * 0.35;
     hunters.push({ w: e.w, x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, seed: i * 2.1 + Math.random(),
-      frames: e.E.hunter, d: e.E.hunterSize, dir: e.dir, phase: i * 70, remote: !!e.remote });
-  }
+      frames: I.flight, color: I.color, d: e.E.hunterSize, dir: e.dir, phase: i * 70, remote: !!e.remote });
+  });
 }
 function drawEggs() {
   const size = shipSize();
   for (const e of eggs) {
     const p = toScreen(e.x, e.y), d = e.E.size * size;
-    const seq = e.ht < 0 ? e.E.pulse : e.E.hatch, t = e.ht < 0 ? e.t % seqLength(e.E.pulse) : e.ht, f = seqFrame(seq, t);
+    if (!e.B) continue;
+    const seq = e.ht < 0 ? e.B.pulse : e.B.hatch, t = e.ht < 0 ? e.t % seqLength(e.B.pulse) : e.ht, f = seqFrame(seq, t);
     const img = f >= 0 && artImage(framePath(e.dir, seq[f][0]));
     if (!img) continue;
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(e.ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
@@ -1687,7 +1761,11 @@ function preloadArt() {
     const all = [A.idle, ...[A.primary, A.secondary, A.smoke].filter(Boolean).flatMap((q) => q.map((x) => x[0]))];
     for (const k in A.shotArt || {}) all.push(A.shotArt[k].file);
     if (A.hull) all.push(A.hull, A.ring);
-    if (A.egg) all.push(...[A.egg.pulse, A.egg.hatch, A.egg.hunter].flatMap((q) => q.map((x) => x[0])));
+    if (A.egg) {
+      for (const k in A.egg.broods) all.push(...[A.egg.broods[k].pulse, A.egg.broods[k].hatch].flatMap((q) => q.map((x) => x[0])));
+      for (const k in A.egg.insects) all.push(...A.egg.insects[k].flight.map((x) => x[0]));
+    }
+    if (A.tailArt) all.push(A.tailArt.mount, A.tailArt.vertebra, A.tailArt.stinger);
     for (const f of all) artImage(framePath(A.dir, f));
   }
 }
@@ -2535,7 +2613,7 @@ function duelLink(event, data) {
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0 } : null });
     if (duel.shots.length < 60) audio.shot(m.w);
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
-    eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, remote: true });
+    eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
   } else if (m.t === "bye") endDuel(false);
 }
 // the other player's ship on this phone: glide toward where it said it is (moved on by its speed since then)
