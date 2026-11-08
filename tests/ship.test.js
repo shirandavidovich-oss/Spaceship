@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -450,6 +450,18 @@ ok("CINDER (cinder-combat.js): two guns taking turns; engines swivel to the side
   assert(MAGIC.dashR.at === 0.17 && MAGIC.dashR.dir === 1 && MAGIC.dashL.dir === -1 && WEAPONS.torpedo.life === 0.95);
   const dir = path.join(__dirname, "../app/src/main/assets/art/ships/cinder");
   for (const f of Object.values(A.parts).concat(A.idle)) assert(fs.existsSync(path.join(dir, f)), f);
+});
+ok("the 3 ships come from the email: always the same 3 for one email (any capitals or spaces), all different, all drawn", () => {
+  const a = rollFleet("Shiran@Gmail.com"), b = rollFleet(" shiran@gmail.com "), c = rollFleet("someone.else@gmail.com");
+  assert.strictEqual(a.join(), b.join()); assert.strictEqual(a.length, 3); assert.strictEqual(new Set(a).size, 3);
+  assert(a.every((id) => SHIPS.find((s) => s.id === id).anim)); assert.notStrictEqual(a.join(), c.join());
+  const many = new Set(); for (let i = 0; i < 300; i++) rollFleet("p" + i + "@x.com").forEach((id) => many.add(id));
+  assert(many.size >= 15, "different emails get many different ships");
+});
+ok("the reward for beating a player: quicker, healthier, a rarer ship and a streak all pay more", () => {
+  const base = killReward(200, 0, "common", 1).total, fast = killReward(5, 0, "common", 1).total, healthy = killReward(200, 100, "common", 1).total;
+  assert.strictEqual(base, 100); assert(fast > base && healthy > base && killReward(200, 0, "legendary", 1).total > base);
+  assert(killReward(200, 0, "common", 4).total > base && killReward(200, 0, "common", 99).total <= base * 2);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);

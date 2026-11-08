@@ -35,6 +35,9 @@ const ENEMY_DMG  = 0.6;  // how hard its shots hit, compared with the same shots
 const ENEMY_KEEP = 0.9;  // how close the enemy likes to stay to you, in screen-widths
 const ZOOM_MIN   = 0.4;  // like Star Control: the view zooms out (down to this much) to keep both ships on screen
 const TRY_SHIP   = "";     // everyone flies this ship (for testing). "" = the gift's surprise, as in the real game
+// the server (Supabase): its project address and public key. Empty = everything stays on this phone for now
+const SERVER_URL = "";
+const SERVER_KEY = "";
 const HANGAR     = true;   // for now: a hangar button (under the duel swords) to try every drawn ship. false = the real game only
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
@@ -950,6 +953,33 @@ function fuelColor(f) {
   }
   return "#000000";
 }
+// ---- the 3 ships from an email ----
+// a number from the email, and a dice that always rolls the same from it
+function emailSeed(email) { let h = 2166136261; for (const c of email.trim().toLowerCase()) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function seededDice(seed) { let a = seed || 1; return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+// the 3 ships for an email: each by the rarity odds, from the ships with real drawings, all different
+function rollFleet(email) {
+  const rand = seededDice(emailSeed(email)), pool = SHIPS.filter((S) => S.anim), out = [];
+  const total = Object.values(RARITY).reduce((a, r) => a + r.odds, 0);
+  for (let tries = 0; out.length < 3 && tries < 200; tries++) {
+    let k = rand() * total, pick = "common";
+    for (const [name, r] of Object.entries(RARITY)) { if (k < r.odds) { pick = name; break; } k -= r.odds; }
+    const some = pool.filter((S) => S.rarity === pick && !out.includes(S.id)), from = some.length ? some : pool.filter((S) => !out.includes(S.id));
+    out.push(from[Math.min(from.length - 1, Math.floor(rand() * from.length))].id);
+  }
+  return out;
+}
+// ---- kills and money ----
+// Every kill counts. Money only for beating another player (in a duel): a reward made of
+//   KILL_PAY for the kill, a speed bonus (more the sooner after they appeared, nothing after SPEED_SECS),
+//   a health bonus (more health left = more), the beaten ship's rarity, and a streak (kills without dying in between)
+const KILL_PAY = 100, SPEED_PAY = 120, SPEED_SECS = 90, HEALTH_PAY = 60, RARITY_PAY = { common: 0, rare: 30, epic: 60, legendary: 100 }, STREAK_STEP = 0.2, STREAK_MAX = 2;
+// the reward for a kill: { total, lines: [[what, amount]...] }
+function killReward(secs, hp, rarity, streak) {
+  const speed = Math.round(SPEED_PAY * Math.max(0, 1 - secs / SPEED_SECS)), health = Math.round(HEALTH_PAY * Math.max(0, Math.min(1, hp / SHIP_HP))), rare = RARITY_PAY[rarity] || 0;
+  const mult = Math.min(STREAK_MAX, 1 + STREAK_STEP * Math.max(0, streak - 1)), total = Math.round((KILL_PAY + speed + health + rare) * mult / 5) * 5;
+  return { total, lines: [["חיסול", KILL_PAY], ["מהירות", speed], ["חיים שנשארו", health], ["נדירות", rare]], mult };
+}
 // </logic>
 
 // ======================================================================
@@ -983,6 +1013,37 @@ const SAVE_KEY = "spaceship.save";
 if (params.has("reset")) { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
 function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && shipById(s.ship)) return s; } catch (e) {} return null; }
 function saveShip(id, from) { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, ship: id, from, at: Date.now() })); } catch (e) {} }
+
+// ---------- the player's profile: the email, the 3 ships, kills and money ----------
+// The 3 ships are drawn from the email (the same email always draws the same 3, even after reinstalling).
+// After trades they are kept here (and on the server, once there is one)
+const PROFILE_KEY = "spaceship.profile";
+if (params.has("reset")) { try { localStorage.removeItem(PROFILE_KEY); } catch (e) {} }
+function loadProfile() {
+  try { const p = JSON.parse(localStorage.getItem(PROFILE_KEY)); if (p && p.email && Array.isArray(p.fleet) && p.fleet.every((id) => shipById(id))) return p; } catch (e) {}
+  return null;
+}
+function saveProfile() { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) {} server.save(profile); }
+let profile = loadProfile();
+// the server (Supabase), once SERVER_URL and SERVER_KEY are filled in: the profile is kept there too, by email.
+// (Online games through it come next; until then two phones play and trade directly, as before)
+const server = {
+  on: !!(SERVER_URL && SERVER_KEY),
+  save(p) {
+    if (!this.on || !p) return;
+    try {
+      fetch(SERVER_URL + "/rest/v1/profiles", { method: "POST", headers: { apikey: SERVER_KEY, Authorization: "Bearer " + SERVER_KEY, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
+        body: JSON.stringify({ email: p.email.toLowerCase(), fleet: p.fleet, active: p.active, kills: p.kills, money: p.money, updated_at: new Date().toISOString() }) }).catch(() => {});
+    } catch (e) {}
+  },
+  async load(email) {
+    if (!this.on) return null;
+    try {
+      const r = await fetch(SERVER_URL + "/rest/v1/profiles?email=eq." + encodeURIComponent(email.toLowerCase()) + "&select=*", { headers: { apikey: SERVER_KEY, Authorization: "Bearer " + SERVER_KEY } });
+      const a = await r.json(); return Array.isArray(a) && a[0] ? a[0] : null;
+    } catch (e) { return null; }
+  }
+};
 
 // ---------- tilt ----------
 const tilt = { native: false, have: false, pitch: HOLD_ANGLE, roll: 0, sim: { pitch: HOLD_ANGLE, roll: 0 } };
@@ -1188,9 +1249,9 @@ audio.wake();
 // ======================================================================
 const save = loadSave();
 const game = {
-  stage: save ? "arrive" : "gift",   // gift -> opening -> fly ; arrive -> fly
+  stage: profile ? "arrive" : "signup",   // signup -> fleet (pick one of the 3) -> arrive -> fly. (The old gift is not used)
   t: 0,
-  ship: save ? (TRY_SHIP || save.ship) : null,
+  ship: profile ? (TRY_SHIP || profile.active || profile.fleet[0]) : null,
   x: 0, y: 0, vx: 0, vy: 0, power: 0, fwd: 0, side: 0,   // x, y: place in space (pixels)
   ang: 0, spin: 0,  // heading (0 = nose up, clockwise) and how fast it is turning
   fuel: 0,          // seconds of engine left
@@ -1270,7 +1331,9 @@ let swipe = null;
 cv.addEventListener("pointerdown", (e) => {
   audio.wake();
   if (trade.stage && tradeTap(e.clientX, e.clientY)) return;
+  if (fleet.open) { fleetDown(e); return; }
   if (hangar.open) { hangarTap(e.clientX, e.clientY); return; }
+  if (game.stage === "fly" && !trade.stage && !duel.stage && profile && hitFleetBtn(e.clientX, e.clientY)) { fleetOpen(false); audio.pop(); return; }
   if (game.stage === "fly" && !trade.stage && hitDuel(e.clientX, e.clientY)) { duelButton(); return; }
   if (game.stage === "fly" && !trade.stage && !duel.stage && hitHangar(e.clientX, e.clientY)) { hangar.open = true; hangar.t = 0; audio.pop(); return; }
   // the left thumb on the thrust button (another finger can still swipe at the same time)
@@ -1298,17 +1361,19 @@ cv.addEventListener("pointerdown", (e) => {
 });
 // dragging the thumb on the thrust button steers, like a joystick
 cv.addEventListener("pointermove", (e) => {
+  if (fleet.open) { fleetMove(e); return; }
   if (e.pointerId !== game.thrust || !game.stick) return;
   game.stick.dx = e.clientX - game.stick.ox; game.stick.dy = e.clientY - game.stick.oy;
 });
 function fingerUp(e) {
+  if (fleet.open && fleet.press) { fleetUp(e); return; }
   if (e.pointerId === game.magicFinger) { game.magicFinger = null; return; }
   if (e.pointerId === game.thrust) { game.thrust = null; game.stick = null; return; }
   const f = game.fire.indexOf(e.pointerId);
   if (f >= 0) { game.fire[f] = null; return; }
   if (!swipe || e.pointerId !== swipe.id) return;
   const up = swipe.y - e.clientY;
-  if (e.type === "pointerup" && up > H * SWIPE_UP && performance.now() - swipe.t < 900 && game.stage === "fly") openTrade();
+  // (trading is on the fleet page now, not by swiping up in flight)
   swipe = null;
 }
 cv.addEventListener("pointerup", fingerUp);
@@ -1333,13 +1398,43 @@ addEventListener("keyup", (e) => {
 // Android back: close the bubble or card first, then leave
 window.shipBack = () => {
   if (hangar.open) { hangar.open = false; return true; }
+  if (fleet.open && profile && profile.active) { fleetClose(); return true; }
   if (trade.stage && trade.stage !== "swapping") { if (trade.stage === "offer" || trade.stage === "waiting") link.send({ t: "no" }); endTrade(); return true; }
   if (game.card > 0) { game.card = 0; return true; }
   return false;
 };
 
 // ======================================================================
-//  THE GIFT
+//  SIGN UP: the email (it decides the 3 ships), then the fleet page
+// ======================================================================
+function showSignup() {
+  if (document.getElementById("signup")) return;
+  const d = document.createElement("div");
+  d.id = "signup"; d.dir = "rtl";
+  d.style.cssText = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;font-family:Rubik,Arial,sans-serif";
+  d.innerHTML = `<form style="background:rgba(14,16,40,.94);border:1.5px solid #4fc3ff;border-radius:18px;padding:26px 24px;width:min(86vw,420px);color:#fff;text-align:center;box-shadow:0 0 40px rgba(79,195,255,.35)">
+    <div style="font-size:26px;font-weight:800;margin-bottom:6px">ברוכים הבאים, טייסים!</div>
+    <div style="font-size:15px;color:#9fb4d8;margin-bottom:18px">הכניסו מייל: ממנו מוגרלות 3 החלליות שלכם.<br>אותו מייל תמיד מחזיר את אותן חלליות, גם אחרי התקנה מחדש.</div>
+    <input id="su-email" type="email" required placeholder="name@gmail.com" dir="ltr" autocomplete="email"
+      style="width:100%;box-sizing:border-box;font-size:18px;padding:12px 14px;border-radius:12px;border:1.5px solid #3a4a8a;background:#0a0c20;color:#fff;outline:none">
+    <div id="su-err" style="color:#ff6b8a;font-size:14px;height:20px;margin-top:6px"></div>
+    <button style="margin-top:6px;width:100%;font-size:20px;font-weight:800;padding:12px;border:0;border-radius:12px;background:linear-gradient(#5fd0ff,#2a8ad8);color:#06122a">קבלו את החלליות ✨</button>
+  </form>`;
+  document.body.appendChild(d);
+  d.querySelector("form").onsubmit = async (e) => {
+    e.preventDefault();
+    const email = d.querySelector("#su-email").value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { d.querySelector("#su-err").textContent = "המייל לא נראה תקין"; return; }
+    const kept = await server.load(email);   // already played with this email (on the server)? the ships it has now
+    const fleet = kept && Array.isArray(kept.fleet) && kept.fleet.every((id) => shipById(id)) ? kept.fleet : rollFleet(email);
+    profile = { v: 2, email, fleet, active: kept && kept.active && fleet.includes(kept.active) ? kept.active : null, kills: kept ? kept.kills || 0 : 0, money: kept ? kept.money || 0 : 0 };
+    saveProfile(); d.remove();
+    fleetOpen(true); audio.open(); buzz(60);
+  };
+}
+
+// ======================================================================
+//  THE GIFT (not used any more: the 3 ships come from the email)
 // ======================================================================
 function giftBox() { const s = U * 0.42; return { cx: W / 2, cy: H * 0.52, s }; }
 function hitGift(x, y) { const g = giftBox(); return Math.abs(x - g.cx) < g.s * 0.65 && Math.abs(y - g.cy) < g.s * 0.7; }
@@ -1410,6 +1505,9 @@ function update(dt) {
   updateTrade(dt);
   updateDuel(dt);
   if (hangar.open) hangar.t += dt;
+  if (fleet.open) { fleet.t += dt; if (fleet.swapped) { fleet.swapped.t += dt; if (fleet.swapped.t > 1) fleet.swapped = null; } }
+  if (game.stage === "signup") showSignup();
+  bounty.t = Math.max(0, bounty.t - dt);
 
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.life += dt;
@@ -3314,7 +3412,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null;
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -3810,9 +3908,43 @@ function hitEnemy(s, Wp) {
   harmEnemy(Wp.dmg * (s.pow ? 1 + POWER_STEP * s.pow : 1));
 }
 
+// ---------- kills and money ----------
+const bounty = { t: 0, r: null };
+function scoreKill(player) {
+  if (!profile) return;
+  profile.kills = (profile.kills || 0) + 1; game.streak = (game.streak || 0) + 1;
+  if (player) {
+    const E = shipById(enemy.ship), r = killReward(game.t - (duel.roundStart || game.t), game.hp, E ? E.rarity : "common", game.streak);
+    profile.money = (profile.money || 0) + r.total; bounty.r = r; bounty.t = 3.2;
+    audio.coins && audio.coins(); for (let i = 0; i < 6; i++) audio.tone(1200 + i * 180, 0.06, "triangle", 0.05, 1, i * 0.06);
+  }
+  saveProfile();
+}
+// the meter under the health bar: kills and money
+function drawScore() {
+  if (!profile) return;
+  const x = U * 0.04, y = U * 0.05 + Math.max(12, U * 0.032) + U * 0.022, f = Math.round(U * 0.032);
+  ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = "ltr";
+  const txt = `💀 ${profile.kills || 0}    🪙 ${(profile.money || 0).toLocaleString("en-US")}`, w = ctx.measureText(txt).width + f * 1.2;
+  ctx.fillStyle = "rgba(10,12,32,0.65)"; roundRect(x, y - f * 0.75, w, f * 1.5, f * 0.5); ctx.fill();
+  ctx.fillStyle = bounty.t > 2.6 ? "#ffffff" : "#ffd166"; ctx.fillText(txt, x + f * 0.6, y);
+  ctx.restore();
+}
+// a reward just won: the sum, and what it is made of
+function drawBounty() {
+  if (!(bounty.t > 0) || !bounty.r) return;
+  const r = bounty.r, a = Math.min(1, bounty.t / 0.4) * Math.min(1, (3.2 - bounty.t) / 0.2), f = Math.round(U * 0.05), y = H * 0.24;
+  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+  ctx.fillStyle = "rgba(10,12,32,0.8)"; roundRect(W / 2 - U * 0.3, y - f, U * 0.6, f * 1.6 + f * 0.62 * (r.lines.length + 1), f * 0.4); ctx.fill();
+  ctx.direction = "ltr"; ctx.font = `900 ${f}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.fillText(`+${r.total.toLocaleString("en-US")} 🪙`, W / 2, y - f * 0.1 - (1 - a) * f); ctx.direction = "rtl";
+  ctx.font = `600 ${Math.round(f * 0.42)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#cfd8f0";
+  r.lines.forEach(([what, n], i) => ctx.fillText(`${what}: ${n}`, W / 2, y + f * 0.8 + i * f * 0.62));
+  if (r.mult > 1) { ctx.fillStyle = "#ff9f1c"; ctx.fillText(`רצף ×${r.mult.toFixed(1)}`, W / 2, y + f * 0.8 + r.lines.length * f * 0.62); }
+  ctx.restore();
+}
 function destroyEnemy() {
   const E = shipById(enemy.ship);
-  enemy.on = false; enemy.respawn = RESPAWN; game.kills++; enemy.markT = 0; enemy.rw = null; enemy.rwHist = [];
+  enemy.on = false; enemy.respawn = RESPAWN; game.kills++; enemy.markT = 0; scoreKill(false); enemy.rw = null; enemy.rwHist = [];
   burstAt(enemy.x, enemy.y, 90, ["#ffffff", "#ffd166", E.flame, E.hull, E.trim, "#ff6b35"], 1.4, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
   burstAt(enemy.x, enemy.y, 30, ["#ffffff", "#fff3b0"], 0.5, 2, enemy.vx * 0.5, enemy.vy * 0.5);
   rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.7, r: shipSize() * 2.2, c: "#ffd166" });
@@ -5314,13 +5446,14 @@ function draw() {
     drawScrambleNote(); drawHackNote();
     if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
     drawDuel();
-    drawHangarButton();
+    drawHangarButton(); drawFleetBtn(); drawScore(); drawBounty();
     drawBodyLabel();
     drawNova();
   } else drawParts();
 
   drawTrade();
   drawHangar();
+  drawFleet();
 }
 
 // the planet in the middle of space (Star Control's melee planet)
@@ -6281,7 +6414,7 @@ if (bc) bc.onmessage = (e) => {
   else if (m.k === "bye" && m.from === link.peer) { link.peer = null; window.shipLink("lost", ""); }
 };
 function setTrade(stage) { trade.stage = stage; trade.t = 0; }
-function endTrade() { link.stop(); trade.stage = null; trade.peer = null; trade.myYes = trade.peerYes = false; }
+function endTrade() { link.stop(); trade.stage = null; trade.peer = null; trade.myYes = trade.peerYes = false; trade.fleet = false; }
 function openTrade() {
   if (trade.stage || duel.stage || game.stage !== "fly") return;
   setTrade("ask"); audio.pop(); buzz(15);
@@ -6295,7 +6428,7 @@ window.shipLink = (event, data) => {
   if (duel.stage) { duelLink(event, data); return; }
   if (!trade.stage) return;
   if (event === "connected") {
-    link.send({ t: "offer", s: game.ship });
+    link.send({ t: "offer", s: trade.fleet ? trade.mine : game.ship });
   } else if (event === "message") {
     let m = null; try { m = JSON.parse(data); } catch (e) { return; }
     if (m.t === "offer" && shipById(m.s)) {
@@ -6307,6 +6440,7 @@ window.shipLink = (event, data) => {
   else if (event === "error" || event === "denied") setTrade("declined");
 };
 function maybeSwap() {
+  if (trade.fleet && trade.myYes && trade.peerYes && trade.peer && trade.stage !== "swapping") { fleetSwap(); return; }
   if (trade.myYes && trade.peerYes && trade.peer && trade.stage !== "swapping") {
     trade.incoming = trade.peer; setTrade("swapping"); audio.whoosh(); buzz(60);
   }
@@ -6332,7 +6466,7 @@ function updateTrade(dt) {
   if (trade.stage === "looking" && trade.t > LOOK_FOR) { endTrade(); audio.bump(); }
   if (trade.stage === "declined" && trade.t > 1.4) endTrade();
   if (trade.stage === "ask" && trade.t > 12) endTrade();
-  if (trade.stage === "swapping") {
+  if (trade.stage === "swapping" && !trade.fleet) {
     if (trade.t > 0.9 && game.ship !== trade.incoming) {
       // ours is gone through the top; the other one comes in
       game.ship = trade.incoming; saveShip(game.ship, "trade");
@@ -6357,6 +6491,7 @@ function tradeOffsetY(y) {
 }
 
 function drawTrade() {
+  if (trade.fleet) return;   // (the fleet page draws its own trade box)
   trade.buttons = [];
   const st = trade.stage;
   if (!st || st === "swapping") return;
@@ -6467,7 +6602,7 @@ function duelLink(event, data) {
     // the bigger random number takes the bottom side
     duel.side = duel.me > m.r ? 1 : 0;
     if (duel.side === 1 && BODIES[m.b]) setBody(m.b);   // both fight around the same body: the top player's
-    duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.outDmg = 0; eshots.length = 0;
+    duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.outDmg = 0; eshots.length = 0; duel.roundStart = game.t + 3;
     duel.shots.length = 0; duel.tail = null; duel.net = null;
     for (let k = eggs.length - 1; k >= 0; k--) eggs.splice(k, 1);
     hunters.length = 0; shots.length = 0; crate.on = false;
@@ -6564,12 +6699,12 @@ function updateRival(dt) {
   const E = shipById(enemy.ship);
   // their ship blew up / came back
   if (n.d && enemy.on) {
-    enemy.on = false; duel.won++;
+    enemy.on = false; duel.won++; scoreKill(true);   // a player beaten: the reward
     burstAt(enemy.x, enemy.y, 90, ["#ffffff", "#ffd166", E.flame, E.hull, E.trim, "#ff6b35"], 1.4, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
     rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.7, r: shipSize() * 2.2, c: "#ffd166" });
     audio.boom(); buzz(220);
     Object.assign(crate, { on: true, w: lootOf(E), x: enemy.x, y: enemy.y, vx: enemy.vx * 0.4, vy: enemy.vy * 0.4, t: 0 });
-  } else if (!n.d && !enemy.on) { enemy.on = true; enemy.warp = 1; enemy.x = tx; enemy.y = ty; }
+  } else if (!n.d && !enemy.on) { enemy.on = true; enemy.warp = 1; enemy.x = tx; enemy.y = ty; duel.roundStart = game.t; }
   if (!enemy.on) return;
   // THUL's smoke pouring out of their engines
   if (n.mp) { duel.smokeAcc = (duel.smokeAcc || 0) + ((magicOf(E) || {}).rate || 30) * dt; for (; duel.smokeAcc >= 1; duel.smokeAcc--) for (const e of exhausts(enemy, E)) smokeAt(e.x, e.y, enemy, E, (2.6 + Math.random() * 1.5) * ((magicOf(E) || {}).big || 1), 5.5); }
@@ -6725,6 +6860,169 @@ function drawDuel() {
   }
   // the other player left
   if (duel.stage === "over" && duel.t < 1.6) { ctx.save(); ctx.globalAlpha = 1 - duel.t / 1.6; cross(b.x, b.y, b.r * 0.8); ctx.restore(); }
+}
+
+// ======================================================================
+//  MY SHIPS: the 3 ships (their front pictures). Tap one to fly it. Drag one down to the trade box to swap it
+//  with another player who is also offering one; the swap only happens if both say yes
+// ======================================================================
+const fleet = { open: false, first: false, t: 0, cards: [], zone: null, press: null };
+function fleetOpen(first) { fleet.open = true; fleet.first = !!first; fleet.t = 0; fleet.press = null; if (first) game.stage = "fleet"; }
+function fleetClose() { if (!profile || !profile.active) return; fleet.open = false; if (trade.fleet && trade.stage && trade.stage !== "swapping") { if (trade.stage === "offer" || trade.stage === "waiting") link.send({ t: "no" }); endTrade(); } }
+function fleetBtn() { const h = hangarBtn(); return HANGAR ? { x: h.x, y: h.y + h.r * 2.7, r: h.r } : h; }
+function hitFleetBtn(x, y) { const b = fleetBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.4; }
+// fly this one of my ships
+function pickShip(id) {
+  profile.active = id; saveProfile();
+  if (game.stage === "fleet") { game.ship = id; fleet.open = false; placeShip(); game.stage = "arrive"; game.t = 0; audio.whoosh(); return; }
+  if (game.ship !== id) tryShip(id);
+  fleet.open = false;
+}
+function fleetDown(e) {
+  const x = e.clientX, y = e.clientY;
+  for (const c of fleet.cards) if (x > c.x && x < c.x + c.w && y > c.y && y < c.y + c.h) {
+    if (c.close) { fleetClose(); audio.pop(); return; }
+    fleet.press = { i: c.i, id: e.pointerId, x0: x, y0: y, x, y, drag: false };
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    return;
+  }
+}
+function fleetMove(e) {
+  const P = fleet.press;
+  if (!P || e.pointerId !== P.id) return;
+  P.x = e.clientX; P.y = e.clientY;
+  if (!P.drag && Math.hypot(P.x - P.x0, P.y - P.y0) > U * 0.03 && !trade.stage) P.drag = true;
+}
+function fleetUp(e) {
+  const P = fleet.press;
+  if (!P || e.pointerId !== P.id) return;
+  fleet.press = null;
+  const Z = fleet.zone;
+  if (P.drag) { if (Z && P.x > Z.x && P.x < Z.x + Z.w && P.y > Z.y && P.y < Z.y + Z.h) fleetOffer(profile.fleet[P.i]); return; }
+  pickShip(profile.fleet[P.i]); audio.pop(); buzz(15);
+}
+// put a ship up for trade: look for another phone that is also offering one
+function fleetOffer(id) {
+  if (trade.stage || duel.stage) return;
+  trade.fleet = true; trade.mine = id; trade.peer = null; trade.myYes = trade.peerYes = false;
+  setTrade("looking");
+  link.start(id + "|" + Math.random().toString(36).slice(2, 10));
+  audio.pop(); buzz(20);
+}
+// both said yes: their ship takes the place of mine in my fleet
+function fleetSwap() {
+  const i = profile.fleet.indexOf(trade.mine);
+  if (i < 0 || !shipById(trade.peer)) { endTrade(); return; }
+  const was = profile.fleet[i];
+  profile.fleet[i] = trade.peer;
+  if (profile.active === was) { profile.active = trade.peer; if (game.stage === "fly") tryShip(trade.peer); else game.ship = trade.peer; }
+  saveProfile();
+  fleet.swapped = { i, t: 0 };
+  setTrade("swapping"); audio.whoosh(); buzz(80);
+  setTimeout(() => { link.stop(); trade.stage = null; trade.fleet = false; trade.peer = null; trade.myYes = trade.peerYes = false; }, 1400);
+}
+// a ship's picture from the front, fitted in a box (the top-down drawing when there is no front picture)
+function drawFront(S, x, y, w, h, alpha = 1) {
+  const img = artImage("art/fronts/" + S.id + ".webp");
+  ctx.save(); ctx.globalAlpha *= alpha;
+  roundRect(x, y, w, h, Math.min(w, h) * 0.06); ctx.clip();
+  ctx.fillStyle = "#0a0c1e"; ctx.fillRect(x, y, w, h);
+  if (img) { const k = Math.max(w / img.width, h / img.height), iw = img.width * k, ih = img.height * k; ctx.drawImage(img, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih); }
+  else drawShip(S, x + w / 2, y + h / 2, Math.min(w, h) * 0.62, { power: 0.4, ang: Math.sin(time * 0.8) * 0.2 });
+  const g = ctx.createLinearGradient(0, y + h * 0.55, 0, y + h); g.addColorStop(0, "rgba(5,6,18,0)"); g.addColorStop(1, "rgba(5,6,18,0.92)");
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+  ctx.restore();
+}
+function check(x, y, r, c) { ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = Math.max(3, r * 0.35); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x - r * 0.25, y + r * 0.7); ctx.lineTo(x + r, y - r * 0.7); ctx.stroke(); ctx.restore(); }
+function drawFleetBtn() {
+  if (!profile || duel.stage || trade.stage) return;
+  const b = fleetBtn();
+  ctx.save(); ctx.translate(b.x, b.y);
+  ctx.fillStyle = "rgba(10,12,32,0.7)"; ctx.strokeStyle = "rgba(255,209,102,0.85)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill(); ctx.stroke();
+  for (let i = -1; i <= 1; i++) {   // three little cards fanned out
+    ctx.save(); ctx.rotate(i * 0.32); ctx.fillStyle = i ? "#9fb4d8" : "#ffd166"; ctx.strokeStyle = "#0a0c20"; ctx.lineWidth = 1.5;
+    roundRect(-b.r * 0.22, -b.r * 0.5, b.r * 0.44, b.r * 0.66, b.r * 0.06); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  ctx.restore();
+}
+function drawFleet() {
+  fleet.cards = []; fleet.zone = null;
+  if (!fleet.open || !profile) return;
+  if (trade.fleet) trade.buttons = [];
+  const pop = ease(Math.min(1, fleet.t / 0.3));
+  ctx.save(); ctx.globalAlpha = pop;
+  ctx.fillStyle = "rgba(5,6,18,0.93)"; ctx.fillRect(0, 0, W, H);
+  const f = Math.round(U * 0.055);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl"; ctx.fillStyle = "#ffffff";
+  ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.fillText(fleet.first ? "החלליות שלך!" : "החלליות שלי", W / 2, U * 0.075);
+  ctx.font = `600 ${Math.round(f * 0.48)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166";
+  ctx.fillText(`💀 ${profile.kills || 0} חיסולים   ·   🪙 ${(profile.money || 0).toLocaleString("en-US")} מטבעות`, W / 2, U * 0.075 + f * 0.85);
+  if (profile.active) { const cr = U * 0.045, cx = W - U * 0.06 - cr, cy = U * 0.075; cross(cx, cy, cr * 0.45, "#ffffff"); fleet.cards.push({ close: true, x: cx - cr * 1.4, y: cy - cr * 1.4, w: cr * 2.8, h: cr * 2.8 }); }
+  // the three cards
+  const top = U * 0.075 + f * 1.5, zoneH = Math.max(U * 0.2, H * 0.2), gap = U * 0.03;
+  const cw = Math.min((W - gap * 4) / 3, (H - top - zoneH - gap * 3) / 1.3), ch = cw * 1.3, x0 = (W - cw * 3 - gap * 2) / 2, y0 = top + gap * 0.6;
+  profile.fleet.forEach((id, i) => {
+    const S = shipById(id), R = RARITY[S.rarity], on = profile.active === id, P = fleet.press && fleet.press.i === i && fleet.press.drag ? fleet.press : null;
+    const appear = fleet.first ? ease(clamp((fleet.t - 0.3 - i * 0.35) / 0.5, 0, 1)) : 1, offered = trade.fleet && trade.mine === id && trade.stage;
+    const sw = fleet.swapped && fleet.swapped.i === i ? clamp(fleet.swapped.t / 0.6, 0, 1) : 1;
+    const x = x0 + i * (cw + gap), y = y0 + (1 - appear) * H * 0.4 + (1 - sw) * ch * 0.3;
+    ctx.save(); ctx.globalAlpha = pop * appear * (P ? 0.35 : offered ? 0.45 : 1) * sw;
+    if (fleet.first && appear > 0 && appear < 1) drawRays(x + cw / 2, y + ch * 0.4, appear, R.color);
+    drawFront(S, x, y, cw, ch * 0.72);
+    ctx.fillStyle = on ? "rgba(79,195,255,0.18)" : "rgba(20,24,52,0.92)"; roundRect(x, y + ch * 0.72, cw, ch * 0.28, cw * 0.05); ctx.fill();
+    ctx.strokeStyle = on ? "#4fc3ff" : R.color; ctx.lineWidth = on ? 3.5 : 2; roundRect(x, y, cw, ch, cw * 0.06); ctx.stroke();
+    ctx.direction = "ltr"; ctx.fillStyle = "#ffffff"; ctx.font = `800 ${Math.round(cw * 0.1)}px Rubik, Arial, sans-serif`; ctx.fillText(S.name, x + cw / 2, y + ch * 0.66);
+    for (let k = 0; k < R.stars; k++) starShape(x + cw / 2 + (k - (R.stars - 1) / 2) * cw * 0.07, y + ch * 0.765, cw * 0.025);
+    const ws = weaponsOf(S), M = magicOf(S), ir = cw * 0.045;
+    ws.forEach((w, j) => weaponIcon(w, x + cw / 2 + (j - 0.5) * ir * 3.2, y + ch * 0.85, ir, WEAPONS[w].color));
+    ctx.direction = "rtl"; ctx.fillStyle = M ? M.color : "#6c6c78"; ctx.font = `600 ${Math.round(cw * 0.062)}px Rubik, Arial, sans-serif`;
+    ctx.fillText(M ? M.name + (S.magic2 ? " · " + MAGIC[S.magic2].name : "") : "בלי קסם", x + cw / 2, y + ch * 0.94);
+    if (on) { ctx.fillStyle = "#4fc3ff"; ctx.font = `800 ${Math.round(cw * 0.06)}px Rubik, Arial, sans-serif`; ctx.fillText("✈ בשימוש", x + cw / 2, y + ch * 0.05 + cw * 0.04); }
+    ctx.restore();
+    fleet.cards.push({ i, x, y, w: cw, h: ch });
+  });
+  // the trade box
+  const Z = { x: W * 0.08, y: H - zoneH - gap * 0.5, w: W * 0.84, h: zoneH }; fleet.zone = Z;
+  const drag = fleet.press && fleet.press.drag, inZ = drag && fleet.press.x > Z.x && fleet.press.x < Z.x + Z.w && fleet.press.y > Z.y && fleet.press.y < Z.y + Z.h;
+  ctx.save(); ctx.globalAlpha = pop;
+  ctx.fillStyle = inZ ? "rgba(255,209,102,0.16)" : "rgba(20,24,52,0.6)"; roundRect(Z.x, Z.y, Z.w, Z.h, Z.h * 0.18); ctx.fill();
+  ctx.setLineDash(trade.fleet && trade.stage ? [] : [10, 8]); ctx.strokeStyle = drag ? "#ffd166" : "rgba(159,180,216,0.6)"; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+  ctx.direction = "rtl"; ctx.fillStyle = "#cfd8f0"; const zf = Math.round(Math.min(Z.h * 0.2, U * 0.04));
+  ctx.font = `700 ${zf}px Rubik, Arial, sans-serif`;
+  const st = trade.fleet ? trade.stage : null, mid = Z.y + Z.h / 2;
+  if (!st) {
+    ctx.fillText("החלפה: גררו לכאן חללית שתרצו להחליף", W / 2, mid - zf * 0.6);
+    ctx.font = `500 ${Math.round(zf * 0.75)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#9fb4d8";
+    ctx.fillText("ההחלפה קורית רק אם גם השחקן השני מציע חללית ושניכם מסכימים", W / 2, mid + zf * 0.7);
+  } else {
+    // mine on the right, theirs on the left (or a search), the buttons between
+    const bh = Z.h * 0.84, bw = bh * 1.25, mineS = shipById(trade.mine), theirs = trade.peer && shipById(trade.peer);
+    drawFront(mineS, Z.x + Z.w - bw - Z.h * 0.08, Z.y + Z.h * 0.08, bw, bh);
+    ctx.direction = "ltr"; ctx.fillStyle = "#fff"; ctx.font = `800 ${Math.round(bh * 0.13)}px Rubik, Arial, sans-serif`; ctx.fillText(mineS.name, Z.x + Z.w - bw / 2 - Z.h * 0.08, Z.y + Z.h * 0.08 + bh * 0.88);
+    if (theirs) {
+      drawFront(theirs, Z.x + Z.h * 0.08, Z.y + Z.h * 0.08, bw, bh);
+      ctx.fillStyle = RARITY[theirs.rarity].color; ctx.fillText(theirs.name, Z.x + Z.h * 0.08 + bw / 2, Z.y + Z.h * 0.08 + bh * 0.88);
+    }
+    ctx.direction = "rtl"; ctx.fillStyle = "#ffd166"; ctx.font = `700 ${zf}px Rubik, Arial, sans-serif`;
+    const say = st === "looking" ? "מחפש שחקן שמציע חללית" + ".".repeat(1 + Math.floor(time * 2) % 3) : st === "offer" ? "להחליף?" : st === "waiting" ? "מחכה שהשחקן השני יסכים…" : st === "swapping" ? "הוחלף! ✨" : st === "declined" ? "ההחלפה בוטלה" : "";
+    ctx.fillText(say, W / 2, Z.y + Z.h * 0.25);
+    const br = Math.min(Z.h * 0.2, U * 0.06), by = Z.y + Z.h * 0.65;
+    if (st === "offer") {
+      for (const [yes, bx] of [[true, W / 2 + br * 1.4], [false, W / 2 - br * 1.4]]) {
+        ctx.fillStyle = yes ? "#2fbf71" : "#ef476f"; ctx.beginPath(); ctx.arc(bx, by, br, 0, TAU); ctx.fill();
+        if (yes) check(bx, by, br * 0.5, "#ffffff"); else cross(bx, by, br * 0.45, "#ffffff");
+        trade.buttons.push({ x: bx, y: by, r: br * 1.2, yes });
+      }
+    } else if (st === "looking" || st === "waiting") {
+      ctx.fillStyle = "#ef476f"; ctx.beginPath(); ctx.arc(W / 2, by, br * 0.8, 0, TAU); ctx.fill(); cross(W / 2, by, br * 0.36, "#ffffff");
+      trade.buttons.push({ x: W / 2, y: by, r: br, yes: false });
+    }
+  }
+  ctx.restore();
+  // the card being dragged, under the finger
+  if (drag) { const S = shipById(profile.fleet[fleet.press.i]), w = U * 0.22; drawFront(S, fleet.press.x - w / 2, fleet.press.y - w * 0.6, w, w * 1.2, 0.85); }
+  ctx.restore();
 }
 
 // ======================================================================

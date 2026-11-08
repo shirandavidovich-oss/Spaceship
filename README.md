@@ -193,6 +193,23 @@ hunters, the tail, the smoke. Your weapons decide what they hit on your screen a
 The score under your health bar: your wins (green) : theirs (red). Tap the swords again to leave; the computer enemy comes back.
 On a computer: open the game in two windows of the same browser and press the swords in both.
 
+## My ships, kills and money
+
+The first time the game opens it asks for an email. The email decides the player's 3 ships (drawn by the rarity odds
+from the ships with real drawings): the same email always draws the same 3, even after reinstalling. The "My ships" page
+(the button with three cards, under the hangar) shows them from the front (the concept pictures in `art/fronts/`; the
+top-down drawing for a ship without one). Tap a ship to fly it. To trade: drag a ship down into the trade box; the game
+looks for another phone that is also offering a ship, both see the two ships, and the swap happens only if both say yes.
+(Trading is no longer done by swiping up in flight.)
+
+Under the health bar: kills and coins. Every kill counts; coins only for beating another player (a duel): 100 for the
+kill, up to 120 for doing it quickly (nothing after 90 s), up to 60 for health left, 0 / 30 / 60 / 100 by the beaten
+ship's rarity, all times a streak bonus (kills without dying: x1.2, x1.4 ... up to x2). The numbers are at the top of
+the kills-and-money part of `index.html` (`KILL_PAY` ...).
+
+The server: `SERVER_URL` and `SERVER_KEY` at the top of `index.html` (empty for now: everything stays on the phone).
+`server/supabase.sql` makes the profiles table on Supabase.
+
 ## Install on the phone
 
 Every push to `main` builds a new APK automatically (GitHub Actions, about 3–5 minutes):
