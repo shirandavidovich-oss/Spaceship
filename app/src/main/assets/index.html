@@ -576,7 +576,7 @@ const WEAPONS = {
   //   560 canvas); let go, it leaves at that size: the bigger, the slower (`speed` .. `speed` - `slow`), the harder it
   //   hits (`dmg` .. `dmg` + `dmgMax`) and shoves (`knock` .. `knock` + `knockMax`). `r`: the hit radius of a bubble
   //   fired without a charge (the bot's)
-  bubble:  { name: "בועת לחץ",   dmg: 8, dmgMax: 22, speed: 1.4, slow: 0.5, life: 2.4, cool: 1.2, ammo: 3,  refill: 5, r: 0.1,   color: "#9fe8d8", knock: 0.5, knockMax: 1.3, hold: true },
+  bubble:  { name: "בועת לחץ",   dmg: 8, dmgMax: 22, speed: 1.4, slow: 0.5, life: 2.4, cool: 1.2, ammo: 3,  refill: 5, r: 0.1,   color: "#9fe8d8", knock: 0.5, knockMax: 1.3, blow: true },
   // REPRISE. `delays`: seconds after the press each shot leaves; `modules`: which building fires it (from its top edge)
   amber:   { name: "בריח ענבר",  dmg: 14, speed: 2.8, life: 1.2, cool: 0.56, ammo: 14, refill: 6, r: 0.035, color: "#ffb23a", delays: [0.18], modules: [0] },
   floors:  { name: "מטח קומות",  dmg: 5,  speed: 2.0, life: 0.92, cool: 1.15, ammo: 4, refill: 5, r: 0.03, color: "#b48cff", delays: [0.13, 0.26, 0.39], modules: [1, 2, 3] },
@@ -3857,7 +3857,8 @@ function updateWeapons(dt) {
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].converge) { crossHold(dt); continue; }
-    if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].hold) { bubbleHold(dt); continue; }   // PUFF: hold to blow, let go to fire   // KRAAL: hold to aim, let go to fire
+    if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].blow) { bubbleHold(dt); continue; }   // PUFF: hold to blow, let go to fire
+    // (not `hold`: NIMBUS's storm has a `hold` too, how long its cloud stays)
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].flail) {   // ZORIAN's ball: each press is one swing
       if (game.fire[1] !== null && !game.trapLatch && game.cool[1] <= 0) { game.trapLatch = true; flailSwing(); }
       if (game.fire[1] === null) game.trapLatch = false;

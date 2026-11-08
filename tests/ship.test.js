@@ -551,6 +551,7 @@ ok("PUFF's bubble grows in five pushes while held, then wobbles at full size", (
   assert.ok(Math.abs(bubbleCharge(380).radius - 43) < 1e-9); assert.strictEqual(bubbleCharge(1000).stage, 2);
   assert.strictEqual(bubbleCharge(2450).radius, 176); assert.ok(bubbleCharge(5000).max);
   let last = 0; for (let t = 0; t <= 2450; t += 25) { const r = bubbleCharge(t).radius; assert.ok(r >= last - 1e-9); last = r; }
-  assert.ok(WEAPONS.bubble.hold && WEAPONS.bubble.dmgMax > 0);
+  assert.ok(WEAPONS.bubble.blow && WEAPONS.bubble.dmgMax > 0);
+  for (const w in WEAPONS) if (w !== "bubble") assert.ok(!WEAPONS[w].blow, w);   // (NIMBUS once got the bubble through a shared flag)
 });
 console.log(n + " checks passed");
