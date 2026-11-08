@@ -466,12 +466,16 @@ const WEAPONS = {
   rail:    { name: "מסילה",     dmg: 10, speed: 0,   life: 0,   cool: 5.8,  ammo: 1,  refill: 5.8, r: 0,     color: "#ff7a1a", rail: true, lay: 2, last: 2.8, every: 0.5 },
   scatter: { name: "רסס",       dmg: 4,  speed: 2.2, life: 0.35, cool: 0.52, ammo: 10, refill: 4,  r: 0.03,  color: "#ffd27a", pellets: 5, fan: 0.838 },
   wave:    { name: "גל הדף",     dmg: 8,  speed: 0,   life: 0,   cool: 2.1,  ammo: 1,  refill: 2.1, r: 0,     color: "#ffb347", wave: true, arc: 2.26, reach: 1.6, dur: 0.34, knock: 1.2 },
-  // NIMBUS. storm (spatial sizes in ship-lengths): drifts `drift` ahead, grows to `radius`; wind `wind` screens a second,
+  // NIMBUS. storm (spatial sizes in ship-lengths). It stays on as a thundercloud for 3 minutes (hold), zapping a ship
+  //   that comes near: drifts `drift` ahead, grows to `radius`; wind `wind` screens a second,
   //   every second, round its middle; three strikes (`strikes`: ms after release, offset in the storm's reference
   //   units, 92 = radius) each hitting within `strikeR` for `dmg`
   lightning: { name: "ברק",       dmg: 14, speed: 3.6, life: 0.4, cool: 0.75, ammo: 12, refill: 6, r: 0.04, color: "#9fd8ff", cued: true },
   storm:   { name: "חזית סערה",   dmg: 18, speed: 0,   life: 0,   cool: 5,    ammo: 1,  refill: 5, r: 0,    color: "#b8a8ff", storm: true,
              drift: 3.4, radius: 1.6, strikeR: 0.4, wind: 2.2, field: 2.92, end: 3.88, warn: 0.34,
+             // after its three strikes the cloud stays `hold` s (from `holdAt`), slowly turning; a ship coming within
+             // `zapR` of its radius gets a bolt (`zapDmg`, at most every `zapEvery` s). At most `max` of yours at once
+             holdAt: 2.6, hold: 180, zapR: 1.6, zapDmg: 10, zapEvery: 1.4, max: 3,
              strikes: [[1.23, -39, 15], [1.83, 44, -19], [2.48, -3, -41]] },
   // PUFF. needles: 3 in a narrow fan. bubble: slow, swells as it floats; pops on a ship (`dmg` and a shove of `knock`)
   needles: { name: "מחטי נחושת", dmg: 6,  speed: 2.8, life: 0.8, cool: 0.4, ammo: 18, refill: 6, r: 0.025, color: "#e08a4a", pellets: 3, fan: 0.18 },
@@ -4373,7 +4377,9 @@ function drawGlitchMagicButton(b, M, ready, k) {
 // storms: { w, x, y, ang, t, struck: [..], remote }. Mine: my phone decides the strikes; theirs: their wind blows on me
 const storms = [], rainbows = [];
 function startStorm(w, x, y, ang, remote) {
-  storms.push({ w, x, y, ang, t: 0, struck: [false, false, false], remote });
+  const Wp = WEAPONS[w], mine = storms.filter((q) => !!q.remote === !!remote && q.t < Wp.holdAt + Wp.hold);
+  if (mine.length >= Wp.max) mine[0].t = Wp.holdAt + Wp.hold;   // too many: the oldest clears now
+  storms.push({ w, x, y, ang, t: 0, struck: [false, false, false], remote, zapT: 0, bolt: null });
   audio.sfx("nimbus", "storm-release", 0, remote ? 0.7 : 1); buzz(remote ? 0 : 70);
 }
 // where a storm's middle is now (it drifts on along the heading it was let go with)
@@ -4386,7 +4392,19 @@ function updateStorms(dt) {
   for (let i = storms.length - 1; i >= 0; i--) {
     const T = storms[i], Wp = WEAPONS[T.w], before = T.t;
     T.t += dt;
-    if (T.t > Wp.end) { storms.splice(i, 1); continue; }
+    if (T.t > Wp.end + Wp.hold) { storms.splice(i, 1); continue; }
+    if (T.bolt) { T.bolt.t -= dt; if (T.bolt.t <= 0) T.bolt = null; }
+    T.zapT = Math.max(0, T.zapT - dt);
+    // holding on as a thundercloud: a bolt for a ship that comes near (mine hits the enemy; theirs zaps me, their phone counts it)
+    if (T.t >= Wp.holdAt && T.t < Wp.holdAt + Wp.hold && T.zapT <= 0) {
+      const c0 = stormAt(T), o = T.remote ? (game.dead ? null : game) : (enemy.on && enemy.warp < 0.5 ? enemy : null);
+      if (o && Math.hypot(wrapDelta(o.x - c0.x, WW), wrapDelta(o.y - c0.y, WH)) < Wp.radius * Wp.zapR * size) {
+        T.zapT = Wp.zapEvery; T.bolt = { x: o.x, y: o.y, t: 0.22, seed: Math.random() * 1000 };
+        burstAt(o.x, o.y, 18, ["#ffffff", "#c8ecff", "#9fd8ff"], 0.5, 0.7, o.vx, o.vy);
+        audio.sfx("nimbus", "storm-strike", 0, T.remote ? 0.8 : 1); shake(0.3);
+        if (!T.remote) { hitEnemy({ x: o.x, y: o.y, vx: 0, vy: 0 }, { dmg: Wp.zapDmg, color: "#9fd8ff" }); buzz(60); } else buzz(120);
+      }
+    }
     const c = stormAt(T), P = stormPose(T.t), R = Wp.radius * P.grow * size, k = Wp.radius * size / 92;
     // the wind: round and round the middle, a gust not a stun (mine pushes the enemy; theirs pushes me)
     if (P.live) {
@@ -4416,11 +4434,37 @@ function drawStorms() {
   if (!storms.length) return;
   const S = shipById("nimbus"), A = S.anim, size = shipSize();
   for (const T of storms) {
-    const Wp = WEAPONS[T.w], f = Math.min(A.field.length - 1, Math.floor(T.t * 20)), img = artImage(framePath(A.dir, A.field[f]));
+    const Wp = WEAPONS[T.w], hold = T.t >= Wp.holdAt && T.t < Wp.holdAt + Wp.hold;
+    // its own pictures; while it holds on, three clean cloud frames back and forth, the cloud slowly turning; then on
+    // from where it stopped (it thins out and leaves its rainbow)
+    const f = hold ? [27, 28, 29, 28][Math.floor((T.t - Wp.holdAt) * 5) % 4] : Math.min(A.field.length - 1, Math.floor((T.t < Wp.holdAt ? T.t : T.t - Wp.hold) * 20));
+    const img = artImage(framePath(A.dir, A.field[f]));
     if (!img) continue;
     const c = toScreen(...Object.values(stormAt(T))), d = 320 * Wp.radius * size / 92;
-    ctx.drawImage(img, c.x - d / 2, c.y - d / 2, d, d);
+    ctx.save(); ctx.translate(c.x, c.y);
+    if (hold) {
+      ctx.rotate((T.t - Wp.holdAt) * 0.12);
+      const flick = T.bolt ? 0.5 : Math.random() < 0.01 ? 0.25 : 0;   // a flicker of lightning inside now and then
+      if (flick) { const g = ctx.createRadialGradient(0, 0, 0, 0, 0, d * 0.35); g.addColorStop(0, `rgba(200,236,255,${flick})`); g.addColorStop(1, "rgba(200,236,255,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, d * 0.35, 0, TAU); ctx.fill(); }
+    }
+    ctx.drawImage(img, -d / 2, -d / 2, d, d);
+    ctx.restore();
+    if (T.bolt) drawBolt(c, toScreen(T.bolt.x, T.bolt.y), size, T.bolt.seed, T.bolt.t / 0.22);
   }
+}
+// a jagged lightning bolt from the cloud to a ship: a wide blue glow, a white core, a fork or two
+function drawBolt(a, b, size, seed, k) {
+  let r = seed; const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280 - 0.5; };
+  const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, n = 9, pts = [];
+  for (let i = 0; i <= n; i++) { const u = i / n, j = i && i < n ? rnd() * size * 0.35 : 0; pts.push({ x: a.x + dx * u + nx * j, y: a.y + dy * u + ny * j }); }
+  const line = (q, w, c) => { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); q.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); };
+  ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.globalAlpha = Math.min(1, k * 1.5);
+  line(pts, size * 0.12, "rgba(110,170,255,0.35)"); line(pts, size * 0.04, "#c8ecff"); line(pts, Math.max(1, size * 0.015), "#ffffff");
+  for (const i of [3, 6]) {   // forks
+    const p = pts[i], f = [p]; for (let s2 = 1; s2 <= 3; s2++) f.push({ x: p.x + (dx / L * 0.25 + nx * rnd()) * size * 0.3 * s2, y: p.y + (dy / L * 0.25 + ny * rnd()) * size * 0.3 * s2 });
+    line(f, Math.max(1, size * 0.018), "rgba(200,236,255,0.8)");
+  }
+  ctx.restore();
 }
 function spawnRainbow(remote, x, y, ang) {
   const S = shipById("nimbus");

@@ -156,7 +156,8 @@ ship-lengths sideways, leaving a flickering decoy for 2.5 s that the enemy goes 
 **NIMBUS**, the stormfront ship (`art/ships/nimbus/`, own recorded sounds). At rest its cloud banks billow (a 32-frame loop). Little clouds drift over its banks; during the rainbow magic they light up in rainbow colours. Button 1: lightning charges along the spine,
 then a flickering bolt (14). Button 2: the cloud banks swell and a storm is let go ahead of the ship; it drifts on by
 itself and grows, its wind swirls other ships round it, and three marked lightning strikes hit where the warnings show
-(18 each), then it clears into a rainbow (only a picture). Magic: the cloud banks lift and a rainbow arc flies out (20,
+(18 each). Then it stays on as a slowly turning thundercloud for about 3 minutes: a ship that comes near gets a
+lightning bolt from it (10, at most every 1.4 s). Then it clears into a rainbow (only a picture). Up to 3 at a time. Magic: the cloud banks lift and a rainbow arc flies out (20,
 and NIMBUS gets back 10 health).
 
 **REPRISE**, the modular orbital archive (`art/ships/reprise/`: four building modules put together in code). Button 1:
