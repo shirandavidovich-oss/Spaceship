@@ -31,6 +31,9 @@ const UNLOCK     = 0.2;  // after the fuel runs out, the button comes back when 
 const ENEMY      = true; // an enemy ship flies with you (for now it only flies, no weapons yet)
 const ENEMY_KEEP = 0.9;  // how close the enemy likes to stay to you, in screen-widths
 const ZOOM_MIN   = 0.4;  // like Star Control: the view zooms out (down to this much) to keep both ships on screen
+const TRY_SHIP   = "brass"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
+const ENEMY_HP   = 100;  // the enemy's health
+const RESPAWN    = 4;    // seconds until a new enemy arrives after one is destroyed
 
 // <logic>  (pure game rules, no screen: tests/ship.test.js runs this part)
 const RARITY = {
@@ -97,9 +100,64 @@ const SHIPS = [
     hull: "#ffd166", wingC: "#6a0dad", trim: "#fff1c1", flame: "#c77dff",
     body: [[0, -0.5], [0.06, -0.42], [0.12, -0.2], [0.14, 0.2], [0.06, 0.47]],
     wing: [[0.12, -0.18], [0.3, -0.36], [0.5, -0.1], [0.44, 0.1], [0.5, 0.3], [0.3, 0.2], [0.13, 0.3]],
-    nozzles: [-0.24, -0.08, 0.08, 0.24], engineY: 0.4, cockpit: [0, -0.3, 0.05, 0.08] }
+    nozzles: [-0.24, -0.08, 0.08, 0.24], engineY: 0.4, cockpit: [0, -0.3, 0.05, 0.08] },
+  // the first real drawing: art/ships/brass.png. Twin cannon on the left pod, the brass "eye" on the right.
+  // steam: a mechanical engine that coughs, backfires, creaks, and now and then goes out (smoke only)
+  // magic: the gear button (not a weapon): a smoke screen that makes the ship hard to find
+  { id: "brass", name: "סערת פליז", rarity: "legendary", mass: 1.4, fuel: 30, refill: 15, art: true, steam: true, magic: "smoke",
+    hull: "#ff6a1a", wingC: "#3a3a40", trim: "#e0b060", flame: "#ff8c1a",
+    body: [], wing: [], nozzles: [-0.178, 0.174], engineY: 0.45, cockpit: [0, -0.3, 0.05, 0.1],
+    weapons: ["twin", "iris"], guns: { twin: [[-0.31, -0.3], [-0.25, -0.3]], iris: [[0.287, -0.2]] } }
 ];
 const shipById = (id) => SHIPS.find((s) => s.id === id) || null;
+
+// ---- weapons ----
+// Every ship has 2 weapons (buttons 1 and 2). They refill by themselves, like the fuel.
+// A destroyed enemy drops its weapon in a crate: fly into it and button 3 appears,
+// with that weapon's ammo. That one does not refill: when it is empty, button 3 goes away.
+//   dmg: damage per hit   speed: screens per second   life: seconds a shot lasts   cool: seconds between shots
+//   ammo: shots in a full tank   refill: seconds to fill an empty tank (none = a picked-up weapon)
+//   homing: how hard it turns toward the enemy   pellets/fan: several shots at once, spread over `fan` radians
+const WEAPONS = {
+  twin:    { name: "תותח כפול", dmg: 4,  speed: 2.4, life: 1.0, cool: 0.11, ammo: 40, refill: 8,  r: 0.018, color: "#ffd166" },
+  iris:    { name: "עין הפליז", dmg: 30, speed: 1.1, life: 3.2, cool: 0.8,  ammo: 5,  refill: 10, r: 0.05,  color: "#ffb347", homing: 2.6 },
+  laser:   { name: "לייזר",     dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
+  missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
+  spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
+};
+const LOOT = ["laser", "missile", "spread"];
+
+// ---- magic (its own button, not a weapon; each ship's magic button looks like the ship's style) ----
+//   pour: seconds of smoke pouring out   hide: seconds the enemy loses track of you   cool: seconds until it can be used again
+const MAGIC = {
+  smoke: { name: "מסך עשן", pour: 3.5, hide: 6, cool: 14, look: "gear", color: "#e0b060" }
+};
+// how the steam engine misbehaves (chances per second while the engine runs)
+const STEAM = { dies: 0.09, out: [0.5, 1.3], backfire: 0.35, creak: 0.3 };
+// can the enemy see you? Not while you are hidden in your smoke
+function enemySees(hidden) { return !(hidden > 0); }
+// what a ship drops when it is destroyed
+function lootOf(S) { return S.drop || LOOT[Math.max(0, SHIPS.indexOf(S)) % LOOT.length]; }
+function weaponsOf(S) { return S.weapons || ["twin", "iris"]; }
+// where each weapon's shots leave the ship (ship units, nose up). Without a drawing: from the nose
+function gunsOf(S, w) { return (S.guns && S.guns[w]) || (w === "twin" ? [[-0.06, -0.5], [0.06, -0.5]] : [[0, -0.5]]); }
+// a point on the ship, turned with the ship (ang: 0 = nose up, clockwise)
+function rotatePt(x, y, ang) { const c = Math.cos(ang), s = Math.sin(ang); return { x: x * c - y * s, y: x * s + y * c }; }
+// ammo for one moment: the ship's own weapons fill back up, a picked-up one does not
+function ammoStep(ammo, W, dt) { return W.refill ? Math.min(W.ammo, ammo + W.ammo / W.refill * dt) : ammo; }
+// the directions of one trigger pull (one shot, or a fan of pellets)
+function pelletAngles(W) {
+  const n = W.pellets || 1;
+  if (n === 1) return [0];
+  return Array.from({ length: n }, (_, i) => (i / (n - 1) - 0.5) * W.fan);
+}
+// a homing shot turns its flight toward the target by at most `turn` radians, keeping its speed
+function steerShot(vx, vy, tx, ty, turn) {
+  const sp = Math.hypot(vx, vy) || 1, a = Math.atan2(vy, vx), want = Math.atan2(ty, tx);
+  let d = want - a; d = Math.atan2(Math.sin(d), Math.cos(d));
+  const b = a + Math.max(-turn, Math.min(turn, d));
+  return { vx: Math.cos(b) * sp, vy: Math.sin(b) * sp };
+}
 
 // The gift's surprise: rarity by its odds, then one ship of that rarity.
 function chooseShip(rand = Math.random) {
@@ -288,6 +346,39 @@ const audio = {
   whoosh() { this.tone(200, 0.7, "sawtooth", 0.08, 6); },
   pop() { this.tone(600, 0.1, "sine", 0.15, 1.8); },
   empty() { for (let i = 0; i < 4; i++) this.tone(140 - i * 20, 0.09, "square", 0.08, 0.7, i * 0.12); },
+  // a burst of noise (explosions, cannon)
+  noise(dur, vol, cutoff = 900) {
+    if (!this.ctx) return;
+    const c = this.ctx, n = Math.round(c.sampleRate * dur), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
+    const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = buf; f.type = "lowpass"; f.frequency.value = cutoff; g.gain.value = vol;
+    s.connect(f); f.connect(g); g.connect(this.out); s.start();
+  },
+  shot(w) {
+    if (w === "twin") { this.tone(260, 0.07, "square", 0.05, 0.45); this.noise(0.06, 0.12, 2500); }
+    else if (w === "iris") { this.tone(130, 0.55, "sawtooth", 0.1, 3.2); this.tone(700, 0.45, "sine", 0.08, 0.35); }
+    else if (w === "laser") this.tone(1500, 0.12, "sawtooth", 0.05, 0.3);
+    else if (w === "missile") { this.tone(320, 0.35, "triangle", 0.1, 0.4); this.noise(0.3, 0.08, 1200); }
+    else this.noise(0.12, 0.2, 1800);
+  },
+  hit() { this.tone(950, 0.05, "square", 0.04, 0.5); },
+  boom() { this.noise(1.3, 0.6, 500); this.tone(70, 1.1, "sawtooth", 0.25, 0.3); this.tone(140, 0.6, "square", 0.1, 0.3); },
+  pickup() { [660, 880, 1320].forEach((f, i) => this.tone(f, 0.25, "triangle", 0.12, 1, i * 0.07)); },
+  // the steam engine: the fire goes out (chug... chug... cough), backfires (bang), the frame creaks
+  sputter() {
+    if (!this.ctx) return;
+    [0, 0.14, 0.33, 0.6].forEach((d, i) => { setTimeout(() => this.noise(0.09, 0.25 - i * 0.05, 400), d * 1000); this.tone(95 - i * 12, 0.08, "square", 0.06, 0.7, d); });
+  },
+  backfire() { this.noise(0.22, 0.7, 3200); this.tone(55, 0.3, "sawtooth", 0.3, 0.4); },
+  creak() {
+    const r = Math.random();
+    if (r < 0.5) this.tone(260 + Math.random() * 240, 0.4 + Math.random() * 0.3, "sawtooth", 0.025, 0.7 + Math.random() * 0.7);   // groan
+    else this.tone(1300 + Math.random() * 900, 0.14, "triangle", 0.025, 0.8);   // squeak
+    if (r > 0.8) this.tone(2400, 0.04, "square", 0.02, 1, 0.1);   // a rattle
+  },
+  // the smoke screen: a long hiss, and a little magic chime
+  magic() { this.noise(2.8, 0.3, 1400); [988, 1319, 1568, 1976].forEach((f, i) => this.tone(f, 0.5, "sine", 0.06, 1, 0.08 * i)); },
   // engine hum that follows the throttle
   engine(power) {
     if (!this.ctx) return;
@@ -315,7 +406,7 @@ const save = loadSave();
 const game = {
   stage: save ? "arrive" : "gift",   // gift -> opening -> fly ; arrive -> fly
   t: 0,
-  ship: save ? save.ship : null,
+  ship: save ? (TRY_SHIP || save.ship) : null,
   x: 0, y: 0, vx: 0, vy: 0, power: 0, fwd: 0, side: 0,   // x, y: place in space (pixels)
   ang: 0, spin: 0,  // heading (0 = nose up, clockwise) and how fast it is turning
   fuel: 0,          // seconds of engine left
@@ -325,12 +416,25 @@ const game = {
   lx: 0, ly: 0,     // the camera looks a little ahead of the ship
   zoom: 1,          // the view zooms out when the enemy is far
   card: 0,          // seconds left to show the ship's name card
-  hitCool: 0
+  hitCool: 0,
+  ammo: [0, 0],     // shots left in weapons 1 and 2
+  cool: [0, 0, 0],  // seconds until each button can fire again
+  fire: [null, null, null],   // the finger holding each fire button (pointer id), or null
+  barrel: [0, 0, 0],          // which barrel fires next (the twin cannon takes turns)
+  loot: null,       // weapon 3, picked up from a destroyed enemy: { w, ammo, show }
+  kills: 0,
+  sputter: 0,       // seconds the steam engine's fire stays out
+  magicCool: 0,     // seconds until the magic button works again
+  magicPour: 0,     // seconds of smoke still pouring out
+  hidden: 0,        // seconds the enemy cannot see you
+  gear: 0,          // how far the gear button has turned
+  magicFinger: null
 };
+function fillAmmo() { const S = shipById(game.ship); game.ammo = weaponsOf(S).map((w) => WEAPONS[w].ammo); }
 // start: just above the planet, so its pull is felt at once
 function placeShip() {
   game.x = WW / 2; game.y = WH / 2 - U * 1.6; game.vx = game.vy = 0; game.ang = 0; game.lx = game.ly = 0;
-  if (game.ship) game.fuel = shipStats(shipById(game.ship)).fuel;
+  if (game.ship) { game.fuel = shipStats(shipById(game.ship)).fuel; fillAmmo(); }
   game.locked = false;
 }
 const gift = { taps: 0, wob: 0, squash: 0, hint: 0 };
@@ -356,6 +460,13 @@ function burst(x, y, n, colors, speed = 1, size = 1) {
       c: colors[i % colors.length], s: (2 + Math.random() * 4) * size, star: Math.random() < 0.35 });
   }
 }
+// the same, at a place in space (it stays there while the camera moves)
+// (dvx, dvy: the whole cloud drifts along, e.g. with the ship that blew up)
+function burstAt(wx, wy, n, colors, speed = 1, size = 1, dvx = 0, dvy = 0) {
+  const from = parts.length;
+  burst(wx, wy, n, colors, speed, size);
+  for (let i = from; i < parts.length; i++) { parts[i].w = true; parts[i].dx = dvx; parts[i].dy = dvy; }
+}
 
 // ======================================================================
 //  TOUCH
@@ -370,7 +481,17 @@ cv.addEventListener("pointerdown", (e) => {
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
     return;
   }
-  swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
+  // the right thumb on a fire button (hold to keep firing); the gear = magic
+  if (game.stage === "fly" && trade.stage !== "swapping") {
+    if (hitMagic(e.clientX, e.clientY)) { useMagic(); return; }
+    const b = hitFire(e.clientX, e.clientY);
+    if (b) {
+      game.fire[b.i] = e.pointerId; buzz(8);
+      try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+      return;
+    }
+  }
+  swipe ={ id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
   if (game.stage === "gift" && hitGift(e.clientX, e.clientY)) { tapGift(); swipe = null; return; }
   if (game.stage === "opening" && game.t > 2.2) { toFly(); swipe = null; return; }
   const p = zoomed(shipScreen());
@@ -378,6 +499,8 @@ cv.addEventListener("pointerdown", (e) => {
 });
 function fingerUp(e) {
   if (e.pointerId === game.thrust) { game.thrust = null; return; }
+  const f = game.fire.indexOf(e.pointerId);
+  if (f >= 0) { game.fire[f] = null; return; }
   if (!swipe || e.pointerId !== swipe.id) return;
   const up = swipe.y - e.clientY;
   if (e.type === "pointerup" && up > H * SWIPE_UP && performance.now() - swipe.t < 900 && game.stage === "fly") openTrade();
@@ -385,10 +508,20 @@ function fingerUp(e) {
 }
 cv.addEventListener("pointerup", fingerUp);
 cv.addEventListener("pointercancel", fingerUp);
-addEventListener("blur", () => { game.thrust = null; });
-// on a computer: the space bar is the thrust button
-addEventListener("keydown", (e) => { if (e.key === " " && game.stage === "fly" && !game.locked) game.thrust = "key"; });
-addEventListener("keyup", (e) => { if (e.key === " " && game.thrust === "key") game.thrust = null; });
+addEventListener("blur", () => { game.thrust = null; game.fire = [null, null, null]; });
+// on a computer: the space bar is the thrust button; Z, X, C are fire buttons 1, 2, 3
+const FIRE_KEYS = ["z", "x", "c"];
+addEventListener("keydown", (e) => {
+  if (e.key === " " && game.stage === "fly" && !game.locked) game.thrust = "key";
+  const f = FIRE_KEYS.indexOf(e.key.toLowerCase());
+  if (f >= 0 && game.stage === "fly") game.fire[f] = "key";
+  if (e.key.toLowerCase() === "v" && game.stage === "fly") useMagic();   // V = the magic button
+});
+addEventListener("keyup", (e) => {
+  if (e.key === " " && game.thrust === "key") game.thrust = null;
+  const f = FIRE_KEYS.indexOf(e.key.toLowerCase());
+  if (f >= 0 && game.fire[f] === "key") game.fire[f] = null;
+});
 
 // Android back: close the bubble or card first, then leave
 window.shipBack = () => {
@@ -409,7 +542,7 @@ function tapGift() {
   audio.tap(gift.taps); buzz(20 + gift.taps * 15);
   if (gift.taps >= GIFT_TAPS) {
     // decided now and saved at once, so closing the app mid-animation keeps the same ship
-    game.ship = chooseShip();
+    game.ship = TRY_SHIP || chooseShip();
     saveShip(game.ship, "gift");
     game.stage = "opening"; game.t = 0;
     audio.open(); buzz(80);
@@ -418,6 +551,7 @@ function tapGift() {
 function toFly() {
   game.stage = "fly"; game.t = 0;
   game.fuel = shipStats(shipById(game.ship)).fuel; game.locked = false;
+  fillAmmo();
   game.card = 0;
   spawnEnemy();
 }
@@ -450,11 +584,12 @@ function update(dt) {
   }
   if (game.stage === "arrive" && game.t > 0.9) { game.stage = "fly"; game.t = 0; spawnEnemy(); }
 
-  if (game.stage === "fly" && trade.stage !== "swapping") { flyShip(dt); updateEnemy(dt); }
+  if (game.stage === "fly" && trade.stage !== "swapping") { flyShip(dt); updateMagic(dt); updateEnemy(dt); updateWeapons(dt); updateCrate(dt); }
   updateTrade(dt);
 
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.life += dt;
+    if (p.w) { p.x += (p.dx || 0) * dt; p.y += (p.dy || 0) * dt; }
     if (p.life > p.max) { parts.splice(i, 1); continue; }
     p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.exp(-dt * 2.5); p.vy *= Math.exp(-dt * 2.5);
   }
@@ -505,8 +640,10 @@ function moveShip(o, S, c, dt) {
   o.spin = lerp(o.spin, wrapAngle(o.ang - before) / Math.max(dt, 0.001), 1 - Math.exp(-dt * 10));
 
   // 2. engine and fuel (fuel fills back up by itself while the engine rests)
-  const f = fuelStep(o.fuel, o.locked, c.thrust, st, dt);
-  const on = c.thrust && !o.locked && o.fuel > 0;
+  //    a steam engine sometimes goes out for a moment: no push, only smoke
+  const dead = S.steam && steamEngine(o, S, c.thrust && !o.locked && o.fuel > 0, dt);
+  const f = fuelStep(o.fuel, o.locked, c.thrust && !dead, st, dt);
+  const on = c.thrust && !dead && !o.locked && o.fuel > 0;
   if (on) {
     o.vx += Math.sin(o.ang) * st.push * U * dt;
     o.vy -= Math.cos(o.ang) * st.push * U * dt;
@@ -545,25 +682,112 @@ function moveShip(o, S, c, dt) {
   return hit;
 }
 
+// ---------- the steam engine (mechanical ships) ----------
+// Runs every moment for a ship with  steam: true.  running = the engine is being fired.
+// Returns true while the fire is out (the engine gives no push, only smoke).
+function steamEngine(o, S, running, dt) {
+  const me = o === game, R = Math.random;
+  o.sputter = Math.max(0, (o.sputter || 0) - dt);
+  if (running) {
+    // just lit: it often bangs
+    if (!o.wasRunning && R() < 0.3) backfire(o, S, me);
+    if (o.sputter <= 0 && R() < STEAM.dies * dt) {
+      o.sputter = STEAM.out[0] + R() * (STEAM.out[1] - STEAM.out[0]);   // the fire goes out
+      if (me) { audio.sputter(); buzz(40); }
+    } else if (o.sputter <= 0 && R() < STEAM.backfire * dt) backfire(o, S, me);
+    if (me && R() < STEAM.creak * dt) audio.creak();
+    // out: thick puffs of smoke; burning: a little steam now and then
+    if (R() < (o.sputter > 0 ? 14 : 3) * dt) for (const e of exhausts(o, S)) smokeAt(e.x, e.y, o, S, o.sputter > 0 ? 1 : 0.5);
+  }
+  // hard turns make the old frame groan
+  if (me && Math.abs(o.spin) > 2.5 && R() < 0.5 * dt) audio.creak();
+  o.wasRunning = running;
+  return o.sputter > 0;
+}
+function backfire(o, S, me) {
+  const ex = exhausts(o, S), e = ex[Math.floor(Math.random() * ex.length)];
+  const bx = -Math.sin(o.ang) * U * 0.5, by = Math.cos(o.ang) * U * 0.5;   // the blast shoots out the back
+  burstAt(e.x, e.y, 14, ["#ffffff", "#ffd166", "#ff8c1a", "#ff4d00"], 0.35, 1, o.vx + bx * 0.3, o.vy + by * 0.3);
+  smokeAt(e.x, e.y, o, S, 1.2);
+  if (me) { audio.backfire(); buzz(70); }
+}
+// where the engines are, in space, right now
+function exhausts(o, S) {
+  const size = shipSize();
+  return S.nozzles.map((ex, n) => {
+    const p = rotatePt(ex * size, ((S.engineYs ? S.engineYs[n] : S.engineY) + 0.05) * size, o.ang);
+    return { x: o.x + p.x, y: o.y + p.y };
+  });
+}
+// one puff of smoke behind a ship. big: 1 = a normal puff; the smoke screen uses bigger, darker, longer ones
+function smokeAt(x, y, o, S, big = 1, life = 1.6) {
+  const back = U * 0.25 * (0.5 + Math.random()), a = o.ang + (Math.random() - 0.5) * 0.9;
+  const g = 70 + Math.round(Math.random() * 50);
+  parts.push({ w: true, smoke: true, x, y, vx: o.vx * 0.4 - Math.sin(a) * back, vy: o.vy * 0.4 + Math.cos(a) * back,
+    life: 0, max: life * (0.7 + Math.random() * 0.6), s: shipSize() * 0.07 * big, grow: 1.6 + Math.random(),
+    c: `rgb(${g},${g},${g + 8})`, op: big > 1.5 ? 0.85 : 0.55 });
+}
+
+// ---------- magic: the gear button ----------
+function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
+function useMagic() {
+  const M = magicOf(shipById(game.ship));
+  if (!M || game.magicCool > 0) return;
+  game.magicCool = M.cool; game.magicPour = M.pour; game.hidden = M.hide;
+  // the enemy only knows where you were
+  enemy.ghostX = game.x; enemy.ghostY = game.y;
+  audio.magic(); buzz(90);
+}
+function updateMagic(dt) {
+  const S = shipById(game.ship), M = magicOf(S);
+  game.magicCool = Math.max(0, game.magicCool - dt);
+  game.hidden = Math.max(0, game.hidden - dt);
+  game.gear += dt * (game.magicPour > 0 ? 9 : game.magicCool > 0 ? 0.25 : 1.2);   // the gear button turns
+  if (!M || game.magicPour <= 0) return;
+  game.magicPour -= dt;
+  // thick smoke pours from the engines and hangs in space
+  if (Math.random() < 30 * dt) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, 2.6 + Math.random() * 1.5, M.hide - 0.5);
+}
+
 // ======================================================================
 //  THE ENEMY  (for now it only flies: chases you, keeps a little distance, stays off the planet)
 // ======================================================================
-const enemy = { on: false, ship: null, x: 0, y: 0, vx: 0, vy: 0, ang: 0, spin: 0, fuel: 0, locked: false, power: 0, hitCool: 0, warp: 0 };
+const enemy = { on: false, ship: null, x: 0, y: 0, vx: 0, vy: 0, ang: 0, spin: 0, fuel: 0, locked: false, power: 0, hitCool: 0, warp: 0,
+  hp: ENEMY_HP, hurt: 0, respawn: 0 };
 function spawnEnemy() {
   if (!ENEMY) return;
   const others = SHIPS.filter((s) => s.id !== game.ship);
   enemy.ship = others[Math.floor(Math.random() * others.length)].id;
-  // on the far side of the planet
-  enemy.x = WW / 2 + U * 0.3; enemy.y = WH / 2 + U * 2.2;
+  if (!game.kills) { enemy.x = WW / 2 + U * 0.3; enemy.y = WH / 2 + U * 2.2; }   // the first one: on the far side of the planet
+  else {
+    // the next ones: about two screens from you, away from the planet
+    let a = Math.random() * TAU;
+    for (let i = 0; i < 12; i++, a += TAU / 12) {
+      enemy.x = game.x + Math.sin(a) * U * 2.2; enemy.y = game.y - Math.cos(a) * U * 2.2;
+      if (Math.hypot(wrapDelta(enemy.x - WW / 2, WW), wrapDelta(enemy.y - WH / 2, WH)) > U * PLANET_R * 3) break;
+    }
+    enemy.x = ((enemy.x % WW) + WW) % WW; enemy.y = ((enemy.y % WH) + WH) % WH;
+  }
   enemy.vx = enemy.vy = 0; enemy.ang = Math.PI; enemy.spin = 0;
   enemy.fuel = shipStats(shipById(enemy.ship)).fuel; enemy.locked = false;
+  enemy.hp = ENEMY_HP; enemy.hurt = 0;
   enemy.on = true; enemy.warp = 1;
 }
 function updateEnemy(dt) {
-  if (!enemy.on) return;
+  if (!enemy.on) {
+    if (enemy.respawn > 0) { enemy.respawn -= dt; if (enemy.respawn <= 0) spawnEnemy(); }
+    return;
+  }
   enemy.warp = Math.max(0, enemy.warp - dt);
+  enemy.hurt = Math.max(0, enemy.hurt - dt);
   const E = shipById(enemy.ship);
-  const c = enemyControl(enemy, game, shipStats(E), { ww: WW, wh: WH, u: U, planetR: U * PLANET_R });
+  // hidden in your smoke: it heads for where it last saw you, searching around there
+  let prey = game;
+  if (!enemySees(game.hidden)) {
+    enemy.ghostX += Math.sin(time * 0.7) * U * 0.6 * dt; enemy.ghostY += Math.cos(time * 0.5) * U * 0.6 * dt;
+    prey = { x: enemy.ghostX, y: enemy.ghostY, vx: 0, vy: 0 };
+  }
+  const c = enemyControl(enemy, prey, shipStats(E), { ww: WW, wh: WH, u: U, planetR: U * PLANET_R });
   moveShip(enemy, E, c, dt);
   bumpShips(game, shipById(game.ship), enemy, E);
 }
@@ -588,6 +812,127 @@ function bumpShips(a, A, b, B) {
   }
 }
 
+// ======================================================================
+//  WEAPONS  (buttons 1 and 2: the ship's own; button 3: picked up from a destroyed enemy)
+// ======================================================================
+const shots = [];
+const rings = [];   // shock waves from explosions, at a place in space
+const crate = { on: false, w: null, x: 0, y: 0, vx: 0, vy: 0, t: 0 };
+
+// which weapon each button fires right now (null = no such button now)
+function slotWeapon(i) {
+  if (i < 2) return weaponsOf(shipById(game.ship))[i];
+  return game.loot ? game.loot.w : null;
+}
+function slotAmmo(i) { return i < 2 ? game.ammo[i] : game.loot ? game.loot.ammo : 0; }
+
+function updateWeapons(dt) {
+  const S = shipById(game.ship);
+  weaponsOf(S).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt); });
+  for (let i = 0; i < 3; i++) {
+    game.cool[i] = Math.max(0, game.cool[i] - dt);
+    if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && slotAmmo(i) >= 1) shoot(i);
+  }
+  // button 3 grows in when picked up, and shrinks away once it is empty
+  if (game.loot) {
+    game.loot.show = clamp(game.loot.show + (game.loot.ammo >= 1 ? 1 : -1) * dt / 0.5, 0, 1);
+    if (game.loot.ammo < 1 && game.loot.show <= 0) { game.loot = null; game.fire[2] = null; }
+  }
+
+  const size = shipSize(), R = U * PLANET_R;
+  for (let k = shots.length - 1; k >= 0; k--) {
+    const s = shots[k], Wp = WEAPONS[s.w];
+    s.life += dt;
+    if (Wp.homing && enemy.on && s.life > 0.12) {
+      const t = steerShot(s.vx, s.vy, wrapDelta(enemy.x - s.x, WW), wrapDelta(enemy.y - s.y, WH), Wp.homing * dt);
+      s.vx = t.vx; s.vy = t.vy;
+    }
+    s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
+    if (s.w === "missile" && Math.random() < 0.6) burstAt(s.x, s.y, 1, ["#b8fff0", "#ffffff"], 0.05, 0.6);
+    if (s.life > Wp.life) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); shots.splice(k, 1); continue; }
+    // into the planet: a puff, and it is gone
+    if (Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
+      burstAt(s.x, s.y, 5, ["#b8a3ff", "#ffffff"], 0.2, 0.6); shots.splice(k, 1); continue;
+    }
+    // into the enemy
+    if (enemy.on && enemy.warp < 0.5) {
+      const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
+      if (Math.hypot(dx, dy) < size * 0.42 + Wp.r * size) { hitEnemy(s, Wp); shots.splice(k, 1); }
+    }
+  }
+  for (let k = rings.length - 1; k >= 0; k--) { rings[k].t += dt; if (rings[k].t > rings[k].max) rings.splice(k, 1); }
+}
+
+function shoot(i) {
+  const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), size = shipSize();
+  const guns = gunsOf(S, w), g = guns[game.barrel[i]++ % guns.length];
+  const m = rotatePt(g[0] * size, g[1] * size, game.ang);
+  const x = game.x + m.x, y = game.y + m.y;
+  for (const a of pelletAngles(Wp)) {
+    const dir = game.ang + a, v = Wp.speed * U;
+    shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * v, vy: game.vy - Math.cos(dir) * v, life: 0 });
+  }
+  burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
+  // the big brass shot kicks the ship back a little
+  if (w === "iris") { game.vx -= Math.sin(game.ang) * U * 0.08; game.vy += Math.cos(game.ang) * U * 0.08; buzz(35); }
+  game.cool[i] = Wp.cool;
+  if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
+  audio.shot(w);
+}
+
+function hitEnemy(s, Wp) {
+  const E = shipById(enemy.ship);
+  enemy.hp -= Wp.dmg; enemy.hurt = 0.15;
+  // the hit nudges the enemy (heavier ships less)
+  const sp = Math.hypot(s.vx - enemy.vx, s.vy - enemy.vy) || 1, push = Wp.dmg * U * 0.004 / E.mass;
+  enemy.vx += (s.vx - enemy.vx) / sp * push; enemy.vy += (s.vy - enemy.vy) / sp * push;
+  burstAt(s.x, s.y, Wp.dmg > 15 ? 22 : 6, [Wp.color, "#ffffff", E.trim], Wp.dmg > 15 ? 0.5 : 0.25, 0.7, enemy.vx, enemy.vy);
+  if (Wp.dmg > 15) rings.push({ x: s.x, y: s.y, t: 0, max: 0.4, r: shipSize() * 0.6, c: Wp.color });
+  audio.hit();
+  if (enemy.hp <= 0) destroyEnemy();
+}
+
+function destroyEnemy() {
+  const E = shipById(enemy.ship);
+  enemy.on = false; enemy.respawn = RESPAWN; game.kills++;
+  burstAt(enemy.x, enemy.y, 90, ["#ffffff", "#ffd166", E.flame, E.hull, E.trim, "#ff6b35"], 1.4, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
+  burstAt(enemy.x, enemy.y, 30, ["#ffffff", "#fff3b0"], 0.5, 2, enemy.vx * 0.5, enemy.vy * 0.5);
+  rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.7, r: shipSize() * 2.2, c: "#ffd166" });
+  audio.boom(); buzz(220);
+  // its weapon is left behind in a crate
+  Object.assign(crate, { on: true, w: lootOf(E), x: enemy.x, y: enemy.y, vx: enemy.vx * 0.4, vy: enemy.vy * 0.4, t: 0 });
+}
+
+function updateCrate(dt) {
+  if (!crate.on) return;
+  crate.t += dt;
+  crate.vx *= Math.exp(-dt * 0.6); crate.vy *= Math.exp(-dt * 0.6);
+  crate.x = (((crate.x + crate.vx * dt) % WW) + WW) % WW; crate.y = (((crate.y + crate.vy * dt) % WH) + WH) % WH;
+  // not inside the planet
+  const R = U * PLANET_R, dx = wrapDelta(crate.x - WW / 2, WW), dy = wrapDelta(crate.y - WH / 2, WH), d = Math.hypot(dx, dy) || 1;
+  if (d < R * 1.3) { crate.x += dx / d * (R * 1.3 - d); crate.y += dy / d * (R * 1.3 - d); }
+  // fly into it to take the weapon: button 3 appears
+  if (crate.t > 0.6 && Math.hypot(wrapDelta(crate.x - game.x, WW), wrapDelta(crate.y - game.y, WH)) < shipSize() * 0.6) {
+    const Wp = WEAPONS[crate.w];
+    game.loot = { w: crate.w, ammo: Wp.ammo, show: game.loot ? game.loot.show : 0 };
+    game.cool[2] = 0; crate.on = false;
+    burstAt(crate.x, crate.y, 40, [Wp.color, "#ffffff", "#ffd166"], 0.7, 1, game.vx, game.vy);
+    audio.pickup(); buzz(60);
+  }
+}
+
+// the fire buttons, for the right thumb: 1 big in the corner, 2 beside it, 3 above it (only while you have it)
+function fireButtons() {
+  const r = Math.min(U * 0.12, 72), x1 = W - r - U * 0.09, y1 = H - r - U * 0.1;
+  const list = [{ i: 0, x: x1, y: y1, r }, { i: 1, x: x1 - r * 2.15, y: y1 + r * 0.2, r: r * 0.85 }];
+  if (game.loot) list.push({ i: 2, x: x1 - r * 0.45, y: y1 - r * 2.15, r: r * 0.85 * ease(game.loot.show) });
+  return list;
+}
+function hitFire(x, y) {
+  for (const b of fireButtons()) if (b.r > 5 && Math.hypot(x - b.x, y - b.y) < b.r * 1.25) return b;
+  return null;
+}
+
 // where a point in space shows up on the screen
 function toScreen(x, y) {
   return { x: W / 2 + wrapDelta(x - (game.x + game.lx), WW), y: H / 2 + wrapDelta(y - (game.y + game.ly), WH) };
@@ -599,6 +944,9 @@ function zoomed(p) { const z = game.zoom; return { x: W / 2 + (p.x - W / 2) * z,
 // ---------- the thrust button (left thumb) ----------
 function thrustButton() { const r = Math.min(U * 0.12, 72); return { x: r + U * 0.09, y: H - r - U * 0.1, r }; }
 function hitThrust(x, y) { const b = thrustButton(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.45; }
+// the magic button: above the thrust button, also for the left thumb
+function magicButton() { const t = thrustButton(); return { x: t.x + t.r * 0.25, y: t.y - t.r * 2.45, r: t.r * 0.85 }; }
+function hitMagic(x, y) { const b = magicButton(); return !!magicOf(shipById(game.ship)) && Math.hypot(x - b.x, y - b.y) < b.r * 1.25; }
 
 // ======================================================================
 //  DRAWING
@@ -636,14 +984,17 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.translate(x, y); ctx.rotate(ang + bank * 0.15); ctx.scale(size * Math.cos(bank * 0.9), size);
   ctx.lineJoin = "round";
   // engine flames (behind everything)
-  for (const ex of S.nozzles) {
-    const len = 0.1 + power * 0.32 + Math.sin(time * 40 + ex * 9) * 0.03;
+  if (!o.out) S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
+    const ey = S.engineYs ? S.engineYs[n] : S.engineY;   // a drawing can have its engines at different heights
+    // a steam engine's flame is ragged and jumpy
+    const rag = S.steam ? (Math.random() - 0.3) * 0.12 * power : 0;
+    const len = 0.1 + power * 0.32 + Math.sin(time * 40 + ex * 9) * 0.03 + rag;
     const w = S.nozzles.length >= 4 ? 0.035 : 0.05;
-    const fg = ctx.createLinearGradient(0, S.engineY, 0, S.engineY + len);
+    const fg = ctx.createLinearGradient(0, ey, 0, ey + len);
     fg.addColorStop(0, "#ffffff"); fg.addColorStop(0.3, S.flame); fg.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = fg;
-    ctx.beginPath(); ctx.moveTo(ex - w, S.engineY); ctx.quadraticCurveTo(ex, S.engineY + len * 1.4, ex + w, S.engineY); ctx.fill();
-  }
+    ctx.beginPath(); ctx.moveTo(ex - w, ey - 0.03); ctx.quadraticCurveTo(ex, ey + len * 1.4, ex + w, ey - 0.03); ctx.fill();
+  });
   // soft glow under the ship (it hovers)
   const glow = ctx.createRadialGradient(0, 0.05, 0, 0, 0.05, 0.6);
   glow.addColorStop(0, hexA(S.flame, 0.18 + power * 0.12)); glow.addColorStop(1, "rgba(0,0,0,0)");
@@ -792,8 +1143,15 @@ function drawParts() {
   for (const p of parts) {
     const k = 1 - p.life / p.max;
     ctx.globalAlpha = k; ctx.fillStyle = p.c;
-    if (p.star) starShape(p.x, p.y, p.s * 1.3);
-    else { ctx.beginPath(); ctx.arc(p.x, p.y, p.s * k + 0.5, 0, 6.2832); ctx.fill(); }
+    const q = p.w ? toScreen(p.x, p.y) : p;
+    if (p.smoke) {   // smoke: grows and thins out
+      const t = p.life / p.max;
+      ctx.globalAlpha = p.op * Math.min(1, t * 6) * (1 - t);
+      ctx.beginPath(); ctx.arc(q.x, q.y, p.s * (1 + t * p.grow * 2), 0, 6.2832); ctx.fill();
+      continue;
+    }
+    if (p.star)starShape(q.x, q.y, p.s * 1.3);
+    else { ctx.beginPath(); ctx.arc(q.x, q.y, p.s * k + 0.5, 0, 6.2832); ctx.fill(); }
   }
   ctx.globalAlpha = 1;
 }
@@ -847,15 +1205,21 @@ function draw() {
     const bank = clamp(game.spin / st.turn, -1, 1) * 0.5;
     const shown = trade.stage === "swapping" && trade.t > 0.9 ? shipById(trade.incoming) : S;
     const swapping = trade.stage === "swapping";
+    drawCrate();
     drawEnemy();
     drawShip(shown, p.x, p.y + bob + tradeOffsetY(p.y), shipSize(),
-      { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: swapping ? 0 : game.ang });
+      { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: swapping ? 0 : game.ang, out: game.sputter > 0 && !swapping });
+    drawShots();
     drawParts();
+    drawRings();
     ctx.restore();
-    drawEnemyArrow();
+    if (enemy.on) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
+    if (crate.on) edgeArrow(crate.x, crate.y, WEAPONS[crate.w].color);
     drawCard(shown, Math.min(1, game.card * 2));
     drawRadar();
     drawThrust();
+    drawFire();
+    drawMagic();
   } else drawParts();
 
   drawTrade();
@@ -900,20 +1264,31 @@ function drawEnemy() {
     ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.58, 0, TAU); ctx.stroke(); ctx.restore();
     const st = shipStats(E);
     drawShip(E, p.x, p.y, size, { power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang });
+    if (enemy.hurt > 0) {   // hit: a quick white flash
+      ctx.save(); ctx.globalAlpha = enemy.hurt / 0.15 * 0.45; ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.45, 0, TAU); ctx.fill(); ctx.restore();
+    }
     if (enemy.warp > 0) {   // arriving: a flash
       ctx.save(); ctx.globalAlpha = enemy.warp; ctx.fillStyle = "#ffffff";
       ctx.beginPath(); ctx.arc(p.x, p.y, size * (1.2 - enemy.warp * 0.6), 0, TAU); ctx.fill(); ctx.restore();
     }
+    // its health bar: green when healthy, through yellow, to red
+    const k = clamp(enemy.hp / ENEMY_HP, 0, 1), bw = size * 0.7, bh = Math.max(4, size * 0.045) / game.zoom;
+    const bx = p.x - bw / 2, by = p.y - size * 0.68;
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.55)"; roundRect(bx - 2, by - 2, bw + 4, bh + 4, 3); ctx.fill();
+    ctx.fillStyle = `hsl(${Math.round(k * 120)},85%,55%)`; roundRect(bx, by, Math.max(1, bw * k), bh, 2); ctx.fill();
+    ctx.restore();
   }
 }
-function drawEnemyArrow() {
-  if (!enemy.on) return;
-  const p = zoomed(toScreen(enemy.x, enemy.y)), m = shipSize() * 0.6 * game.zoom;
+// off screen: a small arrow at the edge points to it (red: the enemy; the weapon's color: a crate)
+function edgeArrow(wx, wy, color) {
+  const p = zoomed(toScreen(wx, wy)), m = shipSize() * 0.6 * game.zoom;
   if (p.x > -m && p.x < W + m && p.y > -m && p.y < H + m) return;
   const c = { x: W / 2, y: H / 2 }, a = Math.atan2(p.y - c.y, p.x - c.x), pad = U * 0.07;
   const t = Math.min((W / 2 - pad) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - pad) / Math.abs(Math.sin(a) || 1e-6));
   ctx.save(); ctx.translate(c.x + Math.cos(a) * t, c.y + Math.sin(a) * t); ctx.rotate(a);
-  ctx.fillStyle = "#ff4d6d"; ctx.globalAlpha = 0.8;
+  ctx.fillStyle = color; ctx.globalAlpha = 0.8;
   const r = U * 0.035;
   ctx.beginPath(); ctx.moveTo(r, 0); ctx.lineTo(-r * 0.8, r * 0.75); ctx.lineTo(-r * 0.4, 0); ctx.lineTo(-r * 0.8, -r * 0.75); ctx.closePath(); ctx.fill();
   ctx.restore();
@@ -933,10 +1308,172 @@ function drawRadar() {
   const vw = W / game.zoom, vh = H / game.zoom;
   ctx.strokeRect(x0 + (game.x + game.lx - vw / 2) * k, y0 + (game.y + game.ly - vh / 2) * k, vw * k, vh * k);
   if (enemy.on) { ctx.fillStyle = "#ff4d6d"; ctx.beginPath(); ctx.arc(x0 + enemy.x * k, y0 + enemy.y * k, 3, 0, TAU); ctx.fill(); }
+  if (crate.on) { ctx.fillStyle = WEAPONS[crate.w].color; ctx.fillRect(x0 + crate.x * k - 2.5, y0 + crate.y * k - 2.5, 5, 5); }
   ctx.translate(sx, sy); ctx.rotate(game.ang);
   ctx.fillStyle = shipById(game.ship).hull;
   ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 4); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
   ctx.restore();
+}
+
+// the shots, each weapon its own look
+function drawShots() {
+  const size = shipSize();
+  ctx.save(); ctx.lineCap = "round";
+  for (const s of shots) {
+    const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
+    if (s.w === "twin" || s.w === "laser" || s.w === "spread") {
+      const len = size * (s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
+      ctx.strokeStyle = hexA(Wp.color, 0.35); ctx.lineWidth = wd * 2.6;
+      ctx.beginPath(); ctx.moveTo(p.x - ux * len, p.y - uy * len); ctx.lineTo(p.x, p.y); ctx.stroke();
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = wd * 0.8; ctx.stroke();
+    } else if (s.w === "iris") {
+      // a glowing brass orb with a turning swirl
+      const r = Wp.r * size * (1 + 0.12 * Math.sin(time * 20));
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.4);
+      g.addColorStop(0, "#ffffff"); g.addColorStop(0.3, Wp.color); g.addColorStop(1, "rgba(255,140,0,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.4, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "rgba(120,60,0,0.7)"; ctx.lineWidth = Math.max(1.5, r * 0.18);
+      for (let i = 0; i < 3; i++) { const a = time * 9 + i * TAU / 3; ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.8, a, a + 1.2); ctx.stroke(); }
+    } else if (s.w === "missile") {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(uy, ux));
+      const l = size * 0.11;
+      ctx.fillStyle = "#e9fffb"; ctx.beginPath(); ctx.moveTo(l * 0.6, 0); ctx.lineTo(-l * 0.4, l * 0.18); ctx.lineTo(-l * 0.4, -l * 0.18); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = Wp.color; ctx.beginPath(); ctx.arc(-l * 0.5, 0, l * 0.2 + Math.random() * l * 0.1, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+function drawRings() {
+  for (const g of rings) {
+    const k = g.t / g.max, p = toScreen(g.x, g.y);
+    ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = g.c; ctx.lineWidth = Math.max(2, g.r * 0.12 * (1 - k));
+    ctx.beginPath(); ctx.arc(p.x, p.y, g.r * ease(k), 0, TAU); ctx.stroke(); ctx.restore();
+  }
+}
+// the crate a destroyed enemy leaves: turning, glowing in its weapon's color, the weapon's mark on it
+function drawCrate() {
+  if (!crate.on) return;
+  const Wp = WEAPONS[crate.w], p = toScreen(crate.x, crate.y), s = shipSize() * 0.32 * ease(crate.t / 0.5);
+  const y = p.y + Math.sin(time * 2.5) * s * 0.08;
+  const gl = ctx.createRadialGradient(p.x, y, s * 0.2, p.x, y, s * 1.4);
+  gl.addColorStop(0, hexA(Wp.color, 0.45 + 0.15 * Math.sin(time * 5))); gl.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, y, s * 1.4, 0, TAU); ctx.fill();
+  ctx.save(); ctx.translate(p.x, y); ctx.rotate(Math.sin(time * 1.3) * 0.35);
+  ctx.fillStyle = "#3a3a46"; ctx.strokeStyle = Wp.color; ctx.lineWidth = Math.max(2, s * 0.08);
+  roundRect(-s / 2, -s / 2, s, s, s * 0.15); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = "rgba(224,176,96,0.8)"; ctx.lineWidth = Math.max(1, s * 0.05);   // brass corners
+  for (const [cx, cy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    ctx.beginPath(); ctx.moveTo(cx * s * 0.42, cy * s * 0.18); ctx.lineTo(cx * s * 0.42, cy * s * 0.42); ctx.lineTo(cx * s * 0.18, cy * s * 0.42); ctx.stroke();
+  }
+  weaponIcon(crate.w, 0, 0, s * 0.32, Wp.color);
+  ctx.restore();
+}
+// a small mark for each weapon (on its button and its crate)
+function weaponIcon(w, x, y, r, color) {
+  ctx.save(); ctx.translate(x, y); ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.lineWidth = Math.max(2, r * 0.22);
+  if (w === "twin") {
+    for (const dx of [-0.32, 0.32]) { roundRect(dx * r - r * 0.18, -r * 0.8, r * 0.36, r * 1.5, r * 0.1); ctx.fill(); }
+    ctx.fillRect(-r * 0.7, r * 0.45, r * 1.4, r * 0.35);
+  } else if (w === "iris") {
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, TAU); ctx.stroke();
+    for (let i = 0; i < 6; i++) { const a = i * TAU / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8); ctx.quadraticCurveTo(Math.cos(a + 0.9) * r * 0.5, Math.sin(a + 0.9) * r * 0.5, Math.cos(a + 1.6) * r * 0.2, Math.sin(a + 1.6) * r * 0.2); ctx.stroke(); }
+  } else if (w === "laser") {
+    ctx.beginPath(); ctx.moveTo(-r * 0.3, -r * 0.9); ctx.lineTo(r * 0.2, -r * 0.1); ctx.lineTo(-r * 0.2, r * 0.1); ctx.lineTo(r * 0.3, r * 0.9); ctx.stroke();
+  } else if (w === "missile") {
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.95); ctx.lineTo(r * 0.3, -r * 0.4); ctx.lineTo(r * 0.3, r * 0.5); ctx.lineTo(r * 0.6, r * 0.9);
+    ctx.lineTo(-r * 0.6, r * 0.9); ctx.lineTo(-r * 0.3, r * 0.5); ctx.lineTo(-r * 0.3, -r * 0.4); ctx.closePath(); ctx.fill();
+  } else if (w === "spread") {
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i / 4 - 0.5) * 1.3; ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.75, Math.sin(a) * r * 0.75 + r * 0.35, r * 0.17, 0, TAU); ctx.fill(); }
+    ctx.beginPath(); ctx.arc(0, r * 0.35, r * 0.2, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+// the fire buttons: dark metal with the weapon's mark, a ring around that empties with the ammo.
+// An empty one goes dim until it has refilled enough for a shot
+function drawFire() {
+  if (trade.stage === "swapping") return;
+  for (const b of fireButtons()) {
+    if (b.r < 3) continue;
+    const w = slotWeapon(b.i), Wp = WEAPONS[w], ammo = slotAmmo(b.i), ready = ammo >= 1, pressed = game.fire[b.i] !== null;
+    const r = b.r * (pressed && ready ? 0.92 : 1);
+    ctx.save(); ctx.globalAlpha = ready ? 1 : 0.45;
+    if (pressed && ready) {
+      const gl = ctx.createRadialGradient(b.x, b.y, r * 0.8, b.x, b.y, r * 1.7);
+      gl.addColorStop(0, hexA(Wp.color, 0.5)); gl.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.7, 0, TAU); ctx.fill();
+    }
+    const bg = ctx.createRadialGradient(b.x - r * 0.3, b.y - r * 0.35, r * 0.1, b.x, b.y, r);
+    bg.addColorStop(0, "#5a5a68"); bg.addColorStop(1, "#1d1d26");
+    ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, TAU); ctx.fill();
+    // ammo ring
+    ctx.lineWidth = Math.max(3, r * 0.1); ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(255,255,255,0.12)"; ctx.beginPath(); ctx.arc(b.x, b.y, r * 0.9, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = Wp.color; ctx.beginPath(); ctx.arc(b.x, b.y, r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(ammo / Wp.ammo, 0, 1)); ctx.stroke();
+    weaponIcon(w, b.x, b.y, r * 0.42, ready ? "#ffffff" : "#9a9aa8");
+    // button 3 just arrived: a sparkle ring around it
+    if (b.i === 2 && game.loot && game.loot.show < 1) {
+      ctx.globalAlpha = 1 - game.loot.show; ctx.strokeStyle = Wp.color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(b.x, b.y, r * (1 + game.loot.show), 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// the magic button. Its look follows the ship's style: for the brass ship, a turning brass gear.
+// Ready: turns slowly and glints. Used: spins fast. Recharging: almost still, dark, and its brass
+// fills back in around the rim as it gets ready again
+function drawMagic() {
+  const M = magicOf(shipById(game.ship));
+  if (!M || trade.stage === "swapping") return;
+  const b = magicButton(), ready = game.magicCool <= 0, k = ready ? 1 : 1 - game.magicCool / M.cool;
+  if (M.look === "gear") {
+    ctx.save(); ctx.translate(b.x, b.y);
+    // a magic glow when ready
+    if (ready) {
+      const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
+      gl.addColorStop(0, `rgba(255,209,102,${0.28 + 0.12 * Math.sin(time * 3)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
+    }
+    ctx.rotate(game.gear);
+    const teeth = 12, ro = b.r, ri = b.r * 0.8;
+    const gearPath = () => {
+      ctx.beginPath();
+      for (let i = 0; i < teeth; i++) {
+        const a = i * TAU / teeth, w = TAU / teeth;
+        ctx.lineTo(Math.cos(a - w * 0.5) * ri, Math.sin(a - w * 0.5) * ri);
+        ctx.lineTo(Math.cos(a - w * 0.22) * ro, Math.sin(a - w * 0.22) * ro);
+        ctx.lineTo(Math.cos(a + w * 0.22) * ro, Math.sin(a + w * 0.22) * ro);
+        ctx.lineTo(Math.cos(a + w * 0.5) * ri, Math.sin(a + w * 0.5) * ri);
+      }
+      ctx.closePath();
+      ctx.moveTo(b.r * 0.32, 0); ctx.arc(0, 0, b.r * 0.32, 0, TAU, true);   // the hole in the middle
+    };
+    // dark iron gear underneath, brass on top up to how charged it is
+    ctx.fillStyle = "#2c2a2e"; gearPath(); ctx.fill("evenodd");
+    ctx.save();
+    if (!ready) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, ro * 1.1, -game.gear - Math.PI / 2, -game.gear - Math.PI / 2 + TAU * k); ctx.closePath(); ctx.clip(); }
+    const bg = ctx.createLinearGradient(-ro, -ro, ro, ro);
+    bg.addColorStop(0, "#fff1c1"); bg.addColorStop(0.35, "#e0b060"); bg.addColorStop(0.7, "#a8762a"); bg.addColorStop(1, "#5e3f12");
+    ctx.globalAlpha = ready ? 1 : 0.7; ctx.fillStyle = bg; gearPath(); ctx.fill("evenodd");
+    ctx.restore();
+    ctx.strokeStyle = "rgba(60,36,8,0.8)"; ctx.lineWidth = 1.5; gearPath(); ctx.stroke();
+    // spokes and hub
+    ctx.strokeStyle = ready ? "#8a5c1c" : "#4a4048"; ctx.lineWidth = b.r * 0.09;
+    for (let i = 0; i < 6; i++) { const a = i * TAU / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * b.r * 0.34, Math.sin(a) * b.r * 0.34); ctx.lineTo(Math.cos(a) * ri * 0.92, Math.sin(a) * ri * 0.92); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(0, 0, ri * 0.92, 0, TAU); ctx.stroke();
+    ctx.rotate(-game.gear);
+    // in the hole: a little puff of smoke (what the magic does)
+    ctx.fillStyle = ready ? "rgba(235,235,245,0.95)" : "rgba(150,150,160,0.6)";
+    for (const [x, y, r] of [[-0.1, 0.05, 0.13], [0.08, 0.06, 0.12], [0, -0.07, 0.14]]) { ctx.beginPath(); ctx.arc(x * b.r, y * b.r, r * b.r, 0, TAU); ctx.fill(); }
+    // glints running round the rim when ready (the magic)
+    if (ready) for (let i = 0; i < 3; i++) {
+      const a = time * 2.2 + i * TAU / 3, s = b.r * 0.1 * (0.6 + 0.4 * Math.sin(time * 7 + i));
+      ctx.fillStyle = "#ffffff"; ctx.globalAlpha = 0.9; starShape(Math.cos(a) * ro * 1.08, Math.sin(a) * ro * 1.08, s);
+    }
+    ctx.restore();
+  }
 }
 
 // the thrust button: white when full, through yellow, orange, red, purple, blue... to black, then gone
@@ -1143,7 +1680,7 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 // test hooks (used by the screenshot checks on a computer)
-window.__ship = { game, gift, tilt, trade, enemy, tapGift, openTrade, answer };
+window.__ship = { game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic };
 </script>
 </body>
 </html>

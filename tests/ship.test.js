@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("ten ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 10);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 10);
+ok("eleven ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 11);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 11);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -89,4 +89,31 @@ ok("every engine is stronger than the planet's pull (no ship gets stuck on it)",
   const g = gravityAt(1, 0, 1, 0.5);
   for (const s of SHIPS) assert(shipStats(s).push > Math.abs(g.ax), s.id);
 });
+ok("every ship has 2 weapons that exist and refill by themselves", () => {
+  for (const s of SHIPS) { const w = weaponsOf(s); assert.strictEqual(w.length, 2, s.id); for (const k of w) { assert(WEAPONS[k], k); assert(WEAPONS[k].refill > 0, k); } }
+});
+ok("a destroyed ship drops a weapon for button 3, which does not refill", () => {
+  for (const s of SHIPS) { const w = lootOf(s); assert(LOOT.includes(w), s.id); assert(!WEAPONS[w].refill, w); }
+  assert.strictEqual(ammoStep(3, WEAPONS.laser, 10), 3);
+});
+ok("own weapons refill over their refill time, never past full", () => {
+  const W = WEAPONS.twin; assert(Math.abs(ammoStep(0, W, W.refill / 2) - W.ammo / 2) < 1e-9); assert.strictEqual(ammoStep(0, W, 999), W.ammo);
+});
+ok("the brass ship: cannon on the left pod, brass eye on the right, both ahead of the middle", () => {
+  const b = SHIPS.find((s) => s.id === "brass");
+  for (const [x, y] of gunsOf(b, "twin")) assert(x < 0 && y < 0);
+  for (const [x, y] of gunsOf(b, "iris")) assert(x > 0 && y < 0);
+  assert(b.steam && MAGIC[b.magic]);
+});
+ok("a gun point turns with the ship (nose right: a point ahead goes right)", () => {
+  const p = rotatePt(0, -1, Math.PI / 2); assert(Math.abs(p.x - 1) < 1e-9 && Math.abs(p.y) < 1e-9);
+});
+ok("the fan weapon spreads evenly around the nose", () => {
+  const a = pelletAngles(WEAPONS.spread); assert.strictEqual(a.length, 5); assert(Math.abs(a[0] + a[4]) < 1e-9 && a[2] === 0);
+  assert.strictEqual(JSON.stringify(pelletAngles(WEAPONS.twin)), "[0]");
+});
+ok("homing shots turn toward the enemy, keep their speed, not more than allowed", () => {
+  const v = steerShot(100, 0, 0, 100, 0.1); assert(Math.abs(Math.hypot(v.vx, v.vy) - 100) < 1e-9); assert(Math.abs(Math.atan2(v.vy, v.vx) - 0.1) < 1e-9);
+});
+ok("hidden in the smoke, the enemy cannot see you", () => { assert(!enemySees(2)); assert(enemySees(0)); });
 console.log(n + " checks passed");
