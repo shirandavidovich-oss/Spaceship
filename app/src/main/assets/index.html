@@ -31,7 +31,7 @@ const UNLOCK     = 0.2;  // after the fuel runs out, the button comes back when 
 const ENEMY      = true; // an enemy ship flies with you (for now it only flies, no weapons yet)
 const ENEMY_KEEP = 0.9;  // how close the enemy likes to stay to you, in screen-widths
 const ZOOM_MIN   = 0.4;  // like Star Control: the view zooms out (down to this much) to keep both ships on screen
-const TRY_SHIP   = "vexar"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
+const TRY_SHIP   = "lyth"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
 const RAM_DAMAGE = 25;   // damage from crashing into the enemy at full speed (both ships take it)
@@ -145,7 +145,23 @@ const SHIPS = [
       shotArt: { thorn: { file: "thorn.webp", size: 0.3 } },                     // 128 px at the hull's scale
       // the egg: pulses while it waits, then cracks and bursts; the hunters come out at the "swarm" frame (180 ms)
       egg: { pulse: frames("egg", 8, () => 75), hatch: frames("hatch", 12, () => 45, { 5: "swarm" }),
-        hunter: frames("hunter", 4, () => 60), size: 0.45, hunterSize: 0.3, incubate: 1150 } } }
+        hunter: frames("hunter", 4, () => 60), size: 0.45, hunterSize: 0.3, incubate: 1150 } } },
+  // LYTH, the mechanical ring duelist (art/ships/lyth/, 512 x 512, center pivot, nose up), from lyth-layout.json.
+  // Button 1: the pulse (the shutters slide apart, the emitter flashes). Button 2: the big ring around the hull
+  // unlatches, flies out (the planet pulls it), turns back, finds the ship wherever it is now and locks on again.
+  // It has its own recorded sounds (art/ships/lyth/sfx/)
+  { id: "lyth", name: "LYTH", rarity: "legendary", mass: 1.2, fuel: 30, refill: 15, sfx: "lyth",
+    hull: "#a7b9cd", wingC: "#27344a", trim: "#8affff", flame: "#22d4ff",
+    // thruster anchors (235,368) and (277,368); muzzle (256,140)
+    body: [], wing: [], nozzles: [-0.049, 0.049], engineY: 0.263, cockpit: [0, -0.2, 0.05, 0.1],
+    weapons: ["pulse", "ring"],
+    guns: { pulse: [[0, -0.272]] },
+    anim: { dir: "lyth", size: 1.2, idle: "idle.webp",
+      hull: "hull.webp", ring: "ring.webp",   // the two layers, for while the ring is away
+      // 480 ms; the shot leaves at 168 ms (frame 5)
+      primary: frames("pulse", 11, (n) => [42, 42, 42, 42, 42, 42, 30, 44, 44, 50, 60][n - 1], { 5: "left" }),
+      // the three docking latches (right, left, back): they glow amber while the ring unlatches and locks
+      latches: [[0.293, 0], [-0.293, 0], [0, 0.293]] } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -156,6 +172,8 @@ function frames(name, count, ms, cues = {}) {
   });
 }
 const shipById = (id) => SHIPS.find((s) => s.id === id) || null;
+// LYTH's recorded sound effects (names of the .wav files)
+const SFX = ["latches_unlock", "pulse_fire", "ring_capture", "ring_lock", "ring_release", "shutters_close", "shutters_open", "thrusters_close", "thrusters_open"];
 
 // ---- weapons ----
 // Every ship has 2 weapons (buttons 1 and 2). They refill by themselves, like the fuel.
@@ -167,6 +185,11 @@ const shipById = (id) => SHIPS.find((s) => s.id === id) || null;
 const WEAPONS = {
   twin:    { name: "תותח כפול", dmg: 4,  speed: 2.4, life: 1.0, cool: 0.11, ammo: 40, refill: 8,  r: 0.018, color: "#ffd166" },
   iris:    { name: "עין הפליז", dmg: 30, speed: 1.1, life: 3.2, cool: 0.8,  ammo: 5,  refill: 10, r: 0.05,  color: "#ffb347", homing: 2.6 },
+  pulse:   { name: "פולס",      dmg: 7,  speed: 2.2, life: 1.1, cool: 0.45, ammo: 24, refill: 7,  r: 0.03,  color: "#8affff" },
+  // ring: LYTH's ring flies out and back. Seconds: unlock (latches open), out (flying out), back (coming home), lock.
+  //   speed: screens per second when let go   r: its radius in ship-lengths   dmg: per pass (out, and again on the way back)
+  ring:    { name: "טבעת",      dmg: 18, speed: 1.6, life: 2.5, cool: 0.2,  ammo: 3,  refill: 9,  r: 0.42,  color: "#ba99ff",
+             ring: true, unlock: 0.33, out: 0.96, back: 0.9, lock: 0.34 },
   thorn:   { name: "קוצים",     dmg: 5,  speed: 2.6, life: 1.0, cool: 0.16, ammo: 30, refill: 8,  r: 0.02,  color: "#b8ff3a" },
   // hive: lays an egg (speed: how fast it is pushed out, then it drifts to a stop). dmg: per hunter
   //   swarm: hunters per egg   hunterSpeed: screens per second   hunterTurn: radians per second   hunterLife: seconds
@@ -186,7 +209,20 @@ const MAGIC = {
   //   len: its full length in ship-lengths   drain: health per second taken from a ship touching it
   tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 9.6, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
 };
-// how much of the tail is out at time t (seconds since the button): 0..1, or -1 once it is back in
+// LYTH's ring at time t (seconds since the button): "unlock", "out", "back", "lock", or null once it is home again
+function ringPhase(Wp, t) {
+  if (t < Wp.unlock) return "unlock";
+  if (t < Wp.unlock + Wp.out) return "out";
+  if (t < Wp.unlock + Wp.out + Wp.back) return "back";
+  if (t < Wp.unlock + Wp.out + Wp.back + Wp.lock) return "lock";
+  return null;
+}
+function smoothStep(v) { const t = Math.min(1, Math.max(0, v)); return t * t * (3 - 2 * t); }
+// how much the pulse emitter glows (charge) and flashes, t ms into the pulse (for drawing it on the bare hull)
+function pulseGlow(t) {
+  return { charge: smoothStep(t / 158) * (1 - smoothStep((t - 168) / 160)), flash: t >= 168 ? 1 - smoothStep((t - 168) / 160) : 0 };
+}
+// how much the tail is out at time t (seconds since the button): 0..1, or -1 once it is back in
 function tailOut(M, t) {
   if (t < 0) return 0;
   if (t < M.out) return 1 - Math.pow(1 - t / M.out, 2);
@@ -399,6 +435,7 @@ const audio = {
       if (!this.ctx) {
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         this.out = this.ctx.createGain(); this.out.gain.value = 0.8; this.out.connect(this.ctx.destination);
+        for (const S of SHIPS) if (S.sfx) for (const n of SFX) this.load(S.sfx, n);   // recorded sounds, loaded once
       }
       if (this.ctx.state === "suspended") this.ctx.resume();
     } catch (e) {}
@@ -411,6 +448,22 @@ const audio = {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(this.out); o.start(t); o.stop(t + dur + 0.05);
+  },
+  // recorded sound effects: art/ships/<ship>/sfx/<name>.wav
+  bufs: {},
+  load(dir, name) {
+    const k = dir + "/" + name;
+    if (this.bufs[k] !== undefined || !this.ctx) return;
+    this.bufs[k] = null;
+    fetch("art/ships/" + dir + "/sfx/" + name + ".wav").then((r) => r.arrayBuffer())
+      .then((b) => this.ctx.decodeAudioData(b)).then((buf) => { this.bufs[k] = buf; }).catch(() => {});
+  },
+  sfx(dir, name, delay = 0, vol = 0.9) {
+    if (!this.ctx || !dir) return;
+    const buf = this.bufs[dir + "/" + name];
+    if (!buf) { this.load(dir, name); return; }
+    const s = this.ctx.createBufferSource(), g = this.ctx.createGain();
+    s.buffer = buf; g.gain.value = vol; s.connect(g); g.connect(this.out); s.start(this.ctx.currentTime + delay);
   },
   tap(n) { this.tone(180 + n * 90, 0.18, "triangle", 0.3, 0.6); this.tone(900 + n * 300, 0.12, "sine", 0.08, 1.5); },
   open() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.9, "triangle", 0.16, 1, i * 0.09)); this.tone(80, 0.8, "sine", 0.35, 0.5); },
@@ -433,6 +486,7 @@ const audio = {
     if (w === "twin") { this.tone(1900, 0.03, "square", 0.04, 0.5); this.noise(0.06, 0.14, 2600); [0.04, 0.07, 0.1].forEach((d) => this.tone(700, 0.025, "triangle", 0.02, 0.8, d)); }
     // iris: the heavy release (the gear grind and the latch come first, in windUp)
     else if (w === "iris") this.cannon();
+    else if (w === "pulse") { this.sfx("lyth", "pulse_fire"); this.sfx("lyth", "shutters_close", 0.11, 0.6); }
     else if (w === "thorn") { this.tone(1100, 0.05, "triangle", 0.06, 0.4); this.noise(0.05, 0.1, 4000); }
     else if (w === "hive") { }   // (the jaws already made their sound)
     else if (w === "laser") this.tone(1500, 0.12, "sawtooth", 0.05, 0.3);
@@ -751,6 +805,9 @@ function flyShip(dt) {
   // out of fuel: the engine stops, but a thumb still holding keeps steering, and the engine
   // starts again by itself once the tank has refilled enough
   const hit = moveShip(game, S, { target, turn, thrust: game.thrust !== null }, dt);
+  // LYTH: the engine vent plates slide open / shut (a sound only when it changes)
+  const burning = game.thrust !== null && !game.locked;
+  if (burning !== !!game.burning) { game.burning = burning; if (S.sfx) audio.sfx(S.sfx, burning ? "thrusters_open" : "thrusters_close", 0, 0.7); }
   if (game.locked && !wasEmpty) { if (game.thrust === "key") game.thrust = null; audio.empty(); buzz(120); }
   if (hit > U * 0.15) { audio.bump(); buzz(Math.min(70, hit / U * 50)); }
 
@@ -1102,7 +1159,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null;
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
   for (let k = 0; k < 10; k++) smokeAt(game.x, game.y, game, S, 2.5, 2.5);
   rings.push({ x: game.x, y: game.y, t: 0, max: 0.8, r: shipSize() * 2.6, c: S.flame });
@@ -1135,6 +1192,7 @@ function updateWeapons(dt) {
   weaponsOf(S).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt); });
   updateAnim(dt);
   updateEggs(dt);
+  if (!game.dead) updateRing(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
     if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && slotAmmo(i) >= 1 && !waitsForFrames(i)) shoot(i);
@@ -1176,6 +1234,7 @@ function shoot(i) {
   const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
+  if (Wp.ring) { startRing(w, S); return; }
   if (A && i === 1) {   // the secondary waits for its wind-up
     game.anim = { seq: "secondary", t: 0, pending: w };
     if (w === "iris") audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000); else audio.jaws();
@@ -1213,6 +1272,78 @@ function spawnShots(w, g) {
     for (let k = 0; k < 4; k++) smokeAt(x, y, { ang: game.ang + Math.PI, vx: game.vx, vy: game.vy }, S, 1.4, 1.2);
   }
 }
+// ---------- LYTH's ring ----------
+// unlock: the three latches open (amber). out: the ring is let go toward the nose, spinning, and the planet pulls it.
+// back: it comes home to wherever the ship is now, lining up with its heading. lock: the latches close again.
+// It hurts the enemy once on the way out and once on the way back, if it passes over it.
+function startRing(w, S) {
+  game.ring = { w, t: 0, phase: "unlock", x: game.x, y: game.y, vx: 0, vy: 0, ang: game.ang, lift: 0, trace: [], hitOut: false, hitBack: false };
+  audio.sfx(S.sfx, "latches_unlock");
+}
+function updateRing(dt) {
+  const R = game.ring, S = shipById(game.ship);
+  if (!R) return;
+  if (!S.anim || !S.anim.ring) { game.ring = null; return; }
+  const Wp = WEAPONS[R.w], was = R.phase;
+  R.t += dt; R.phase = ringPhase(Wp, R.t);
+  if (was === "unlock" && R.phase !== "unlock") {   // let go, toward the nose
+    const v = Wp.speed * U;
+    Object.assign(R, { x: game.x, y: game.y, vx: game.vx + Math.sin(game.ang) * v, vy: game.vy - Math.cos(game.ang) * v, ang: game.ang });
+    audio.sfx(S.sfx, "ring_release");
+  }
+  if (was === "out" && R.phase !== "out") R.from = { x: R.x, y: R.y, vx: R.vx, vy: R.vy, ang: R.ang };
+  if (was === "back" && R.phase !== "back") { audio.sfx(S.sfx, "ring_capture"); buzz(30); }
+  if (!R.phase) { audio.sfx(S.sfx, "ring_lock"); game.ring = null; return; }
+  if (R.phase === "out") {
+    const g = gravityAt(wrapDelta(R.x - WW / 2, WW), wrapDelta(R.y - WH / 2, WH), U, U * PLANET_R);
+    R.vx += g.ax * dt; R.vy += g.ay * dt;
+    R.x = (((R.x + R.vx * dt) % WW) + WW) % WW; R.y = (((R.y + R.vy * dt) % WH) + WH) % WH;
+    R.ang += 6.4 * dt;
+    R.lift = smoothStep((R.t - Wp.unlock) / 0.245);
+  } else if (R.phase === "back") {
+    const p = (R.t - Wp.unlock - Wp.out) / Wp.back, q = smoothStep(p), lead = p * (1 - p) * (1 - p) * 0.57, F = R.from;
+    R.x = (((F.x + wrapDelta(game.x - F.x, WW) * q + F.vx * lead) % WW) + WW) % WW;
+    R.y = (((F.y + wrapDelta(game.y - F.y, WH) * q + F.vy * lead) % WH) + WH) % WH;
+    let a = F.ang + TAU * 1.1 * p;
+    a += Math.atan2(Math.sin(game.ang - a), Math.cos(game.ang - a)) * smoothStep((p - 0.62) / 0.38);
+    R.ang = a;
+    R.lift = 1 - smoothStep((p - 0.65) / 0.35);
+  } else R.lift = 0;
+  if (R.phase === "out" || R.phase === "back") {
+    R.trace.push({ x: R.x, y: R.y }); if (R.trace.length > 18) R.trace.shift();
+    // passing over the enemy
+    const leg = R.phase === "out" ? "hitOut" : "hitBack";
+    if (!R[leg] && enemy.on && enemy.warp < 0.5 &&
+        Math.hypot(wrapDelta(enemy.x - R.x, WW), wrapDelta(enemy.y - R.y, WH)) < shipSize() * (Wp.r + 0.3)) {
+      R[leg] = true;
+      hitEnemy({ x: enemy.x, y: enemy.y, vx: R.vx || game.vx, vy: R.vy || game.vy }, Wp);
+      rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.35, r: shipSize() * 0.8, c: Wp.color });
+    }
+  } else R.trace.length = 0;
+}
+// the ring flying on its own (yours, or the other player's in a duel)
+function drawRing(R, S) {
+  if (!R || !(R.phase === "out" || R.phase === "back") || !S.anim || !S.anim.ring) return;
+  const img = artImage(framePath(S.anim.dir, S.anim.ring));
+  if (!img) return;
+  const size = shipSize(), p = toScreen(R.x, R.y), d = S.anim.size * size * (1 + 0.14 * (R.lift || 0));
+  ctx.save();
+  // its trail
+  if (R.trace && R.trace.length > 2) {
+    ctx.strokeStyle = "rgba(127,155,255,0.28)"; ctx.lineWidth = size * 0.04; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath(); R.trace.forEach((q, i) => { const s = toScreen(q.x, q.y); i ? ctx.lineTo(s.x, s.y) : ctx.moveTo(s.x, s.y); }); ctx.stroke();
+  }
+  // a violet glow, then the ring, spinning
+  const gl = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, d * 0.45);
+  gl.addColorStop(0, "rgba(237,219,255,0.22)"); gl.addColorStop(0.5, "rgba(159,130,255,0.14)"); gl.addColorStop(1, "rgba(104,104,255,0)");
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, p.y, d * 0.45, 0, TAU); ctx.fill();
+  ctx.translate(p.x, p.y); ctx.rotate(R.ang); ctx.drawImage(img, -d / 2, -d / 2, d, d);
+  // violet status lights
+  ctx.strokeStyle = `rgba(186,153,255,${0.6 + 0.3 * Math.sin(time * 12)})`; ctx.lineWidth = Math.max(2, d * 0.01);
+  ctx.beginPath(); ctx.arc(0, 0, d * 0.35, -1.75, -1.39); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, d * 0.35, 1.39, 1.75); ctx.stroke();
+  ctx.restore();
+}
+
 // ---------- VEXAR's eggs and hunters ----------
 // An egg is pushed out of the chamber, drifts to a stop and pulses; after `incubate` ms it cracks and,
 // at the "swarm" frame, lets out its hunters. The enemy can crush it by flying into it before then (no hunters).
@@ -1325,6 +1456,7 @@ function updateAnim(dt) {
 }
 // button 2 waits while the heavy cannon or the smoke hatches are still playing (so a shot never cuts a sequence short)
 function waitsForFrames(i) {
+  if (i === 1 && game.ring) return true;   // LYTH: one ring at a time, until it has locked on again
   const a = game.anim;
   return i === 1 && !!a && !!shipById(game.ship).anim && (a.seq === "secondary" || a.seq === "smoke");
 }
@@ -1464,12 +1596,30 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.fillStyle = glow; ctx.fillRect(-0.7, -0.6, 1.4, 1.3);
 
   // a real drawing of the ship, once there is one
-  const img = shipArt(S, o.anim);
+  let img = shipArt(S, o.anim);
+  // LYTH with its ring away: only the hull layer (the ring is drawn where it flies)
+  const ringAway = o.ring === "out" || o.ring === "back";
+  if (ringAway && S.anim && S.anim.hull) img = artImage(framePath(S.anim.dir, S.anim.hull)) || img;
   if (img) {
     // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
     // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
     const k = S.anim ? S.anim.size / img.width : 1 / Math.max(img.width, img.height);
     ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
+    if (S.anim && S.anim.latches) {
+      // the docking latches glow amber while the ring unlatches or locks on
+      if (o.ring === "unlock" || o.ring === "lock") for (const [lx, ly] of S.anim.latches) {
+        const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, 0.07);
+        g.addColorStop(0, `rgba(255,197,118,${0.75 + 0.25 * Math.sin(time * 35)})`); g.addColorStop(1, "rgba(255,187,92,0)");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(lx, ly, 0.07, 0, TAU); ctx.fill();
+      }
+      // the pulse on the bare hull (the frames with the ring cannot be used then): the emitter glows and flashes
+      if (ringAway && o.anim && o.anim.seq === "primary") {
+        const G = pulseGlow(o.anim.t), my = S.guns.pulse[0][1], r = 0.08 + 0.1 * Math.max(G.charge, G.flash);
+        const g = ctx.createRadialGradient(0, my, 0, 0, my, r);
+        g.addColorStop(0, `rgba(224,255,255,${Math.max(G.charge, G.flash)})`); g.addColorStop(0.4, `rgba(16,207,255,${0.6 * Math.max(G.charge, G.flash)})`); g.addColorStop(1, "rgba(7,187,253,0)");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, my, r, 0, TAU); ctx.fill();
+      }
+    }
     ctx.restore();
     return;
   }
@@ -1536,6 +1686,7 @@ function preloadArt() {
     if (!A) continue;
     const all = [A.idle, ...[A.primary, A.secondary, A.smoke].filter(Boolean).flatMap((q) => q.map((x) => x[0]))];
     for (const k in A.shotArt || {}) all.push(A.shotArt[k].file);
+    if (A.hull) all.push(A.hull, A.ring);
     if (A.egg) all.push(...[A.egg.pulse, A.egg.hatch, A.egg.hunter].flatMap((q) => q.map((x) => x[0])));
     for (const f of all) artImage(framePath(A.dir, f));
   }
@@ -1703,7 +1854,9 @@ function draw() {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize(),
-        { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null });
+        { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
+          ring: shown === S && game.ring ? game.ring.phase : null });
+      drawRing(game.ring, S);
       if (game.arriveT > 0) {   // coming back after blowing up: a flash
         ctx.save(); ctx.globalAlpha = game.arriveT; ctx.fillStyle = "#ffffff";
         ctx.beginPath(); ctx.arc(p.x, p.y, shipSize() * (1.2 - game.arriveT * 0.6), 0, TAU); ctx.fill(); ctx.restore();
@@ -1767,7 +1920,8 @@ function drawEnemy() {
     const st = shipStats(E);
     if (enemy.remote) drawTail(duel.tail, E);
     drawShip(E, p.x, p.y, size, { power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang,
-      anim: enemy.remote ? enemy.anim : null, out: !!enemy.out });
+      anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null });
+    if (enemy.remote) drawRing(duel.ring, E);
     if (enemy.hurt > 0) {   // hit: a quick white flash
       ctx.save(); ctx.globalAlpha = enemy.hurt / 0.15 * 0.45; ctx.fillStyle = "#ffffff";
       ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.45, 0, TAU); ctx.fill(); ctx.restore();
@@ -1882,6 +2036,14 @@ function drawShots(list = shots) {
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, d * (s.art.spin ? 1.1 : 0.45), 0, TAU); ctx.fill();
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s.art.spin ? s.life * s.art.spin : Math.atan2(ux, -uy));
       ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+    } else if (s.w === "pulse") {
+      // LYTH's pulse: a cyan glow with a bright needle, pointing where it flies (drawn in the art's pixels)
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy)); const k = size * 1.2 / 512; ctx.scale(k, k);
+      const g = ctx.createRadialGradient(0, 2, 0, 0, 2, 39);
+      g.addColorStop(0, "#e0ffff"); g.addColorStop(0.24, "rgba(138,255,255,0.88)"); g.addColorStop(0.54, "rgba(16,207,255,0.54)"); g.addColorStop(1, "rgba(7,187,253,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 2, 13, 39, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#c6ffff"; ctx.beginPath(); ctx.moveTo(0, -24); ctx.quadraticCurveTo(6, -9, 3, 7); ctx.lineTo(0, 21); ctx.lineTo(-3, 7); ctx.quadraticCurveTo(-6, -9, 0, -24); ctx.fill();
+      ctx.restore();
     } else if (s.w === "iris") {
       // a glowing brass orb with a turning swirl
       const r = Wp.r * size * (1 + 0.12 * Math.sin(time * 20));
@@ -1935,6 +2097,12 @@ function weaponIcon(w, x, y, r, color) {
   } else if (w === "iris") {
     ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, TAU); ctx.stroke();
     for (let i = 0; i < 6; i++) { const a = i * TAU / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8); ctx.quadraticCurveTo(Math.cos(a + 0.9) * r * 0.5, Math.sin(a + 0.9) * r * 0.5, Math.cos(a + 1.6) * r * 0.2, Math.sin(a + 1.6) * r * 0.2); ctx.stroke(); }
+  } else if (w === "pulse") {   // an emitter with a burst
+    ctx.beginPath(); ctx.arc(0, r * 0.2, r * 0.35, 0, TAU); ctx.fill();
+    for (const a of [-0.5, 0, 0.5]) { ctx.beginPath(); ctx.moveTo(Math.sin(a) * r * 0.5, r * 0.2 - Math.cos(a) * r * 0.5); ctx.lineTo(Math.sin(a) * r * 0.95, r * 0.2 - Math.cos(a) * r * 0.95); ctx.stroke(); }
+  } else if (w === "ring") {    // the ring with its three latches
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.75, 0, TAU); ctx.stroke();
+    for (const a of [0, Math.PI / 2, Math.PI]) { ctx.save(); ctx.rotate(a); ctx.fillRect(r * 0.55, -r * 0.12, r * 0.4, r * 0.24); ctx.restore(); }
   } else if (w === "thorn") {   // two curved thorns
     for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * r * 0.15, -r * 0.95); ctx.quadraticCurveTo(sx * r * 0.65, -r * 0.1, sx * r * 0.45, r * 0.9);
       ctx.lineTo(sx * r * 0.2, r * 0.75); ctx.quadraticCurveTo(sx * r * 0.35, -r * 0.1, sx * r * 0.15, -r * 0.95); ctx.fill(); }
@@ -2327,7 +2495,7 @@ function endDuel(tellThem) {
   setTimeout(() => link.stop(), tellThem ? 250 : 0);
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
-  duel.shots.length = 0; duel.tail = null; duel.net = null;
+  duel.shots.length = 0; duel.tail = null; duel.net = null; duel.ring = null;
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
   for (let k = hunters.length - 1; k >= 0; k--) if (hunters[k].remote) hunters.splice(k, 1);
   // the computer enemy comes back a little later
@@ -2405,6 +2573,16 @@ function updateRival(dt) {
     if (Math.abs(duel.tail.t - (n.tl + age)) > 0.25) duel.tail.t = n.tl + age;
     if (!moveTail(duel.tail, enemy, E, M, dt)) duel.tail = null;
   } else duel.tail = null;
+  // LYTH's ring: glide it toward where their phone says it is
+  if (n.rg) {
+    const [ph, rx, ry, rvx, rvy, ra, rl] = n.rg, R = duel.ring || (duel.ring = { trace: [], x: rx * WW, y: ry * WH });
+    const gx = (rx + rvx * age) * WW, gy = (ry + rvy * age) * WH, kk = 1 - Math.exp(-dt * 12);
+    R.x = (((R.x + rvx * WW * dt + wrapDelta(gx - R.x, WW) * kk) % WW) + WW) % WW;
+    R.y = (((R.y + rvy * WH * dt + wrapDelta(gy - R.y, WH) * kk) % WH) + WH) % WH;
+    if (R.phase !== ph && (ph === "out")) { R.x = gx; R.y = gy; R.trace.length = 0; }
+    R.phase = ph; R.ang = ra; R.lift = rl;
+    if (ph === "out" || ph === "back") { R.trace.push({ x: R.x, y: R.y }); if (R.trace.length > 18) R.trace.shift(); }
+  } else duel.ring = null;
   if (!game.dead) bumpShips(game, shipById(game.ship), enemy, E);
 }
 function updateDuel(dt) {
@@ -2437,7 +2615,9 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1) });
+      hd: game.hidden > 0 ? 1 : 0, tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
+      rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
+        +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0 });
     duel.outDmg = 0;
   }
 }

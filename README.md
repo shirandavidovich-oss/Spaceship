@@ -48,7 +48,12 @@ Its magic button is a curled stinger tail: tap it and a long segmented tail (9.6
 and swings after it as you fly and turn. A ship touching it loses health (28 a second) while it touches. After it has
 been all the way out it pulls back into the ship (about 3.3 s), and the button recharges (9 s).
 
-While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"vexar"`; `"brass"` for THUL,
+**LYTH**, the mechanical ring duelist (`art/ships/lyth/`), with its own recorded sounds (`sfx/`).
+Button 1: the pulse (the shutters slide apart and the emitter flashes). Button 2: the big ring around the hull unlatches
+(amber lights), flies out spinning (the planet pulls it), turns back to wherever the ship is now and locks on again.
+It hurts a ship it passes over, once on the way out and once on the way back. One ring at a time; the pulse still works meanwhile.
+
+While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"lyth"`; `"vexar"` for VEXAR, `"brass"` for THUL,
 `""` for the gift's surprise again).
 Swipe up to offer a trade with a phone nearby; the swap happens only if both players say yes.
 

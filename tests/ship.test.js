@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("twelve ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 12);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 12);
+ok("thirteen ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 13);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 13);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -172,6 +172,23 @@ ok("the tail grows out, stays, pulls back in, and is gone after that", () => {
   const back = tailOut(M, M.out + M.hold + M.back / 2); assert(back > 0 && back < 1);
   assert.strictEqual(tailOut(M, M.out + M.hold + M.back + 0.01), -1);
   assert(M.cool > M.out + M.hold + M.back, "it can only be used again after it is back in");
+});
+ok("LYTH (lyth-layout.json): pulse 480 ms, the shot at 168 ms; muzzle and thrusters match the anchors", () => {
+  const S = SHIPS.find((s) => s.id === "lyth"), A = S.anim, px = (v) => Math.round(v / A.size * 512 + 256);
+  assert.strictEqual(seqLength(A.primary), 480); assert.strictEqual(cueTime(A.primary, "left"), 168);
+  const [m] = gunsOf(S, "pulse"); assert.deepStrictEqual([px(m[0]), px(m[1])], [256, 140]);
+  assert.strictEqual(S.nozzles.map(px).join(), "235,277"); assert.strictEqual(px(S.engineY), 368);
+  const G = pulseGlow(168); assert.strictEqual(G.flash, 1); assert.strictEqual(pulseGlow(480).flash, 0);
+});
+ok("LYTH ring: unlatches 330 ms, out 960, back 900, locks 340, then home", () => {
+  const R = WEAPONS.ring;
+  assert.strictEqual(ringPhase(R, 0.1), "unlock"); assert.strictEqual(ringPhase(R, 0.5), "out");
+  assert.strictEqual(ringPhase(R, 1.5), "back"); assert.strictEqual(ringPhase(R, 2.3), "lock"); assert.strictEqual(ringPhase(R, 2.6), null);
+});
+ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
+  const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
+  for (const f of [A.idle, A.hull, A.ring, ...A.primary.map((x) => x[0])]) assert(fs.existsSync(path.join(dir, f)), f);
+  for (const n of SFX) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
 ok("crashing: gentle bumps are free, harder crashes hurt more, never more than RAM_DAMAGE", () => {
   assert.strictEqual(ramDamage(0.2), 0); assert(ramDamage(0.8) > 0 && ramDamage(1.2) > ramDamage(0.8));
