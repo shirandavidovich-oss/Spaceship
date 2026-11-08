@@ -107,9 +107,11 @@ is covered in black ink: it loses 15 health and for 20 s it cannot steer, thrust
 at the speed it had (only the planet bounces it). In a duel the inked player's own phone does that to their ship. No engine flame: it swims.
 
 **KRAAL**, the crimson hammerhead (`art/ships/kraal/`, own recorded sounds). Button 1: two parallel bolts from the two ends
-of the hammer. Button 2: lines of light run out to the two muzzles, and each sends a bolt to one point about a ship-length
-ahead of the nose; they meet there together and blow up (32 damage). Only what is at that point is hit: closer to the hull,
-the bolts have not met yet. The point is fixed when the bolts leave, so turning afterwards does not move it. No magic yet.
+of the hammer. Button 2 is **held**: lines of light run out to the two muzzles, and the longer you hold the farther ahead the bolts
+will meet (0.7 to 5 ship-lengths over 1.6 s; a faint aiming mark shows it, `CROSS_GUIDE`). Let go and each muzzle sends a bolt
+to that point; they meet there together and blow up (32 damage). Only what is at that point is hit, so you learn how long to
+hold to land it on the enemy. The point is fixed when the bolts leave. Its magic (a hammer): a fast dash at an enemy within
+2.2 screens (or straight ahead), and a blow with the hammer-head (30 damage) that knocks the enemy away.
 
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL), with its weapons and magic; tap one to fly it right away.

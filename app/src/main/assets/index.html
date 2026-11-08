@@ -264,7 +264,9 @@ const SHIPS = [
   // Button 1: two parallel bolts from the two ends of the hammer (at 80 ms). Button 2: lines of light run out to the
   // two muzzles, and at 650 ms each muzzle sends a bolt to one point ahead of the nose; they meet there 425 ms later and
   // blow up together. Only what is AT that point is hit: too close to the hull and the bolts cross behind it.
-  { id: "kraal", name: "KRAAL", rarity: "rare", mass: 1.2, fuel: 30, refill: 15, sfx: "kraal",
+  // Button 2 is held: the longer, the farther ahead the bolts meet (learn the timing to land it on the enemy).
+  // magic: hammer (a fast dash at the enemy, and a blow with the hammer-head)
+  { id: "kraal", name: "KRAAL", rarity: "rare", mass: 1.2, fuel: 30, refill: 15, sfx: "kraal", magic: "hammer",
     sfxNames: ["convergence_blast", "cross_charge", "cross_launch", "twin_fire"],
     hull: "#c0161b", wingC: "#3a0a0c", trim: "#ff6a4a", flame: "#ff4a3a",
     body: [], wing: [], nozzles: [0], engineY: 0.27, cockpit: [0, -0.2, 0.05, 0.1],
@@ -322,7 +324,10 @@ const WEAPONS = {
   // KRAAL. hammer: both muzzles, same heading. cross: two bolts to one point; `life` seconds to get there, a blast
   // of radius `r` ship-lengths there doing `dmg` once
   hammer:  { name: "פטיש",      dmg: 5,  speed: 2.5, life: 1.0, cool: 0.3,  ammo: 30, refill: 8,  r: 0.025, color: "#ff6a4a", both: true },
-  cross:   { name: "הצלבה",     dmg: 32, speed: 0,   life: 0.425, cool: 1.1, ammo: 4, refill: 9, r: 0.136, color: "#ff4a3a", converge: true },
+  //   hold: the meeting point runs from `near` to `far` ship-lengths ahead over `hold` seconds of holding; let go to fire.
+  //   The bolts take 0.3 s plus `per` seconds for each ship-length to the point
+  cross:   { name: "הצלבה",     dmg: 32, speed: 0,   life: 0.425, cool: 1.1, ammo: 4, refill: 9, r: 0.136, color: "#ff4a3a", converge: true,
+             near: 0.7, far: 5, hold: 1.6, per: 0.12 },
   dpulse:  { name: "פולס כפול", dmg: 5,  speed: 2.5, life: 1.0, cool: 0.3,  ammo: 24, refill: 7,  r: 0.025, color: "#ff68c7", cued: true },
   rift:    { name: "קרע",       dmg: 0,  speed: 0,   life: 8,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#ff68c7", rift: true },
   thorn:   { name: "קוצים",     dmg: 5,  speed: 2.6, life: 1.0, cool: 0.16, ammo: 30, refill: 8,  r: 0.02,  color: "#b8ff3a" },
@@ -359,6 +364,9 @@ const MAGIC = {
   // XELTAR's ink: like the smoke screen (hide: seconds the enemy cannot see you), but a drawn ink cloud and no pouring smoke
   //   a ship that touches the cloud is covered in black ink: it loses `dmg` health and for `stun` seconds it cannot steer,
   //   thrust or shoot; it drifts on the way it was going, at the speed it had (only the planet bounces it)
+  // KRAAL's hammer: dashes at `speed` screens a second at an enemy within `range` screens (or straight ahead), for at most
+  //   `dash` seconds; reaching it, the hammer-head hits: `dmg`, and the enemy is knocked away (`knock` screens a second)
+  hammer: { name: "מכת פטיש", range: 2.2, speed: 3.6, dash: 0.8, dmg: 30, knock: 1.4, cool: 9, look: "hammer", color: "#ff4a3a" },
   ink:   { name: "ענן דיו", pour: 0, hide: 4, cool: 12, look: "ink", color: "#8a7fd6", dmg: 15, stun: 20 },
   tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 9.6, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
 };
@@ -388,6 +396,8 @@ function enemyGuns(S) {
   const [a, b] = weaponsOf(S);
   return [plain(a) ? a : "twin", ...(plain(b) ? [b] : [])];
 }
+// KRAAL's crossfire: how far ahead (ship-lengths) the bolts meet after holding the button `held` seconds
+function crossReach(Wp, held) { return Wp.near + (Wp.far - Wp.near) * Math.min(1, held / Wp.hold); }
 // ORIAN's soak: charges for `held` seconds of holding (whole charges count; 6 at most)
 function soakCharges(M, held) { return Math.min(6, Math.floor(held / M.stage)); }
 // ORIAN's mirrors t ms into the beam: how open each one is, how lit by the star, and where its center is
@@ -1059,6 +1069,10 @@ function flyShip(dt) {
   // out of fuel: the engine stops, but a thumb still holding keeps steering, and the engine
   // starts again by itself once the tank has refilled enough
   if (soaking()) turn *= magicOf(S).steer;   // ORIAN drinking light: hard to steer
+  if (game.dash) {   // KRAAL's dash: it flies by itself (updateDash), past gravity and the engine
+    game.x = (((game.x + game.vx * dt) % WW) + WW) % WW; game.y = (((game.y + game.vy * dt) % WH) + WH) % WH;
+    return;
+  }
   if (game.inked > 0) {   // covered in the other player's ink: no steering, no engine, drifting on (the planet bounces it)
     game.inked -= dt;
     const v = game.inkV || { vx: game.vx, vy: game.vy };
@@ -1231,6 +1245,14 @@ function useMagic() {
   const S = shipById(game.ship), M = magicOf(S);
   if (!M || game.magicCool > 0 || game.dead) return;
   if (M.look === "shatter") { useShatter(S, M); return; }
+  if (M.look === "hammer") {   // KRAAL: dash at the enemy (if one is near enough) and hit it with the hammer-head
+    if (game.dash) return;
+    const near = enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < M.range * U;
+    game.magicCool = M.cool;
+    game.dash = { t: 0, locked: near, hit: false, trail: [] };
+    audio.sfx(S.sfx, "cross_charge", 0, 0.8); audio.whoosh(); buzz(50);
+    return;
+  }
   if (M.look === "chain") {   // SKARN: the jaw on chains (only while its mouth is shut)
     if (game.devour || (game.trap && game.trap.mode !== "idle" && game.trap.mode !== "loaded")) return;
     const m = mouthOf(game, S), locked = enemy.on && enemy.warp < 0.5 &&
@@ -1505,19 +1527,57 @@ function drawChainButton(b, M, ready, k) {
 // at the release the two muzzles and the meeting point are fixed in space; the bolts fly straight to it and arrive
 // together; there one blast hurts what is inside it, once. Turning or flying after that changes nothing
 const crosses = [], blasts = [];
-function crossRelease(w, S) {
+// holding button 2: the light lines charge (the frames up to the release) and the meeting point moves out;
+// letting go fires at that distance. The next one can start once the bolts are on their way and the cool-down is over
+function crossHold(dt) {
+  const w = slotWeapon(1), Wp = WEAPONS[w], S = shipById(game.ship), H = game.crossHold;
+  if (game.fire[1] !== null && !H) {
+    if (game.cool[1] > 0 || slotAmmo(1) < 1 || game.dead || (game.anim && game.anim.seq === "secondary")) return;
+    game.crossHold = { held: 0 };
+    game.anim = { seq: "secondary", t: 0 };
+    audio.sfx(S.sfx, "cross_charge");
+    return;
+  }
+  if (!H) return;
+  if (game.fire[1] !== null && !game.dead) {
+    H.held += dt;
+    if (game.anim && game.anim.seq === "secondary") game.anim.t = Math.min(game.anim.t, 640);   // the lines stay lit, ready
+    else game.anim = { seq: "secondary", t: 640 };
+    return;
+  }
+  // let go: fire
+  game.crossHold = null;
+  if (game.dead) return;
+  game.ammo[1] -= 1; game.cool[1] = Wp.cool;
+  game.anim = { seq: "secondary", t: 650 };
+  crossRelease(w, S, crossReach(Wp, H.held));
+}
+// a faint aiming mark at the meeting point while holding (CROSS_GUIDE), to learn the distances
+const CROSS_GUIDE = true;
+function drawCrossGuide() {
+  const H = game.crossHold, S = shipById(game.ship);
+  if (!CROSS_GUIDE || !H || game.dead) return;
+  const Wp = WEAPONS[slotWeapon(1)], d = crossReach(Wp, H.held), m = rotatePt(0, -d * shipSize(), game.ang), p = toScreen(game.x + m.x, game.y + m.y);
+  const r = Wp.r * shipSize() + shipSize() * 0.1;
+  ctx.save(); ctx.globalAlpha = 0.35 + 0.15 * Math.sin(time * 10); ctx.strokeStyle = "#ff6a4a"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(p.x - r * 1.5, p.y); ctx.lineTo(p.x - r * 0.5, p.y); ctx.moveTo(p.x + r * 0.5, p.y); ctx.lineTo(p.x + r * 1.5, p.y);
+  ctx.moveTo(p.x, p.y - r * 1.5); ctx.lineTo(p.x, p.y - r * 0.5); ctx.moveTo(p.x, p.y + r * 0.5); ctx.lineTo(p.x, p.y + r * 1.5); ctx.stroke();
+  ctx.restore();
+}
+function crossRelease(w, S, reach = -S.focus) {
   const size = shipSize(), at = (g) => { const m = rotatePt(g[0] * size, g[1] * size, game.ang); return { x: game.x + m.x, y: game.y + m.y }; };
-  const [a, b] = S.guns.cross.map(at), f = at([0, S.focus]);
-  const c = { w, a, b, f, t: 0, ship: S.id };
+  const Wp = WEAPONS[w], [a, b] = S.guns.cross.map(at), f = at([0, -reach]);
+  const c = { w, a, b, f, t: 0, ship: S.id, life: 0.3 + Wp.per * reach };
   crosses.push(c);
-  duelSend({ t: "cv", w, s: S.id, p: [a.x / WW, a.y / WH, b.x / WW, b.y / WH, f.x / WW, f.y / WH] });
+  duelSend({ t: "cv", w, s: S.id, l: c.life, p: [a.x / WW, a.y / WH, b.x / WW, b.y / WH, f.x / WW, f.y / WH] });
   audio.sfx(S.sfx, "cross_launch"); buzz(40);
 }
 function updateCrosses(dt) {
   for (let k = crosses.length - 1; k >= 0; k--) {
     const c = crosses[k], Wp = WEAPONS[c.w];
     c.t += dt;
-    if (c.t < Wp.life) continue;
+    if (c.t < (c.life || Wp.life)) continue;
     // they meet: one blast
     crosses.splice(k, 1);
     blasts.push({ x: c.f.x, y: c.f.y, t: 0, ship: c.ship });
@@ -1531,7 +1591,7 @@ function updateCrosses(dt) {
 function drawCrosses() {
   const size = shipSize();
   for (const c of crosses) {
-    const S = shipById(c.ship), Wp = WEAPONS[c.w], u = Math.min(1, c.t / Wp.life), img = artImage(framePath(S.anim.dir, S.anim.crossBolt));
+    const S = shipById(c.ship), Wp = WEAPONS[c.w], u = Math.min(1, c.t / (c.life || Wp.life)), img = artImage(framePath(S.anim.dir, S.anim.crossBolt));
     for (const m of [c.a, c.b]) {
       const dx = wrapDelta(c.f.x - m.x, WW), dy = wrapDelta(c.f.y - m.y, WH), p = toScreen(m.x + dx * u, m.y + dy * u), s0 = toScreen(m.x, m.y);
       // a faint red line where it flies, and the bolt
@@ -1548,6 +1608,73 @@ function drawCrosses() {
     const p = toScreen(b.x, b.y), d = size * S.anim.size * 0.5;   // its 256 px canvas at the hull's scale
     ctx.drawImage(img, p.x - d / 2, p.y - d / 2, d, d);
   }
+}
+
+// ---------- KRAAL's hammer dash ----------
+// it turns to the enemy and flies at it far faster than its engine can; on reaching it the hammer-head hits and
+// the enemy is knocked away, and KRAAL bounces back a little. No enemy near: a dash straight ahead
+function updateDash(dt) {
+  const D = game.dash, S = shipById(game.ship), M = magicOf(S);
+  if (!D) return;
+  if (!M || M.look !== "hammer" || game.dead) { game.dash = null; return; }
+  D.t += dt;
+  if (D.locked && enemy.on) {   // face the enemy (quickly) and fly at it
+    const want = Math.atan2(wrapDelta(enemy.x - game.x, WW), -wrapDelta(enemy.y - game.y, WH));
+    game.ang += wrapAngle(want - game.ang) * (1 - Math.exp(-dt * 18));
+  }
+  const v = M.speed * U;
+  game.vx = Math.sin(game.ang) * v; game.vy = -Math.cos(game.ang) * v;
+  D.trail.push({ x: game.x, y: game.y, ang: game.ang }); if (D.trail.length > 8) D.trail.shift();
+  if (!D.hit && enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < shipSize() * 0.75) {
+    // the blow
+    D.hit = true;
+    const nx = Math.sin(game.ang), ny = -Math.cos(game.ang), hx = game.x + nx * shipSize() * 0.45, hy = game.y + ny * shipSize() * 0.45;
+    hitEnemy({ x: hx, y: hy, vx: game.vx, vy: game.vy }, { dmg: M.dmg, color: "#ff4a3a" });
+    if (enemy.remote) link.send({ t: "knock", vx: nx * M.knock, vy: ny * M.knock });
+    else { enemy.vx = nx * M.knock * U; enemy.vy = ny * M.knock * U; enemy.spin = 7; }
+    burstAt(hx, hy, 40, ["#ffffff", "#ffd166", "#ff4a3a", "#c0161b"], 0.8, 0.9, enemy.vx * 0.3, enemy.vy * 0.3);
+    rings.push({ x: hx, y: hy, t: 0, max: 0.4, r: shipSize() * 1.1, c: "#ff6a4a" });
+    audio.sfx(S.sfx, "convergence_blast"); audio.boom(); shake(0.7); buzz(200);
+    game.vx = -nx * U * 0.5; game.vy = -ny * U * 0.5;   // bounced back
+    game.dash = null;
+    return;
+  }
+  if (D.t >= M.dash) { game.vx *= 0.35; game.vy *= 0.35; game.dash = null; }   // missed: it slows down again
+}
+// red streaks behind the dashing ship
+function drawDash() {
+  const D = game.dash;
+  if (!D || D.trail.length < 2) return;
+  const size = shipSize();
+  ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+  for (const sx of [-0.38, 0, 0.38]) {
+    ctx.beginPath();
+    D.trail.forEach((q, i) => { const m = rotatePt(sx * size, 0, q.ang), p = toScreen(q.x + m.x, q.y + m.y); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); });
+    ctx.strokeStyle = `rgba(255,74,58,${sx ? 0.35 : 0.5})`; ctx.lineWidth = size * (sx ? 0.06 : 0.12); ctx.stroke();
+  }
+  ctx.restore();
+}
+// the magic button: a hammer-head (the ship's own shape) with speed lines
+function drawHammerButton(b, M, ready, k) {
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (ready) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
+    gl.addColorStop(0, `rgba(255,74,58,${0.3 + 0.1 * Math.sin(time * 4)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#5a1416"); bg.addColorStop(1, "#1a0506");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(255,74,58,0.15)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = M.color; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  ctx.globalAlpha = ready ? 1 : 0.5;
+  const jig = ready ? Math.sin(time * 5) * b.r * 0.04 : 0;
+  ctx.fillStyle = "#e0262c";   // the hammer: a bar and a handle
+  ctx.fillRect(-b.r * 0.45, -b.r * 0.38 + jig, b.r * 0.9, b.r * 0.2); ctx.fillRect(-b.r * 0.08, -b.r * 0.2 + jig, b.r * 0.16, b.r * 0.45);
+  ctx.strokeStyle = "#ffb0a0"; ctx.lineWidth = b.r * 0.05;   // speed lines behind it
+  for (const x of [-0.25, 0, 0.25]) { ctx.beginPath(); ctx.moveTo(x * b.r, b.r * 0.35 + jig); ctx.lineTo(x * b.r, b.r * 0.6 + jig); ctx.stroke(); }
+  ctx.restore();
 }
 
 // ---------- the enemy's guns ----------
@@ -2371,12 +2498,12 @@ function updateEnemy(dt) {
     const hit = moveShip(enemy, E, { target: enemy.ang, turn: 0, thrust: false }, dt);
     if (hit) enemy.inkV = { vx: enemy.vx, vy: enemy.vy }; else { enemy.vx = before.vx; enemy.vy = before.vy; }
     if (Math.random() < dt * 6) burstAt(enemy.x, enemy.y, 1, ["#0a0612", "#2a1a48"], 0.08, 0.8, enemy.vx * 0.5, enemy.vy * 0.5);   // ink drips
-    if (!game.dead) bumpShips(game, shipById(game.ship), enemy, E);
+    if (!game.dead && !game.dash) bumpShips(game, shipById(game.ship), enemy, E);
     return;
   }
   const c = enemyControl(enemy, prey, shipStats(E), { ww: WW, wh: WH, u: U, planetR: planetR() });
   moveShip(enemy, E, c, dt);
-  if (!game.dead) bumpShips(game, shipById(game.ship), enemy, E);
+  if (!game.dead && !game.dash) bumpShips(game, shipById(game.ship), enemy, E);
 }
 // ships bounce off each other (the heavier one is pushed less)
 function bumpShips(a, A, b, B) {
@@ -2419,7 +2546,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -2462,9 +2589,11 @@ function updateWeapons(dt) {
   if (!game.dead) updateTrap(dt);
   updateClouds(dt);
   updateRift(dt); updateRiftBursts(dt); updateCrosses(dt);
+  if (!game.dead) updateDash(dt);
   enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
+    if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].converge) { crossHold(dt); continue; }   // KRAAL: hold to aim, let go to fire
     if (i === 1 && slotWeapon(1) && (WEAPONS[slotWeapon(1)].trap || WEAPONS[slotWeapon(1)].rift)) {   // SKARN's jaw, DRAKON's rift: each new press is one input
       if (game.fire[1] !== null && !game.trapLatch) { game.trapLatch = true; if (WEAPONS[slotWeapon(1)].rift) riftPress(); else trapPress(); }
       if (game.fire[1] === null) game.trapLatch = false;
@@ -3191,6 +3320,7 @@ function draw() {
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
       if (shown === S) drawDevour(game, S, game.devour);
+      if (shown === S) drawDash();
       if (game.inked > 0) drawInkOn(p.x, p.y, shipSize(), game.inked / MAGIC.ink.stun, 0.4);
       drawRange();
       drawRing(game.ring, S);
@@ -3203,6 +3333,7 @@ function draw() {
     drawShots(duel.shots);
     drawShots(eshots);
     drawCrosses();
+    drawCrossGuide();
     drawEggs();
     drawClouds();
     drawRiftMark(); drawRiftBursts();
@@ -3764,6 +3895,7 @@ function drawMagic() {
   if (M.look === "sun") drawSunButton(b, M, ready, k);
   if (M.look === "chain") drawChainButton(b, M, ready, k);
   if (M.look === "ink") drawInkButton(b, M, ready, k);
+  if (M.look === "hammer") drawHammerButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
     // a magic glow when ready
@@ -4208,10 +4340,12 @@ function duelLink(event, data) {
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
   } else if (m.t === "cv" && shipById(m.s) && Array.isArray(m.p)) {   // their KRAAL's crossing bolts (their phone counts the blast)
-    const q = m.p; crosses.push({ w: m.w, ship: m.s, t: 0, remote: true, a: { x: q[0] * WW, y: q[1] * WH }, b: { x: q[2] * WW, y: q[3] * WH }, f: { x: q[4] * WW, y: q[5] * WH } });
+    const q = m.p; crosses.push({ w: m.w, ship: m.s, t: 0, remote: true, life: m.l, a: { x: q[0] * WW, y: q[1] * WH }, b: { x: q[2] * WW, y: q[3] * WH }, f: { x: q[4] * WW, y: q[5] * WH } });
     audio.sfx("kraal", "cross_launch", 0, 0.7);
   } else if (m.t === "ink" && shipById(m.s)) {   // their XELTAR's ink cloud
     clouds.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, ship: m.s, remote: true }); audio.sfx("xeltar", "ink_release", 0, 0.7);
+  } else if (m.t === "knock") {   // their KRAAL's hammer hit my ship: knocked away (the damage comes with their state)
+    game.vx = m.vx * U; game.vy = m.vy * U; shake(0.7); buzz(200);
   } else if (m.t === "inked") {   // their ink got my ship (their phone saw it touch the cloud; the damage comes with their state)
     game.inked = m.n || MAGIC.ink.stun; game.inkV = { vx: game.vx, vy: game.vy }; game.thrust = null;
     burstAt(game.x, game.y, 30, ["#0a0612", "#1c1030", "#3a2a60"], 0.5, 1.0, game.vx, game.vy); shake(0.4); buzz(150);
@@ -4405,7 +4539,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id;
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();
