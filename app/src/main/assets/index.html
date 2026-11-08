@@ -493,6 +493,9 @@ const WEAPONS = {
              // after its three strikes the cloud stays `hold` s (from `holdAt`), slowly turning; a ship coming within
              // `zapR` of its radius gets a bolt (`zapDmg`, at most every `zapEvery` s). At most `max` of yours at once
              holdAt: 2.6, hold: 180, zapR: 1.6, zapDmg: 10, zapEvery: 1.4, max: 3,
+             // its own NIMBUS near it (within `zapR` of its radius) gets golden bolts that charge it, one every `chargeEvery` s:
+             // `chargeHp` health, `chargeAmmo` of each weapon's full ammo, `chargeFuel` of the tank
+             chargeEvery: 1.2, chargeHp: 8, chargeAmmo: 0.35, chargeFuel: 0.4,
              strikes: [[1.23, -39, 15], [1.83, 44, -19], [2.48, -3, -41]] },
   // CINDER. blaster: two guns taking turns. torpedo: blows up on a ship or at the end of its life; the blast reaches
   //   `blast` ship-lengths, hurts up to `blastDmg` and throws back up to `push` screens a second (less farther out)
@@ -1602,7 +1605,7 @@ function update(dt) {
   time += dt; game.t += dt;
   tintStep();
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
-  game.hacked = Math.max(0, (game.hacked || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
+  game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
   rewindTicks(dt); updatePuff(dt); updateCinder(dt);
   updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
@@ -4748,7 +4751,7 @@ const storms = [], rainbows = [];
 function startStorm(w, x, y, ang, remote) {
   const Wp = WEAPONS[w], mine = storms.filter((q) => !!q.remote === !!remote && q.t < Wp.holdAt + Wp.hold);
   if (mine.length >= Wp.max) mine[0].t = Wp.holdAt + Wp.hold;   // too many: the oldest clears now
-  storms.push({ w, x, y, ang, t: 0, struck: [false, false, false], remote, zapT: 0, bolt: null });
+  storms.push({ w, x, y, ang, t: 0, struck: [false, false, false], remote, zapT: 0, bolt: null, chargeT: 0, cbolt: null });
   audio.sfx("nimbus", "storm-release", 0, remote ? 0.7 : 1); buzz(remote ? 0 : 70);
 }
 // where a storm's middle is now (it drifts on along the heading it was let go with)
@@ -4763,7 +4766,19 @@ function updateStorms(dt) {
     T.t += dt;
     if (T.t > Wp.end + Wp.hold) { storms.splice(i, 1); continue; }
     if (T.bolt) { T.bolt.t -= dt; if (T.bolt.t <= 0) T.bolt = null; }
-    T.zapT = Math.max(0, T.zapT - dt);
+    if (T.cbolt) { T.cbolt.t -= dt; if (T.cbolt.t <= 0) T.cbolt = null; }
+    T.zapT = Math.max(0, T.zapT - dt); T.chargeT = Math.max(0, T.chargeT - dt);
+    // its own NIMBUS close by: golden bolts that charge it (mine charges me; theirs is only shown charging them)
+    if (T.t >= Wp.holdAt && T.t < Wp.holdAt + Wp.hold && T.chargeT <= 0) {
+      const c0 = stormAt(T), o = T.remote ? (enemy.on && enemy.remote ? enemy : null) : (game.dead ? null : game);
+      if (o && Math.hypot(wrapDelta(o.x - c0.x, WW), wrapDelta(o.y - c0.y, WH)) < Wp.radius * Wp.zapR * size) {
+        T.chargeT = Wp.chargeEvery; T.cbolt = { x: o.x, y: o.y, t: 0.3, seed: Math.random() * 1000 };
+        burstAt(o.x, o.y, 22, ["#ffffff", "#fff59a", "#ffd166", "#9fe8ff"], 0.45, 0.8, o.vx, o.vy);
+        rings.push({ x: o.x, y: o.y, t: 0, max: 0.35, r: size * 0.7, c: "#ffd166" });
+        audio.sfx("nimbus", "lightning-charge", 0, T.remote ? 0.5 : 0.8);
+        if (!T.remote) chargeFromStorm(Wp);
+      }
+    }
     // holding on as a thundercloud: a bolt for a ship that comes near (mine hits the enemy; theirs zaps me, their phone counts it)
     if (T.t >= Wp.holdAt && T.t < Wp.holdAt + Wp.hold && T.zapT <= 0) {
       const c0 = stormAt(T), o = T.remote ? (game.dead ? null : game) : (enemy.on && enemy.warp < 0.5 ? enemy : null);
@@ -4819,19 +4834,29 @@ function drawStorms() {
     ctx.drawImage(img, -d / 2, -d / 2, d, d);
     ctx.restore();
     if (T.bolt) drawBolt(c, toScreen(T.bolt.x, T.bolt.y), size, T.bolt.seed, T.bolt.t / 0.22);
+    if (T.cbolt) drawBolt(c, toScreen(T.cbolt.x, T.cbolt.y), size, T.cbolt.seed, T.cbolt.t / 0.3, true);
   }
 }
-// a jagged lightning bolt from the cloud to a ship: a wide blue glow, a white core, a fork or two
-function drawBolt(a, b, size, seed, k) {
+// NIMBUS charged by its own thundercloud: a little health, ammo for both weapons, fuel
+function chargeFromStorm(Wp) {
+  const S = shipById(game.ship);
+  if (!S || S.id !== "nimbus") return;
+  game.hp = Math.min(SHIP_HP, game.hp + Wp.chargeHp);
+  weaponsOf(S, game.flipMode || 0).forEach((w, i) => { game.ammo[i] = Math.min(WEAPONS[w].ammo, game.ammo[i] + WEAPONS[w].ammo * Wp.chargeAmmo); });
+  const full = shipStats(S).fuel; game.fuel = Math.min(full, game.fuel + full * Wp.chargeFuel); game.locked = false;
+  game.charged = 0.6; buzz(40);
+}
+// a jagged lightning bolt from the cloud to a ship: a wide glow, a white core, a fork or two (gold: a charging bolt)
+function drawBolt(a, b, size, seed, k, gold) {
   let r = seed; const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280 - 0.5; };
   const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, n = 9, pts = [];
   for (let i = 0; i <= n; i++) { const u = i / n, j = i && i < n ? rnd() * size * 0.35 : 0; pts.push({ x: a.x + dx * u + nx * j, y: a.y + dy * u + ny * j }); }
   const line = (q, w, c) => { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); q.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); };
   ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.globalAlpha = Math.min(1, k * 1.5);
-  line(pts, size * 0.12, "rgba(110,170,255,0.35)"); line(pts, size * 0.04, "#c8ecff"); line(pts, Math.max(1, size * 0.015), "#ffffff");
+  line(pts, size * 0.12, gold ? "rgba(255,200,80,0.4)" : "rgba(110,170,255,0.35)"); line(pts, size * 0.04, gold ? "#fff2a8" : "#c8ecff"); line(pts, Math.max(1, size * 0.015), "#ffffff");
   for (const i of [3, 6]) {   // forks
     const p = pts[i], f = [p]; for (let s2 = 1; s2 <= 3; s2++) f.push({ x: p.x + (dx / L * 0.25 + nx * rnd()) * size * 0.3 * s2, y: p.y + (dy / L * 0.25 + ny * rnd()) * size * 0.3 * s2 });
-    line(f, Math.max(1, size * 0.018), "rgba(200,236,255,0.8)");
+    line(f, Math.max(1, size * 0.018), gold ? "rgba(255,236,160,0.8)" : "rgba(200,236,255,0.8)");
   }
   ctx.restore();
 }
@@ -5566,6 +5591,11 @@ function draw() {
       if (game.inked > 0) drawInkOn(p.x, p.y, shipSize(), game.inked / MAGIC.ink.stun, 0.4);
       drawScramble(p.x, p.y, shipSize(), game.scramble);
       drawRewind(p.x, p.y, shipSize(), !!game.rw);
+      if (game.charged > 0) {   // just charged by its thundercloud: a golden glow
+        const g = ctx.createRadialGradient(p.x, p.y, shipSize() * 0.2, p.x, p.y, shipSize() * 0.9);
+        g.addColorStop(0, `rgba(255,220,120,${0.45 * game.charged / 0.6})`); g.addColorStop(1, "rgba(255,200,80,0)");
+        ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, shipSize() * 0.9, 0, TAU); ctx.fill(); ctx.restore();
+      }
       drawHacked(p.x, p.y, shipSize(), game.hacked);
       drawRange();
       drawRing(game.ring, S);

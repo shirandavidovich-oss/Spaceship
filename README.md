@@ -157,7 +157,7 @@ ship-lengths sideways, leaving a flickering decoy for 2.5 s that the enemy goes 
 then a flickering bolt (14). Button 2: the cloud banks swell and a storm is let go ahead of the ship; it drifts on by
 itself and grows, its wind swirls other ships round it, and three marked lightning strikes hit where the warnings show
 (18 each). Then it stays on as a slowly turning thundercloud for about 3 minutes: a ship that comes near gets a
-lightning bolt from it (10, at most every 1.4 s). Then it clears into a rainbow (only a picture). Up to 3 at a time. Magic: the cloud banks lift and a rainbow arc flies out (20,
+lightning bolt from it (10, at most every 1.4 s). NIMBUS itself near its own thundercloud gets golden bolts that charge it instead (every 1.2 s: +8 health, a third of each weapon's ammo, 40% of the tank). Then it clears into a rainbow (only a picture). Up to 3 at a time. Magic: the cloud banks lift and a rainbow arc flies out (20,
 and NIMBUS gets back 10 health).
 
 **REPRISE**, the modular orbital archive (`art/ships/reprise/`: four building modules put together in code). Button 1:
