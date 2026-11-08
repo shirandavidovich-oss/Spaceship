@@ -418,15 +418,19 @@ const SHIPS = [
       modules: [{ file: "building_1.webp", w: 65, h: 212 }, { file: "building_2.webp", w: 74, h: 149 }, { file: "building_3.webp", w: 76, h: 110 }, { file: "building_4.webp", w: 72, h: 78 }] } },
   // PUFF, the puffer-fish ship (art/ships/puff/: 89 frames, 560 x 560, pivot in the middle, from puff-motion.js).
   // Button 1: a burst of three copper needles. Button 2: a pressure bubble that floats out and pops on a ship (both drawn
-  // in code: the package has only their names). Magic: it puffs up in three pressure pulses and 12 spines spring out;
-  // while they are out (1.5 - 2.9 s) a ship that touches it is stabbed and thrown off, and it turns slower; then it
-  // vents and shrinks back (4.4 s)
+  // in code: the package has only their names). Magic (puff-burst.js): it puffs up in three pressure pulses (1.5 s)
+  // and 12 spines spring out; it STAYS puffed up (a ship touching it is stabbed and thrown off; it turns slower) until
+  // the next press of a fire button: then all 12 spines fly off at once, each its own way, and the hull loses its air
+  // like a let-go balloon: it shoots off a random way, fast, wobbling (0.9 s of crumpling frames). A ship it hits on
+  // that flight is blown up. It stays crumpled until it puffs up again
   { id: "puff", name: "PUFF", rarity: "rare", mass: 1.1, fuel: 30, refill: 15, sfx: null, magic: "inflate",
     hull: "#d4a020", wingC: "#5a3a10", trim: "#c86a30", flame: "#ffb347",
     body: [], wing: [], nozzles: [0], engineY: 0.42, cockpit: [0, -0.2, 0.05, 0.1],
     weapons: ["needles", "bubble"],
     guns: { needles: [[0, -0.45]], bubble: [[0, -0.45]] },
-    anim: { dir: "puff", size: 2.0, idle: "inflate_01.webp", inflate: frames("inflate", 89, () => 50) } },   // 4,450 ms
+    anim: { dir: "puff", size: 2.0, idle: "inflate_01.webp", inflate: frames("inflate", 31, () => 50),   // 1,500 ms, then held
+      collapse: Array.from({ length: 24 }, (_, i) => "collapse_" + String(i + 1).padStart(2, "0") + ".webp"),   // 40 ms each, the last held
+      shotArt: { spine: { file: "spine.webp", size: 0.225 } } } },
   // CINDER, the blockade runner (art/ships/cinder/: a hull and two engines on swivel joints, put together in code from
   // cinder-combat.js). Button 1: red bolts, taking turns from the two front blasters. Button 2: an amber concussion
   // torpedo: it blows up on a ship or after 0.95 s; the blast hurts and throws back every enemy near it. Magic, split
@@ -574,6 +578,8 @@ const WEAPONS = {
   //   `shard` shots, `splitFan` radians apart round its flight, `splitSpeed` times as fast
   mpulse:  { name: "פולס ממוקד", dmg: 15, speed: 4.4, life: 0.7, cool: 0.55, ammo: 14, refill: 6, r: 0.022, color: "#ffb347", cued: true },
   seed:    { name: "זרע מתפצל",  dmg: 9,  speed: 1.7, life: 1.6, cool: 1.4,  ammo: 5,  refill: 7, r: 0.045, color: "#b98cff", seed: true, splitAt: 0.46, splitFan: 0.32, splitSpeed: 1.52, shard: "prism" },
+  // PUFF's spines when they fly off (puff-burst.js: 12 at once, each straight out from where it sat)
+  spine:   { name: "קוץ",        dmg: 12, speed: 3.0, life: 0.78, cool: 1, ammo: 1, r: 0.03, color: "#e8b040" },
   prism:   { name: "רסיס פריזמה", dmg: 8, speed: 2.6, life: 0.6, cool: 1,    ammo: 1,  r: 0.025, color: "#d8b4ff" },
   magnet:  { name: "כדורי מגנט", dmg: 7,  speed: 1.0, life: 6.0, cool: 4.5, ammo: 1, refill: 4.5, r: 0.06, color: "#ff6ad5", pellets: 8, fan: 5.5, magnet: 1.6,
              colors: ["#ff5a5a", "#ffb347", "#fff275", "#6dff8a", "#38d8ff", "#6a7dff", "#c86bff", "#ff6ad5"] },
@@ -615,7 +621,8 @@ const LOOT = ["laser", "missile", "spread"];
 //   pour: seconds of smoke pouring out   hide: seconds the enemy loses track of you   cool: seconds until it can be used again
 const MAGIC = {
   // rate: puffs a second from each engine (three times the old 30); big: how much bigger each puff is (a real screen)
-  smoke: { name: "מסך עשן", pour: 3.5, hide: 6, cool: 14, look: "gear", color: "#e0b060", rate: 90, big: 1.5 },
+  // THUL. chem: the smoke is a green chemical haze: an enemy inside it loses `dps` health a second
+  smoke: { name: "מסך עשן", pour: 3.5, hide: 6, cool: 14, look: "gear", color: "#e0b060", rate: 90, big: 1.5, chem: { dps: 12 } },
   // (unused) a steam burst: the vents blast steam backward for `burst` s: a shove forward (`push` screens a second, every
   //   second) and a trail of scalding steam that burns a ship inside it (`scald` health a second)
   steam: { name: "פרץ קיטור", look: "steam", burst: 2.5, push: 2.4, scald: 20, cool: 10, color: "#f2f2f2" },
@@ -660,7 +667,12 @@ const MAGIC = {
   dashR: { name: "החלקה ימינה", look: "dash", dir: 1,  cool: 3.4, turn: 0.66, at: 0.17, kick: 1.8, color: "#ffa040" },
   // PUFF's inflation: while the spines are out (`guard`, seconds) a touching ship is stabbed (`dmg`, at most every
   //   `every` s) and thrown off (`knock`); it turns at `turn` of its speed while puffed up
-  inflate: { name: "התנפחות", look: "inflate", cool: 8, guard: [1.5, 2.9], dmg: 15, every: 0.6, knock: 1.3, turn: 0.4, color: "#e8b040" },
+  // PUFF: `up` s to puff up; held until a fire press; the spines fly; `down` s crumpling. `cool` counts from the spines.
+  //   Puffed up: a ship touching it takes `dmg` (every `every` s) and a shove `knock`; it turns at `turn` of its speed.
+  //   The let-go flight: `jet` s pushed `jetAcc` screens/s/s a random way (wobbling `wobble` radians), up to `jetTop`
+  //   times its top speed; a ship it hits then is blown up
+  inflate: { name: "התנפחות", look: "inflate", cool: 6, up: 1.5, down: 0.9, dmg: 15, every: 0.6, knock: 1.3, turn: 0.4,
+             jet: 1.1, jetAcc: 9, jetTop: 3, wobble: 0.7, color: "#e8b040" },
   // REPRISE's magic: the buildings rebuild into the next shape (`length` s), and the OTHER ship is sent back in time:
   //   it flies backward along its last `rewind` s, in slow motion (`slow` of real speed), and its shots in the air fly
   //   back into its guns. It cannot steer or shoot meanwhile (a clock ticks). (`echo`: the old echo, unused)
@@ -740,6 +752,16 @@ function cinderEngines(ms, dir) {
   const e = (v) => { const t = Math.max(0, Math.min(1, v)); return t * t * (3 - 2 * t); };
   const piv = ms < 0 ? 0 : e(ms / 170) * (1 - e((ms - 330) / 330)), flare = ms < 0 ? 0 : e((ms - 90) / 85) * (1 - e((ms - 255) / 135));
   return [20, -20].map((rest) => ({ angle: (rest + (dir * 83 - rest) * piv) * Math.PI / 180, flare: 0.18 + 0.82 * flare }));
+}
+// PUFF puffed up: where its 12 spines sit (px of the 560 canvas from the middle) and which way each points (degrees)
+const PUFF_SPINES = [[0, -184.2, 0], [96.3, -159.5, 30], [166.7, -92.1, 60], [192.5, 0, 90], [166.7, 92.1, 120], [96.3, 159.5, 150],
+  [0, 184.2, 180], [-96.3, 159.5, 210], [-166.7, 92.1, 240], [-192.5, 0, 270], [-166.7, -92.1, 300], [-96.3, -159.5, 330]];
+// the drawing for a PUFF state: up (puffing, s), full, down (crumpling, s), flat (crumpled); null: as usual
+function puffFrame(st, t) {
+  if (st === "up") return "inflate_" + String(Math.min(31, Math.floor(t * 20) + 1)).padStart(2, "0") + ".webp";
+  if (st === "full") return "inflate_31.webp";
+  if (st === "down" || st === "flat") return "collapse_" + String(st === "flat" ? 24 : Math.min(24, Math.floor(t * 25) + 1)).padStart(2, "0") + ".webp";
+  return null;
 }
 // PUFF (puff-motion.js): how puffed up it is ms into the inflation: the membrane's half-width (px of the 560 canvas),
 // and whether the spines guard
@@ -1721,7 +1743,7 @@ function update(dt) {
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
-  rewindTicks(dt); updatePuff(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
+  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
   updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
@@ -1784,7 +1806,7 @@ function flyShip(dt) {
   // out of fuel: the engine stops, but a thumb still holding keeps steering, and the engine
   // starts again by itself once the tank has refilled enough
   if (soaking()) turn *= magicOf(S).steer;   // ORIAN drinking light: hard to steer
-  if (S.magic === "inflate" && puffing(game, game.anim)) turn *= MAGIC.inflate.turn;   // PUFF puffed up: turns slowly
+  if (S.magic === "inflate" && puffing(game)) turn *= MAGIC.inflate.turn;   // PUFF puffed up: turns slowly
   const anchored = anchoring();
   if (game.dash) {   // KRAAL's dash: it flies by itself (updateDash), past gravity and the engine
     game.x = (((game.x + game.vx * dt) % WW) + WW) % WW; game.y = (((game.y + game.vy * dt) % WH) + WH) % WH;
@@ -1865,7 +1887,7 @@ function moveShip(o, S, c, dt) {
   o.vx += g.ax * dt; o.vy += g.ay * dt;
 
   // 4. no air in space: the ship keeps flying, up to its top speed
-  const sp = Math.hypot(o.vx, o.vy), top = st.top * U;
+  const sp = Math.hypot(o.vx, o.vy), top = st.top * U * (o === game && game.puffJet ? MAGIC.inflate.jetTop : 1);   // (PUFF let go: faster)
   if (sp > top) { const k = lerp(1, top / sp, 1 - Math.exp(-dt * 4)); o.vx *= k; o.vy *= k; }
   o.x += o.vx * dt; o.y += o.vy * dt;
   o.x = ((o.x % WW) + WW) % WW; o.y = ((o.y % WH) + WH) % WH;
@@ -1933,12 +1955,32 @@ function exhausts(o, S) {
   });
 }
 // one puff of smoke behind a ship. big: 1 = a normal puff; the smoke screen uses bigger, darker, longer ones
-function smokeAt(x, y, o, S, big = 1, life = 1.6) {
+function smokeAt(x, y, o, S, big = 1, life = 1.6, chem = false) {
   const back = U * 0.25 * (0.5 + Math.random()), a = o.ang + (Math.random() - 0.5) * 0.9;
   const g = 70 + Math.round(Math.random() * 50);
+  // chemical (THUL's screen): sickly greens, from dark olive to a poisonous yellow-green
+  const c = chem ? `hsl(${72 + Math.random() * 38},${38 + Math.random() * 28}%,${18 + Math.random() * 17}%)` : `rgb(${g},${g},${g + 8})`;
   parts.push({ w: true, smoke: true, x, y, vx: o.vx * 0.4 - Math.sin(a) * back, vy: o.vy * 0.4 + Math.cos(a) * back,
     life: 0, max: life * (0.7 + Math.random() * 0.6), s: shipSize() * 0.07 * big, grow: 1.6 + Math.random(),
-    c: `rgb(${g},${g},${g + 8})`, op: big > 3.6 ? 0.97 : big > 1.5 ? 0.85 : 0.55 });   // (THUL's screen: nearly solid)
+    c, op: big > 3.6 ? 0.97 : big > 1.5 ? 0.85 : 0.55, chem, mine: o === game });   // (THUL's screen: nearly solid)
+  if (chem && Math.random() < 0.35)   // bubbles and specks of the chemical glowing in it
+    parts.push({ w: true, x: x + (Math.random() - 0.5) * U * 0.1, y: y + (Math.random() - 0.5) * U * 0.1, vx: o.vx * 0.3 - Math.sin(a) * back * 1.2, vy: o.vy * 0.3 + Math.cos(a) * back * 1.2,
+      life: 0, max: life * 0.6, s: shipSize() * (0.015 + Math.random() * 0.025), c: Math.random() < 0.5 ? "#c8ff4a" : "#7dff9a", glow: true });
+}
+// my chemical smoke: an enemy inside it is eaten away (my phone counts it, in a duel too)
+function chemSmoke(dt) {
+  const M = MAGIC.smoke;
+  if (!enemy.on || enemy.warp >= 0.5) return;
+  let inside = false;
+  for (const p of parts) {
+    if (!p.chem || !p.mine) continue;
+    const t = p.life / p.max, r = p.s * (1 + t * p.grow * 2);
+    if (t > 0.85) continue;
+    if (Math.abs(wrapDelta(enemy.x - p.x, WW)) < r && Math.hypot(wrapDelta(enemy.x - p.x, WW), wrapDelta(enemy.y - p.y, WH)) < r + shipSize() * 0.2) { inside = true; break; }
+  }
+  if (!inside) { game.chemAcc = 0; return; }
+  game.chemAcc = (game.chemAcc || 0) + M.chem.dps * dt;
+  if (game.chemAcc >= 3) { const n = Math.floor(game.chemAcc); game.chemAcc -= n; harmEnemy(n); burstAt(enemy.x, enemy.y, 4, ["#c8ff4a", "#7dff9a", "#3a5a10"], 0.25, 0.6, enemy.vx, enemy.vy); }
 }
 
 // ---------- the body in the middle (BODIES) ----------
@@ -1995,9 +2037,9 @@ function useMagic(which = 0) {
     return;
   }
   if (M.look === "dash") { cinderSlip(M); return; }   // CINDER: slip left
-  if (M.look === "inflate") {   // PUFF: puff up (the frames play; the spines guard in their window: updatePuff)
-    if (game.anim) return;
-    game.magicCool = M.cool; game.anim = { seq: "inflate", t: 0 };
+  if (M.look === "inflate") {   // PUFF: puff up (from small or crumpled); it stays up until a fire press (puffBurst)
+    if (game.puff && game.puff.st !== "flat") return;
+    game.puff = { st: "up", t: 0, armed: false }; game.anim = null;
     for (let i = 0; i < 3; i++) audio.tone(120 + i * 40, 0.25, "sine", 0.06, 1.6, 0.3 + i * 0.28);   // three pressure pulses
     audio.noise(0.4, 0.08, 1500); buzz(60);
     return;
@@ -2213,7 +2255,7 @@ function updateMagic(dt) {
   game.magicPour -= dt;
   // thick smoke pours from the engines and hangs in space
   game.smokeAcc = (game.smokeAcc || 0) + (M.rate || 30) * dt;
-  for (; game.smokeAcc >= 1; game.smokeAcc--) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, (2.6 + Math.random() * 1.5) * (M.big || 1), M.hide - 0.5);
+  for (; game.smokeAcc >= 1; game.smokeAcc--) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, (2.6 + Math.random() * 1.5) * (M.big || 1), M.hide - 0.5, !!M.chem);
 }
 
 // ---------- SKARN's magic: the jaw on chains ----------
@@ -3713,7 +3755,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null;
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -3855,6 +3897,7 @@ function updateWeapons(dt) {
 //  secondary (button 2): the iris winds up first; the shot leaves at the "fire" frame (the big flash)
 function shoot(i) {
   if (game.dive) return;   // BORER in its dive: no firing
+  if (game.puff && game.puff.st === "full") { if (game.puff.armed) puffBurst(); return; }   // PUFF: this press lets the spines go
   const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
@@ -4364,6 +4407,7 @@ function drawShip(S, x, y, size, o = {}) {
 
   // a real drawing of the ship, once there is one
   let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep, o.cin || { power: o.power }, o.power);
+  if (o.frame && S.anim) img = artImage(framePath(S.anim.dir, o.frame)) || img;   // PUFF: puffed / crumpled
   if (o.drill && S.anim && S.anim.spin && o.drill.mix > 0.5) img = artImage(framePath(S.anim.dir, S.anim.spin[o.drill.frame])) || img;   // BORER's drill turning
   // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
   // Grinding: the hull, and the ring drawn on its own, spinning, with its teeth out
@@ -5012,17 +5056,19 @@ function drawDashButton(b, M, ready, k) {
   ctx.restore();
 }
 // ---------- PUFF: puffed up, the spines; the bubbles ----------
-function puffing(o, a) { return !!a && a.seq === "inflate"; }
+function puffing(o) { return !!game.puff && (game.puff.st === "up" || game.puff.st === "full"); }
 function updatePuff(dt) {
-  const S = shipById(game.ship), a = game.anim;
+  const S = shipById(game.ship), P = game.puff, M = MAGIC.inflate;
   game.puffHitT = Math.max(0, (game.puffHitT || 0) - dt);
-  if (!S || S.magic !== "inflate" || !puffing(game, a) || game.dead) return;
-  const M = MAGIC.inflate, P = puffPose(a.t);
-  if (a.t > 2940 && a.t < 3500 && Math.random() < dt * 40) {   // venting: little puffs out of it
-    const r = Math.random() * TAU; burstAt(game.x + Math.cos(r) * shipSize() * 0.5, game.y + Math.sin(r) * shipSize() * 0.5, 1, ["#cfe8e0", "#ffffff"], 0.2, 0.6);
-  }
-  if (!P.guard || game.puffHitT > 0 || !enemy.on || enemy.warp >= 0.5) return;
-  const reach = (P.rx + 45) / 560 * S.anim.size * shipSize() + shipSize() * 0.35;   // to the spine tips, plus the other ship
+  if (!S || S.magic !== "inflate" || !P || game.dead) return;
+  P.t += dt;
+  if (P.st === "up" && P.t >= M.up) { P.st = "full"; P.t = 0; P.armed = false; audio.tone(90, 0.3, "sine", 0.05, 1.2); }
+  if (P.st === "full" && game.fire.every((f) => f === null)) P.armed = true;   // a fresh press, not a held one
+  if (P.st === "down" && P.t >= M.down) { P.st = "flat"; P.t = 0; }
+  updatePuffJet(dt, S, M);
+  if (P.st !== "full" || game.puffHitT > 0 || !enemy.on || enemy.warp >= 0.5) return;
+  // puffed up: a ship touching the spines is stabbed and thrown off
+  const reach = (202 + 45) / 560 * S.anim.size * shipSize() + shipSize() * 0.35;   // to the spine tips, plus the other ship
   const dx = wrapDelta(enemy.x - game.x, WW), dy = wrapDelta(enemy.y - game.y, WH), d = Math.hypot(dx, dy) || 1;
   if (d > reach) return;
   game.puffHitT = M.every;
@@ -5030,6 +5076,39 @@ function updatePuff(dt) {
   if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + dx / d * M.knock, vy: enemy.vy / U + dy / d * M.knock });
   else { enemy.vx += dx / d * M.knock * U; enemy.vy += dy / d * M.knock * U; enemy.spin = 5; }
   burstAt(game.x + dx / d * reach * 0.8, game.y + dy / d * reach * 0.8, 18, ["#ffffff", "#e8b040", "#c86a30"], 0.5, 0.7); shake(0.4); buzz(120);
+}
+// the press: all 12 spines fly off at once, and the hull, losing its air, shoots off a random way
+function puffBurst() {
+  const S = shipById(game.ship), M = MAGIC.inflate, Wp = WEAPONS.spine, size = shipSize(), k = S.anim.size / 560, v = Wp.speed * U;
+  for (const [px, py, deg] of PUFF_SPINES) {
+    const m = rotatePt(px * k * size, py * k * size, game.ang), a = game.ang + deg * Math.PI / 180;
+    const q = { w: "spine", x: game.x + m.x, y: game.y + m.y, vx: game.vx + Math.sin(a) * v, vy: game.vy - Math.cos(a) * v, life: 0 };
+    shots.push(q);
+    if (duel.stage === "on") { q.id = ++shotSeq; duelSend({ t: "f", w: "spine", ...netPos(q), s: S.id, id: q.id }); }
+  }
+  game.puff = { st: "down", t: 0 }; game.magicCool = M.cool;
+  game.puffJet = { t: 0, a: Math.random() * TAU, hit: false };
+  burstAt(game.x, game.y, 30, ["#ffffff", "#cfe8e0", "#e8b040"], 0.8, 0.6, game.vx, game.vy);
+  audio.noise(0.15, 0.25, 3000); audio.tone(420, 1.0, "sawtooth", 0.05, 0.25); audio.tone(300, 0.9, "square", 0.03, 0.4, 0.05);   // the pop, then the air rushing out
+  shake(0.6); buzz(150);
+}
+// the let-go flight: pushed a random way, wobbling, air streaming out of the back; a ship it hits is blown up
+function updatePuffJet(dt, S, M) {
+  const J = game.puffJet;
+  if (!J) return;
+  J.t += dt;
+  if (J.t > M.jet || game.dead) { game.puffJet = null; return; }
+  const a = J.a + Math.sin(J.t * 11) * M.wobble, ax = Math.sin(a), ay = -Math.cos(a);
+  game.vx += ax * M.jetAcc * U * dt; game.vy += ay * M.jetAcc * U * dt;
+  if (Math.random() < dt * 50) burstAt(game.x - ax * shipSize() * 0.3, game.y - ay * shipSize() * 0.3, 2, ["#cfe8e0", "#ffffff"], 0.25, 0.5, -ax * U * 1.2, -ay * U * 1.2);
+  if (J.hit || !enemy.on || enemy.warp >= 0.5) return;
+  if (Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) > shipSize() * 0.75) return;   // (before the ships bounce apart, at 0.62)
+  J.hit = true;
+  const E = shipById(enemy.ship);
+  burstAt(enemy.x, enemy.y, 110, ["#ffffff", "#ffd166", "#e8b040", E.hull, E.trim], 1.6, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
+  rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.6, r: shipSize() * 2.4, c: "#e8b040" });
+  game.flash = 0.2; audio.boom(); shake(1.2); buzz(300);
+  harmEnemy(9999);   // blown up (in a duel: my phone sends the damage)
 }
 // a pressure bubble: see-through, a shine, swelling a little as it floats
 function drawBubble(s) {
@@ -5982,6 +6061,7 @@ function preloadArt() {
     if (A.mech) for (const k of ["pin", "rail", "scatter", "wave", "magic"]) all.push(...A[k].map((x) => x[0]));
     if (A.lens) all.push(...A.lens.map((x) => x[0]));
     if (A.inflate) all.push(...A.inflate.map((x) => x[0]));
+    if (A.collapse) all.push(...A.collapse);
     if (A.swim) all.push(...A.swim.flat());
     if (A.field) all.push(...A.field, ...A.arc, ...A.rainbow.map((x) => x[0]), ...A.shotArt.lightning.frames);
     if (S.grows) for (let i = 0; i <= 5; i++) talusPicture(S, i, []);
@@ -6089,6 +6169,10 @@ function drawParts() {
       ctx.beginPath(); ctx.arc(q.x, q.y, p.s * (1 + t * p.grow * 2), 0, 6.2832); ctx.fill();
       continue;
     }
+    if (p.glow) {   // a glowing speck of the chemical
+      ctx.globalAlpha = k * 0.9; ctx.globalCompositeOperation = "lighter"; ctx.beginPath(); ctx.arc(q.x, q.y, p.s * (0.6 + 0.4 * Math.sin(p.life * 20)), 0, 6.2832); ctx.fill(); ctx.globalCompositeOperation = "source-over";
+      continue;
+    }
     if (p.star)starShape(q.x, q.y, p.s * 1.3);
     else { ctx.beginPath(); ctx.arc(q.x, q.y, p.s * k + 0.5, 0, 6.2832); ctx.fill(); }
   }
@@ -6167,7 +6251,7 @@ function draw() {
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
-          half: shown === S && game.splitUsed ? "rear" : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
+          half: shown === S && game.splitUsed ? "rear" : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
       if (dug) ctx.restore();
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
@@ -6419,7 +6503,7 @@ function drawEnemy() {
     if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
+    drawShip(E, p.x, p.y, size * esc, { frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
@@ -6622,6 +6706,10 @@ function drawShots(list = shots) {
       continue;
     }
     if (s.w === "seed") { drawSeed(s, p, size); continue; }
+    if (s.w === "spine") {   // PUFF's spine, flying point first (anchor (15,58) of its 30 x 63 drawing)
+      const im = artImage(framePath("puff", "spine.webp")), L = size * 0.225;
+      if (im) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(s.vx, -s.vy)); ctx.drawImage(im, -L * 15 / 63, -L * 58 / 63, L * 30 / 63, L); ctx.restore(); continue; }
+    }
     if (s.w === "twin" || s.w === "laser" || s.w === "spread" || s.w === "neon" || s.w === "amber" || s.w === "floors" || s.w === "needles" || s.w === "blaster" || s.w === "mpulse" || s.w === "prism" || s.w === "shrapnel") {
       const len = size * (s.w === "mpulse" ? 0.32 : s.w === "prism" ? 0.14 : s.w === "shrapnel" ? 0.09 : s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : s.w === "neon" ? 0.2 : s.w === "amber" ? 0.22 : s.w === "floors" ? 0.14 : s.w === "needles" ? 0.13 : s.w === "blaster" ? 0.22 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
       ctx.strokeStyle = hexA(Wp.color, 0.35); ctx.lineWidth = wd * 2.6;
@@ -7510,7 +7598,7 @@ function updateRival(dt) {
   } else if (!n.d && !enemy.on) { enemy.on = true; enemy.warp = 1; enemy.x = tx; enemy.y = ty; duel.roundStart = game.t; }
   if (!enemy.on) return;
   // THUL's smoke pouring out of their engines
-  if (n.mp) { duel.smokeAcc = (duel.smokeAcc || 0) + ((magicOf(E) || {}).rate || 30) * dt; for (; duel.smokeAcc >= 1; duel.smokeAcc--) for (const e of exhausts(enemy, E)) smokeAt(e.x, e.y, enemy, E, (2.6 + Math.random() * 1.5) * ((magicOf(E) || {}).big || 1), 5.5); }
+  if (n.mp) { duel.smokeAcc = (duel.smokeAcc || 0) + ((magicOf(E) || {}).rate || 30) * dt; for (; duel.smokeAcc >= 1; duel.smokeAcc--) for (const e of exhausts(enemy, E)) smokeAt(e.x, e.y, enemy, E, (2.6 + Math.random() * 1.5) * ((magicOf(E) || {}).big || 1), 5.5, !!(magicOf(E) || {}).chem); }
   if (n.stm && Math.random() < 40 * dt) for (const e of exhausts(enemy, E)) steamPuff(enemy, e, true);   // their THUL's steam (only shown)
   // VEXAR's tail: it moves with their ship here (their phone decides what it touches)
   const M = magicOf(E);
@@ -7609,7 +7697,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
@@ -7844,7 +7932,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 function tryShip(id) {
   game.ship = id;
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();
