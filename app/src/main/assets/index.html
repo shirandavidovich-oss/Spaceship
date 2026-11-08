@@ -101,13 +101,21 @@ const SHIPS = [
     body: [[0, -0.5], [0.06, -0.42], [0.12, -0.2], [0.14, 0.2], [0.06, 0.47]],
     wing: [[0.12, -0.18], [0.3, -0.36], [0.5, -0.1], [0.44, 0.1], [0.5, 0.3], [0.3, 0.2], [0.13, 0.3]],
     nozzles: [-0.24, -0.08, 0.08, 0.24], engineY: 0.4, cockpit: [0, -0.3, 0.05, 0.08] },
-  // the first real drawing: art/ships/brass.png. Twin cannon on the left pod, the brass "eye" on the right.
+  // THUL, the orange mechanical gunship: the first ship with real drawings, in art/ships/thul/
+  // (512 x 512, center pivot, nose up). Twin cannon on the left pod, the brass iris on the right.
   // steam: a mechanical engine that coughs, backfires, creaks, and now and then goes out (smoke only)
   // magic: the gear button (not a weapon): a smoke screen that makes the ship hard to find
-  { id: "brass", name: "סערת פליז", rarity: "legendary", mass: 1.4, fuel: 30, refill: 15, art: true, steam: true, magic: "smoke",
+  // Points from the drawings: (pixel - 256) / 512 * anim.size  (size: the 512 canvas is drawn 1.2 ship-lengths wide)
+  { id: "brass", name: "THUL", rarity: "legendary", mass: 1.4, fuel: 30, refill: 15, steam: true, magic: "smoke",
     hull: "#ff6a1a", wingC: "#3a3a40", trim: "#e0b060", flame: "#ff8c1a",
-    body: [], wing: [], nozzles: [-0.178, 0.174], engineY: 0.45, cockpit: [0, -0.3, 0.05, 0.1],
-    weapons: ["twin", "iris"], guns: { twin: [[-0.31, -0.3], [-0.25, -0.3]], iris: [[0.287, -0.2]] } }
+    body: [], wing: [], nozzles: [-0.166, 0.173], engineY: 0.47, cockpit: [0, -0.3, 0.05, 0.1],
+    weapons: ["twin", "iris"],
+    // muzzles from thul_animation.json: primaryLeft (117,130), primaryRight (144,127), secondary (378,146)
+    guns: { twin: [[-0.326, -0.295], [-0.262, -0.302]], iris: [[0.286, -0.258]] },
+    anim: { dir: "thul", size: 1.2, idle: "idle",
+      // frame durations (ms) and the moment each shot leaves, from thul_animation.json
+      primary:   [["primary_01", 50], ["primary_02", 70, "left"], ["primary_03", 70, "right"], ["primary_04", 75], ["primary_05", 110]],
+      secondary: [["secondary_01", 120], ["secondary_02", 155], ["secondary_03", 210, "fire"], ["secondary_04", 115], ["secondary_05", 190]] } }
 ];
 const shipById = (id) => SHIPS.find((s) => s.id === id) || null;
 
@@ -151,6 +159,12 @@ function pelletAngles(W) {
   if (n === 1) return [0];
   return Array.from({ length: n }, (_, i) => (i / (n - 1) - 0.5) * W.fan);
 }
+// ---- firing animations (frames with durations; time in ms, so they run the same at any screen speed) ----
+function seqLength(seq) { return seq.reduce((a, f) => a + f[1], 0); }
+// which frame shows at time t (-1 = finished: back to idle)
+function seqFrame(seq, t) { let a = 0; for (let i = 0; i < seq.length; i++) { a += seq[i][1]; if (t < a) return i; } return -1; }
+// when the frame carrying `cue` starts
+function cueTime(seq, cue) { let a = 0; for (const f of seq) { if (f[2] === cue) return a; a += f[1]; } return -1; }
 // a homing shot turns its flight toward the target by at most `turn` radians, keeping its speed
 function steerShot(vx, vy, tx, ty, turn) {
   const sp = Math.hypot(vx, vy) || 1, a = Math.atan2(vy, vx), want = Math.atan2(ty, tx);
@@ -356,12 +370,16 @@ const audio = {
     s.connect(f); f.connect(g); g.connect(this.out); s.start();
   },
   shot(w) {
-    if (w === "twin") { this.tone(260, 0.07, "square", 0.05, 0.45); this.noise(0.06, 0.12, 2500); }
-    else if (w === "iris") { this.tone(130, 0.55, "sawtooth", 0.1, 3.2); this.tone(700, 0.45, "sine", 0.08, 0.35); }
+    // twin cannon: a quick metal snap and a short spring chatter
+    if (w === "twin") { this.tone(1900, 0.03, "square", 0.04, 0.5); this.noise(0.06, 0.14, 2600); [0.04, 0.07, 0.1].forEach((d) => this.tone(700, 0.025, "triangle", 0.02, 0.8, d)); }
+    // iris: the heavy release (the gear grind and the latch come first, in windUp)
+    else if (w === "iris") { this.noise(0.5, 0.45, 900); this.tone(90, 0.6, "sawtooth", 0.16, 0.4); this.tone(700, 0.4, "sine", 0.06, 0.35); }
     else if (w === "laser") this.tone(1500, 0.12, "sawtooth", 0.05, 0.3);
     else if (w === "missile") { this.tone(320, 0.35, "triangle", 0.1, 0.4); this.noise(0.3, 0.08, 1200); }
     else this.noise(0.12, 0.2, 1800);
   },
+  // the iris winding up: a rising gear grind, then the latch clicks
+  windUp() { this.tone(70, 0.28, "sawtooth", 0.06, 3); this.tone(140, 0.28, "square", 0.025, 2.5); this.tone(2200, 0.03, "square", 0.05, 0.6, 0.25); },
   hit() { this.tone(950, 0.05, "square", 0.04, 0.5); },
   boom() { this.noise(1.3, 0.6, 500); this.tone(70, 1.1, "sawtooth", 0.25, 0.3); this.tone(140, 0.6, "square", 0.1, 0.3); },
   pickup() { [660, 880, 1320].forEach((f, i) => this.tone(f, 0.25, "triangle", 0.12, 1, i * 0.07)); },
@@ -428,7 +446,8 @@ const game = {
   magicPour: 0,     // seconds of smoke still pouring out
   hidden: 0,        // seconds the enemy cannot see you
   gear: 0,          // how far the gear button has turned
-  magicFinger: null
+  magicFinger: null,
+  anim: null        // the firing drawings playing now: { seq: "primary" | "secondary", t: ms, pending }
 };
 function fillAmmo() { const S = shipById(game.ship); game.ammo = weaponsOf(S).map((w) => WEAPONS[w].ammo); }
 // start: just above the planet, so its pull is felt at once
@@ -829,6 +848,7 @@ function slotAmmo(i) { return i < 2 ? game.ammo[i] : game.loot ? game.loot.ammo 
 function updateWeapons(dt) {
   const S = shipById(game.ship);
   weaponsOf(S).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt); });
+  updateAnim(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
     if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && slotAmmo(i) >= 1) shoot(i);
@@ -863,21 +883,59 @@ function updateWeapons(dt) {
   for (let k = rings.length - 1; k >= 0; k--) { rings[k].t += dt; if (rings[k].t > rings[k].max) rings.splice(k, 1); }
 }
 
+// a trigger pull. With a ship that has firing drawings (anim), the drawings lead:
+//  primary (button 1): each shot jumps to the frame where that barrel flashes, then the frames settle back to idle
+//  secondary (button 2): the iris winds up first; the shot leaves at the "fire" frame (the big flash)
 function shoot(i) {
-  const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), size = shipSize();
-  const guns = gunsOf(S, w), g = guns[game.barrel[i]++ % guns.length];
+  const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
+  game.cool[i] = Wp.cool;
+  if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
+  if (A && i === 1) {   // the secondary waits for its wind-up
+    game.anim = { seq: "secondary", t: 0, pending: w };
+    audio.windUp();
+    return;
+  }
+  const guns = gunsOf(S, w), b = game.barrel[i]++ % guns.length;
+  if (A && i === 0 && !(game.anim && game.anim.seq === "secondary"))
+    game.anim = { seq: "primary", t: Math.max(0, cueTime(A.primary, b === 0 ? "left" : "right")) };
+  spawnShots(w, guns[b]);
+  audio.shot(w);
+}
+// the shots leave from a gun point on the ship, turned with the ship
+function spawnShots(w, g) {
+  const Wp = WEAPONS[w], S = shipById(game.ship), size = shipSize();
   const m = rotatePt(g[0] * size, g[1] * size, game.ang);
   const x = game.x + m.x, y = game.y + m.y;
   for (const a of pelletAngles(Wp)) {
     const dir = game.ang + a, v = Wp.speed * U;
     shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * v, vy: game.vy - Math.cos(dir) * v, life: 0 });
   }
-  burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
+  // the drawings already have their own muzzle flash; drawn ships get a little spark burst
+  if (!S.anim) burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
+  else if (w === "iris") burstAt(x, y, 10, ["#fff3b0", "#ffb347"], 0.3, 0.6, game.vx, game.vy);
   // the big brass shot kicks the ship back a little
   if (w === "iris") { game.vx -= Math.sin(game.ang) * U * 0.08; game.vy += Math.cos(game.ang) * U * 0.08; buzz(35); }
-  game.cool[i] = Wp.cool;
-  if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
-  audio.shot(w);
+}
+// moves the firing drawings along; each shot cue fires once, even if a slow frame jumps past it
+function updateAnim(dt) {
+  const a = game.anim, A = shipById(game.ship).anim;
+  if (!a || !A) { game.anim = null; return; }
+  const seq = A[a.seq], before = a.t;
+  a.t += dt * 1000;
+  if (a.pending) {
+    const cue = cueTime(seq, "fire");
+    if (before <= cue && a.t >= cue || seqFrame(seq, a.t) < 0) {
+      spawnShots(a.pending, gunsOf(shipById(game.ship), a.pending)[0]); audio.shot(a.pending); a.pending = null;
+    }
+  }
+  if (seqFrame(seq, a.t) < 0) game.anim = null;   // after frame 5: back to idle
+}
+// which drawing the player's ship shows now
+function shipFrame(S) {
+  if (!S.anim) return null;
+  const a = game.anim;
+  if (a && S.id === game.ship) { const f = seqFrame(S.anim[a.seq], a.t); if (f >= 0) return S.anim[a.seq][f][0]; }
+  return S.anim.idle;
 }
 
 function hitEnemy(s, Wp) {
@@ -1003,7 +1061,9 @@ function drawShip(S, x, y, size, o = {}) {
   // a real drawing of the ship, once there is one
   const img = shipArt(S);
   if (img) {
-    const k = 1 / Math.max(img.width, img.height);
+    // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
+    // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
+    const k = S.anim ? S.anim.size / img.width : 1 / Math.max(img.width, img.height);
     ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
     ctx.restore();
     return;
@@ -1046,13 +1106,27 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.fillStyle = cg; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, 6.2832); ctx.fill(); ctx.stroke();
   ctx.restore();
 }
-// ship drawings: art/ships/<id>.png, loaded once, only for ships marked  art: true
+// ship drawings, loaded once each:
+//   ships with frames (anim): art/ships/<anim.dir>/<frame>.png  (all frames are loaded at the start, so firing never waits)
+//   ships with one drawing (art: true): art/ships/<id>.png
 const artCache = {};
-function shipArt(S) {
-  if (!S.art) return null;
-  let a = artCache[S.id];
-  if (!a) { a = artCache[S.id] = new Image(); a.src = "art/ships/" + S.id + ".png"; }
+function artImage(src) {
+  let a = artCache[src];
+  if (!a) { a = artCache[src] = new Image(); a.src = src; }
   return a.complete && a.naturalWidth ? a : null;
+}
+function shipArt(S) {
+  if (S.anim) {
+    const idle = artImage("art/ships/" + S.anim.dir + "/" + S.anim.idle + ".png");
+    const f = artImage("art/ships/" + S.anim.dir + "/" + shipFrame(S) + ".png");
+    return f || idle;   // a frame still loading: show idle meanwhile
+  }
+  if (!S.art) return null;
+  return artImage("art/ships/" + S.id + ".png");
+}
+function preloadArt() {
+  for (const S of SHIPS) if (S.anim) for (const f of [S.anim.idle, ...S.anim.primary.map((x) => x[0]), ...S.anim.secondary.map((x) => x[0])])
+    artImage("art/ships/" + S.anim.dir + "/" + f + ".png");
 }
 function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
 function shade(hex, k) {
@@ -1672,6 +1746,7 @@ function cross(x, y, r, color = "#ff6b6b") {
 // ======================================================================
 resize();
 placeShip();
+preloadArt();
 let last = performance.now(), frameDt = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; frameDt = dt;
@@ -1680,7 +1755,7 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 // test hooks (used by the screenshot checks on a computer)
-window.__ship = { game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic };
+window.__ship = { SHIPS, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic };
 </script>
 </body>
 </html>

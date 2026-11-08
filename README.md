@@ -23,7 +23,10 @@ A new enemy arrives a few seconds later.
 is a turning brass gear: tap it and thick smoke pours from the engines; for a few seconds the enemy
 cannot see you and searches where it last saw you. Then the gear recharges (its brass fills back in).
 
-**The brass ship (סערת פליז)** has a mechanical steam engine: a ragged flame, backfires, creaks and
+**THUL**, the orange mechanical gunship, is the first ship with real drawings (`art/ships/thul/`: an idle
+sprite and 5 firing frames per weapon, 512 × 512, center pivot, nose up). Button 1 plays the twin-cannon frames
+and each shot leaves from the barrel that flashes; button 2 winds up the brass iris and the shot leaves at
+the big flash. Frames are timed in milliseconds, so they run the same on any screen. It has a mechanical steam engine: a ragged flame, backfires, creaks and
 squeaks, and now and then the fire goes out for a moment (no push, only smoke). While testing, everyone
 flies it (`TRY_SHIP` at the top of the game; set it to `""` for the gift's surprise again).
 Swipe up to offer a trade with a phone nearby; the swap happens only if both players say yes.
@@ -43,7 +46,7 @@ so game changes arrive without reinstalling.
 |---|---|
 | The game (settings at the top; ship numbers in `SHIPS`) | `app/src/main/assets/index.html` |
 | Rule checks (35° = still, tilt points the nose, fuel colors, gift odds, weapons) | `tests/ship.test.js` |
-| Ship drawings: `app/src/main/assets/art/ships/<id>.png`, nose up, see-through background | |
+| Ship drawings: `app/src/main/assets/art/ships/<id>.png` (one drawing) or `art/ships/<name>/` (idle + firing frames), nose up, see-through background | |
 | Android shell: full screen + tilt sensor | `app/src/main/java/com/shiran/spaceship/MainActivity.java` |
 | Direct phone-to-phone link (Bluetooth / Wi-Fi) | `app/src/main/java/com/shiran/spaceship/PhoneLink.java` |
 | Automatic APK build | `.github/workflows/build-apk.yml` |
