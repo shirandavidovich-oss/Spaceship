@@ -177,6 +177,12 @@ easy target. Nothing fires from REPRISE while it rebuilds.
 code (the package only names them). Magic: it puffs up in three pressure pulses and 12 spines spring out; while they are
 out a ship that touches it is stabbed (15, at most every 0.6 s) and thrown off, and PUFF turns slower; then it vents and
 shrinks back (4.4 s).
+Magic (puff-burst.js): it puffs up (1.5 s, 12 spines out) and STAYS puffed up (a ship touching it is stabbed) until the
+next fresh press of a fire button: all 12 spines fly off at once (12 each), and the hull, losing its air, shoots off a
+random way like a let-go balloon (1.1 s, up to 3x its top speed, wobbling). A ship it hits on that flight is blown up.
+It stays crumpled until it puffs up again (6 s recharge, counted from the spines).
+
+**THUL's smoke** is a green chemical haze: an enemy inside it loses 12 health a second (`MAGIC.smoke.chem.dps`).
 
 **CINDER**, the blockade runner (`art/ships/cinder/`: a hull and two engines on swivel joints, put together in code).
 Button 1: red bolts taking turns from the two front blasters (8). Button 2: an amber concussion torpedo; it blows up on a
