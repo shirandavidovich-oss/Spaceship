@@ -5,7 +5,8 @@ The ship is chosen by rarity (common 50%, rare 30%, epic 15%, legendary 5%) and 
 Flying works like Star Control 2's Super Melee: space is 10 screens wide and 10 tall and wraps
 around, with a planet in the middle that pulls the ship. Tilting the phone points the ship's nose
 (all the way round, 360°); held at the usual angle (about 35° from flat) the nose stays where it is.
-The round button for the left thumb fires the engine toward the nose. Its fuel runs out over the
+The round button for the left thumb fires the engine toward the nose, and it is also a joystick:
+drag the thumb and the nose turns to point that way (the tilt steers when the thumb is not dragged). Its fuel runs out over the
 ship's `fuel` seconds (30 for now): the button goes white → yellow → orange → red → purple → blue →
 black, and then disappears. It fills back up by itself (`refill` seconds per ship, 15 for now)
 and the button returns once the tank is 20% full.

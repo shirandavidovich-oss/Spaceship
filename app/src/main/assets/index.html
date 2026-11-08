@@ -35,6 +35,7 @@ const TRY_SHIP   = "brass"; // while testing: everyone flies this ship. Set to "
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
 const RAM_DAMAGE = 25;   // damage from crashing into the enemy at full speed (both ships take it)
+const STICK      = 0.25; // the thrust button is also a joystick: drag past this much of its size to point the nose
 const SHAKE      = 1;    // how hard the screen shakes (cannon, hits, explosions). 0 = never
 const RESPAWN    = 4;    // seconds until a new enemy arrives after one is destroyed
 
@@ -147,6 +148,9 @@ const MAGIC = {
 const STEAM = { dies: 0.09, out: [0.5, 1.3], backfire: 0.35, creak: 0.3 };
 // crash damage for an impact at `speed` screens per second (gentle bumps do nothing)
 function ramDamage(speed) { return speed <= 0.25 ? 0 : Math.round(RAM_DAMAGE * Math.min(1, (speed - 0.25) / 1.25)); }
+// the joystick: thumb moved dx, dy (pixels) from where it pressed, on a button of radius r.
+// Returns the heading to point the nose at (0 = up, clockwise), or null inside the small middle (keep heading)
+function stickHeading(dx, dy, r) { return Math.hypot(dx, dy) < r * STICK ? null : Math.atan2(dx, -dy); }
 // can the enemy see you? Not while you are hidden in your smoke
 function enemySees(hidden) { return !(hidden > 0); }
 // what a ship drops when it is destroyed
@@ -458,6 +462,7 @@ const game = {
   ang: 0, spin: 0,  // heading (0 = nose up, clockwise) and how fast it is turning
   fuel: 0,          // seconds of engine left
   locked: false,    // ran dry: engine rests until the tank refills a bit
+  stick: null,      // the thrust button as a joystick: { ox, oy: where the thumb landed, dx, dy: how far it moved }
   thrust: null,     // the finger holding the thrust button (pointer id), or null
   btn: 1,           // how visible the thrust button is (fades away when the fuel runs out)
   lx: 0, ly: 0,     // the camera looks a little ahead of the ship
@@ -532,6 +537,7 @@ cv.addEventListener("pointerdown", (e) => {
   // the left thumb on the thrust button (another finger can still swipe at the same time)
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
     game.thrust = e.pointerId; buzz(12);
+    game.stick = { ox: e.clientX, oy: e.clientY, dx: 0, dy: 0 };   // the joystick starts where the thumb lands
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
     return;
   }
@@ -551,8 +557,13 @@ cv.addEventListener("pointerdown", (e) => {
   const p = zoomed(shipScreen());
   if (game.stage === "fly" && Math.hypot(e.clientX - p.x, e.clientY - p.y) < shipSize() * 0.6 * game.zoom) { game.card = 2.5; audio.pop(); }
 });
+// dragging the thumb on the thrust button steers, like a joystick
+cv.addEventListener("pointermove", (e) => {
+  if (e.pointerId !== game.thrust || !game.stick) return;
+  game.stick.dx = e.clientX - game.stick.ox; game.stick.dy = e.clientY - game.stick.oy;
+});
 function fingerUp(e) {
-  if (e.pointerId === game.thrust) { game.thrust = null; return; }
+  if (e.pointerId === game.thrust) { game.thrust = null; game.stick = null; return; }
   const f = game.fire.indexOf(e.pointerId);
   if (f >= 0) { game.fire[f] = null; return; }
   if (!swipe || e.pointerId !== swipe.id) return;
@@ -562,7 +573,7 @@ function fingerUp(e) {
 }
 cv.addEventListener("pointerup", fingerUp);
 cv.addEventListener("pointercancel", fingerUp);
-addEventListener("blur", () => { game.thrust = null; game.fire = [null, null, null]; });
+addEventListener("blur", () => { game.thrust = null; game.stick = null; game.fire = [null, null, null]; });
 // on a computer: the space bar is the thrust button; Z, X, C are fire buttons 1, 2, 3
 const FIRE_KEYS = ["z", "x", "c"];
 addEventListener("keydown", (e) => {
@@ -642,7 +653,7 @@ function update(dt) {
   game.hurt = Math.max(0, game.hurt - dt);
   game.arriveT = Math.max(0, (game.arriveT || 0) - dt * 1.5);
   if (game.stage === "fly" && trade.stage !== "swapping") {
-    if (game.dead) { game.dead -= dt; game.thrust = null; game.fire = [null, null, null]; if (game.dead <= 0) respawnShip(); }
+    if (game.dead) { game.dead -= dt; game.thrust = null; game.stick = null; game.fire = [null, null, null]; if (game.dead <= 0) respawnShip(); }
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
   }
@@ -662,9 +673,14 @@ function flyShip(dt) {
   let target = null, turn = 0;
   if (STEER === "turn") turn = game.side;
   else { target = headingTarget(game); turn = Math.min(1, Math.hypot(game.side, game.fwd) * 2); }
+  // the joystick wins over the tilt while the thumb is dragged out of the middle
+  const sh = game.stick ? stickHeading(game.stick.dx, game.stick.dy, thrustButton().r) : null;
+  if (sh !== null) { target = sh; turn = 1; }
   const wasEmpty = game.locked;
+  // out of fuel: the engine stops, but a thumb still holding keeps steering, and the engine
+  // starts again by itself once the tank has refilled enough
   const hit = moveShip(game, S, { target, turn, thrust: game.thrust !== null }, dt);
-  if (game.locked && !wasEmpty) { game.thrust = null; audio.empty(); buzz(120); }
+  if (game.locked && !wasEmpty) { if (game.thrust === "key") game.thrust = null; audio.empty(); buzz(120); }
   if (hit > U * 0.15) { audio.bump(); buzz(Math.min(70, hit / U * 50)); }
 
   // the camera: with an enemy around it looks at the middle between the two ships (like Star Control);
@@ -1688,31 +1704,44 @@ function drawMagic() {
 // the thrust button: white when full, through yellow, orange, red, purple, blue... to black, then gone
 function drawThrust() {
   if (trade.stage === "swapping") return;
+  const held = game.thrust !== null && !!game.stick;
   // fades away over 0.8 s when the fuel runs out, comes back when the tank has refilled enough
+  // (a thumb still holding it keeps a dim stick for steering)
   game.btn = clamp(game.btn + (game.locked ? -1 : 1) * frameDt / 0.8, 0, 1);
-  const fade = game.btn;
+  const fade = Math.max(game.btn, held ? 0.35 : 0);
   if (fade <= 0) return;
   const b = thrustButton(), st = shipStats(shipById(game.ship));
-  const f = game.fuel / st.fuel, col = fuelColor(f), pressed = game.thrust !== null;
+  const f = game.fuel / st.fuel, col = game.locked ? "#6c6c78" : fuelColor(f), pressed = game.thrust !== null;
   const r = b.r * (pressed ? 0.92 : 1) * (0.6 + 0.4 * fade);
+  // the knob follows the thumb, up to 0.75 of the button's size
+  let kx = 0, ky = 0;
+  if (held) { const d = Math.hypot(game.stick.dx, game.stick.dy), m = Math.min(d, b.r * 0.75); if (d) { kx = game.stick.dx / d * m; ky = game.stick.dy / d * m; } }
   ctx.save(); ctx.globalAlpha = fade;
-  // glow in its own color while pressed
-  if (pressed) {
-    const gl = ctx.createRadialGradient(b.x, b.y, r * 0.8, b.x, b.y, r * 1.7);
-    gl.addColorStop(0, hexA(col, 0.55)); gl.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.7, 0, TAU); ctx.fill();
+  // the stick's base: a ring with a soft dark middle (shows while held)
+  if (held) {
+    ctx.fillStyle = "rgba(10,12,32,0.45)"; ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 1.2, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 1.2 * STICK * 2, 0, TAU); ctx.stroke();
   }
-  const bg = ctx.createRadialGradient(b.x - r * 0.3, b.y - r * 0.35, r * 0.1, b.x, b.y, r);
+  const x = b.x + kx, y = b.y + ky;
+  // glow in its own color while pressed
+  if (pressed && !game.locked) {
+    const gl = ctx.createRadialGradient(x, y, r * 0.8, x, y, r * 1.7);
+    gl.addColorStop(0, hexA(col, 0.55)); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x, y, r * 1.7, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
   bg.addColorStop(0, shade(col, 0.35)); bg.addColorStop(1, col);
-  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, TAU); ctx.fill();
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
   ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 2; ctx.stroke();
-  // a flame mark, dark on a light button and light on a dark one
+  // a flame mark that points where the nose points, dark on a light button and light on a dark one
   const n = parseInt(col.slice(1), 16), light = ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 140;
   ctx.fillStyle = light ? "rgba(20,20,40,0.75)" : "rgba(255,255,255,0.8)";
+  ctx.translate(x, y); ctx.rotate(game.ang);
   ctx.beginPath();
-  ctx.moveTo(b.x, b.y - r * 0.45);
-  ctx.quadraticCurveTo(b.x + r * 0.42, b.y + r * 0.05, b.x, b.y + r * 0.42);
-  ctx.quadraticCurveTo(b.x - r * 0.42, b.y + r * 0.05, b.x, b.y - r * 0.45);
+  ctx.moveTo(0, -r * 0.45);
+  ctx.quadraticCurveTo(r * 0.42, r * 0.05, 0, r * 0.42);
+  ctx.quadraticCurveTo(-r * 0.42, r * 0.05, 0, -r * 0.45);
   ctx.fill();
   ctx.restore();
 }
