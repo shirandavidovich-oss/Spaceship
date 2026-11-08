@@ -144,12 +144,15 @@ const SHIPS = [
     hull: "#3fae2a", wingC: "#10240f", trim: "#b8ff3a", flame: "#b8ff3a",
     body: [], wing: [], nozzles: [0], engineY: 0.33, cockpit: [0, -0.2, 0.05, 0.1],
     weapons: ["thorn", "hive"],
-    // anchors: thornLeft (166,97), thornRight (347,97), egg chamber (256,321)
-    guns: { thorn: [[-0.211, -0.373], [0.213, -0.373]], hive: [[0, 0.152]] },
+    // anchors: thornLeft (166,97), thornRight (347,97), the egg where it leaves the chamber (256,305)
+    guns: { thorn: [[-0.211, -0.373], [0.213, -0.373]], hive: [[0, 0.1148]] },
     tailY: 0.328,   // where the tail is mounted on the hull (tail-layout.json shipAnchor: pixel y 396)
     anim: { dir: "vexar", size: 1.2, idle: "idle.webp",
       primary:   frames("primary", 5, () => 63, { 2: "left", 4: "right" }),     // 315 ms: left at 63, right at 189
-      secondary: frames("hunt", 15, () => 64, { 8: "fire" }),                   // 960 ms: the egg leaves at 448
+      // the egg forms (vexar-egg-deploy): the wings swing out, the chamber covers peel away, a glowing seed swells in
+      // three pulses into the egg, which wobbles up and springs out at 1,140 ms; the hull shuts (55 frames, 1,650 ms).
+      // The egg itself is drawn over the frames (drawAttachedEgg) until it leaves
+      secondary: frames("hunt", 55, () => 30, { 39: "fire" }),
       shotArt: { thorn: { file: "thorn.webp", size: 0.3 } },                     // 128 px at the hull's scale
       // the egg: pulses while it waits, then cracks and bursts; the insects come out at the "swarm" frame (180 ms).
       // Each egg is one of 4 kinds (picked at random when it is laid, kept to the end): the green "mixed" one holds
@@ -1156,6 +1159,19 @@ function borerThrust(T, held, dt, C) {
   if (T.opening && T.pos >= 1) return "thrust_hold_" + pad(Math.floor(T.hold * 1000 / (C.holdMs / C.hold)) % C.hold + 1) + ".webp";
   if (T.opening) return "thrust_open_" + pad(Math.round(T.pos * (C.open - 1)) + 1) + ".webp";
   return "thrust_close_" + pad(Math.round((1 - T.pos) * (C.close - 1)) + 1) + ".webp";
+}
+// VEXAR's egg forming in the chamber (vexar-egg-deploy.js), ms since the press: where it sits (px of the 512 canvas),
+// its diameter (px), stretch and tilt (its wobble), how much shell shows, and the seed's glow
+function vexarEggPose(ms) {
+  const sm = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); }, b = (s0, s1) => sm((ms - s0) / (s1 - s0));
+  const growth = b(210, 430) * 0.32 + b(450, 710) * 0.36 + b(750, 1050) * 0.32, alive = b(225, 360) * (1 - b(1030, 1140)), wobble = Math.sin(ms * 0.024) * alive;
+  return { x: 256 + 5 * wobble, y: 336 - 31 * growth, d: 22 + 96 * growth, stretch: 1 + 0.13 * wobble, tilt: 0.14 * wobble,
+    alpha: b(235, 430) * b(375, 890), seed: b(175, 290) * (1 - b(660, 1020)) };
+}
+// after it leaves: how far it has sprung forward (px), its diameter (px), and the settling wobble, ms since release
+function vexarEggFlight(ms) {
+  const sm = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); }, t = Math.max(0, Math.min(1, ms / 460)), settle = 1 - sm(ms / 350);
+  return { dist: 295 * (1 - (1 - t) ** 2.6), d: 118 - 16 * sm((ms - 100) / 360), stretch: 1 + 0.21 * Math.sin(ms * 0.024) * settle, tilt: 0.24 * Math.sin(ms * 0.016) * settle };
 }
 // can BORER start a dive here? gap: from its edge to the star's surface, in ship-lengths
 function starMineCheck(gap, busy, M) { return busy ? "occupied" : !(gap >= 0) || gap > M.reach ? "range" : "ok"; }
@@ -3810,7 +3826,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null;
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -3971,6 +3987,7 @@ function shoot(i) {
     else if (w === "chord") { }   // (each groove plays its own note as it charges)
     else if (w === "hack") { audio.tone(140, 0.9, "sawtooth", 0.04, 4); audio.tone(2400, 0.04, "square", 0.03, 0.5, 0.35); }   // the shutters slide, the core hums up
     else if (w === "crystal") audio.sfx(S.sfx, "ice_charge");
+    else if (w === "hive") { const ks = Object.keys(A.egg.broods); game.eggKind = ks[Math.floor(Math.random() * ks.length)]; audio.jaws(); }
     else if (w === "seed") { audio.tone(330, 0.4, "triangle", 0.04, 2.2); audio.tone(990, 0.3, "sine", 0.02, 1.5, 0.08); }
     else if (w === "solar") {   // the charge, a click at each mirror's hinge, and the mirrors folding back
       audio.sfx(S.sfx, "solar_charge");
@@ -4145,8 +4162,10 @@ function drawRing(R, S) {
 const eggs = [], hunters = [];
 function layEgg(x, y, Wp, S) {
   const v = Wp.speed * U;
-  const kinds = Object.keys(S.anim.egg.broods), kind = kinds[Math.floor(Math.random() * kinds.length)];
-  const e = { x, y, vx: game.vx * 0.5 + Math.sin(game.ang) * v, vy: game.vy * 0.5 - Math.cos(game.ang) * v, ang: game.ang,
+  const kinds = Object.keys(S.anim.egg.broods), kind = game.eggKind || kinds[Math.floor(Math.random() * kinds.length)];
+  game.eggKind = null;
+  // it springs forward out of the chamber (vexarEggFlight), drifting a little with the ship's speed
+  const e = { x, y, vx: game.vx * 0.5, vy: game.vy * 0.5, ang: game.ang, fl: 0,
     t: 0, ht: -1, crushed: false, w: "hive", ship: S.id, kind };
   eggs.push(e);
   duelSend({ t: "e", ...netPos(e), a: e.ang, s: S.id, k: kind });   // the other phone shows it too (the same kind)
@@ -4163,6 +4182,10 @@ function updateEggs(dt) {
     e.E = A.egg; e.dir = A.dir; e.B = A.egg.broods[e.kind] || A.egg.broods.mixed;
     e.vx *= Math.exp(-dt * 2.2); e.vy *= Math.exp(-dt * 2.2);   // drifts to a stop
     e.x = (((e.x + e.vx * dt) % WW) + WW) % WW; e.y = (((e.y + e.vy * dt) % WH) + WH) % WH;
+    if (e.fl != null && e.fl < 460) {   // springing out of the chamber
+      const a0 = vexarEggFlight(e.fl).dist; e.fl += dt * 1000; const k = (vexarEggFlight(e.fl).dist - a0) * A.size / 512 * size;
+      e.x = (((e.x + Math.sin(e.ang) * k) % WW) + WW) % WW; e.y = (((e.y - Math.cos(e.ang) * k) % WH) + WH) % WH;
+    }
     e.t += dt * 1000;
     const swarm = cueTime(e.B.hatch, "swarm");
     // the enemy flies into it before the hunters are out: crushed, only the shell pieces fly
@@ -4213,15 +4236,28 @@ function releaseHunters(e, Wp) {
       frames: I.flight, color: I.color, d: e.E.hunterSize, dir: e.dir, phase: i * 70, remote: !!e.remote });
   });
 }
+// VEXAR's egg growing in the open chamber, over the ship's frames, until it leaves (kind: which egg)
+function drawAttachedEgg(o, S, a, kind, x, y, size) {
+  if (!a || a.seq !== "secondary" || !S.anim || !S.anim.egg || a.t >= 1140) return;
+  const P = vexarEggPose(a.t), B = S.anim.egg.broods[kind] || S.anim.egg.broods.mixed, k = S.anim.size / 512 * size;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(o.ang); ctx.scale(k, k); ctx.translate(P.x - 256, P.y - 256); ctx.rotate(P.tilt); ctx.scale(1 / Math.sqrt(P.stretch), P.stretch);
+  if (P.seed > 0) {   // the glowing seed it grows from
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, P.d * 0.68); g.addColorStop(0, "rgba(241,255,188,0.97)"); g.addColorStop(0.37, "rgba(168,255,94,0.62)"); g.addColorStop(1, "rgba(76,240,87,0)");
+    ctx.globalAlpha = P.seed; ctx.fillStyle = g; ctx.fillRect(-P.d, -P.d, P.d * 2, P.d * 2);
+  }
+  const img = artImage(framePath(S.anim.dir, B.pulse[Math.floor(a.t / 75) % B.pulse.length][0]));
+  if (img && P.alpha > 0) { ctx.globalAlpha = P.alpha; ctx.drawImage(img, -P.d / 2, -P.d / 2, P.d, P.d); }
+  ctx.restore();
+}
 function drawEggs() {
   const size = shipSize();
   for (const e of eggs) {
-    const p = toScreen(e.x, e.y), d = e.E.size * size;
     if (!e.B) continue;
+    const F = vexarEggFlight(e.fl == null ? 999 : e.fl), A = shipById(e.ship).anim, p = toScreen(e.x, e.y), d = e.fl == null ? e.E.size * size : F.d * A.size / 512 * size;
     const seq = e.ht < 0 ? e.B.pulse : e.B.hatch, t = e.ht < 0 ? e.t % seqLength(e.B.pulse) : e.ht, f = seqFrame(seq, t);
     const img = f >= 0 && artImage(framePath(e.dir, seq[f][0]));
     if (!img) continue;
-    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(e.ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(e.ang + F.tilt); ctx.scale(1 / Math.sqrt(F.stretch), F.stretch); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
   }
   for (const h of hunters) {
     const p = toScreen(h.x, h.y), d = h.d * size, f = seqFrame(h.frames, (h.life * 1000 + h.phase) % seqLength(h.frames));
@@ -6396,6 +6432,7 @@ function draw() {
       if (shown === S) drawDevour(game, S, game.devour);
       if (shown === S) drawDash();
       if (shown === S) drawChordGuides();
+      if (shown === S) drawAttachedEgg(game, S, game.anim, game.eggKind, p.x + r.x, p.y + bob + r.y, shipSize() * sc);
       if (shown === S && game.bub) drawHeldBubble(game, game.bub.t * 1000);
       if (shown === S && trapOpen()) drawSuck(game, S);
       if (shown === S && S.clouds) drawNimbusClouds(game, game.anim, "me");
@@ -6646,6 +6683,7 @@ function drawEnemy() {
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
+    if (enemy.remote && duel.net) drawAttachedEgg(enemy, E, enemy.anim, duel.net.ek, p.x, p.y, size * esc);   // their VEXAR's egg forming
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
     drawRewind(p.x, p.y, size, !!enemy.rw || enemy.rwShow > 0);
     if (E.clouds) drawNimbusClouds(enemy, enemy.remote ? enemy.anim : null, "enemy");
@@ -7644,7 +7682,7 @@ function duelLink(event, data) {
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
     if (duel.shots.length < 60) audio.shot(m.w);
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
-    eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
+    eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, fl: 0, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
   } else if (m.t === "cv" && shipById(m.s) && Array.isArray(m.p)) {   // their KRAAL's crossing bolts (their phone counts the blast)
     const q = m.p; crosses.push({ w: m.w, ship: m.s, t: 0, remote: true, life: m.l, a: { x: q[0] * WW, y: q[1] * WH }, b: { x: q[2] * WW, y: q[3] * WH }, f: { x: q[4] * WW, y: q[5] * WH } });
     audio.sfx("kraal", "cross_launch", 0, 0.7);
@@ -7836,7 +7874,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
@@ -8071,7 +8109,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 function tryShip(id) {
   game.ship = id;
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();

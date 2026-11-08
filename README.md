@@ -229,6 +229,10 @@ the crossing shot the middle plate lifts on the hot core and the pods turn inwar
 KRAAL's crossing shot meets BEHIND it, against the way it is flying (hold to push the point farther back): it hits what
 chases it while it gets away. Hardly moving, the point is behind its tail (`crossPoint`).
 
+VEXAR's egg forms in the open (vexar-egg-deploy): the wings swing out, the chamber covers peel away, a glowing seed
+swells in three pulses into the egg (its kind is picked at the press), which wobbles up and springs out at 1,140 ms
+(55 frames, 1,650 ms); outside it settles and incubates as before.
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 
