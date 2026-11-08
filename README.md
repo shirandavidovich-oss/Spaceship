@@ -99,6 +99,10 @@ ship is held on its own phone too.
 from one press. Button 2, the rift: the first press marks the spot where the ship is (a turning pink diamond that stays put
 for 8 s; off screen, a pink arrow at the edge points to it). Fly off; the second press opens the glowing seam in the hull and
 the ship jumps back to the mark, keeping its heading and speed, with pink bursts at both ends. No magic yet.
+Magic (once a life): DRAKON comes apart along its seam. The front piece with the crystal stays where it was as a bomb, and
+the ship flies on as its rear piece. The next tap, whenever you like, blows the bomb up: a huge blast (up to 75 at its
+middle, 15 at 4.5 ship-lengths) that throws enemies back and never hurts DRAKON. Then the magic is used up until the
+next life.
 
 **XELTAR**, the frozen squid (`art/ships/xeltar/`, own recorded sounds). Button 1: three small ice shards from the nose.
 Button 2: its four arms curl round a growing ice crystal and launch it **backward** out of the stern; to hit something,
