@@ -4810,7 +4810,7 @@ function drawSplitButton(b, M) {
 // game.dash2: { t, dir, kicked } (dash was taken by KRAAL)
 function cinderSlip(M) {
   if (game.dash2 || game.dead) return;
-  game.magicCool = game.magicCool2 = M.cool;   // one recharge for both sides
+  if (M.dir < 0) game.magicCool = M.cool; else game.magicCool2 = M.cool;   // each side has its own recharge
   game.dash2 = { t: 0, dir: M.dir, kicked: false };
   audio.tone(240, 0.18, "sawtooth", 0.04, 1.6); audio.tone(900, 0.04, "square", 0.03, 0.5, 0.12); buzz(30);
 }

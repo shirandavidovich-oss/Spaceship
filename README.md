@@ -193,7 +193,7 @@ star's colour on the side facing it.
 **CINDER**, the blockade runner (`art/ships/cinder/`: a hull and two engines on swivel joints, put together in code).
 Button 1: red bolts taking turns from the two front blasters (8). Button 2: an amber concussion torpedo; it blows up on a
 ship or after 0.95 s, and the blast hurts (up to 22) and throws back every enemy near it. Magic, split into left and right
-(one shared recharge, 3.4 s; keyboard V and B): both engines swivel to that side and the ship is kicked sideways; it keeps
+(each side its own recharge, 3.4 s; keyboard V and B): both engines swivel to that side and the ship is kicked sideways; it keeps
 facing the same way and keeps its speed, and it can fire all the while.
 
 **BORER**, the star miner (`art/ships/borer/idle.webp`; the weapons are drawn in code). Button 1: a fan of five metal
