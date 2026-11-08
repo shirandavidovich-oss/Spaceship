@@ -192,6 +192,12 @@ out the same way (1.78 s; no steering, no firing, no burn meanwhile). The bomb h
 touches the body it is shattered. One bomb at a time; it stays through BORER's death and goes when the body changes.
 In a duel the other phone is told the bomb is there (not shown to them), sees its own touch, and sends `smx` back.
 While it bores, the drill turns (24 frames, `spin_01..24.webp`): it spins up, drills, and turns back coming out.
+Before it bores, four legs (drawn in code) unfold from its sides and grip the surface (450 ms, `legs`); they fold away as
+the hull goes in and kick out once as it backs out. The bomb inside beats like a heart, with green cracks of light running
+out through the star.
+
+**App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
+`ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 
 **MIRAGE**, the prism ship (`art/ships/mirage/`). Every button charges first: light runs up the prism to the nose (12 frames)
 and the shot leaves at the end. Button 1: a focused pulse, one narrow fast amber shot (280 ms charge, 15). Button 2: a

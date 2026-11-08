@@ -654,7 +654,9 @@ const MAGIC = {
   //   (`exit` to `end` ms), `out` ship-lengths clear. No steering, no firing, no burn meanwhile. The bomb waits inside
   //   with no timer: the next time an enemy ship touches the star it is shattered. One bomb at a time; `cool` s after
   //   the bomb is used. A new body in the middle takes the bomb away
-  starmine: { name: "מוקש כוכב", look: "starmine", cool: 3, reach: 0.55, depth: 0.4, out: 0.1, windup: 340, inside: 840, plant: 1030, exit: 1120, end: 1780, color: "#4dff9a" },
+  //   `legs`: first, while it turns to the star, four legs unfold from its sides and reach for the surface (ms); the
+  //   timings after it count from then
+  starmine: { name: "מוקש כוכב", look: "starmine", cool: 3, reach: 0.55, depth: 0.4, out: 0.1, legs: 450, windup: 340, inside: 840, plant: 1030, exit: 1120, end: 1780, color: "#4dff9a" },
   // MIRAGE: false star. After its 480 ms charge a lens opens `ahead` ship-lengths in front of the nose and stays `life` s.
   //   Every shot (anyone's) within `radius` ship-lengths is pulled toward its middle: `strength` / (d² + soft²), at most
   //   `max` ship-lengths a second each second, weaker toward the edge. Ships and the real star are not touched
@@ -1045,14 +1047,24 @@ function killReward(secs, hp, rarity, streak) {
 // The drill turns to the star, goes in, waits, and backs out the same way, still facing the star
 function starMinePose(J, ms, M) {
   const sm = (t) => { const u = Math.max(0, Math.min(1, t)); return u * u * (3 - 2 * u); };
-  const a = sm((ms - M.windup) / (M.inside - M.windup)), b = sm((ms - M.exit) / (M.end - M.exit));
+  const L = M.legs || 0, t = ms - L;   // (it turns while its legs come out and the drill spins up)
+  const a = sm((t - M.windup) / (M.inside - M.windup)), b = sm((t - M.exit) / (M.end - M.exit));
   const x = J.x + (J.bx - J.x) * a, y = J.y + (J.by - J.y) * a;
-  return { x: x + (J.ex - x) * b, y: y + (J.ey - y) * b, ang: J.ang + J.turn * sm(ms / M.windup),
-    phase: ms < M.windup ? "spin" : ms < M.inside ? "drill" : ms < M.exit ? "plant" : ms < M.end ? "exit" : "done" };
+  return { x: x + (J.ex - x) * b, y: y + (J.ey - y) * b, ang: J.ang + J.turn * sm(ms / (L + M.windup)),
+    phase: t < 0 ? "legs" : t < M.windup ? "spin" : t < M.inside ? "drill" : t < M.exit ? "plant" : t < M.end ? "exit" : "done" };
+}
+// BORER's four legs: 0 folded flat on the hull, 1 reaching out. They unfold before it bores, grip while the drill spins
+// up, fold away as the hull goes in, and kick out once as it backs out
+function borerLegs(ms, M) {
+  const L = M.legs, t = ms - L, sm = (u) => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
+  if (t < M.windup) return sm(ms / L);
+  if (t < M.end - 420) return 1 - sm((t - M.windup) / 260);
+  return Math.sin(Math.PI * Math.max(0, Math.min(1, (t - (M.end - 420)) / 420)));
 }
 // BORER's drill frame during the dive (24 frames a turn): it spins up, bores, and turns back the other way coming out.
 // mix: how much the turning frames show over the still picture
 function borerDrill(ms) {
+  ms = Math.max(0, ms);
   const ramp = Math.min(ms, 340), turns = 0.5 * 5.4 * (ramp / 1000) ** 2 / 0.34 + 5.4 * Math.max(0, Math.min(1120, ms) - 340) / 1000 - 4.5 * Math.max(0, ms - 1120) / 1000;
   return { frame: Math.floor((((turns % 1) + 1) % 1) * 24) % 24, mix: Math.min(1, ms / 155) * (1 - Math.max(0, Math.min(1, (ms - 1630) / 150))) };
 }
@@ -4730,10 +4742,12 @@ function startDive(S, M) {
   game.dive = { t: 0, planted: false, ux, uy, J: { x: game.x, y: game.y, ang: game.ang, turn: wrapAngle(face - game.ang),
     bx: cx + ux * R * M.depth, by: cy + uy * R * M.depth, ex: cx + ux * (R + size * (0.32 + M.out)), ey: cy + uy * (R + size * (0.32 + M.out))} };
   game.thrust = null; game.vx = game.vy = 0;
-  audio.tone(70, 1.6, "sawtooth", 0.05, 3.5); audio.noise(1.3, 0.12, 700); buzz(40);
+  for (let i = 0; i < 4; i++) audio.tone(900 - i * 120, 0.05, "square", 0.025, 0.6, i * 0.09);   // the legs clicking out
+  audio.tone(70, 1.6, "sawtooth", 0.05, 3.5, M.legs / 1000); audio.noise(1.3, 0.12, 700, M.legs / 1000); buzz(40);
 }
 function updateDive(dt) {
   const D = game.dive, M = MAGIC.starmine;
+  if (game.starMine) game.starMine.t = (game.starMine.t || 0) + dt;
   if (!D) return;
   if (game.dead) { game.dive = null; return; }
   D.t += dt;
@@ -4743,9 +4757,10 @@ function updateDive(dt) {
   if ((P.phase === "drill" || P.phase === "exit") && Math.random() < dt * 40)
     burstAt(sx, sy, 3, [body().color, "#ffffff", "#c9d1d6", "#4dff9a"], 0.35, 0.6, D.ux * U * 0.6, D.uy * U * 0.6);
   if (P.phase === "drill" && Math.random() < dt * 6) shake(0.12);
-  if (!D.planted && ms >= M.plant) {   // the bomb is left inside, armed
+  if (!D.gripped && ms >= M.legs) { D.gripped = true; audio.tone(160, 0.08, "square", 0.05, 0.5); audio.tone(120, 0.08, "square", 0.05, 0.5, 0.06); burstAt(sx, sy, 10, ["#c9d1d6", "#4dff9a", body().color], 0.35, 0.5); buzz(25); }
+  if (!D.planted && ms >= M.legs + M.plant) {   // the bomb is left inside, armed
     D.planted = true;
-    game.starMine = { x: D.J.bx, y: D.J.by };
+    game.starMine = { x: D.J.bx, y: D.J.by, t: 0, veins: mineVeins(D.J.bx, D.J.by) };
     rings.push({ x: D.J.bx, y: D.J.by, t: 0, max: 0.5, r: shipSize() * 0.9, c: M.color });
     duelSend({ t: "sm", on: 1 });
     audio.tone(880, 0.12, "square", 0.04, 0.6); audio.tone(440, 0.3, "triangle", 0.05, 0.8, 0.1); buzz(60);
@@ -4788,23 +4803,107 @@ function clipOutStar() {
 }
 // the hole in the star's surface while BORER bores: a dark mouth with a glowing rim
 function drawDiveHole(D) {
-  const R = planetR(), c = toScreen(WW / 2 + D.ux * R, WH / 2 + D.uy * R), r = shipSize() * 0.3 * Math.min(1, D.t * 3, (MAGIC.starmine.end / 1000 - D.t) * 3 + 0.3);
+  const R = planetR(), c = toScreen(WW / 2 + D.ux * R, WH / 2 + D.uy * R), r = shipSize() * 0.3 * Math.min(1, Math.max(0, D.t - MAGIC.starmine.legs / 1000) * 3, ((MAGIC.starmine.legs + MAGIC.starmine.end) / 1000 - D.t) * 3 + 0.3);
   ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(Math.atan2(D.uy, D.ux));
   const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.6); g.addColorStop(0, "rgba(10,6,4,0.95)"); g.addColorStop(0.55, "rgba(255,150,50,0.75)"); g.addColorStop(1, "rgba(255,210,90,0)");
   ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.7, r * 1.6, 0, 0, TAU); ctx.fill(); ctx.restore();
 }
-// my bomb inside the star (only I see it): a green beacon blinking
+// BORER's legs: two a side, from the hull's flanks. Each a thigh and a shin with a claw; folded they lie back along the
+// hull, out they reach forward and wide, claws toward the drill (k: 0 folded .. 1 out). Drawn in ship units, under the hull
+function drawBorerLegs(x, y, size, ang, k) {
+  if (!(k > 0.01)) return;
+  const lerp = (a, b) => a + (b - a) * k, D = Math.PI / 180;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(size, size); ctx.lineCap = "round"; ctx.lineJoin = "round";
+  // [hip x, hip y, thigh folded / out, shin folded / out] (angles from the nose, clockwise, right side)
+  const legs = [[0.17, 0.08, 178, 58, 8, 18], [0.18, 0.3, 182, 112, 4, 38]];
+  for (const side of [1, -1]) for (const [hx, hy, t0, t1, s0, s1] of legs) {
+    const ta = lerp(t0, t1) * D, sa = lerp(s0, s1) * D, th = 0.27, sh = 0.3;
+    const kx = side * (hx + Math.sin(ta) * th), ky = hy - Math.cos(ta) * th;
+    const fx = kx + side * Math.sin(sa) * sh, fy = ky - Math.cos(sa) * sh;
+    const path = () => { ctx.beginPath(); ctx.moveTo(side * hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); };
+    path(); ctx.strokeStyle = "#141a18"; ctx.lineWidth = 0.075; ctx.stroke();   // the outline
+    path(); ctx.strokeStyle = "#5c6a66"; ctx.lineWidth = 0.05; ctx.stroke();
+    path(); ctx.strokeStyle = "rgba(220,230,232,0.55)"; ctx.lineWidth = 0.015; ctx.stroke();   // a steel highlight
+    // the piston along the thigh
+    ctx.strokeStyle = "#2c4a40"; ctx.lineWidth = 0.022; ctx.beginPath(); ctx.moveTo(side * hx + (kx - side * hx) * 0.2, hy + (ky - hy) * 0.2 + 0.03); ctx.lineTo(side * hx + (kx - side * hx) * 0.75, hy + (ky - hy) * 0.75 + 0.03); ctx.stroke();
+    // the claw: two hooked toes at the foot
+    ctx.strokeStyle = "#c9d1d6"; ctx.lineWidth = 0.02;
+    for (const c of [-0.5, 0.5]) { ctx.beginPath(); ctx.moveTo(fx, fy); ctx.quadraticCurveTo(fx + side * Math.sin(sa + c) * 0.05, fy - Math.cos(sa + c) * 0.05, fx + side * Math.sin(sa + c * 1.8) * 0.07, fy - Math.cos(sa + c * 1.8) * 0.06); ctx.stroke(); }
+    // the joints, a green light in the knee
+    ctx.fillStyle = "#1e2a26"; ctx.beginPath(); ctx.arc(side * hx, hy, 0.035, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.arc(kx, ky, 0.03, 0, TAU); ctx.fill();
+    ctx.fillStyle = `rgba(77,255,154,${0.5 + 0.5 * k})`; ctx.beginPath(); ctx.arc(kx, ky, 0.014, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+// cracks of green light from the bomb out through the star (made once, when it is planted): each a jagged line
+function mineVeins(bx, by) {
+  const R = planetR(), cx = bx - wrapDelta(bx - WW / 2, WW), cy = by - wrapDelta(by - WH / 2, WH), out = [];
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * TAU + Math.random() * 0.7, ux = Math.cos(a), uy = Math.sin(a);
+    // how far to the surface that way
+    const ox = bx - cx, oy = by - cy, b = ox * ux + oy * uy, len = -b + Math.sqrt(Math.max(0, b * b - (ox * ox + oy * oy - R * R * 0.92)));
+    const pts = [[0, 0]], n = 7;
+    for (let k = 1; k <= n; k++) { const f = k / n, j = (Math.random() - 0.5) * len * 0.12 * (k < n ? 1 : 0.3); pts.push([ux * len * f - uy * j, uy * len * f + ux * j]); }
+    // a small branch off the middle
+    const m = pts[3], ba = a + (Math.random() < 0.5 ? 0.6 : -0.6);
+    out.push({ pts, len, branch: [m, [m[0] + Math.cos(ba) * len * 0.25, m[1] + Math.sin(ba) * len * 0.25]], ph: Math.random() });
+  }
+  return out;
+}
+// my bomb inside the star (only I see it): it beats like a heart. Green cracks of light run out to the surface with pulses
+// travelling along them, a dark six-sided core with six lights going round, and two rings of marks turning opposite ways.
+// Just planted: the cracks grow out from it
 function drawStarMine() {
   const B = game.starMine;
   if (!B) return;
-  const p = toScreen(B.x, B.y), size = shipSize(), blink = 0.5 + 0.5 * Math.sin(time * 5);
+  const p = toScreen(B.x, B.y), c = toScreen(WW / 2, WH / 2), size = shipSize(), t = B.t || 0, R = planetR();
+  const cyc = t % 1.25, beat = Math.exp(-((cyc / 0.07) ** 2)) + 0.6 * Math.exp(-(((cyc - 0.24) / 0.07) ** 2));
+  const grow = Math.min(1, t / 0.6);
   ctx.save();
-  const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 0.45); g.addColorStop(0, `rgba(77,255,154,${0.5 + 0.4 * blink})`); g.addColorStop(1, "rgba(77,255,154,0)");
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.45, 0, TAU); ctx.fill();
-  ctx.translate(p.x, p.y); ctx.rotate(time * 1.5);
-  ctx.fillStyle = "#1a2420"; ctx.strokeStyle = "#4dff9a"; ctx.lineWidth = Math.max(1.5, size * 0.025);
-  ctx.beginPath(); for (let i = 0; i < 8; i++) { const r = i % 2 ? size * 0.07 : size * 0.15, a = i / 8 * TAU; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = `rgba(200,255,220,${blink})`; ctx.beginPath(); ctx.arc(0, 0, size * 0.04, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, TAU); ctx.clip();   // only inside the star
+  ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  // the cracks
+  for (const v of B.veins || []) {
+    const n = Math.max(1, Math.ceil((v.pts.length - 1) * grow));
+    const line = (w, col) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(p.x, p.y); for (let i = 1; i <= n; i++) ctx.lineTo(p.x + v.pts[i][0], p.y + v.pts[i][1]); ctx.stroke(); };
+    line(size * 0.06, `rgba(77,255,154,${0.08 + 0.12 * beat})`);
+    line(size * 0.018, `rgba(140,255,190,${0.3 + 0.4 * beat})`);
+    if (grow >= 1) {
+      ctx.strokeStyle = `rgba(77,255,154,${0.15 + 0.2 * beat})`; ctx.lineWidth = size * 0.012;
+      ctx.beginPath(); ctx.moveTo(p.x + v.branch[0][0], p.y + v.branch[0][1]); ctx.lineTo(p.x + v.branch[1][0], p.y + v.branch[1][1]); ctx.stroke();
+      // a pulse of light running out along it
+      const f = ((t * 0.8 + v.ph) % 1), i = Math.min(v.pts.length - 2, Math.floor(f * (v.pts.length - 1))), u = f * (v.pts.length - 1) - i;
+      const qx = p.x + v.pts[i][0] + (v.pts[i + 1][0] - v.pts[i][0]) * u, qy = p.y + v.pts[i][1] + (v.pts[i + 1][1] - v.pts[i][1]) * u;
+      const g = ctx.createRadialGradient(qx, qy, 0, qx, qy, size * 0.09); g.addColorStop(0, "rgba(220,255,235,0.9)"); g.addColorStop(1, "rgba(77,255,154,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(qx, qy, size * 0.09, 0, TAU); ctx.fill();
+    }
+  }
+  // the glow, beating
+  const gr = size * (0.5 + 0.25 * beat), g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, gr);
+  g.addColorStop(0, `rgba(160,255,200,${0.5 + 0.4 * beat})`); g.addColorStop(0.35, `rgba(77,255,154,${0.25 + 0.25 * beat})`); g.addColorStop(1, "rgba(77,255,154,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, gr, 0, TAU); ctx.fill();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.translate(p.x, p.y);
+  // two rings of marks
+  ctx.save(); ctx.rotate(t * 0.9); ctx.strokeStyle = "rgba(77,255,154,0.75)"; ctx.lineWidth = Math.max(1.5, size * 0.016);
+  for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; ctx.beginPath(); ctx.moveTo(Math.cos(a) * size * 0.27, Math.sin(a) * size * 0.27); ctx.lineTo(Math.cos(a) * size * 0.31, Math.sin(a) * size * 0.31); ctx.stroke(); }
+  ctx.restore();
+  ctx.save(); ctx.rotate(-t * 0.6); ctx.setLineDash([size * 0.1, size * 0.05]); ctx.strokeStyle = "rgba(180,255,210,0.45)"; ctx.lineWidth = Math.max(1, size * 0.01);
+  ctx.beginPath(); ctx.arc(0, 0, size * 0.37, 0, TAU); ctx.stroke(); ctx.restore();
+  // the core: a dark hexagon, a green rim, six lights going round, a bright heart
+  const hr = size * (0.15 + 0.012 * beat);
+  ctx.save(); ctx.rotate(Math.PI / 6);
+  ctx.fillStyle = "#0e1714"; ctx.strokeStyle = "#4dff9a"; ctx.lineWidth = Math.max(1.5, size * 0.02);
+  ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; ctx.lineTo(Math.cos(a) * hr, Math.sin(a) * hr); } ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#26352f"; ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; ctx.lineTo(Math.cos(a) * hr * 0.62, Math.sin(a) * hr * 0.62); } ctx.closePath(); ctx.fill();
+  ctx.restore();
+  const lit = Math.floor(t * 8) % 6;
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * TAU - Math.PI / 2, on = (i - lit + 6) % 6, al = on === 0 ? 1 : on === 5 ? 0.5 : on === 4 ? 0.25 : 0.12;
+    ctx.fillStyle = `rgba(120,255,175,${al})`; ctx.beginPath(); ctx.arc(Math.cos(a) * hr * 0.8, Math.sin(a) * hr * 0.8, size * 0.018, 0, TAU); ctx.fill();
+  }
+  const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, hr * 0.55); cg.addColorStop(0, "#ffffff"); cg.addColorStop(0.4, `rgba(140,255,190,${0.7 + 0.3 * beat})`); cg.addColorStop(1, "rgba(77,255,154,0)");
+  ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(0, 0, hr * (0.45 + 0.15 * beat), 0, TAU); ctx.fill();
   ctx.restore();
 }
 // a press that cannot start: out of reach shows the ring to fly into; already a bomb: the bomb blinks
@@ -6042,12 +6141,12 @@ function draw() {
         for (const e of exhausts(game, S)) burstAt(e.x, e.y, 2, ["#fff8ce", "#ffcc63"], 0.12, 0.5, game.vx * 0.3, game.vy * 0.3);
       if (shown === S && S.grows) drawTalusRing(p.x, p.y, shipSize() * sc, game.talus.ring);
       const dug = shown === S && game.dive;
-      if (dug) { drawDiveHole(game.dive); clipOutStar(); }
+      if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
-          half: shown === S && game.splitUsed ? "rear" : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
+          half: shown === S && game.splitUsed ? "rear" : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
       if (dug) ctx.restore();
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
@@ -6298,8 +6397,8 @@ function drawEnemy() {
     const esc = enemy.remote && enemy.talus ? enemy.talus.scale : 1;
     if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
     const dv = enemy.remote && duel.net && duel.net.dv;
-    if (dv) clipOutStar();
-    drawShip(E, p.x, p.y, size * esc, { drill: dv ? borerDrill(dv) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? enemy.hullTurn || 0 : 0),
+    if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
+    drawShip(E, p.x, p.y, size * esc, { drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? enemy.hullTurn || 0 : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
