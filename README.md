@@ -207,8 +207,12 @@ kill, up to 120 for doing it quickly (nothing after 90 s), up to 60 for health l
 ship's rarity, all times a streak bonus (kills without dying: x1.2, x1.4 ... up to x2). The numbers are at the top of
 the kills-and-money part of `index.html` (`KILL_PAY` ...).
 
-The server: `SERVER_URL` and `SERVER_KEY` at the top of `index.html` (empty for now: everything stays on the phone).
-`server/supabase.sql` makes the profiles table on Supabase.
+The server is Supabase (`SERVER_URL`, `SERVER_KEY` at the top of `index.html`; `server/supabase.sql` makes the table).
+Signing in: the email gets a 6-digit code (the Supabase email templates must show `{{ .Token }}`). Signed in, the
+profile (ships, kills, coins) is kept on the server and wins over the phone's copy at start, so a new phone with the same
+email gets the traded ships and the coins back. Trades and duels then meet over the internet (Supabase Realtime rooms,
+one for duels and one for trades; the ship's state is sent 12 times a second online). Without signing in ("go on
+without an account") everything stays on the phone, and trades and duels are with a nearby phone, as before.
 
 ## Install on the phone
 
