@@ -344,6 +344,7 @@ ok("VANTA (vanta-layout.json): the drop at 112 ms of 360, the phase drop at 690 
     assert(fs.existsSync(path.join(dir, f)), f);
   for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
   assert.strictEqual(S.magic, "tint");
+  for (const w of ["mark", "phase"]) { const Q = WEAPONS[w]; assert(Q.swell > 0 && Q.grow > 1 && Q.thin > 0 && Q.thin < 1, w + " swells into a thinner ball"); }
   const m = MAGIC.tint.mult; assert(m.length === 4 && m[0] === 1 && m[1] < m[2] && m[2] < m[3], "lime, blue, red, white: each stronger");
 });
 ok("VANTA's drop through the planet: straight through the middle, a graze, a miss, and one already past", () => {

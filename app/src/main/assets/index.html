@@ -367,11 +367,14 @@ const WEAPONS = {
              near: 0.7, far: 5, hold: 1.6, per: 0.12 },
   // ZORIAN. thread (seconds from the press): it lays from `lay` to `seal`, warns until `arm`, hurts until `expire`
   needle:  { name: "מחט אור",   dmg: 6,  speed: 2.6, life: 1.0, cool: 0.27, ammo: 26, refill: 7,  r: 0.025, color: "#92f8ff" },
+  // VANTA's drops swell as they fly: in `swell` seconds they become a round ball `grow` times as big (easier to hit
+  //   with), but thinner: at full size `thin` of the damage is gone (and they look see-through)
   // VANTA. mark: tag = seconds the stain shows on the target. phase: dmg normally, `boost` once it has come out of
   //   the planet; `transit`: the least time it spends inside, `warn`: how long the exit mark pulses before it comes out
-  mark:    { name: "טיפת סימון", dmg: 6,  speed: 2.4, life: 1.0, cool: 0.36, ammo: 18, refill: 6,  r: 0.03, color: "#caff38", tag: 1.75 },
+  mark:    { name: "טיפת סימון", dmg: 6,  speed: 2.4, life: 1.0, cool: 0.36, ammo: 18, refill: 6,  r: 0.03, color: "#caff38", tag: 1.75,
+             swell: 0.9, grow: 2.4, thin: 0.4 },
   phase:   { name: "טיפת מעבר",  dmg: 20, speed: 1.5, life: 3.0, cool: 1.2,  ammo: 3,  refill: 3.5, r: 0.06, color: "#caff38",
-             phase: true, boost: 42, transit: 0.315, warn: 0.21 },
+             phase: true, boost: 42, transit: 0.315, warn: 0.21, swell: 2.2, grow: 3.0, thin: 0.45 },
   thread:  { name: "חוט אור",   dmg: 25, speed: 0,   life: 0,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#48aef6", thread: true,
              lay: 0.15, seal: 1.31, arm: 1.54, expire: 3.98 },
   // ZORIAN's spiked ball: on a chain `len` ship-lengths long from the stern; it trails and swings with the ship.
@@ -1919,7 +1922,7 @@ function threadBlocks(T, s, dt) {
   if (!T || !T.paths) return false;
   const Wp = WEAPONS[T.w], ph = threadPhase(Wp, T.t);
   if (!ph || ph === "charge") return false;
-  const now = { x: s.x, y: s.y }, from = { x: s.x - s.vx * dt, y: s.y - s.vy * dt }, rad = (WEAPONS[s.w].r || 0.03) * shipSize() * 0.6 + 3;
+  const now = { x: s.x, y: s.y }, from = { x: s.x - s.vx * dt, y: s.y - s.vy * dt }, rad = (WEAPONS[s.w].r || 0.03) * shotScale(s, WEAPONS[s.w]) * shipSize() * 0.6 + 3;
   for (const q of T.paths) for (let i = 1; i < q.length; i++) {
     const c = q[i - 1], d = q[i], ox = wrapDelta(c.x - now.x, WW) + now.x - c.x, oy = wrapDelta(c.y - now.y, WH) + now.y - c.y;
     if (segDistance(from, now, { x: c.x + ox, y: c.y + oy }, { x: d.x + ox, y: d.y + oy }) <= rad) return true;
@@ -1956,11 +1959,16 @@ function phaseStep(s, Wp, dt) {
   burstAt(s.x, s.y, 18, [VANTA_TINTS[s.lvl || 0].color, "#ffd97e", "#ffffff"], 0.35, 0.7);
   return true;
 }
-// what a shot does on a hit (VANTA's drop out of the planet: its boosted damage)
+// VANTA's drops swell: 0 just fired .. 1 a full, thin ball (its life waits inside the planet, so this does too)
+function swellOf(s, Wp) { return Wp.swell ? Math.min(1, s.life / Wp.swell) : 0; }
+// how big a shot is now (its hit radius and drawing)
+function shotScale(s, Wp) { return Wp.swell ? 1 + (Wp.grow - 1) * swellOf(s, Wp) : 1; }
+// what a shot does on a hit (VANTA: its colour, out of the planet boosted, thinner the more it has swollen)
 function shotHit(s, Wp) {
-  if (!Wp.phase) return Wp;
+  const thin = Wp.swell ? 1 - Wp.thin * swellOf(s, Wp) : 1;
+  if (!Wp.phase) return thin < 1 ? { ...Wp, dmg: Math.max(1, Math.round(Wp.dmg * thin)) } : Wp;
   const T = VANTA_TINTS[s.lvl || 0];
-  return { ...Wp, dmg: Math.round((s.boost ? Wp.boost : Wp.dmg) * MAGIC.tint.mult[s.lvl || 0]), color: T.color };
+  return { ...Wp, dmg: Math.round((s.boost ? Wp.boost : Wp.dmg) * MAGIC.tint.mult[s.lvl || 0] * thin), color: T.color };
 }
 // VANTA's phase drop on its way: a glowing trail in its colour (more once boosted; white: flames)
 function phaseTrail(s) {
@@ -2142,7 +2150,7 @@ function updateEnemyShots(dt) {
     // SKARN's open jaw: caught (and it powers up SKARN's shards)
     if (trapOpen() && inMouth(game, S, s, dt)) { trapGain(s.x, s.y); eshots.splice(k, 1); continue; }
     // into your ship
-    if (!game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < size * 0.42 * shipScale() + Wp.r * size) {
+    if (!game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < size * 0.42 * shipScale() + Wp.r * shotScale(s, Wp) * size) {
       burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 6, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);
       damageShip(Math.max(1, Math.round(shotHit(s, Wp).dmg * ENEMY_DMG)));
       eshots.splice(k, 1);
@@ -3063,7 +3071,7 @@ function updateWeapons(dt) {
     // into the enemy
     if (enemy.on && enemy.warp < 0.5) {
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
-      if (Math.hypot(dx, dy) < size * 0.42 + Wp.r * size) {
+      if (Math.hypot(dx, dy) < size * 0.42 + Wp.r * shotScale(s, Wp) * size) {
         hitEnemy(s, shotHit(s, Wp)); shots.splice(k, 1);
         if (Wp.tag) { enemy.markT = Wp.tag; audio.sfx("vanta", "mark_hit"); }   // VANTA's marking drop: the stain
         if (Wp.phase) {   // the heavy drop bursts: rings and a shake, more for a boosted or coloured one
@@ -4177,16 +4185,17 @@ function drawHealth() {
 // the shots, each weapon its own look
 // VANTA's heavy drop: a big pulsing halo in its colour, the drawing (in its colour), and, glowing white, flames round it
 function drawPhaseDrop(s, p, ux, uy, size) {
-  const T = VANTA_TINTS[s.lvl || 0], img = tintedArt(s.art.src, s.lvl || 0), d = s.art.d * size, beat = 0.85 + 0.15 * Math.sin(time * 18 + s.life * 7);
-  const R = d * (s.boost ? 1.5 : 1.1) * beat;
-  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  const Wp = WEAPONS[s.w], sw = swellOf(s, Wp), k = shotScale(s, Wp), heavy = s.w === "phase";
+  const T = VANTA_TINTS[s.lvl || 0], img = tintedArt(s.art.src, s.lvl || 0), d = s.art.d * size * k, beat = 0.85 + 0.15 * Math.sin(time * 18 + s.life * 7);
+  const R = d * (s.boost ? 1.5 : 1.1) * beat * (heavy ? 1 : 0.6);
+  ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 1 - 0.5 * sw;
   const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R);
   g.addColorStop(0, hexA(T.color, 0.55)); g.addColorStop(0.4, hexA(T.color, 0.22)); g.addColorStop(1, hexA(T.color, 0));
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); ctx.fill();
   if (T.white) {   // flames licking back from it
     const ang = Math.atan2(uy, ux) + Math.PI;
     for (let i = 0; i < 9; i++) {
-      const a = ang + (i - 4) * 0.32 + Math.sin(time * 13 + i * 1.7) * 0.12, len = d * (0.75 + 0.45 * Math.abs(Math.sin(time * 11 + i * 2.3))) * (s.boost ? 1.3 : 1);
+      const a = ang + (i - 4) * 0.32 + Math.sin(time * 13 + i * 1.7) * 0.12, len = d / Math.sqrt(k) * (0.75 + 0.45 * Math.abs(Math.sin(time * 11 + i * 2.3))) * (s.boost ? 1.3 : 1);
       const fx = p.x + Math.cos(a) * len * 0.55, fy = p.y + Math.sin(a) * len * 0.55;
       const fg = ctx.createRadialGradient(fx, fy, 0, fx, fy, len * 0.55);
       fg.addColorStop(0, "rgba(255,240,190,0.75)"); fg.addColorStop(0.45, "rgba(255,150,50,0.45)"); fg.addColorStop(1, "rgba(255,70,20,0)");
@@ -4194,9 +4203,24 @@ function drawPhaseDrop(s, p, ux, uy, size) {
     }
   }
   ctx.restore();
-  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy));
-  if (T.white) { ctx.shadowColor = "#ffffff"; ctx.shadowBlur = d * 0.6; }
-  ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+  // the drop's own drawing, fading out as it rounds into a ball
+  if (sw < 1) {
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy)); ctx.globalAlpha = 1 - sw;
+    if (T.white) { ctx.shadowColor = "#ffffff"; ctx.shadowBlur = d * 0.6; }
+    ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+  }
+  // the swelling ball: round, thinner (more see-through) the bigger it gets, its skin wobbling a little
+  if (sw > 0) {
+    const br = d * 0.2, a = Math.min(1, sw * 2.2) * (0.95 - 0.5 * sw), wob = 0.06 * Math.sin(time * 9 + s.life * 5);
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy)); ctx.scale(1 - wob, 1 + wob); ctx.globalAlpha = a;
+    if (T.white) { ctx.shadowColor = "#ffffff"; ctx.shadowBlur = br; }
+    const g = ctx.createRadialGradient(-br * 0.3, -br * 0.35, br * 0.05, 0, 0, br);
+    g.addColorStop(0, "#ffffff"); g.addColorStop(0.25, hexA(T.ribbon[2], 0.85)); g.addColorStop(0.7, hexA(T.ribbon[1], 0.55 - 0.25 * sw)); g.addColorStop(1, hexA(T.ribbon[0], 0.35));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, br, 0, TAU); ctx.fill();
+    ctx.strokeStyle = hexA(T.ribbon[2], 0.7); ctx.lineWidth = Math.max(1, br * 0.06); ctx.stroke();   // its skin
+    ctx.fillStyle = "rgba(255,255,255,0.6)"; ctx.beginPath(); ctx.ellipse(-br * 0.38, -br * 0.4, br * 0.2, br * 0.11, -0.6, 0, TAU); ctx.fill();   // a shine
+    ctx.restore();
+  }
 }
 // VANTA: where the drop will come out of the planet, pulsing for its last `warn` seconds inside
 function drawExitMark(s) {
@@ -4225,7 +4249,7 @@ function drawShots(list = shots) {
       ctx.strokeStyle = hexA(Wp.color, 0.35); ctx.lineWidth = wd * 2.6;
       ctx.beginPath(); ctx.moveTo(p.x - ux * len, p.y - uy * len); ctx.lineTo(p.x, p.y); ctx.stroke();
       ctx.strokeStyle = "#ffffff"; ctx.lineWidth = wd * 0.8; ctx.stroke();
-    } else if (s.w === "phase" && s.art && artImage(s.art.src)) {
+    } else if ((s.w === "phase" || s.w === "mark") && s.art && artImage(s.art.src)) {
       drawPhaseDrop(s, p, ux, uy, size);
     } else if (s.art && artImage(s.art.src)) {
       // a shot with its own drawing: the cannonball rolls as it flies (spin); a thorn points where it flies.
@@ -5055,7 +5079,7 @@ function updateDuel(dt) {
     if (Wp.phase) phaseTrail(s);
     if (threadBlocks(game.thread, s, dt)) { threadSpark(s); duel.shots.splice(k, 1); continue; }   // my thread stops it (their phone sees my thread too)
     if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it)
-    const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shipSize();
+    const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shotScale(s, Wp) * shipSize();
     const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
     if (near || inPlanet || s.life > Wp.life) {
       if (near) burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 5, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);

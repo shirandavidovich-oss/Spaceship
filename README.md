@@ -127,6 +127,8 @@ a pulsing mark shows where it will come out just before it does (time to dodge),
 It leaves with a bang (a kick, a shock ring, a shake), trails glowing sparks, and bursts with rings when it hits.
 Its magic changes the liquid's colour, one step a tap (every 4 s): lime, blue (x1.4), red (x1.9), glowing white with
 flames round the drop (x2.6). The next heavy drop does that much more damage and uses the colour up (back to lime).
+Both drops swell as they fly, rounding into a ball that grows (up to 2.4x / 3x) and gets thinner and see-through: easier to
+hit with, but weaker (down to 60% / 55% of the damage).
 
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.
