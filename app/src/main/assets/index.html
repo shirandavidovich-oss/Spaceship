@@ -539,7 +539,8 @@ const WEAPONS = {
   // KRAAL. hammer: both muzzles, same heading. cross: two bolts to one point; `life` seconds to get there, a blast
   // of radius `r` ship-lengths there doing `dmg` once
   hammer:  { name: "פטיש",      dmg: 5,  speed: 2.5, life: 1.0, cool: 0.3,  ammo: 30, refill: 8,  r: 0.025, color: "#ff6a4a", both: true },
-  //   hold: the meeting point runs from `near` to `far` ship-lengths ahead over `hold` seconds of holding; let go to fire.
+  //   hold: the meeting point runs from `near` to `far` ship-lengths BEHIND it (against the way it flies: crossPoint)
+  //   over `hold` seconds of holding; let go to fire.
   //   The bolts take 0.3 s plus `per` seconds for each ship-length to the point
   cross:   { name: "הצלבה",     dmg: 32, speed: 0,   life: 0.425, cool: 1.1, ammo: 4, refill: 9, r: 0.136, color: "#ff4a3a", converge: true,
              near: 0.7, far: 5, hold: 1.6, per: 0.12 },
@@ -2463,7 +2464,7 @@ const CROSS_GUIDE = true;
 function drawCrossGuide() {
   const H = game.crossHold, S = shipById(game.ship);
   if (!CROSS_GUIDE || !H || game.dead) return;
-  const Wp = WEAPONS[slotWeapon(1)], d = crossReach(Wp, H.held), m = rotatePt(0, -d * shipSize(), game.ang), p = toScreen(game.x + m.x, game.y + m.y);
+  const Wp = WEAPONS[slotWeapon(1)], q = crossPoint(crossReach(Wp, H.held)), p = toScreen(q.x, q.y);
   const r = Wp.r * shipSize() + shipSize() * 0.1;
   ctx.save(); ctx.globalAlpha = 0.35 + 0.15 * Math.sin(time * 10); ctx.strokeStyle = "#ff6a4a"; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.stroke();
@@ -2471,9 +2472,15 @@ function drawCrossGuide() {
   ctx.moveTo(p.x, p.y - r * 1.5); ctx.lineTo(p.x, p.y - r * 0.5); ctx.moveTo(p.x, p.y + r * 0.5); ctx.lineTo(p.x, p.y + r * 1.5); ctx.stroke();
   ctx.restore();
 }
+// where KRAAL's crossing bolts meet: `reach` ship-lengths BEHIND it, against the way it is flying (to hit what chases it
+// while it gets away); hardly moving: behind its tail
+function crossPoint(reach) {
+  const sp = Math.hypot(game.vx, game.vy), a = sp > U * 0.15 ? Math.atan2(game.vx, -game.vy) + Math.PI : game.ang + Math.PI, d = reach * shipSize();
+  return { x: (((game.x + Math.sin(a) * d) % WW) + WW) % WW, y: (((game.y - Math.cos(a) * d) % WH) + WH) % WH };
+}
 function crossRelease(w, S, reach = -S.focus) {
   const size = shipSize(), at = (g) => { const m = rotatePt(g[0] * size, g[1] * size, game.ang); return { x: game.x + m.x, y: game.y + m.y }; };
-  const Wp = WEAPONS[w], [a, b] = S.guns.cross.map(at), f = at([0, -reach]);
+  const Wp = WEAPONS[w], [a, b] = S.guns.cross.map(at), f = crossPoint(reach);
   const c = { w, a, b, f, t: 0, ship: S.id, life: 0.3 + Wp.per * reach };
   crosses.push(c);
   duelSend({ t: "cv", w, s: S.id, l: c.life, p: [a.x / WW, a.y / WH, b.x / WW, b.y / WH, f.x / WW, f.y / WH] });

@@ -226,6 +226,9 @@ ZORIAN's blue stripe is an energy channel: firing, a pulse runs up it to the nos
 backwards to the projector in pulses (42 frames). KRAAL's gun pods slide forward and recoil on their rails (14 frames); for
 the crossing shot the middle plate lifts on the hot core and the pods turn inward before they fire (26 frames).
 
+KRAAL's crossing shot meets BEHIND it, against the way it is flying (hold to push the point farther back): it hits what
+chases it while it gets away. Hardly moving, the point is behind its tail (`crossPoint`).
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 
