@@ -23,6 +23,10 @@ const FULL_TILT  = 22;   // degrees past the dead zone that give full engine pow
 const GIFT_TAPS  = 3;    // taps on the gift until it opens
 const SWIPE_UP   = 0.18; // swipe-up length (part of the screen height) that asks to trade
 const LOOK_FOR   = 45;   // seconds to look for the other phone
+const WORLD      = 10;   // space is this many screens wide and this many tall; fly off one edge, come back on the other
+const STEER      = "point"; // "point": tip the phone toward where the nose should point.  "turn": tip right/left to turn
+const PULL       = 0.8;  // the planet's pull one screen away from it (screens per second, each second). Closer = stronger
+const PLANET_R   = 0.5;  // planet radius, in screen-widths
 
 // <logic>  (pure game rules, no screen: tests/ship.test.js runs this part)
 const RARITY = {
@@ -32,56 +36,59 @@ const RARITY = {
   legendary: { odds: 5,  name: "אגדית", stars: 4, color: "#ffd166" }
 };
 
-// The ten ships. Shapes are drawn in code for now (nose up, units of the ship's length);
-// real drawings can replace them later, one file per ship.
+// The ships. Shapes are drawn in code for now (nose up, units of the ship's length).
+// A real drawing replaces the shape: put it in art/ships/<id>.png (nose up, see-through background)
+// and add  art: true  to that ship.
+//   fuel: seconds of engine the ship has (the button goes white -> black over this time)
+//   turn: (optional) degrees per second it can turn; heavier ships turn slower by default
 //   body / wing: the right half of the outline, mirrored to the left
 //   nozzles: x of each engine, at engineY (more engines push harder)
 const SHIPS = [
-  { id: "hornet", name: "צרעה", rarity: "common", mass: 0.8,
+  { id: "hornet", name: "צרעה", rarity: "common", mass: 0.8, fuel: 30,
     hull: "#ffd23f", wingC: "#2b2b36", trim: "#ffef9f", flame: "#ffb703",
     body: [[0, -0.5], [0.07, -0.3], [0.1, 0.1], [0.07, 0.42]],
     wing: [[0.08, -0.05], [0.36, 0.2], [0.34, 0.3], [0.08, 0.25]],
     nozzles: [0], engineY: 0.44, cockpit: [0, -0.18, 0.05, 0.1] },
-  { id: "comet", name: "שביט", rarity: "common", mass: 1.0,
+  { id: "comet", name: "שביט", rarity: "common", mass: 1.0, fuel: 30,
     hull: "#7ce7ff", wingC: "#2a6f97", trim: "#e0fbff", flame: "#4cc9f0",
     body: [[0, -0.5], [0.09, -0.25], [0.11, 0.3], [0.06, 0.45]],
     wing: [[0.1, -0.1], [0.42, 0.32], [0.4, 0.4], [0.1, 0.32]],
     nozzles: [-0.06, 0.06], engineY: 0.45, cockpit: [0, -0.22, 0.055, 0.11] },
-  { id: "falcon", name: "נץ", rarity: "common", mass: 1.1,
+  { id: "falcon", name: "נץ", rarity: "common", mass: 1.1, fuel: 30,
     hull: "#ff9f1c", wingC: "#7f4f24", trim: "#ffd6a5", flame: "#ff6b35",
     body: [[0, -0.5], [0.12, -0.15], [0.13, 0.35], [0.08, 0.45]],
     wing: [[0.12, -0.2], [0.48, 0.38], [0.12, 0.3]],
     nozzles: [-0.07, 0.07], engineY: 0.45, cockpit: [0, -0.2, 0.06, 0.12] },
-  { id: "beetle", name: "חיפושית", rarity: "common", mass: 1.3,
+  { id: "beetle", name: "חיפושית", rarity: "common", mass: 1.3, fuel: 30,
     hull: "#80ed99", wingC: "#2d6a4f", trim: "#d8f3dc", flame: "#57cc99",
     body: [[0, -0.42], [0.2, -0.32], [0.28, 0], [0.22, 0.32], [0.08, 0.44]],
     wing: [[0.24, -0.1], [0.36, 0.05], [0.33, 0.22], [0.24, 0.18]],
     nozzles: [0], engineY: 0.44, cockpit: [0, -0.14, 0.11, 0.1] },
-  { id: "orion", name: "אוריון", rarity: "rare", mass: 1.2,
+  { id: "orion", name: "אוריון", rarity: "rare", mass: 1.2, fuel: 30,
     hull: "#4895ef", wingC: "#3a6ea5", trim: "#caf0f8", flame: "#4cc9f0", twin: 0.2,
     body: [[0, -0.5], [0.06, -0.3], [0.07, 0.4], [0.04, 0.46]],
     wing: [[0, -0.05], [0.32, 0.05], [0.32, 0.15], [0, 0.12]],
     nozzles: [-0.2, 0.2], engineY: 0.46, cockpit: [0, -0.02, 0.07, 0.08] },
-  { id: "nebula", name: "ערפילית", rarity: "rare", mass: 0.9, saucer: 0.42,
+  { id: "nebula", name: "ערפילית", rarity: "rare", mass: 0.9, fuel: 30, saucer: 0.42,
     hull: "#f7aef8", wingC: "#7209b7", trim: "#ffe5ff", flame: "#f72585",
     body: [], wing: [],
     nozzles: [-0.12, 0, 0.12], engineY: 0.22, cockpit: [0, -0.04, 0.12, 0.1] },
-  { id: "pulsar", name: "פולסר", rarity: "rare", mass: 1.0, ring: 0.36,
+  { id: "pulsar", name: "פולסר", rarity: "rare", mass: 1.0, fuel: 30, ring: 0.36,
     hull: "#2ec4b6", wingC: "#0b3d3a", trim: "#cbf3f0", flame: "#2ec4b6",
     body: [[0, -0.46], [0.08, -0.2], [0.09, 0.3], [0.05, 0.42]],
     wing: [],
     nozzles: [-0.05, 0.05], engineY: 0.42, cockpit: [0, -0.16, 0.05, 0.1] },
-  { id: "nova", name: "נובה", rarity: "epic", mass: 1.1,
+  { id: "nova", name: "נובה", rarity: "epic", mass: 1.1, fuel: 30,
     hull: "#ef233c", wingC: "#8d99ae", trim: "#ffccd5", flame: "#ff7b00",
     body: [[0, -0.5], [0.1, -0.2], [0.12, 0.35], [0.07, 0.46]],
     wing: [[0.1, 0.3], [0.46, -0.12], [0.5, -0.05], [0.18, 0.42]],
     nozzles: [-0.09, 0, 0.09], engineY: 0.46, cockpit: [0, -0.22, 0.06, 0.12] },
-  { id: "quasar", name: "קוואזר", rarity: "epic", mass: 1.4,
+  { id: "quasar", name: "קוואזר", rarity: "epic", mass: 1.4, fuel: 30,
     hull: "#f8f9fa", wingC: "#c9a227", trim: "#fff3b0", flame: "#90e0ef",
     body: [[0, -0.5], [0.05, -0.35], [0.08, 0.4], [0.05, 0.47]],
     wing: [[0.07, 0.05], [0.26, 0.28], [0.3, 0.45], [0.07, 0.36]],
     nozzles: [-0.22, -0.08, 0.08, 0.22], engineY: 0.45, cockpit: [0, -0.26, 0.04, 0.12] },
-  { id: "stardragon", name: "דרקון כוכבים", rarity: "legendary", mass: 1.6,
+  { id: "stardragon", name: "דרקון כוכבים", rarity: "legendary", mass: 1.6, fuel: 30,
     hull: "#ffd166", wingC: "#6a0dad", trim: "#fff1c1", flame: "#c77dff",
     body: [[0, -0.5], [0.06, -0.42], [0.12, -0.2], [0.14, 0.2], [0.06, 0.47]],
     wing: [[0.12, -0.18], [0.3, -0.36], [0.5, -0.1], [0.44, 0.1], [0.5, 0.3], [0.3, 0.2], [0.13, 0.3]],
@@ -115,6 +122,46 @@ function controlFromTilt(t) {
   if (t.pitch < -30 || t.pitch > 120) return { side: 0, fwd: 0 };   // phone upside down or face down: no control
   return { side: shape(t.roll), fwd: shape(HOLD_ANGLE - t.pitch) };
 }
+
+// ---- Star-Control-style flying ----
+// Angles: 0 = nose up the screen, growing clockwise (90 = nose to the right).
+const TAU = Math.PI * 2;
+function wrapAngle(a) { a = (a + Math.PI) % TAU; if (a < 0) a += TAU; return a - Math.PI; }
+// the way the tilt points (null when the phone is at its usual angle: keep the current heading)
+function headingTarget(c) { return c.side || c.fwd ? Math.atan2(c.side, c.fwd) : null; }
+// turn from a toward target by at most `step`, the short way round
+function turnToward(a, target, step) { const d = wrapAngle(target - a); return a + Math.max(-step, Math.min(step, d)); }
+// space wraps around: the shortest way from one point to another along one axis
+function wrapDelta(d, size) { return d - size * Math.round(d / size); }
+// the planet's pull on a ship dx, dy away from it (pixels). u = one screen-width. r below the surface counts as the surface
+function gravityAt(dx, dy, u, surface) {
+  const d = Math.hypot(dx, dy) || 1, r = Math.max(d, surface);
+  const a = PULL * u * (u / r) * (u / r);
+  return { ax: -dx / d * a, ay: -dy / d * a };
+}
+// each ship's numbers (units: screens and seconds)
+function shipStats(S) {
+  return {
+    fuel: S.fuel || 30,
+    turn: (S.turn || Math.round(300 / S.mass)) * Math.PI / 180,        // radians per second
+    push: (0.7 + 0.15 * S.nozzles.length) / S.mass,                      // engine push
+    top: 1.3 + 0.25 * S.nozzles.length - 0.3 * S.mass                    // top speed
+  };
+}
+// the thrust button's color for the fuel left (1 = full = white ... 0 = empty = black)
+const FUEL_COLORS = [[1, "#ffffff"], [0.82, "#fff275"], [0.64, "#ff9f1c"], [0.46, "#ef233c"], [0.3, "#b5179e"], [0.15, "#3a0ca3"], [0, "#000000"]];
+function fuelColor(f) {
+  f = Math.max(0, Math.min(1, f));
+  for (let i = 1; i < FUEL_COLORS.length; i++) {
+    const [f1, c1] = FUEL_COLORS[i - 1], [f0, c0] = FUEL_COLORS[i];
+    if (f >= f0) {
+      const k = (f - f0) / (f1 - f0), a = parseInt(c0.slice(1), 16), b = parseInt(c1.slice(1), 16);
+      const mix = (s) => Math.round(((a >> s) & 255) + (((b >> s) & 255) - ((a >> s) & 255)) * k);
+      return "#" + ((1 << 24) | (mix(16) << 16) | (mix(8) << 8) | mix(0)).toString(16).slice(1);
+    }
+  }
+  return "#000000";
+}
 // </logic>
 
 // ======================================================================
@@ -122,10 +169,14 @@ function controlFromTilt(t) {
 // ======================================================================
 const cv = document.getElementById("c");
 const ctx = cv.getContext("2d");
-let W = 0, H = 0, U = 0, DPR = 1;
+let W = 0, H = 0, U = 0, DPR = 1, WW = 0, WH = 0;   // WW, WH: the whole of space, in pixels
 function resize() {
   DPR = Math.min(2.5, window.devicePixelRatio || 1);
   W = innerWidth; H = innerHeight; U = Math.min(W, H);
+  // opening/closing the Fold changes the screen: space keeps its shape, the ship keeps its place in it
+  const oldW = WW, oldH = WH;
+  WW = W * WORLD; WH = H * WORLD;
+  if (oldW && typeof game !== "undefined") { game.x *= WW / oldW; game.y *= WH / oldH; }
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   makeStars();
@@ -193,6 +244,7 @@ const audio = {
   bump() { this.tone(70, 0.2, "sine", 0.35, 0.6); },
   whoosh() { this.tone(200, 0.7, "sawtooth", 0.08, 6); },
   pop() { this.tone(600, 0.1, "sine", 0.15, 1.8); },
+  empty() { for (let i = 0; i < 4; i++) this.tone(140 - i * 20, 0.09, "square", 0.08, 0.7, i * 0.12); },
   // engine hum that follows the throttle
   engine(power) {
     if (!this.ctx) return;
@@ -221,10 +273,20 @@ const game = {
   stage: save ? "arrive" : "gift",   // gift -> opening -> fly ; arrive -> fly
   t: 0,
   ship: save ? save.ship : null,
-  x: 0, y: 0, vx: 0, vy: 0, power: 0, fwd: 0, side: 0,
+  x: 0, y: 0, vx: 0, vy: 0, power: 0, fwd: 0, side: 0,   // x, y: place in space (pixels)
+  ang: 0, spin: 0,  // heading (0 = nose up, clockwise) and how fast it is turning
+  fuel: 0,          // seconds of engine left
+  thrust: null,     // the finger holding the thrust button (pointer id), or null
+  gone: 0,          // seconds since the fuel ran out (the button fades away)
+  lx: 0, ly: 0,     // the camera looks a little ahead of the ship
   card: 0,          // seconds left to show the ship's name card
   hitCool: 0
 };
+// start: just above the planet, so its pull is felt at once
+function placeShip() {
+  game.x = WW / 2; game.y = WH / 2 - U * 1.6; game.vx = game.vy = 0; game.ang = 0; game.lx = game.ly = 0;
+  if (game.ship) game.fuel = shipStats(shipById(game.ship)).fuel;
+}
 const gift = { taps: 0, wob: 0, squash: 0, hint: 0 };
 let time = 0;
 
@@ -255,19 +317,32 @@ function burst(x, y, n, colors, speed = 1, size = 1) {
 let swipe = null;
 cv.addEventListener("pointerdown", (e) => {
   audio.wake();
+  if (trade.stage && tradeTap(e.clientX, e.clientY)) return;
+  // the left thumb on the thrust button (another finger can still swipe at the same time)
+  if (game.stage === "fly" && game.fuel > 0 && hitThrust(e.clientX, e.clientY)) {
+    game.thrust = e.pointerId; buzz(12);
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    return;
+  }
   swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
-  if (trade.stage && tradeTap(e.clientX, e.clientY)) { swipe = null; return; }
   if (game.stage === "gift" && hitGift(e.clientX, e.clientY)) { tapGift(); swipe = null; return; }
   if (game.stage === "opening" && game.t > 2.2) { toFly(); swipe = null; return; }
-  if (game.stage === "fly" && Math.hypot(e.clientX - game.x, e.clientY - game.y) < shipSize() * 0.6) { game.card = 2.5; audio.pop(); }
+  const p = shipScreen();
+  if (game.stage === "fly" && Math.hypot(e.clientX - p.x, e.clientY - p.y) < shipSize() * 0.6) { game.card = 2.5; audio.pop(); }
 });
-cv.addEventListener("pointerup", (e) => {
+function fingerUp(e) {
+  if (e.pointerId === game.thrust) { game.thrust = null; return; }
   if (!swipe || e.pointerId !== swipe.id) return;
   const up = swipe.y - e.clientY;
-  if (up > H * SWIPE_UP && performance.now() - swipe.t < 900 && game.stage === "fly") openTrade();
+  if (e.type === "pointerup" && up > H * SWIPE_UP && performance.now() - swipe.t < 900 && game.stage === "fly") openTrade();
   swipe = null;
-});
-cv.addEventListener("pointercancel", () => { swipe = null; });
+}
+cv.addEventListener("pointerup", fingerUp);
+cv.addEventListener("pointercancel", fingerUp);
+addEventListener("blur", () => { game.thrust = null; });
+// on a computer: the space bar is the thrust button
+addEventListener("keydown", (e) => { if (e.key === " " && game.stage === "fly" && game.fuel > 0) game.thrust = "key"; });
+addEventListener("keyup", (e) => { if (e.key === " " && game.thrust === "key") game.thrust = null; });
 
 // Android back: close the bubble or card first, then leave
 window.shipBack = () => {
@@ -296,7 +371,7 @@ function tapGift() {
 }
 function toFly() {
   game.stage = "fly"; game.t = 0;
-  if (!game.x) { game.x = W / 2; game.y = H * 0.6; }
+  game.fuel = shipStats(shipById(game.ship)).fuel; game.gone = 0;
   game.card = 0;
 }
 
@@ -317,16 +392,6 @@ function update(dt) {
   const c = controlFromTilt(tilt);
   game.side = c.side; game.fwd = c.fwd;
 
-  // stars drift past slowly; the tilt shifts the near ones more (depth)
-  const cruise = U * 0.02;
-  for (const s of stars) {
-    s.y += (cruise * (s.d + 1) - game.vy * 0.04 * (s.d + 1)) * dt;
-    s.x -= game.vx * 0.04 * (s.d + 1) * dt;
-    if (s.y > H + 4) { s.y -= H + 8; s.x = Math.random() * W; }
-    if (s.y < -4) { s.y += H + 8; s.x = Math.random() * W; }
-    if (s.x > W + 4) s.x -= W + 8;
-    if (s.x < -4) s.x += W + 8;
-  }
 
   if (game.stage === "opening") {
     if (game.t > 1.25 && !game.burstDone) {
@@ -337,7 +402,7 @@ function update(dt) {
     }
     if (game.t > 6) toFly();
   }
-  if (game.stage === "arrive" && game.t > 0.9) { game.x = W / 2; game.y = H * 0.6; game.stage = "fly"; game.t = 0; }
+  if (game.stage === "arrive" && game.t > 0.9) { game.stage = "fly"; game.t = 0; }
 
   if (game.stage === "fly" && trade.stage !== "swapping") flyShip(dt);
   updateTrade(dt);
@@ -350,30 +415,72 @@ function update(dt) {
 }
 
 function flyShip(dt) {
-  const S = shipById(game.ship), size = shipSize();
-  // heavier ships push off slower; more engines push harder
-  const thrust = U * 2.6 * (0.7 + 0.15 * S.nozzles.length) / S.mass;
-  game.vx += game.side * thrust * dt;
-  game.vy -= game.fwd * thrust * dt;
-  // a gentle brake, so the ship comes to rest when the phone is back at its usual angle
-  const drag = Math.exp(-dt * 1.8);
-  game.vx *= drag; game.vy *= drag;
-  game.x += game.vx * dt; game.y += game.vy * dt;
-  game.power = lerp(game.power, Math.min(1, Math.hypot(game.side, game.fwd)), 1 - Math.exp(-dt * 8));
-  audio.engine(game.power);
+  const S = shipById(game.ship), st = shipStats(S), size = shipSize();
 
-  // soft bounce off the edges of the screen
-  const mx = size * 0.45, my = size * 0.55;
-  let hit = 0;
-  if (game.x < mx) { game.x = mx; hit = Math.abs(game.vx); game.vx = Math.abs(game.vx) * 0.4; }
-  if (game.x > W - mx) { game.x = W - mx; hit = Math.abs(game.vx); game.vx = -Math.abs(game.vx) * 0.4; }
-  if (game.y < my) { game.y = my; hit = Math.abs(game.vy); game.vy = Math.abs(game.vy) * 0.4; }
-  if (game.y > H - my) { game.y = H - my; hit = Math.abs(game.vy); game.vy = -Math.abs(game.vy) * 0.4; }
-  if (hit > U * 0.35 && !game.hitCool) {
-    game.hitCool = 0.25; audio.bump(); buzz(Math.min(60, hit / U * 40));
-    burst(game.x, game.y, 8, ["#ffffff", S.trim], 0.4, 0.6);
+  // 1. turning: the tilt sets the nose (the ship turns at its own speed)
+  const before = game.ang;
+  if (STEER === "turn") game.ang += game.side * st.turn * dt;
+  else {
+    const target = headingTarget(game);
+    if (target !== null) game.ang = turnToward(game.ang, target, st.turn * dt * Math.min(1, Math.hypot(game.side, game.fwd) * 2));
   }
+  game.ang = wrapAngle(game.ang);
+  game.spin = lerp(game.spin, wrapAngle(game.ang - before) / Math.max(dt, 0.001), 1 - Math.exp(-dt * 10));
+
+  // 2. engine: only while the left thumb holds the button, and only while there is fuel
+  const on = game.thrust !== null && game.fuel > 0;
+  if (on) {
+    game.vx += Math.sin(game.ang) * st.push * U * dt;
+    game.vy -= Math.cos(game.ang) * st.push * U * dt;
+    game.fuel = Math.max(0, game.fuel - dt);
+    if (game.fuel === 0) { game.thrust = null; audio.empty(); buzz(120); }
+  }
+  if (game.fuel === 0) game.gone += dt;
+
+  // 3. the planet in the middle pulls (nearest way round, since space wraps)
+  const R = U * PLANET_R;
+  const dx = wrapDelta(game.x - WW / 2, WW), dy = wrapDelta(game.y - WH / 2, WH);
+  const g = gravityAt(dx, dy, U, R);
+  game.vx += g.ax * dt; game.vy += g.ay * dt;
+
+  // 4. no air in space: the ship keeps flying, up to its top speed
+  const sp = Math.hypot(game.vx, game.vy), top = st.top * U;
+  if (sp > top) { const k = lerp(1, top / sp, 1 - Math.exp(-dt * 4)); game.vx *= k; game.vy *= k; }
+  game.x += game.vx * dt; game.y += game.vy * dt;
+  game.x = ((game.x % WW) + WW) % WW; game.y = ((game.y % WH) + WH) % WH;
+
+  // 5. bounce off the planet (no damage yet)
+  const d = Math.hypot(dx, dy), touch = R + size * 0.32;
+  if (d < touch) {
+    const nx = dx / (d || 1), ny = dy / (d || 1), vn = game.vx * nx + game.vy * ny;
+    game.x += nx * (touch - d); game.y += ny * (touch - d);
+    if (vn < 0) {
+      game.vx -= 1.6 * vn * nx; game.vy -= 1.6 * vn * ny;
+      if (-vn > U * 0.15 && !game.hitCool) {
+        game.hitCool = 0.3; audio.bump(); buzz(Math.min(70, -vn / U * 50));
+        const p = toScreen(game.x - nx * size * 0.3, game.y - ny * size * 0.3);
+        burst(p.x, p.y, 12, ["#ffffff", S.trim, "#b8a3ff"], 0.45, 0.7);
+      }
+    }
+  }
+
+  // 6. the camera leads a little in the direction of flight
+  const lk = 1 - Math.exp(-dt * 2);
+  game.lx = lerp(game.lx, clamp(game.vx * 0.22, -W * 0.22, W * 0.22), lk);
+  game.ly = lerp(game.ly, clamp(game.vy * 0.22, -H * 0.22, H * 0.22), lk);
+
+  game.power = lerp(game.power, on ? 1 : 0, 1 - Math.exp(-dt * 10));
+  audio.engine(game.power);
 }
+// where a point in space shows up on the screen
+function toScreen(x, y) {
+  return { x: W / 2 + wrapDelta(x - (game.x + game.lx), WW), y: H / 2 + wrapDelta(y - (game.y + game.ly), WH) };
+}
+function shipScreen() { return toScreen(game.x, game.y); }
+
+// ---------- the thrust button (left thumb) ----------
+function thrustButton() { const r = Math.min(U * 0.12, 72); return { x: r + U * 0.09, y: H - r - U * 0.1, r }; }
+function hitThrust(x, y) { const b = thrustButton(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.45; }
 
 // ======================================================================
 //  DRAWING
@@ -382,18 +489,13 @@ function drawSpace() {
   const g = ctx.createRadialGradient(W * 0.5, H * 0.35, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.9);
   g.addColorStop(0, "#141a3a"); g.addColorStop(0.55, "#090b1e"); g.addColorStop(1, "#030308");
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  // a far planet that shifts with the tilt (the screen is a window)
-  const ox = -tilt.roll * U * 0.004, oy = (tilt.pitch - HOLD_ANGLE) * U * 0.004;
-  const px = W * 0.82 + ox, py = H * 0.16 + oy, pr = U * 0.2;
-  const pg = ctx.createRadialGradient(px - pr * 0.4, py - pr * 0.4, pr * 0.1, px, py, pr);
-  pg.addColorStop(0, "#6c5ce7"); pg.addColorStop(0.7, "#2d1b69"); pg.addColorStop(1, "#120a2e");
-  ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(px, py, pr, 0, 6.2832); ctx.fill();
-  ctx.save(); ctx.translate(px, py); ctx.rotate(-0.35); ctx.scale(1, 0.22);
-  ctx.strokeStyle = "rgba(200,180,255,0.35)"; ctx.lineWidth = U * 0.03; ctx.beginPath(); ctx.arc(0, 0, pr * 1.55, 0, 6.2832); ctx.stroke();
-  ctx.restore();
+  // three layers of stars, far ones slide slower (depth). 0.1 / 0.3 / 0.6 x 10 screens = whole screens,
+  // so nothing jumps when the ship wraps round the edge of space
+  const cx = game.x + game.lx, cy = game.y + game.ly;
   for (const s of stars) {
-    const k = (s.d + 1) * 0.6;
-    const x = s.x - tilt.roll * k * U * 0.006, y = s.y + (tilt.pitch - HOLD_ANGLE) * k * U * 0.006;
+    const k = [0.1, 0.3, 0.6][s.d];
+    const x = (((s.x - cx * k) % W) + W) % W - tilt.roll * (s.d + 1) * U * 0.002;
+    const y = (((s.y - cy * k) % H) + H) % H + (tilt.pitch - HOLD_ANGLE) * (s.d + 1) * U * 0.002;
     ctx.globalAlpha = 0.45 + 0.55 * Math.abs(Math.sin(time * 1.3 + s.tw));
     ctx.fillStyle = s.d === 2 ? "#dfe8ff" : "#aab6e8";
     ctx.beginPath(); ctx.arc(x, y, s.r, 0, 6.2832); ctx.fill();
@@ -410,10 +512,10 @@ function mirrorPath(half) {
 
 // one ship, nose up, centered at (x, y), `size` long
 function drawShip(S, x, y, size, o = {}) {
-  const power = o.power ?? 0.25, bank = o.bank ?? 0, alpha = o.alpha ?? 1;
+  const power = o.power ?? 0.25, bank = o.bank ?? 0, alpha = o.alpha ?? 1, ang = o.ang ?? 0;
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.translate(x, y); ctx.rotate(bank * 0.25); ctx.scale(size * Math.cos(bank * 0.9), size);
+  ctx.translate(x, y); ctx.rotate(ang + bank * 0.15); ctx.scale(size * Math.cos(bank * 0.9), size);
   ctx.lineJoin = "round";
   // engine flames (behind everything)
   for (const ex of S.nozzles) {
@@ -428,6 +530,15 @@ function drawShip(S, x, y, size, o = {}) {
   const glow = ctx.createRadialGradient(0, 0.05, 0, 0, 0.05, 0.6);
   glow.addColorStop(0, hexA(S.flame, 0.18 + power * 0.12)); glow.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = glow; ctx.fillRect(-0.7, -0.6, 1.4, 1.3);
+
+  // a real drawing of the ship, once there is one
+  const img = shipArt(S);
+  if (img) {
+    const k = 1 / Math.max(img.width, img.height);
+    ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
+    ctx.restore();
+    return;
+  }
 
   ctx.lineWidth = 0.018; ctx.strokeStyle = "rgba(0,0,0,0.55)";
   if (S.ring) {
@@ -465,6 +576,14 @@ function drawShip(S, x, y, size, o = {}) {
   cg.addColorStop(0, "#e9f7ff"); cg.addColorStop(0.35, "#5fa8d3"); cg.addColorStop(1, "#14213d");
   ctx.fillStyle = cg; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, 6.2832); ctx.fill(); ctx.stroke();
   ctx.restore();
+}
+// ship drawings: art/ships/<id>.png, loaded once, only for ships marked  art: true
+const artCache = {};
+function shipArt(S) {
+  if (!S.art) return null;
+  let a = artCache[S.id];
+  if (!a) { a = artCache[S.id] = new Image(); a.src = "art/ships/" + S.id + ".png"; }
+  return a.complete && a.naturalWidth ? a : null;
 }
 function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
 function shade(hex, k) {
@@ -585,7 +704,7 @@ function draw() {
     });
     if (t > 0.5) {
       const k = ease((t - 0.5) / 1.0);
-      const y = lerp(g.cy - g.s * 0.25, H * 0.42, k) + Math.sin(time * 2.2) * U * 0.01;
+      const y = lerp(g.cy - g.s * 0.25, H * 0.5, k) + Math.sin(time * 2.2) * U * 0.01;
       drawShip(S, g.cx, y, shipSize() * (0.25 + 0.95 * k), { power: 0.5 + 0.3 * Math.sin(time * 3) });
     }
     drawCard(S, clamp((t - 1.5) / 0.5, 0, 1));
@@ -594,21 +713,105 @@ function draw() {
   if (game.stage === "arrive") {
     const k = ease(game.t / 0.9);
     ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = S.flame; ctx.lineWidth = U * 0.05 * (1 - k);
-    ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, lerp(0, H * 0.6, k)); ctx.stroke(); ctx.restore();
-    drawShip(S, W / 2, lerp(-shipSize(), H * 0.6, k), shipSize() * (0.6 + 0.4 * k), { power: 1 - k * 0.7 });
+    ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, lerp(0, H * 0.5, k)); ctx.stroke(); ctx.restore();
+    drawShip(S, W / 2, lerp(-shipSize(), H * 0.5, k), shipSize() * (0.6 + 0.4 * k), { power: 1 - k * 0.7 });
   }
 
+  if (game.stage !== "gift" && game.stage !== "opening") drawPlanet();
+
   if (game.stage === "fly") {
-    const bob = Math.sin(time * 2.1) * U * 0.006;
-    const bank = clamp(game.vx / (U * 1.4), -1, 1) * 0.55;
-    let y = game.y + bob + tradeOffsetY();
+    const p = shipScreen();
+    const bob = Math.sin(time * 2.1) * U * 0.004;
+    const st = shipStats(S);
+    const bank = clamp(game.spin / st.turn, -1, 1) * 0.5;
     const shown = trade.stage === "swapping" && trade.t > 0.9 ? shipById(trade.incoming) : S;
-    drawShip(shown, game.x, y, shipSize() * (1 + game.fwd * 0.04), { power: trade.stage === "swapping" ? 1 : 0.2 + game.power * 0.8, bank });
+    const swapping = trade.stage === "swapping";
+    drawShip(shown, p.x, p.y + bob + tradeOffsetY(p.y), shipSize(),
+      { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: swapping ? 0 : game.ang });
     drawCard(shown, Math.min(1, game.card * 2));
+    drawRadar();
+    drawThrust();
   }
 
   drawParts();
   drawTrade();
+}
+
+// the planet in the middle of space (Star Control's melee planet)
+function drawPlanet() {
+  const R = U * PLANET_R, p = toScreen(WW / 2, WH / 2);
+  if (p.x < -R * 3 || p.x > W + R * 3 || p.y < -R * 3 || p.y > H + R * 3) return;
+  // a soft halo: its pull
+  const halo = ctx.createRadialGradient(p.x, p.y, R * 0.9, p.x, p.y, R * 2.6);
+  halo.addColorStop(0, "rgba(140,110,255,0.22)"); halo.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(p.x, p.y, R * 2.6, 0, TAU); ctx.fill();
+  ctx.save(); ctx.translate(p.x, p.y);
+  ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.clip();
+  const pg = ctx.createRadialGradient(-R * 0.4, -R * 0.45, R * 0.05, 0, 0, R);
+  pg.addColorStop(0, "#a29bfe"); pg.addColorStop(0.45, "#6c5ce7"); pg.addColorStop(0.85, "#2d1b69"); pg.addColorStop(1, "#140b33");
+  ctx.fillStyle = pg; ctx.fillRect(-R, -R, R * 2, R * 2);
+  // slowly turning cloud bands
+  ctx.globalAlpha = 0.18; ctx.fillStyle = "#e0d7ff";
+  for (let i = 0; i < 5; i++) {
+    const y = (i - 2) * R * 0.36, sh = ((time * 0.03 * (i % 2 ? 1 : -1.3)) % 2) * R * 2;
+    ctx.beginPath(); ctx.ellipse(sh - R, y, R * 0.9, R * 0.06, 0, 0, TAU); ctx.ellipse(sh + R, y, R * 0.9, R * 0.06, 0, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // night side
+  const sh = ctx.createLinearGradient(-R, -R, R, R);
+  sh.addColorStop(0.45, "rgba(0,0,0,0)"); sh.addColorStop(1, "rgba(3,3,12,0.75)");
+  ctx.fillStyle = sh; ctx.fillRect(-R, -R, R * 2, R * 2);
+  ctx.restore();
+  ctx.strokeStyle = "rgba(190,170,255,0.5)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); ctx.stroke();
+}
+
+// a small map of all of space in the corner: the planet, what the screen sees, and the ship
+function drawRadar() {
+  const k = U * 0.26 / Math.max(WW, WH), rw = WW * k, rh = WH * k;
+  const x0 = W - rw - U * 0.04, y0 = U * 0.04;
+  ctx.save();
+  ctx.fillStyle = "rgba(10,12,32,0.6)"; ctx.strokeStyle = "rgba(124,140,255,0.45)"; ctx.lineWidth = 1.5;
+  roundRect(x0, y0, rw, rh, 6); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.rect(x0, y0, rw, rh); ctx.clip();
+  ctx.fillStyle = "#8f7dff"; ctx.beginPath(); ctx.arc(x0 + rw / 2, y0 + rh / 2, Math.max(3, U * PLANET_R * k * 1.6), 0, TAU); ctx.fill();
+  const sx = x0 + game.x * k, sy = y0 + game.y * k;
+  ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1;
+  ctx.strokeRect(x0 + (game.x + game.lx - W / 2) * k, y0 + (game.y + game.ly - H / 2) * k, W * k, H * k);
+  ctx.translate(sx, sy); ctx.rotate(game.ang);
+  ctx.fillStyle = shipById(game.ship).hull;
+  ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 4); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// the thrust button: white when full, through yellow, orange, red, purple, blue... to black, then gone
+function drawThrust() {
+  if (trade.stage === "swapping") return;
+  const fade = game.fuel > 0 ? 1 : 1 - clamp(game.gone / 0.8, 0, 1);
+  if (fade <= 0) return;
+  const b = thrustButton(), st = shipStats(shipById(game.ship));
+  const f = game.fuel / st.fuel, col = fuelColor(f), pressed = game.thrust !== null;
+  const r = b.r * (pressed ? 0.92 : 1) * (0.6 + 0.4 * fade);
+  ctx.save(); ctx.globalAlpha = fade;
+  // glow in its own color while pressed
+  if (pressed) {
+    const gl = ctx.createRadialGradient(b.x, b.y, r * 0.8, b.x, b.y, r * 1.7);
+    gl.addColorStop(0, hexA(col, 0.55)); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.7, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(b.x - r * 0.3, b.y - r * 0.35, r * 0.1, b.x, b.y, r);
+  bg.addColorStop(0, shade(col, 0.35)); bg.addColorStop(1, col);
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 2; ctx.stroke();
+  // a flame mark, dark on a light button and light on a dark one
+  const n = parseInt(col.slice(1), 16), light = ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 140;
+  ctx.fillStyle = light ? "rgba(20,20,40,0.75)" : "rgba(255,255,255,0.8)";
+  ctx.beginPath();
+  ctx.moveTo(b.x, b.y - r * 0.45);
+  ctx.quadraticCurveTo(b.x + r * 0.42, b.y + r * 0.05, b.x, b.y + r * 0.42);
+  ctx.quadraticCurveTo(b.x - r * 0.42, b.y + r * 0.05, b.x, b.y - r * 0.45);
+  ctx.fill();
+  ctx.restore();
 }
 
 // ======================================================================
@@ -687,23 +890,24 @@ function updateTrade(dt) {
     if (trade.t > 0.9 && game.ship !== trade.incoming) {
       // ours is gone through the top; the other one comes in
       game.ship = trade.incoming; saveShip(game.ship, "trade");
-      game.x = W / 2; game.vx = game.vy = 0;
+      game.vx = game.vy = 0; game.ang = 0; game.thrust = null;
+      game.fuel = shipStats(shipById(game.ship)).fuel; game.gone = 0;   // the new ship arrives with a full tank
       audio.reveal(RARITY[shipById(game.ship).rarity].stars);
     }
     if (trade.t > 2.2) {
-      endTrade(); game.y = H * 0.6; game.card = 3;
-      const S = shipById(game.ship);
-      burst(game.x, game.y, 30, [RARITY[S.rarity].color, "#ffffff"], 0.8);
+      endTrade(); game.card = 3;
+      const S = shipById(game.ship), p = shipScreen();
+      burst(p.x, p.y, 30, [RARITY[S.rarity].color, "#ffffff"], 0.8);
     }
   }
 }
 // during a swap: our ship shoots up and away, the new one drops in from the top
-function tradeOffsetY() {
+function tradeOffsetY(y) {
   if (trade.stage !== "swapping") return 0;
   const t = trade.t;
-  if (t < 0.9) return -Math.pow(t / 0.9, 2) * (game.y + shipSize());
+  if (t < 0.9) return -Math.pow(t / 0.9, 2) * (y + shipSize());
   const k = ease((t - 0.9) / 0.9);
-  return (1 - k) * -(H * 0.6 + shipSize()) + (H * 0.6 - game.y);
+  return (1 - k) * -(y + shipSize());
 }
 
 function drawTrade() {
@@ -773,6 +977,7 @@ function cross(x, y, r, color = "#ff6b6b") {
 //  LOOP
 // ======================================================================
 resize();
+placeShip();
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
