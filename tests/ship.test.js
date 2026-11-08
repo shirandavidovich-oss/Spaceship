@@ -463,6 +463,11 @@ ok("the reward for beating a player: quicker, healthier, a rarer ship and a stre
   assert.strictEqual(base, 100); assert(fast > base && healthy > base && killReward(200, 0, "legendary", 1).total > base);
   assert(killReward(200, 0, "common", 4).total > base && killReward(200, 0, "common", 99).total <= base * 2);
 });
+ok("SKARN: the mouth stays open 4.5 s, sucks shots in, and each catch refills; XELTAR swims (3 x 16 frames)", () => {
+  const T = SHIPS.find((s) => s.id === "skarn").anim.trap; assert(T.catch === 4.5 && T.suck > 0 && T.ammo > 0 && T.magic > 0);
+  const X = SHIPS.find((s) => s.id === "xeltar").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships/xeltar");
+  assert.strictEqual(X.swim.length, 3); for (const f of X.swim.flat()) assert(fs.existsSync(path.join(dir, f)), f);
+});
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
   for (const f of [A.idle, A.hull, A.ring, ...A.primary.map((x) => x[0])]) assert(fs.existsSync(path.join(dir, f)), f);

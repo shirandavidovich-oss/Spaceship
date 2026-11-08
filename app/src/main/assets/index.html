@@ -212,7 +212,7 @@ const SHIPS = [
       fan: { pivotY: 32, reach: 121, angles: [62, 31, 0, -31, -62] } } },   // the mirrors (art pixels from the center)
   // SKARN, the fossil intake ship (art/ships/skarn/, 512 x 512, center pivot, nose up), from skarn-layout.json.
   // Button 1: bone shards from both side muzzles at 76 ms (2 a muzzle, a little spread). Button 2: the jaw opens;
-  // for 1.5 s it catches enemy shots flying into its mouth (up to 5); it slams shut when full, when time is up or on
+  // for 4.5 s it sucks enemy shots in and catches them (up to 5; each refills its ammo and speeds its magic); it slams shut when full, when time is up or on
   // a second tap. Loaded, the mouth glows by how many it holds; the next tap spits them all back as a salvo.
   // magic: devour (its jaw flies out on chains to the enemy, opens wide and bites it)
   { id: "skarn", name: "SKARN", rarity: "epic", mass: 1.3, fuel: 30, refill: 15, sfx: "skarn", magic: "devour",
@@ -229,7 +229,10 @@ const SHIPS = [
       spit: frames("spit", 8, () => 45, { 4: "fire" }),                                            // 360 ms, the salvo at 135
       loaded: [1, 2, 3, 4, 5].map((n) => "loaded_" + n + ".webp"),
       // the trap: art pixels in front of the center (forward 84-180, side up to 68 + a bit more further out)
-      trap: { near: 84, far: 180, side: 68, flare: 0.28, catch: 1.5, max: 5 },
+      // catch: seconds the mouth stays open. suck: enemy shots within this many ship-lengths of the mouth are pulled
+      // into it (turning `pull` radians a second). Each one caught refills `ammo` of both weapons' ammo and takes
+      // `magic` of the magic's recharge off
+      trap: { near: 84, far: 180, side: 68, flare: 0.28, catch: 4.5, max: 5, suck: 3, pull: 7, ammo: 0.34, magic: 0.35 },
       jaw: "jaw.webp" } },   // one jaw bar with its teeth (the flying mouth is two of them, one turned over)
   // DRAKON, the rift return ship (art/ships/drakon/, 512 x 512, center pivot, nose up), from drakon-layout.json.
   // Button 1: a double pulse, two bolts from one press (at 54 and 138 ms). Button 2: the rift. First press marks the
@@ -257,7 +260,8 @@ const SHIPS = [
     weapons: ["ice", "crystal"],
     // anchors: front (256,46), rear (256,401); ink (256,387)
     guns: { ice: [[0, -0.492]], crystal: [[0, 0.34]] },
-    anim: { dir: "xeltar", size: 1.2, idle: "hull.webp",
+    // swim: the arms stroke while the engine pushes (16 frames of 40 ms a stroke, 3 strengths by how hard it pushes)
+    anim: { dir: "xeltar", size: 1.2, idle: "hull.webp", swim: [1, 2, 3].map((l) => frames("swim_" + l, 16, () => 40).map((f) => f[0])),
       primary: frames("front", 6, (n) => [48, 30, 34, 47, 52, 49][n - 1], { 3: "left" }),   // 260 ms, the shards at 78
       secondary: frames("rear", 16, (n) => [80, 80, 80, 90, 110, 110, 120, 120, 120, 110, 50, 70, 80, 100, 110, 110][n - 1], { 12: "fire" }),   // 1,540 ms, launch at 1,070
       smoke: frames("ink", 13, (n) => [80, 80, 90, 95, 95, 80, 50, 80, 85, 85, 100, 80, 60][n - 1], { 8: "release" }),   // 1,060 ms, ink at 570
@@ -2719,6 +2723,7 @@ function updateEnemyShots(dt) {
       vBat(s); eshots.splice(k, 1); shots.push({ ...s, vx: -s.vx, vy: -s.vy, life: 0 }); continue;
     }
     // SKARN's open jaw: caught (and it powers up SKARN's shards)
+    if (trapOpen()) suckShot(game, S, s, dt);   // pulled toward the open mouth
     if (trapOpen() && inMouth(game, S, s, dt)) { trapGain(s.x, s.y); eshots.splice(k, 1); continue; }
     // into your ship
     if (!game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < size * 0.42 * shipScale() + Wp.r * shotScale(s, Wp) * size) {
@@ -2857,12 +2862,35 @@ function inMouth(o, S, s, dt) {
   }
   return false;
 }
+// SKARN's open mouth sucks: a shot within reach of ship o's mouth turns toward it (stronger the closer)
+function suckShot(o, S, s, dt) {
+  const P = S.anim.trap, m = mouthOf(o, S), dx = wrapDelta(m.x - s.x, WW), dy = wrapDelta(m.y - s.y, WH), d = Math.hypot(dx, dy), R = P.suck * shipSize();
+  if (d > R) return;
+  const k = 1 - d / R, t = steerShot(s.vx, s.vy, dx, dy, P.pull * (0.3 + k) * dt);
+  s.vx = t.vx; s.vy = t.vy;
+  if (Math.random() < dt * 20) burstAt(s.x, s.y, 1, ["#ff8a5a", "#f2dcc0"], 0.05, 0.4);
+}
+// the pull, seen: dusty streaks spiralling into the open mouth
+function drawSuck(o, S) {
+  const m = toScreen(...Object.values(mouthOf(o, S))), R = S.anim.trap.suck * shipSize();
+  ctx.save(); ctx.lineCap = "round";
+  for (let i = 0; i < 9; i++) {
+    const u = ((time * 0.9 + i / 9) % 1), r = R * (1 - u), a = i * 0.7 + u * 3 + o.ang;
+    ctx.strokeStyle = `rgba(242,220,192,${0.35 * u})`; ctx.lineWidth = Math.max(1.5, shipSize() * 0.02);
+    ctx.beginPath(); ctx.arc(m.x, m.y, r, a, a + 0.6); ctx.stroke();
+  }
+  ctx.restore();
+}
 // one more shot held in the jaw (it slams shut when full)
 function trapGain(x, y) {
   const T = game.trap, S = shipById(game.ship);
   if (!T || T.mode !== "catch" || T.stored >= S.anim.trap.max) return;
   T.stored++;
   T.power = Math.min(S.anim.trap.max, (T.power || 0) + 1); T.powerT = POWER_TIME;   // every catch powers up the shards
+  const P = S.anim.trap, M = magicOf(S);   // and refills the guns and speeds the magic along
+  weaponsOf(S).forEach((w, i) => { game.ammo[i] = Math.min(WEAPONS[w].ammo, game.ammo[i] + WEAPONS[w].ammo * P.ammo); });
+  if (M) game.magicCool = Math.max(0, game.magicCool - M.cool * P.magic);
+  game.charged = 0.5;
   audio.sfx(S.sfx, "projectile_catch"); buzz(25);
   burstAt(x, y, 10, ["#ffffff", "#ff8a5a", "#f2dcc0"], 0.25, 0.4, game.vx, game.vy);
   if (T.stored >= S.anim.trap.max) trapClose();
@@ -3648,7 +3676,8 @@ function updateWeapons(dt) {
     if (enemy.remote && enemy.on && vShieldUp(enemy) && inFrontV(enemy, s.x, s.y)) { vBat(s); shots.splice(k, 1); continue; }
     // into the other player's thread (ZORIAN): stopped
     if (enemy.remote && threadBlocks(duel.thread, s, dt)) { threadSpark(s); shots.splice(k, 1); continue; }
-    // into the other player's open jaw (SKARN): caught, no hit, and their phone is told
+    // the other player's open jaw (SKARN) sucks my shots in
+    if (enemy.remote && enemy.on && duel.net && duel.net.kc && shipById(enemy.ship).anim && shipById(enemy.ship).anim.trap) suckShot(enemy, shipById(enemy.ship), s, dt);
     if (enemy.remote && enemy.on && duel.net && duel.net.kc && shipById(enemy.ship).anim && shipById(enemy.ship).anim.trap &&
         inMouth(enemy, shipById(enemy.ship), s, dt)) {
       link.send({ t: "caught", x: s.x / WW, y: s.y / WH }); duel.net.kc = 0;   // (one per message; the next state says if it is still open)
@@ -4191,7 +4220,7 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.fillStyle = glow; ctx.fillRect(-0.7, -0.6, 1.4, 1.3);
 
   // a real drawing of the ship, once there is one
-  let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep, o.cin || { power: o.power });
+  let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep, o.cin || { power: o.power }, o.power);
   // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
   // Grinding: the hull, and the ring drawn on its own, spinning, with its teeth out
   const ringAway = o.ring === "out" || o.ring === "back" || !!o.grind;
@@ -5365,7 +5394,7 @@ function cinderPicture(S, c) {
   x.drawImage(hull, 256 - hull.width / 2, 256 - 65 - hull.height / 2);
   return cinderCanvas;
 }
-function shipArt(S, a, stored, tint, rep, cin) {
+function shipArt(S, a, stored, tint, rep, cin, pw) {
   if (S.anim && S.anim.parts) return cinderPicture(S, cin);
   if (S.anim && S.anim.layers) return glitchPicture(S, a);
   if (S.anim && S.anim.modules) return reprisePicture(S, rep);
@@ -5376,6 +5405,11 @@ function shipArt(S, a, stored, tint, rep, cin) {
       if (l) return l;
     }
     const idle = artImage(framePath(S.anim.dir, S.anim.idle));
+    // XELTAR at rest but pushing: its arms swim (the stroke's strength by the engine's push; a crystal forming wins)
+    if (S.anim.swim && shipFrame(S, a) === S.anim.idle && pw > 0.2) {
+      const lvl = Math.min(3, Math.round((pw - 0.12) / 0.88 * 3)), f = Math.floor(time * 1000 / 40) % 16;
+      if (lvl > 0) { const im = artImage(framePath(S.anim.dir, S.anim.swim[lvl - 1][f])); if (im) return im; }
+    }
     // VANTA idle: the bare hull (its ribbon is drawn live on top, drawRibbon)
     if (S.anim.ribbon && shipFrame(S, a) === S.anim.idle) return artImage(framePath(S.anim.dir, S.anim.ribbon)) || idle;
     const f = tint ? tintedArt(framePath(S.anim.dir, shipFrame(S, a)), tint) : artImage(framePath(S.anim.dir, shipFrame(S, a)));
@@ -5398,6 +5432,7 @@ function preloadArt() {
     if (A.parts) all.push(A.parts.hull, A.parts.left, A.parts.right);
     if (A.idleLoop) all.push(...A.idleLoop);
     if (A.inflate) all.push(...A.inflate.map((x) => x[0]));
+    if (A.swim) all.push(...A.swim.flat());
     if (A.field) all.push(...A.field, ...A.arc, ...A.rainbow.map((x) => x[0]), ...A.shotArt.lightning.frames);
     if (S.grows) for (let i = 0; i <= 5; i++) talusPicture(S, i, []);
     if (A.egg) {
@@ -5586,6 +5621,7 @@ function draw() {
       if (shown === S) drawDevour(game, S, game.devour);
       if (shown === S) drawDash();
       if (shown === S) drawChordGuides();
+      if (shown === S && trapOpen()) drawSuck(game, S);
       if (shown === S && S.clouds) drawNimbusClouds(game, game.anim, "me");
       if (shown === S) { drawFlail(game, S, game.flail); drawAnchor(p.x, p.y, shipSize()); }
       if (game.inked > 0) drawInkOn(p.x, p.y, shipSize(), game.inked / MAGIC.ink.stun, 0.4);
@@ -6974,7 +7010,8 @@ function updateDuel(dt) {
     if (Wp.phase) phaseTrail(s);
     if (threadBlocks(game.thread, s, dt)) { threadSpark(s); duel.shots.splice(k, 1); continue; }   // my thread stops it (their phone sees my thread too)
     if (vShieldUp(game) && inFrontV(game, s.x, s.y)) { vBat(s); duel.shots.splice(k, 1); continue; }   // my V (their phone sees it too)
-    if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it)
+    if (trapOpen()) suckShot(game, shipById(game.ship), s, dt);   // (their phone pulls it the same way)
+    if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it and tells me: "caught")
     const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shotScale(s, Wp) * shipSize();
     const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
     if (near || inPlanet || s.life > Wp.life) {
