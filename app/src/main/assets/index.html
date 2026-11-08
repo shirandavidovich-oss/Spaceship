@@ -184,7 +184,7 @@ const MAGIC = {
   smoke: { name: "מסך עשן", pour: 3.5, hide: 6, cool: 14, look: "gear", color: "#e0b060" },
   // the tail: grows out behind the ship over `out` seconds, stays `hold`, pulls back in over `back`.
   //   len: its full length in ship-lengths   drain: health per second taken from a ship touching it
-  tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 3.2, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
+  tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 9.6, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
 };
 // how much of the tail is out at time t (seconds since the button): 0..1, or -1 once it is back in
 function tailOut(M, t) {
@@ -918,7 +918,8 @@ function updateMagic(dt) {
 // A chain of segments: the first one sits at the end of the ship's abdomen, every next one follows the one before
 // at a fixed spacing, leaning back behind the ship. So when the ship turns or flies, the tail drags and swings
 // after it. A ship touching it loses health. When it has been all the way out, it pulls back into the ship.
-const TAIL_SEGS = 16;
+const TAIL_SEGS = 40;   // more segments for the long tail, so it bends smoothly
+const TAIL_STIFF = 0.35;  // how stiff the tail is: 0 = a loose rope, 1 = a straight stick
 function tailBase(S) { const size = shipSize(), p = rotatePt(0, (S.tailY || 0.4) * size, game.ang); return { x: game.x + p.x, y: game.y + p.y }; }
 function updateTail(dt) {
   const T = game.tail, S = shipById(game.ship), M = magicOf(S);
@@ -932,6 +933,7 @@ function updateTail(dt) {
   // it starts as a short straight line behind the ship (so every segment knows which way is "back")
   if (!T.pts) T.pts = Array.from({ length: TAIL_SEGS + 1 }, (_, i) => ({ x: base.x + bx * i * 0.5, y: base.y + by * i * 0.5 }));
   const old = T.pts.slice();
+  let px = bx, py = by;   // the way the segment before points (the first one: straight back out of the ship)
   T.pts[0] = base;
   for (let i = 1; i <= TAIL_SEGS; i++) {
     const a = T.pts[i - 1], b = old[i];
@@ -944,8 +946,11 @@ function updateTail(dt) {
     let dx = wrapDelta(b.x - a.x, WW), dy = wrapDelta(b.y - a.y, WH), d = Math.hypot(dx, dy);
     if (d < 1e-6 || dx * ox + dy * oy <= 0) { dx = ox; dy = oy; d = 1; }
     dx = dx / d * (1 - lean) + bx * lean; dy = dy / d * (1 - lean) + by * lean;   // leans back behind the ship
+    // a little stiff, like real chitin: each segment bends only partly away from the one before (no sharp kinks)
+    dx = dx * (1 - TAIL_STIFF) + px * TAIL_STIFF; dy = dy * (1 - TAIL_STIFF) + py * TAIL_STIFF;
     const n = Math.hypot(dx, dy) || 1;
-    T.pts[i] = { x: a.x + dx / n * step, y: a.y + dy / n * step };
+    px = dx / n; py = dy / n;
+    T.pts[i] = { x: a.x + px * step, y: a.y + py * step };
   }
   // touching the enemy: it loses health while it stays on the tail
   T.zap -= dt; T.touch = Math.max(0, T.touch - dt);
