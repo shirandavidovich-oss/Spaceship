@@ -321,8 +321,9 @@ const SHIPS = [
   // pulse straight ahead (at 88 ms). Button 2: a chord. While it charges, each groove in turn lights and plays its
   // note, and remembers where the nose points then (at 120, 255, 390, 525, 660 ms). At 850 ms all five bolts leave
   // together, each from its own groove on its own remembered line: hold still for five parallel bolts, turn while it
-  // charges to fan them out. Turning after that does not steer them. No magic yet.
-  { id: "cantor", name: "CANTOR", rarity: "epic", mass: 1.0, fuel: 30, refill: 15, sfx: "cantor",
+  // charges to fan them out. Turning after that does not steer them.
+  // magic: resonance (a ring of sound waves; a ship it reaches has its navigation scrambled for a minute)
+  { id: "cantor", name: "CANTOR", rarity: "epic", mass: 1.0, fuel: 30, refill: 15, sfx: "cantor", magic: "resonance",
     sfxNames: ["note_1", "note_2", "note_3", "note_4", "note_5", "chord_fire", "resonance_fire"],
     hull: "#6a0f1a", wingC: "#2a060b", trim: "#f0d0a0", flame: "#c070ff",
     body: [], wing: [], nozzles: [0], engineY: 0.47, cockpit: [0, -0.2, 0.05, 0.1],
@@ -333,7 +334,21 @@ const SHIPS = [
       primary: frames("pulse", 6, (n) => [42, 46, 44, 45, 46, 55][n - 1], { 3: "left" }),   // 278 ms, the pulse at 88
       secondary: frames("chord", 18, (n) => [65, 55, 70, 65, 65, 70, 70, 65, 65, 70, 70, 70, 50, 64, 66, 70, 70, 50][n - 1], { 14: "fire" }),   // 1,170 ms, released at 850
       shotArt: { tone: { file: "bolt_3.webp", size: 0.225 },
-        chord: { file: "bolt_3.webp", size: 0.225, files: ["bolt_1.webp", "bolt_2.webp", "bolt_3.webp", "bolt_4.webp", "bolt_5.webp"] } } } }
+        chord: { file: "bolt_3.webp", size: 0.225, files: ["bolt_1.webp", "bolt_2.webp", "bolt_3.webp", "bolt_4.webp", "bolt_5.webp"] } } } },
+  // RIVET, the L-shaped ship (art/ships/rivet/, 512 x 512, pivot at the canvas middle). Its magic turns the whole hull a
+  // quarter round (clockwise; back on the next tap), keeping its heading and speed: then the other corner leads, with
+  // other weapons. Spine (as drawn): button 1 a fast pin from the long arm's tip; button 2 a red-hot rail laid behind it
+  // for 2 s (hurts a ship that crosses it, for 2.8 s). Crossarm (turned): button 1 five short-range pellets; button 2
+  // a wave that grows from the broad arm's tip and shoves the enemy away
+  { id: "rivet", name: "RIVET", rarity: "rare", mass: 1.1, fuel: 30, refill: 15, sfx: "rivet", magic: "flip",
+    sfxNames: ["flip", "lock", "pin", "rail", "scatter", "wave"],
+    hull: "#e8a13a", wingC: "#3a2c20", trim: "#ffd27a", flame: "#ff7a1a", noFlame: true,
+    body: [], wing: [], nozzles: [0], engineY: 0.4, cockpit: [0, -0.2, 0.05, 0.1],
+    weapons: ["pin", "rail"], flip: { weapons: ["scatter", "wave"] },
+    // ports (rivet.js, from the pivot, in 512-px art): pin (113,-179), rail (-37,169); scatter and wave (-163,118) on
+    // the hull turned a quarter, so (-118,-163) from the heading
+    guns: { pin: [[0.2648, -0.4195]], rail: [[-0.0867, 0.3961]], scatter: [[-0.2766, -0.3820]], wave: [[-0.2766, -0.3820]] },
+    anim: { dir: "rivet", size: 1.2, idle: "hull.webp" } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -385,6 +400,13 @@ const WEAPONS = {
              near: 0.7, far: 5, hold: 1.6, per: 0.12 },
   // ZORIAN. thread (seconds from the press): it lays from `lay` to `seal`, warns until `arm`, hurts until `expire`
   needle:  { name: "מחט אור",   dmg: 6,  speed: 2.6, life: 1.0, cool: 0.27, ammo: 26, refill: 7,  r: 0.025, color: "#92f8ff" },
+  // RIVET. spine: pin, and the rail (laid `lay` s, each piece lasts `last` s, hits a crossing ship at most every `every` s).
+  //   crossarm: scatter (5 pellets over `fan` radians), and the wave (`arc` radians wide, grows to `reach` ship-lengths
+  //   in `dur` s, hits once and pushes `knock` screens a second)
+  pin:     { name: "מסמרת",     dmg: 12, speed: 3.0, life: 0.9, cool: 0.32, ammo: 14, refill: 6,   r: 0.03,  color: "#ffb347" },
+  rail:    { name: "מסילה",     dmg: 10, speed: 0,   life: 0,   cool: 5.8,  ammo: 1,  refill: 5.8, r: 0,     color: "#ff7a1a", rail: true, lay: 2, last: 2.8, every: 0.5 },
+  scatter: { name: "רסס",       dmg: 4,  speed: 2.2, life: 0.35, cool: 0.52, ammo: 10, refill: 4,  r: 0.03,  color: "#ffd27a", pellets: 5, fan: 0.838 },
+  wave:    { name: "גל הדף",     dmg: 8,  speed: 0,   life: 0,   cool: 2.1,  ammo: 1,  refill: 2.1, r: 0,     color: "#ffb347", wave: true, arc: 2.26, reach: 1.6, dur: 0.34, knock: 1.2 },
   // CANTOR. chord: five bolts, one per groove; `notes`: ms into the charge when each groove takes the nose's heading
   tone:    { name: "צליל תהודה", dmg: 8,  speed: 2.4, life: 1.0, cool: 0.3,  ammo: 20, refill: 6,  r: 0.03,  color: "#fff2b0" },
   chord:   { name: "אקורד",      dmg: 9,  speed: 2.2, life: 1.1, cool: 1.4,  ammo: 3,  refill: 3,  r: 0.035, color: "#ffc38b", chord: true,
@@ -443,6 +465,13 @@ const MAGIC = {
   // KRAAL's hammer: dashes at `speed` screens a second at an enemy within `range` screens (or straight ahead), for at most
   //   `dash` seconds; reaching it, the hammer-head hits: `dmg`, and the enemy is knocked away (`knock` screens a second)
   hammer: { name: "מכת פטיש", range: 2.2, speed: 3.6, dash: 0.8, dmg: 30, knock: 1.4, cool: 9, look: "hammer", color: "#ff4a3a" },
+  // CANTOR's resonance: rings of sound spread from where it was cast (`speed` ship-lengths a second, out to `range`).
+  //   A ship they reach is scrambled for `scramble` seconds: its steering is reversed (it turns the other way) and its
+  //   shots fly off the wrong way
+  resonance: { name: "הדף תהודה", look: "waves", range: 5, speed: 7, scramble: 60, cool: 30, color: "#ffc38b" },
+  // RIVET's flip: the hull turns a quarter round (clockwise; back again on the next tap) in `turn` seconds, and its
+  //   other corner is the nose: two other weapons. Nothing fires while it turns
+  flip:  { name: "סיבוב", look: "flip", turn: 0.44, cool: 0.5, color: "#ffb347" },
   // VANTA's tint: each tap (every `cool` s) turns the liquid the next colour (VANTA_TINTS): the next phase drop does
   //   `mult` times its damage for that colour, and firing it uses the colour up (back to lime). After white: lime again
   tint:  { name: "צבע הנוזל", look: "tint", cool: 4, color: "#caff38", mult: [1, 1.4, 1.9, 2.6] },
@@ -543,6 +572,8 @@ function ringPhase(Wp, t) {
   return null;
 }
 function smoothStep(v) { const t = Math.min(1, Math.max(0, v)); return t * t * (3 - 2 * t); }
+// scrambled (CANTOR's resonance): which way a shot leaves instead (a random wrong way, 60-180 degrees off)
+function wrongWay() { return (Math.random() < 0.5 ? -1 : 1) * (Math.PI / 3 + Math.random() * Math.PI * 2 / 3); }
 // VANTA's liquid colours: the ribbon's three strokes, the shot's glow, and the hue the drawings' lime turns to
 const VANTA_TINTS = [
   { name: "ליים", ribbon: ["#89bf20", "#caff38", "#f4ffac"], color: "#caff38", fx: ["#ffffff", "#e8ff67", "#caff38"] },
@@ -573,7 +604,7 @@ function stickHeading(dx, dy, r) { return Math.hypot(dx, dy) < r * STICK ? null 
 function enemySees(hidden) { return !(hidden > 0); }
 // what a ship drops when it is destroyed
 function lootOf(S) { return S.drop || LOOT[Math.max(0, SHIPS.indexOf(S)) % LOOT.length]; }
-function weaponsOf(S) { return S.weapons || ["twin", "iris"]; }
+function weaponsOf(S, mode = 0) { return mode && S.flip ? S.flip.weapons : S.weapons || ["twin", "iris"]; }   // (RIVET turned: its other two)
 // where each weapon's shots leave the ship (ship units, nose up). Without a drawing: from the nose
 function gunsOf(S, w) { return (S.guns && S.guns[w]) || (w === "twin" ? [[-0.06, -0.5], [0.06, -0.5]] : [[0, -0.5]]); }
 // a point on the ship, turned with the ship (ang: 0 = nose up, clockwise)
@@ -849,6 +880,9 @@ const audio = {
     else if (w === "needle") this.sfx("zorian", "needle_fire", 0, 0.8);
     else if (w === "mark") this.sfx("vanta", "drop_launch", 0, 0.8);
     else if (w === "tone") this.sfx("cantor", "resonance_fire", 0, 0.8);
+    else if (w === "pin") this.sfx("rivet", "pin", 0, 0.8);
+    else if (w === "scatter") this.sfx("rivet", "scatter", 0, 0.8);
+    else if (w === "rail" || w === "wave") { }   // (their own sounds at the start)
     else if (w === "chord") { if (time - (this.chordT || -9) > 0.2) { this.chordT = time; this.sfx("cantor", "chord_fire"); } }   // (five bolts, one sound)
     else if (w === "phase") this.sfx("vanta", "phase_launch");
     else if (w === "cross") { }   // (its launch sound plays at the release)
@@ -988,7 +1022,7 @@ const game = {
   magicWait: false, // the gear was tapped during the cannon shot: the smoke follows right after
   anim: null        // the ship's drawings playing now: { seq: "primary" | "secondary" | "smoke", t: ms, pending, release }
 };
-function fillAmmo() { const S = shipById(game.ship); game.ammo = weaponsOf(S).map((w) => WEAPONS[w].ammo); }
+function fillAmmo() { const S = shipById(game.ship); game.ammo = weaponsOf(S, game.flipMode || 0).map((w) => WEAPONS[w].ammo); }
 // start: just above the planet, so its pull is felt at once
 function placeShip() {
   game.x = WW / 2; game.y = WH / 2 - U * 1.6; game.vx = game.vy = 0; game.ang = 0; game.lx = game.ly = 0;
@@ -1136,6 +1170,8 @@ function shipSize() { return U * 0.26; }
 function update(dt) {
   time += dt; game.t += dt;
   tintStep();
+  game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
+  updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
   gift.squash = Math.max(0, gift.squash - dt * 5);
@@ -1187,6 +1223,7 @@ function flyShip(dt) {
   // the joystick wins over the tilt while the thumb is dragged out of the middle
   const sh = game.stick ? stickHeading(game.stick.dx, game.stick.dy, thrustButton().r) : null;
   if (sh !== null) { target = sh; turn = 1; }
+  if (game.scramble > 0) { if (target !== null) target = wrapAngle(target + Math.PI); turn = STEER === "turn" ? -turn : turn; }   // scrambled: reversed
   const wasEmpty = game.locked;
   // out of fuel: the engine stops, but a thumb still holding keeps steering, and the engine
   // starts again by itself once the tank has refilled enough
@@ -1377,6 +1414,20 @@ function useMagic() {
   if (M.look === "anchor") {   // ZORIAN: a tap anchors it (it stops and spins); a second tap lets it go
     if (game.anchor) { game.anchor = null; game.magicCool = M.cool; return; }
     game.anchor = { t: 0 }; audio.sfx(S.sfx, "thread_arm", 0, 0.6); buzz(30);
+    return;
+  }
+  if (M.look === "waves") {   // CANTOR: rings of sound go out from here
+    game.magicCool = M.cool; game.reso = { x: game.x, y: game.y, t: 0, hit: false };
+    duelSend({ t: "rs", x: +(game.x / WW).toFixed(5), y: +(game.y / WH).toFixed(5) });
+    for (let i = 0; i < 5; i++) audio.sfx(S.sfx, "note_" + (i + 1), i * 0.06, 0.7);
+    audio.sfx(S.sfx, "chord_fire", 0.3); shake(0.4); buzz(120);
+    return;
+  }
+  if (M.look === "flip") {   // RIVET: the hull turns a quarter round
+    if (game.flipT >= 0 || game.dead) return;
+    game.flipT = 0; game.magicCool = M.cool;
+    if (game.rail) game.rail.until = 0;   // a rail being laid stops (the laid part stays)
+    audio.sfx(S.sfx, "flip"); buzz(30);
     return;
   }
   if (M.look === "tint") {   // VANTA: the liquid turns the next colour
@@ -2151,7 +2202,7 @@ function enemyShoot(dt) {
     for (const gg of Wp.both ? gs : [g]) {
       const m = rotatePt(gg[0] * size, gg[1] * size, enemy.ang);
       for (const a of pelletAngles(Wp)) {
-        const dir = enemy.ang + a + (Math.random() - 0.5) * 0.06, v = Wp.speed * U;
+        const dir = enemy.ang + a + (Math.random() - 0.5) * 0.06 + (enemy.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;
         eshots.push({ w, x: enemy.x + m.x, y: enemy.y + m.y, vx: enemy.vx + Math.sin(dir) * v, vy: enemy.vy - Math.cos(dir) * v, life: 0,
           art: art ? { src: framePath(E.anim.dir, art.file), d: art.size, spin: art.spin || 0 } : null });
       }
@@ -2955,6 +3006,7 @@ function updateEnemy(dt) {
     return;
   }
   const c = enemyControl(enemy, prey, shipStats(E), { ww: WW, wh: WH, u: U, planetR: planetR() });
+  if (enemy.scramble > 0) c.target = wrapAngle(c.target + Math.PI);   // scrambled: it turns away from where it means to go
   moveShip(enemy, E, c, dt);
   if (!game.dead && !game.dash) bumpShips(game, shipById(game.ship), enemy, E);
 }
@@ -2999,7 +3051,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -3025,14 +3077,14 @@ const crate = { on: false, w: null, x: 0, y: 0, vx: 0, vy: 0, t: 0 };
 
 // which weapon each button fires right now (null = no such button now)
 function slotWeapon(i) {
-  if (i < 2) return weaponsOf(shipById(game.ship))[i];
+  if (i < 2) return weaponsOf(shipById(game.ship), game.flipMode || 0)[i];
   return game.loot ? game.loot.w : null;
 }
 function slotAmmo(i) { return i < 2 ? game.ammo[i] : game.loot ? game.loot.ammo : 0; }
 
 function updateWeapons(dt) {
   const S = shipById(game.ship);
-  weaponsOf(S).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt); });
+  weaponsOf(S, game.flipMode || 0).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt); });
   updateAnim(dt);
   updateEggs(dt);
   if (!game.dead) updateRing(dt);
@@ -3148,11 +3200,13 @@ function spawnShots(w, g) {
   const m = rotatePt(g[0] * size, g[1] * size, game.ang);
   const x = game.x + m.x, y = game.y + m.y;
   if (Wp.egg) { layEgg(x, y, Wp, S); return; }
+  if (Wp.rail) { startRail(w); return; }      // RIVET's rail
+  if (Wp.wave) { startWave(w, x, y); return; }   // RIVET's wave
   if (Wp.converge) { crossRelease(w, S); return; }
   const pow = w === "spike" && game.trap ? game.trap.power || 0 : 0;   // SKARN's powered-up shards
   if (Wp.beam) { game.beam = { w, t: 0, ang: game.ang, hit: false }; duelSend({ t: "bm", a: +game.ang.toFixed(3) }); shake(0.3); buzz(90); return; }
   for (const a of pelletAngles(Wp)) {
-    const dir = game.ang + a + (Wp.rear ? Math.PI : 0), v = Wp.speed * U;   // (XELTAR's crystal: out of the stern)
+    const dir = game.ang + a + (Wp.rear ? Math.PI : 0) + (game.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;   // (XELTAR's crystal: out of the stern; scrambled: the wrong way)
     shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * v, vy: game.vy - Math.cos(dir) * v, life: 0, pow });
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
@@ -3187,8 +3241,8 @@ function spawnShots(w, g) {
 function chordRelease(w, notes) {
   const Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim, art = A.shotArt[w], size = shipSize() * shipScale(), guns = gunsOf(S, w), v = Wp.speed * U;
   for (const n of notes) {
-    const g = guns[n.i], m = rotatePt(g[0] * size, g[1] * size, game.ang);
-    const s = { w, x: game.x + m.x, y: game.y + m.y, vx: game.vx + Math.sin(n.ang) * v, vy: game.vy - Math.cos(n.ang) * v, life: 0,
+    const g = guns[n.i], m = rotatePt(g[0] * size, g[1] * size, game.ang), na = n.ang + (game.scramble > 0 ? wrongWay() : 0);
+    const s = { w, x: game.x + m.x, y: game.y + m.y, vx: game.vx + Math.sin(na) * v, vy: game.vy - Math.cos(na) * v, life: 0,
       art: { src: framePath(A.dir, art.files[n.i]), d: art.size, spin: 0 }, ix: n.i };
     shots.push(s);
     burstAt(s.x, s.y, 6, [Wp.colors[n.i], "#ffffff"], 0.2, 0.6, game.vx, game.vy);
@@ -3415,6 +3469,7 @@ function updateAnim(dt) {
 // button 2 waits while the heavy cannon or the smoke hatches are still playing (so a shot never cuts a sequence short)
 function waitsForFrames(i) {
   if (game.inked > 0) return true;   // inked: its guns are clogged
+  if (game.flipT >= 0 && i < 2) return true;   // RIVET turning: nothing fires until the new nose locks
   // SKARN: the shards only while the jaw is shut (empty or loaded)
   if (i === 0 && game.trap && game.trap.mode !== "idle" && game.trap.mode !== "loaded") return true;
   if (i === 1 && (game.ring || game.grind)) return true;
@@ -3643,6 +3698,252 @@ function artImage(src) {
   let a = artCache[src];
   if (!a) { a = artCache[src] = new Image(); a.src = src; }
   return a.complete && a.naturalWidth ? a : null;
+}
+// ---------- CANTOR's resonance ----------
+// game.reso: { x, y, t, hit } (mine: my phone decides if it reaches them). duel.reso: theirs, only shown here
+function resoRadius(R, M) { return Math.min(M.range, R.t * M.speed) * shipSize(); }
+function updateReso(dt) {
+  const M = MAGIC.resonance;
+  for (const k of ["reso"]) {
+    const R = game[k];
+    if (!R) continue;
+    R.t += dt;
+    if (R.t * M.speed > M.range + 1.5) { game[k] = null; continue; }
+    const r = resoRadius(R, M), size = shipSize();
+    if (!R.hit && enemy.on && enemy.warp < 0.5 && R.t * M.speed <= M.range + 0.5) {
+      const d = Math.hypot(wrapDelta(enemy.x - R.x, WW), wrapDelta(enemy.y - R.y, WH));
+      if (d <= r + size * 0.4 && d >= r - size * 1.2) { R.hit = true; scrambleEnemy(M); }
+    }
+  }
+  if (duel.reso) { duel.reso.t += dt; if (duel.reso.t * M.speed > M.range + 1.5) duel.reso = null; }
+}
+function scrambleEnemy(M) {
+  enemy.scramble = M.scramble;
+  if (enemy.remote) link.send({ t: "scr", n: M.scramble });
+  burstAt(enemy.x, enemy.y, 30, WEAPONS.chord.colors, 0.6, 0.9, enemy.vx, enemy.vy);
+  audio.sfx("cantor", "note_5", 0, 0.8); audio.sfx("cantor", "note_1", 0.08, 0.8); buzz(100);
+}
+// the rings: three wavy rings of sound in the grooves' colours, with notes riding on them, fading at the end
+function drawReso(R) {
+  if (!R) return;
+  const M = MAGIC.resonance, size = shipSize(), r0 = resoRadius(R, M), fade = Math.max(0, Math.min(1, (M.range + 1.5 - R.t * M.speed) / 1.5));
+  const c = toScreen(R.x, R.y), cols = WEAPONS.chord.colors;
+  ctx.save(); ctx.lineCap = "round";
+  for (let k = 0; k < 3; k++) {
+    const r = r0 - k * size * 0.38;
+    if (r <= 0) continue;
+    ctx.strokeStyle = hexA(cols[(k * 2) % 5], (0.75 - k * 0.2) * fade); ctx.lineWidth = Math.max(2, size * (0.06 - k * 0.015));
+    ctx.beginPath();
+    for (let i = 0; i <= 96; i++) {
+      const a = i / 96 * TAU, rr = r + Math.sin(a * 14 + time * 10 + k) * size * 0.05;
+      i ? ctx.lineTo(c.x + Math.cos(a) * rr, c.y + Math.sin(a) * rr) : ctx.moveTo(c.x + Math.cos(a) * rr, c.y + Math.sin(a) * rr);
+    }
+    ctx.stroke();
+  }
+  ctx.font = `bold ${Math.round(size * 0.28)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (let i = 0; i < 10; i++) {   // notes riding the outer ring
+    const a = i / 10 * TAU + R.t * 0.8;
+    ctx.fillStyle = hexA(cols[i % 5], 0.9 * fade);
+    ctx.fillText(i % 2 ? "♪" : "♫", c.x + Math.cos(a) * r0, c.y + Math.sin(a) * r0);
+  }
+  ctx.restore();
+}
+// a scrambled ship: notes whirl round it and its outline flickers (k: seconds left)
+function drawScramble(x, y, size, k) {
+  if (!(k > 0)) return;
+  const cols = WEAPONS.chord.colors, a = Math.min(1, k / 2);
+  ctx.save(); ctx.font = `bold ${Math.round(size * 0.24)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (let i = 0; i < 5; i++) {
+    const t = time * (i % 2 ? -2.2 : 1.7) + i * TAU / 5, r = size * (0.6 + 0.08 * Math.sin(time * 5 + i));
+    ctx.fillStyle = hexA(cols[i], 0.9 * a); ctx.fillText(i % 2 ? "♪" : "♫", x + Math.cos(t) * r, y + Math.sin(t) * r);
+  }
+  ctx.strokeStyle = `rgba(255,195,139,${(0.25 + 0.25 * Math.random()) * a})`; ctx.lineWidth = Math.max(1.5, size * 0.02);
+  ctx.setLineDash([size * 0.05, size * 0.07]); ctx.beginPath(); ctx.arc(x, y, size * 0.5, time * 3, time * 3 + TAU); ctx.stroke();
+  ctx.restore();
+}
+// scrambled me: a line at the top saying so, with the seconds left
+function drawScrambleNote() {
+  if (!(game.scramble > 0) || game.dead) return;
+  ctx.save(); ctx.font = `bold ${Math.round(Math.min(W, H) * 0.035)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top";
+  ctx.fillStyle = `rgba(255,195,139,${0.75 + 0.25 * Math.sin(time * 6)})`;
+  ctx.fillText("♪ הניווט שובש · " + Math.ceil(game.scramble) + " ♪", W / 2, H * 0.09);
+  ctx.restore();
+}
+// CANTOR's magic button: rings of sound round a note
+function drawWavesButton(b, M, ready, k) {
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (ready) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
+    gl.addColorStop(0, `rgba(255,195,139,${0.25 + 0.1 * Math.sin(time * 3)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#6a0f1a"); bg.addColorStop(1, "#1e0408");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(255,195,139,0.15)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = M.color; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  ctx.globalAlpha = ready ? 1 : 0.5;
+  const cols = WEAPONS.chord.colors;
+  for (let i = 0; i < 3; i++) {   // the waves, going out
+    const r = b.r * (0.35 + 0.17 * i + (ready ? 0.05 * ((time * 1.5) % 1) : 0));
+    ctx.strokeStyle = cols[i * 2]; ctx.lineWidth = Math.max(1.5, b.r * 0.06);
+    ctx.beginPath(); ctx.arc(0, 0, r, -0.9, 0.9); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, r, Math.PI - 0.9, Math.PI + 0.9); ctx.stroke();
+  }
+  ctx.fillStyle = "#fff2b0"; ctx.font = `bold ${Math.round(b.r * 0.62)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("♫", 0, b.r * 0.04);
+  ctx.restore();
+}
+
+// ---------- RIVET: the flip, the rail, the wave ----------
+// game.flipMode: 0 (the long spine is the nose) or 1 (turned a quarter: the broad arm's tip is the nose).
+// game.flipT: seconds into a turn (-1: not turning). game.wbank: each weapon's ammo and cooldown while it is put away
+function updateFlip(dt) {
+  if (!(game.flipT >= 0)) return;
+  const S = shipById(game.ship), M = magicOf(S);
+  if (!S || !S.flip || !M) { game.flipT = -1; return; }
+  game.flipT += dt;
+  if (game.flipT < M.turn) return;
+  // locked on: put the old weapons away, take out the other two (each keeps its own ammo and cooldown, still refilling)
+  game.wbank = game.wbank || {};
+  weaponsOf(S, game.flipMode).forEach((w, i) => { game.wbank[w] = { ammo: game.ammo[i], cool: game.cool[i], t: game.t }; });
+  game.flipMode = 1 - (game.flipMode || 0);
+  weaponsOf(S, game.flipMode).forEach((w, i) => {
+    const B = game.wbank[w], away = B ? game.t - B.t : 0;
+    game.ammo[i] = B ? ammoStep(B.ammo, WEAPONS[w], away) : WEAPONS[w].ammo; game.cool[i] = B ? Math.max(0, B.cool - away) : 0;
+  });
+  game.flipT = -1;
+  audio.sfx(S.sfx, "lock"); shake(0.2); buzz(40);
+}
+// how far the hull is turned from the heading now (0 .. a quarter turn), eased
+function hullTurn() {
+  const S = shipById(game.ship);
+  if (!S || !S.flip) return 0;
+  const m = game.flipMode || 0;
+  if (!(game.flipT >= 0)) return m * Math.PI / 2;
+  const u = Math.min(1, game.flipT / MAGIC.flip.turn), e = u * u * (3 - 2 * u);
+  return (m ? 1 - e : e) * Math.PI / 2;
+}
+// the rail: laid from the stern port for `lay` seconds as the ship flies, in short pieces; each piece stays `last`
+// seconds. An enemy crossing any piece is hit (`dmg`), then not again for `every` seconds. Never the one who laid it
+const railTiles = [];   // mine: { a, b, exp }; theirs (duel, only shown): { a, b, exp, remote: true }
+function startRail(w) {
+  const S = shipById(game.ship);
+  game.rail = { w, until: game.t + WEAPONS[w].lay, last: null, hitT: 0, send: [] };
+  audio.sfx(S.sfx, "rail");
+}
+function railPoint() { const S = shipById(game.ship), g = gunsOf(S, "rail")[0], m = rotatePt(g[0] * shipSize(), g[1] * shipSize(), game.ang); return { x: game.x + m.x, y: game.y + m.y }; }
+function updateRail(dt) {
+  for (let i = railTiles.length - 1; i >= 0; i--) if (game.t > railTiles[i].exp) railTiles.splice(i, 1);
+  const R = game.rail;
+  if (!R) return;
+  const Wp = WEAPONS[R.w], size = shipSize(), step = size * 0.2;
+  R.hitT = Math.max(0, R.hitT - dt);
+  if (game.t < R.until && !game.dead && game.stage === "fly") {
+    const p = railPoint();
+    if (!R.last) R.last = p;
+    let dx = p.x - R.last.x, dy = p.y - R.last.y, d = Math.hypot(dx, dy);
+    if (d > size * 1.3) R.last = p;   // jumped or wrapped round the arena: no bridge across it
+    else while (d >= step) {
+      const n = { x: R.last.x + dx * step / d, y: R.last.y + dy * step / d };
+      railTiles.push({ a: R.last, b: n, exp: game.t + Wp.last }); R.send.push([R.last, n]);
+      R.last = n; dx = p.x - n.x; dy = p.y - n.y; d = Math.hypot(dx, dy);
+    }
+    if (Math.random() < dt * 30) burstAt(p.x, p.y, 1, ["#ffd27a", "#ff7a1a"], 0.15, 0.5);
+  }
+  if (R.send.length && (R.send.length >= 4 || game.t >= R.until)) {   // the other phone shows the pieces too
+    duelSend({ t: "rl", e: Wp.last, p: R.send.map(([a, b]) => [a.x / WW, a.y / WH, b.x / WW, b.y / WH].map((v) => +v.toFixed(5))) });
+    R.send = [];
+  }
+  // an enemy crossing a piece (from where it was to where it is now)
+  const now = { x: enemy.x, y: enemy.y };
+  if (enemy.on && enemy.warp < 0.5 && R.prev && R.hitT <= 0) {
+    const from = { x: now.x - wrapDelta(now.x - R.prev.x, WW), y: now.y - wrapDelta(now.y - R.prev.y, WH) };
+    for (const T of railTiles) {
+      if (T.remote) continue;
+      const ox = wrapDelta(T.a.x - now.x, WW) + now.x - T.a.x, oy = wrapDelta(T.a.y - now.y, WH) + now.y - T.a.y;
+      if (segDistance(from, now, { x: T.a.x + ox, y: T.a.y + oy }, { x: T.b.x + ox, y: T.b.y + oy }) <= size * 0.32) {
+        R.hitT = Wp.every;
+        hitEnemy({ x: now.x, y: now.y, vx: 0, vy: 0 }, Wp);
+        burstAt(now.x, now.y, 18, ["#ffffff", "#ffd27a", "#ff7a1a"], 0.5, 0.7, enemy.vx, enemy.vy);
+        break;
+      }
+    }
+  }
+  R.prev = enemy.on ? now : null;
+  if (game.t > R.until + Wp.last && !railTiles.some((T) => !T.remote)) game.rail = null;
+}
+// the rail: dark steel with a glowing orange-hot seam, cooling as it runs out
+function drawRail() {
+  if (!railTiles.length) return;
+  const size = shipSize();
+  ctx.save(); ctx.lineCap = "round";
+  for (const T of railTiles) {
+    const a = toScreen(T.a.x, T.a.y), b = { x: a.x + wrapDelta(T.b.x - T.a.x, WW), y: a.y + wrapDelta(T.b.y - T.a.y, WH) }, left = Math.max(0, Math.min(1, (T.exp - game.t) / 0.6));
+    ctx.globalAlpha = left;
+    ctx.strokeStyle = "#2a2622"; ctx.lineWidth = size * 0.09; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.strokeStyle = "rgba(255,122,26,0.45)"; ctx.lineWidth = size * 0.07; ctx.stroke();
+    ctx.strokeStyle = `rgba(255,${180 + 50 * Math.sin(time * 20 + a.x)},90,0.95)`; ctx.lineWidth = Math.max(1.5, size * 0.022); ctx.stroke();
+  }
+  ctx.restore();
+}
+// the crossarm's wave: a stationary sector that grows from the wide nose over `dur` seconds; hits an enemy once and
+// pushes it on (`knock` screens a second, along the wave)
+const waves = [];   // { x, y, ang, t, hit, remote }
+function startWave(w, x, y) {
+  waves.push({ w, x, y, ang: game.ang, t: 0, hit: false });
+  duelSend({ t: "wv", w, x: +(x / WW).toFixed(5), y: +(y / WH).toFixed(5), a: +game.ang.toFixed(3) });
+  audio.sfx(shipById(game.ship).sfx, "wave"); shake(0.25); buzz(60);
+}
+function updateWaves(dt) {
+  const size = shipSize();
+  for (let i = waves.length - 1; i >= 0; i--) {
+    const V = waves[i], Wp = WEAPONS[V.w];
+    V.t += dt;
+    if (V.t > Wp.dur + 0.3) { waves.splice(i, 1); continue; }
+    if (V.remote || V.hit || !enemy.on || enemy.warp >= 0.5) continue;
+    const r = Wp.reach * size * Math.min(1, V.t / Wp.dur), dx = wrapDelta(enemy.x - V.x, WW), dy = wrapDelta(enemy.y - V.y, WH), d = Math.hypot(dx, dy);
+    const off = Math.abs(wrapAngle(Math.atan2(dx, -dy) - V.ang));
+    if (d > r + size * 0.35 || off > Wp.arc / 2 + 0.15) continue;
+    V.hit = true;
+    hitEnemy({ x: enemy.x, y: enemy.y, vx: Math.sin(V.ang) * U, vy: -Math.cos(V.ang) * U }, Wp);
+    const nx = Math.sin(V.ang), ny = -Math.cos(V.ang);
+    if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + nx * Wp.knock, vy: enemy.vy / U + ny * Wp.knock });
+    else { enemy.vx += nx * Wp.knock * U; enemy.vy += ny * Wp.knock * U; enemy.spin = 4; }
+  }
+}
+function drawWaves() {
+  const size = shipSize();
+  ctx.save(); ctx.lineCap = "round";
+  for (const V of waves) {
+    const Wp = WEAPONS[V.w], u = Math.min(1, V.t / Wp.dur), r = Wp.reach * size * (u * (2 - u)), fade = V.t > Wp.dur ? 1 - (V.t - Wp.dur) / 0.3 : 1;
+    const c = toScreen(V.x, V.y), a0 = V.ang - Math.PI / 2 - Wp.arc / 2, a1 = a0 + Wp.arc;
+    for (const [k, col, w] of [[1, "rgba(255,122,26,", 0.16], [0.97, "rgba(255,210,122,", 0.07], [0.95, "rgba(255,255,240,", 0.025]]) {
+      ctx.strokeStyle = col + (0.8 * fade) + ")"; ctx.lineWidth = size * w * (1 - 0.4 * u);
+      ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(1, r * k), a0, a1); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+// RIVET's magic button: the L, and a curved arrow turning it
+function drawFlipButton(b, M, ready, k) {
+  const turning = game.flipT >= 0, m = game.flipMode || 0;
+  ctx.save(); ctx.translate(b.x, b.y);
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#4a3a2a"); bg.addColorStop(1, "#141008");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.strokeStyle = ready && !turning ? M.color : "rgba(255,179,71,0.4)";
+  ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.save(); ctx.rotate(hullTurn());   // the L, turned like the ship
+  ctx.fillStyle = "#e8a13a"; ctx.strokeStyle = "#2a2018"; ctx.lineWidth = b.r * 0.04;
+  ctx.beginPath(); ctx.moveTo(b.r * 0.12, -b.r * 0.5); ctx.lineTo(b.r * 0.32, -b.r * 0.5); ctx.lineTo(b.r * 0.32, b.r * 0.32); ctx.lineTo(-b.r * 0.42, b.r * 0.32);
+  ctx.lineTo(-b.r * 0.42, b.r * 0.14); ctx.lineTo(b.r * 0.12, b.r * 0.14); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = "#fff2d0"; ctx.lineWidth = Math.max(2, b.r * 0.07); ctx.lineCap = "round";   // the turning arrow
+  ctx.beginPath(); ctx.arc(0, 0, b.r * 0.66, -Math.PI * 0.85, -Math.PI * 0.25); ctx.stroke();
+  const ax = Math.cos(-Math.PI * 0.25) * b.r * 0.66, ay = Math.sin(-Math.PI * 0.25) * b.r * 0.66;
+  ctx.beginPath(); ctx.moveTo(ax - b.r * 0.16, ay - b.r * 0.04); ctx.lineTo(ax, ay); ctx.lineTo(ax - b.r * 0.02, ay - b.r * 0.17); ctx.stroke();
+  ctx.restore();
 }
 // VANTA's drawings in another liquid colour: the lime pixels turned blue, red or glowing white. Made a couple a frame
 // in the background (tintStep), the lime drawing shown until it is ready
@@ -3906,7 +4207,7 @@ function draw() {
         for (const e of exhausts(game, S)) burstAt(e.x, e.y, 2, ["#fff8ce", "#ffcc63"], 0.12, 0.5, game.vx * 0.3, game.vy * 0.3);
       if (shown === S && S.grows) drawTalusRing(p.x, p.y, shipSize() * sc, game.talus.ring);
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
-        { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
+        { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0 });
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
@@ -3916,6 +4217,7 @@ function draw() {
       if (shown === S) drawChordGuides();
       if (shown === S) { drawFlail(game, S, game.flail); drawAnchor(p.x, p.y, shipSize()); }
       if (game.inked > 0) drawInkOn(p.x, p.y, shipSize(), game.inked / MAGIC.ink.stun, 0.4);
+      drawScramble(p.x, p.y, shipSize(), game.scramble);
       drawRange();
       drawRing(game.ring, S);
       if (game.arriveT > 0) {   // coming back after blowing up: a flash
@@ -3927,6 +4229,7 @@ function draw() {
     drawShots(duel.shots);
     drawShots(eshots);
     drawThread(game.thread); drawThread(duel.thread);
+    drawRail(); drawWaves(); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -3943,6 +4246,7 @@ function draw() {
     drawCard(shown, Math.min(1, game.card * 2));
     drawRadar();
     drawHealth();
+    drawScrambleNote();
     if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
     drawDuel();
     drawHangarButton();
@@ -4142,10 +4446,11 @@ function drawEnemy() {
     if (enemy.remote) drawTail(duel.tail, E);
     const esc = enemy.remote && enemy.talus ? enemy.talus.scale : 1;
     if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
-    drawShip(E, p.x, p.y, size * esc, { tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang,
+    drawShip(E, p.x, p.y, size * esc, { tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? enemy.hullTurn || 0 : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
+    drawScramble(p.x, p.y, size, Math.max(enemy.scramble || 0, enemy.remote && duel.net && duel.net.sc ? 1 : 0));
     if (enemy.remote) drawRing(duel.ring, E);
     if (enemy.remote) drawDevour(enemy, E, duel.devour);
     if (enemy.remote) drawFlail(enemy, E, duel.flail);
@@ -4448,6 +4753,20 @@ function weaponIcon(w, x, y, r, color) {
     for (let i = 0; i < 8; i++) { const a = i * TAU / 8; ctx.beginPath(); ctx.moveTo(r * 0.3 + Math.cos(a - 0.3) * r * 0.3, r * 0.3 + Math.sin(a - 0.3) * r * 0.3); ctx.lineTo(r * 0.3 + Math.cos(a) * r * 0.6, r * 0.3 + Math.sin(a) * r * 0.6); ctx.lineTo(r * 0.3 + Math.cos(a + 0.3) * r * 0.3, r * 0.3 + Math.sin(a + 0.3) * r * 0.3); ctx.fill(); }
   } else if (w === "needle") {   // a thin needle bolt
     ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.14, r * 0.2); ctx.lineTo(0, r * 0.85); ctx.lineTo(-r * 0.14, r * 0.2); ctx.closePath(); ctx.fill();
+  } else if (w === "pin") {   // a rivet pin
+    ctx.fillRect(-r * 0.1, -r * 0.55, r * 0.2, r * 1.2); ctx.beginPath(); ctx.ellipse(0, r * 0.65, r * 0.32, r * 0.14, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-r * 0.1, -r * 0.55); ctx.lineTo(0, -r * 0.85); ctx.lineTo(r * 0.1, -r * 0.55); ctx.fill();
+  } else if (w === "rail") {   // a rail of pieces trailing off
+    ctx.lineWidth = Math.max(2, r * 0.16); ctx.lineCap = "round";
+    for (let i = 0; i < 4; i++) { const x = -r * 0.75 + i * r * 0.42, y = r * 0.5 - i * r * 0.3; ctx.globalAlpha = 1 - i * 0.18; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + r * 0.3, y - r * 0.2); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+  } else if (w === "scatter") {   // five pellets in a short fan
+    for (let i = 0; i < 5; i++) { const a = (i - 2) * 0.32; ctx.beginPath(); ctx.arc(Math.sin(a) * r * 0.6, r * 0.35 - Math.cos(a) * r * 0.6, r * 0.12, 0, TAU); ctx.fill(); }
+    ctx.beginPath(); ctx.arc(0, r * 0.55, r * 0.14, 0, TAU); ctx.fill();
+  } else if (w === "wave") {   // an arc going out
+    ctx.lineWidth = Math.max(2, r * 0.14); ctx.lineCap = "round";
+    for (let i = 0; i < 3; i++) { ctx.globalAlpha = 1 - i * 0.28; ctx.beginPath(); ctx.arc(0, r * 0.6, r * (0.5 + i * 0.32), -Math.PI / 2 - 0.65, -Math.PI / 2 + 0.65); ctx.stroke(); }
+    ctx.globalAlpha = 1;
   } else if (w === "tone") {   // a single note
     ctx.lineWidth = Math.max(2, r * 0.13); ctx.beginPath(); ctx.ellipse(-r * 0.2, r * 0.45, r * 0.3, r * 0.22, -0.4, 0, TAU); ctx.fill();
     ctx.beginPath(); ctx.moveTo(r * 0.08, r * 0.4); ctx.lineTo(r * 0.08, -r * 0.75); ctx.quadraticCurveTo(r * 0.5, -r * 0.55, r * 0.55, -r * 0.2); ctx.stroke();
@@ -4585,6 +4904,8 @@ function drawMagic() {
   if (M.look === "hammer") drawHammerButton(b, M, ready, k);
   if (M.look === "anchor") drawAnchorButton(b, M);
   if (M.look === "tint") drawTintButton(b, M, ready, k);
+  if (M.look === "waves") drawWavesButton(b, M, ready, k);
+  if (M.look === "flip") drawFlipButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
     // a magic glow when ready
@@ -5033,6 +5354,16 @@ function duelLink(event, data) {
     clouds.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, ship: m.s, remote: true }); audio.sfx("xeltar", "ink_release", 0, 0.7);
   } else if (m.t === "th" && Array.isArray(m.p)) {   // their ZORIAN sealed a thread: shown here (their phone counts a crossing)
     duel.thread = { w: m.w, t: m.at, paths: m.p.map((q) => q.map(([x, y]) => ({ x: x * WW, y: y * WH }))) };
+  } else if (m.t === "scr") {   // their CANTOR's rings reached me: scrambled
+    game.scramble = m.n || MAGIC.resonance.scramble;
+    burstAt(game.x, game.y, 30, WEAPONS.chord.colors, 0.6, 0.9, game.vx, game.vy); shake(0.5); buzz(200);
+    audio.sfx("cantor", "note_5", 0, 0.8); audio.sfx("cantor", "note_1", 0.08, 0.8);
+  } else if (m.t === "rs") {   // their CANTOR cast its rings (their phone decides if they reach me)
+    duel.reso = { x: m.x * WW, y: m.y * WH, t: 0 }; audio.sfx("cantor", "chord_fire", 0, 0.7);
+  } else if (m.t === "rl" && Array.isArray(m.p)) {   // their RIVET's rail pieces
+    for (const q of m.p) railTiles.push({ a: { x: q[0] * WW, y: q[1] * WH }, b: { x: q[2] * WW, y: q[3] * WH }, exp: game.t + (m.e || 2.8), remote: true });
+  } else if (m.t === "wv" && WEAPONS[m.w]) {   // their RIVET's wave
+    waves.push({ w: m.w, x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, hit: true, remote: true }); audio.sfx("rivet", "wave", 0, 0.7);
   } else if (m.t === "knock") {   // their KRAAL's hammer hit my ship: knocked away (the damage comes with their state)
     game.vx = m.vx * U; game.vy = m.vy * U; shake(0.7); buzz(200);
   } else if (m.t === "inked") {   // their ink got my ship (their phone saw it touch the cloud; the damage comes with their state)
@@ -5110,6 +5441,7 @@ function updateRival(dt) {
   } else enemy.talus = null;
   enemy.inked = n.ik || 0;   // their ship covered in my ink (to draw it)
   enemy.vtint = n.vt || 0;   // their VANTA's liquid colour
+  enemy.hullTurn = n.fm || 0;   // their RIVET's hull turn
   // their ZORIAN's spiked ball
   if (n.fl) { const R = duel.flail || (duel.flail = { w: "flail", x: n.fl[0] * WW, y: n.fl[1] * WH, vx: 0, vy: 0, spin: 0, swing: -1 });
     const kk = 1 - Math.exp(-dt * 15); R.x += wrapDelta(n.fl[0] * WW - R.x, WW) * kk; R.y += wrapDelta(n.fl[1] * WH - R.y, WH) * kk; R.swing = n.fl[2] ? 0 : -1; R.spin += dt * (n.fl[2] ? 12 : 3); }
@@ -5171,7 +5503,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
       ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
@@ -5239,7 +5571,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id;
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();

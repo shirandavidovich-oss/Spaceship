@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("twenty-two ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 22);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 22);
+ok("twenty-three ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 23);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 23);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -362,6 +362,21 @@ ok("CANTOR (cantor-layout.json): the pulse at 88 of 278 ms; the chord's notes at
   assert.strictEqual(px(gunsOf(S, "tone")[0][1]), 66);
   const dir = path.join(__dirname, "../app/src/main/assets/art/ships/cantor");
   for (const f of [A.idle, ...A.shotArt.chord.files, ...[A.primary, A.secondary].flatMap((q) => q.map((x) => x[0]))]) assert(fs.existsSync(path.join(dir, f)), f);
+  for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
+});
+ok("CANTOR's magic: rings of sound that scramble a ship for a minute", () => {
+  const S = SHIPS.find((s) => s.id === "cantor"), M = MAGIC[S.magic];
+  assert.strictEqual(S.magic, "resonance"); assert.strictEqual(M.scramble, 60); assert(M.range > 0 && M.speed > 0);
+});
+ok("RIVET (rivet.js): spine pin + rail, turned a quarter: scatter (5 pellets, +-24 degrees) + wave; ports from the pivot", () => {
+  const S = SHIPS.find((s) => s.id === "rivet"), A = S.anim, px = (v) => Math.round(v / A.size * 512);
+  assert.strictEqual(weaponsOf(S).join(), "pin,rail"); assert.strictEqual(weaponsOf(S, 1).join(), "scatter,wave"); assert.strictEqual(S.magic, "flip");
+  assert.strictEqual(MAGIC.flip.turn, 0.44);
+  assert.strictEqual(JSON.stringify(["pin", "rail", "scatter"].map((w) => gunsOf(S, w)[0].map(px))), "[[113,-179],[-37,169],[-118,-163]]");
+  assert.strictEqual(pelletAngles(WEAPONS.scatter).map((a) => Math.round(a * 180 / Math.PI)).join(), "-24,-12,0,12,24");
+  assert(WEAPONS.rail.lay === 2 && WEAPONS.rail.last === 2.8 && WEAPONS.wave.dur === 0.34);
+  const dir = path.join(__dirname, "../app/src/main/assets/art/ships/rivet");
+  assert(fs.existsSync(path.join(dir, A.idle)));
   for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {

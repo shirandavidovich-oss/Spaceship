@@ -134,7 +134,15 @@ hit with, but weaker (down to 60% / 55% of the damage).
 Button 1: the middle groove sounds one note, a pulse straight ahead (8). Button 2: a chord. While it charges, each groove
 lights in turn, plays its note and takes the heading the nose has then (a dashed line shows it); then all five bolts leave
 together (9 each), each on its own line. Hold still for five parallel bolts, turn while it charges to fan them out.
-No magic yet.
+Its magic, a resonance blast: rings of sound waves with notes riding on them spread out (to 5 ship-lengths). A ship they
+reach is scrambled for a whole minute: its steering is reversed and its shots fly off the wrong way.
+
+**RIVET**, the L-shaped ship (`art/ships/rivet/`, own recorded sounds). Its magic turns the whole hull a quarter round
+(and back on the next tap), keeping its heading and speed; the other corner then leads, with two other weapons. Nothing
+fires during the 0.44 s turn. Spine: button 1 a fast pin (12); button 2 a red-hot rail laid behind the ship for 2 s that
+hurts a ship crossing it (10, at most every 0.5 s) for 2.8 s. Crossarm: button 1 five short-range pellets (4 each);
+button 2 an arc wave that grows from the broad tip and shoves the enemy away (8). Each weapon keeps its own ammo and
+cooldown while it is put away.
 
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.
