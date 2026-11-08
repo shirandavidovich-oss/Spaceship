@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("fourteen ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 14);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 14);
+ok("fifteen ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 15);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 15);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -227,6 +227,19 @@ ok("TALUS (talus-layout.json): seed 0.53, then 0.61 / 0.70 / 0.79 / 0.89 / 1.00;
   assert.strictEqual(GROW.fly, 0.475); assert.strictEqual(GROW.end, 0.955);
   assert.strictEqual(S.magic, "shatter"); assert.strictEqual(MAGIC.shatter.per * 5, 15, "a full ship bursts into 15 pieces");
   assert(fs.existsSync(path.join(__dirname, "../app/src/main/assets/art/ships/talus", S.anim.idle)));
+});
+ok("ORIAN (orian-layout.json): bolt at 95 ms, the beam at 1,100 ms of 1,750; five mirrors open and fold; muzzle (256,162)", () => {
+  const S = SHIPS.find((s) => s.id === "orian"), A = S.anim, px = (v) => Math.round(v / A.size * 512 + 256);
+  assert.strictEqual(seqLength(A.primary), 300); assert.strictEqual(cueTime(A.primary, "left"), 95);
+  assert.strictEqual(seqLength(A.secondary), 1750); assert.strictEqual(cueTime(A.secondary, "fire"), 1100);
+  const [m] = gunsOf(S, "solar"); assert.strictEqual([px(m[0]), px(m[1])].join(), "256,162");
+  const shut = orianPanels(A.fan, 0), open = orianPanels(A.fan, 1060), done = orianPanels(A.fan, 1750);
+  assert.strictEqual(open.length, 5); for (const p of open) assert(p.open > 0.99 && p.light > 0.5);
+  for (const p of shut) assert(p.open < 0.01); for (const p of done) assert(p.open < 0.01 && p.light < 0.01);
+  assert(open[0].x < 0 && open[4].x > 0 && open[2].y > 100, "the fan opens out behind the pod, both sides");
+  const dir = path.join(__dirname, "../app/src/main/assets/art/ships/orian");
+  for (const f of [A.idle, ...A.primary.map((x) => x[0]), ...A.secondary.map((x) => x[0])]) assert(fs.existsSync(path.join(dir, f)), f);
+  for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);

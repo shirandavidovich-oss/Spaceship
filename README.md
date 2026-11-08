@@ -73,7 +73,13 @@ shards, button 2 a heavy boulder that the body pulls. Its magic (a cracked stone
 pieces it has built (3 per layer), which fly off in all directions and blow up after 1-2 s, hurting a ship inside the blast.
 Then it is a seed again and has to build up from the bodies once more. It loses its layers when it blows up, too.
 
-While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"talus"`; `"lyth"` for LYTH, `"vexar"` for VEXAR, `"brass"` for THUL,
+**ORIAN**, the solar fan ship (`art/ships/orian/`, own recorded sounds). Button 1: a light bolt from the lens.
+Button 2: five gold mirrors fan open behind the pod one after another (a click at each hinge), and rays of light run from
+the body in the middle to each mirror and on to the lens, in that body's own color (red from a red giant, cyan from a pulsar...).
+At 1.1 s the lens fires a solar beam straight ahead (2.6 screens long, 30 damage to a ship it touches), then the mirrors fold.
+Nothing else fires while the fan is busy. No magic yet.
+
+While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"orian"`; `"talus"` for TALUS, `"lyth"` for LYTH, `"vexar"` for VEXAR, `"brass"` for THUL,
 `""` for the gift's surprise again).
 Swipe up to offer a trade with a phone nearby; the swap happens only if both players say yes.
 
