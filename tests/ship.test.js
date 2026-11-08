@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("sixteen ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 16);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 16);
+ok("seventeen ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 17);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 17);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -256,6 +256,17 @@ ok("SKARN (skarn-layout.json): shards at 76 ms from both muzzles; jaw catches in
   assert(!inTrap(A.trap, 150, 120), "off to the side"); assert.strictEqual(A.trap.max, 5);
   const dir = path.join(__dirname, "../app/src/main/assets/art/ships/skarn");
   for (const f of [A.idle, ...A.loaded, ...[A.primary, A.open, A.slam, A.spit].flatMap((q) => q.map((x) => x[0]))]) assert(fs.existsSync(path.join(dir, f)), f);
+  for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
+});
+ok("DRAKON (drakon-layout.json): two bolts at 54 and 138 ms of 270; the jump at 470 ms of 790; a mark lasts 8 s", () => {
+  const S = SHIPS.find((s) => s.id === "drakon"), A = S.anim, px = (v) => Math.round(v / A.size * 512 + 256);
+  assert.strictEqual(seqLength(A.primary), 270);
+  const bolts = []; let at = 0; for (const f of A.primary) { if (f[2] === "bolt") bolts.push(at); at += f[1]; }
+  assert.strictEqual(bolts.join(), "54,138");
+  assert.strictEqual(seqLength(A.rift), 790); assert.strictEqual(cueTime(A.rift, "jump"), 470); assert.strictEqual(WEAPONS.rift.life, 8);
+  const [m] = gunsOf(S, "dpulse"); assert.strictEqual([px(m[0]), px(m[1])].join(), "305,54");
+  const dir = path.join(__dirname, "../app/src/main/assets/art/ships/drakon");
+  for (const f of [A.idle, ...A.primary.map((x) => x[0]), ...A.rift.map((x) => x[0])]) assert(fs.existsSync(path.join(dir, f)), f);
   for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {

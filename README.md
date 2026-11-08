@@ -90,7 +90,12 @@ it slams shut when full, when time is up, or on a second tap. Loaded, the mouth 
 and the next tap spits them all back as a fanned salvo of hot fossils (14 each). In a duel the shooter's phone sees its shot
 fly into the open mouth and tells the other phone. The computer enemy does not shoot yet, so there is nothing to catch from it. No magic yet.
 
-While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"skarn"`; `"orian"` for ORIAN, `"talus"` for TALUS, `"lyth"` for LYTH, `"vexar"` for VEXAR, `"brass"` for THUL,
+**DRAKON**, the rift return ship (`art/ships/drakon/`, own recorded sounds). Button 1: a double pulse, two pink bolts
+from one press. Button 2, the rift: the first press marks the spot where the ship is (a turning pink diamond that stays put
+for 8 s; off screen, a pink arrow at the edge points to it). Fly off; the second press opens the glowing seam in the hull and
+the ship jumps back to the mark, keeping its heading and speed, with pink bursts at both ends. No magic yet.
+
+While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"drakon"`; `"skarn"` for SKARN, `"orian"` for ORIAN, `"talus"` for TALUS, `"lyth"` for LYTH, `"vexar"` for VEXAR, `"brass"` for THUL,
 `""` for the gift's surprise again).
 Swipe up to offer a trade with a phone nearby; the swap happens only if both players say yes.
 

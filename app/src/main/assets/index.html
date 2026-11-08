@@ -31,7 +31,7 @@ const UNLOCK     = 0.2;  // after the fuel runs out, the button comes back when 
 const ENEMY      = true; // an enemy ship flies with you (for now it only flies, no weapons yet)
 const ENEMY_KEEP = 0.9;  // how close the enemy likes to stay to you, in screen-widths
 const ZOOM_MIN   = 0.4;  // like Star Control: the view zooms out (down to this much) to keep both ships on screen
-const TRY_SHIP   = "skarn"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
+const TRY_SHIP   = "drakon"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
 const RAM_DAMAGE = 25;   // damage from crashing into the enemy at full speed (both ships take it)
@@ -220,7 +220,21 @@ const SHIPS = [
       spit: frames("spit", 8, () => 45, { 4: "fire" }),                                            // 360 ms, the salvo at 135
       loaded: [1, 2, 3, 4, 5].map((n) => "loaded_" + n + ".webp"),
       // the trap: art pixels in front of the center (forward 84-180, side up to 68 + a bit more further out)
-      trap: { near: 84, far: 180, side: 68, flare: 0.28, catch: 1.5, max: 5 } } }
+      trap: { near: 84, far: 180, side: 68, flare: 0.28, catch: 1.5, max: 5 } } },
+  // DRAKON, the rift return ship (art/ships/drakon/, 512 x 512, center pivot, nose up), from drakon-layout.json.
+  // Button 1: a double pulse, two bolts from one press (at 54 and 138 ms). Button 2: the rift. First press marks the
+  // spot where the ship is (a pink marker that stays put for 8 s). Fly off; press again: the seam in the hull opens,
+  // the marker blinks, and at 470 ms the ship jumps back to the mark, keeping its heading and speed.
+  { id: "drakon", name: "DRAKON", rarity: "epic", mass: 1.1, fuel: 30, refill: 15, sfx: "drakon",
+    sfxNames: ["anchor_place", "double_pulse", "rift_charge", "rift_jump"],
+    hull: "#3a3a44", wingC: "#1a1a20", trim: "#ff3fb0", flame: "#ff3fb0",
+    // the two pink vents (183,448) and (272,448); the muzzle (305,54)
+    body: [], wing: [], nozzles: [-0.164, 0.036], engineY: 0.431, cockpit: [0, -0.2, 0.05, 0.1],
+    weapons: ["dpulse", "rift"],
+    guns: { dpulse: [[0.11, -0.454]], rift: [[0, 0]] },
+    anim: { dir: "drakon", size: 1.15, idle: "idle.webp",
+      primary: frames("pulse", 6, (n) => [54, 41, 43, 42, 50, 40][n - 1], { 2: "bolt", 4: "bolt" }),   // 270 ms: bolts at 54 and 138
+      rift: frames("rift", 11, (n) => [90, 90, 90, 90, 110, 50, 50, 50, 70, 50, 50][n - 1], { 6: "jump" }) } }   // 790 ms, jump at 470
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -259,6 +273,9 @@ const WEAPONS = {
   spike:   { name: "שברים",     dmg: 4,  speed: 2.6, life: 0.9, cool: 0.3,  ammo: 30, refill: 8,  r: 0.02,  color: "#f2dcc0", pellets: 2, fan: 0.18, both: true },
   trap:    { name: "מלכודת",    dmg: 0,  speed: 0,   life: 0,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#ff6a3d", trap: true },
   fossil:  { name: "יריקה",     dmg: 14, speed: 2.2, life: 1.5, cool: 0,    ammo: 0,  r: 0.05,  color: "#ff8a5a" },
+  // DRAKON. dpulse: one press, two bolts at its "bolt" frames (cued). rift: mark, then jump back (life: seconds a mark lasts)
+  dpulse:  { name: "פולס כפול", dmg: 5,  speed: 2.5, life: 1.0, cool: 0.3,  ammo: 24, refill: 7,  r: 0.025, color: "#ff68c7", cued: true },
+  rift:    { name: "קרע",       dmg: 0,  speed: 0,   life: 8,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#ff68c7", rift: true },
   thorn:   { name: "קוצים",     dmg: 5,  speed: 2.6, life: 1.0, cool: 0.16, ammo: 30, refill: 8,  r: 0.02,  color: "#b8ff3a" },
   // hive: lays an egg (speed: how fast it is pushed out, then it drifts to a stop). dmg: per hunter
   //   swarm: hunters per egg   hunterSpeed: screens per second   hunterTurn: radians per second   hunterLife: seconds
@@ -637,6 +654,7 @@ const audio = {
     if (w === "twin") { this.tone(1900, 0.03, "square", 0.04, 0.5); this.noise(0.06, 0.14, 2600); [0.04, 0.07, 0.1].forEach((d) => this.tone(700, 0.025, "triangle", 0.02, 0.8, d)); }
     // iris: the heavy release (the gear grind and the latch come first, in windUp)
     else if (w === "iris") this.cannon();
+    else if (w === "dpulse") this.sfx("drakon", "double_pulse", 0, 0.8);
     else if (w === "spike") { this.sfx("skarn", "shards_prime", 0, 0.5); this.sfx("skarn", "shards_fire", 0.03); }
     else if (w === "fossil") { }   // (the spit has its own sound)
     else if (w === "bolt") { this.sfx("orian", "pulse_prime", 0, 0.6); this.sfx("orian", "pulse_fire", 0.05); }
@@ -1181,6 +1199,86 @@ function updateMagic(dt) {
   game.magicPour -= dt;
   // thick smoke pours from the engines and hangs in space
   if (Math.random() < 30 * dt) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, 2.6 + Math.random() * 1.5, M.hide - 0.5);
+}
+
+// ---------- DRAKON's rift: mark a spot, jump back to it ----------
+// game.rift: { mark: { x, y, life } or null, t: seconds into the jump sequence (-1 = none) }
+const riftBursts = [];   // the pink bursts where a jump left and where it arrived (anyone's)
+function riftOf() { const S = shipById(game.ship); return S.anim && S.anim.rift ? (game.rift || (game.rift = { mark: null, t: -1 })) : null; }
+function riftPress() {
+  const R = riftOf(), S = shipById(game.ship);
+  if (!R || game.dead || R.t >= 0) return;   // the next mark only once the jump is over
+  if (!R.mark) {   // 1st press: mark this spot
+    R.mark = { x: game.x, y: game.y, life: WEAPONS.rift.life, born: time };
+    audio.sfx(S.sfx, "anchor_place"); buzz(30);
+    riftBursts.push({ x: game.x, y: game.y, t: 0, small: true });
+  } else {         // 2nd press: open the seam and jump
+    R.t = 0; R.jumped = false; game.anim = { seq: "rift", t: 0 };
+    audio.sfx(S.sfx, "rift_charge"); buzz(20);
+  }
+}
+function updateRift(dt) {
+  const R = riftOf(), S = shipById(game.ship);
+  if (!R) { game.rift = null; return; }
+  if (R.mark && R.t < 0) { R.mark.life -= dt; if (R.mark.life <= 0) R.mark = null; }   // an old mark fades away
+  if (R.t < 0) return;
+  R.t += dt;
+  if (!R.jumped && R.t >= 0.47) {
+    R.jumped = true;
+    if (R.mark && !game.dead) {
+      const from = { x: game.x, y: game.y };
+      game.x = R.mark.x; game.y = R.mark.y;   // heading and speed stay as they are
+      riftBursts.push({ x: from.x, y: from.y, t: 0 }, { x: game.x, y: game.y, t: 0 });
+      riftBursts.push({ line: true, x: from.x, y: from.y, x2: game.x, y2: game.y, t: 0 });
+      audio.sfx(S.sfx, "rift_jump"); shake(0.35); buzz(90);
+      duelSend({ t: "rift", fx: from.x / WW, fy: from.y / WH, x: game.x / WW, y: game.y / WH });
+    }
+    R.mark = null;
+  }
+  if (R.t >= 0.79) R.t = -1;
+}
+function updateRiftBursts(dt) { for (let k = riftBursts.length - 1; k >= 0; k--) { riftBursts[k].t += dt; if (riftBursts[k].t > 0.6) riftBursts.splice(k, 1); } }
+// the marker: a turning pink diamond in a dashed ring, fading in its last moments, blinking fast while the ship jumps
+function drawRiftMark() {
+  const R = game.rift;
+  if (!R || !R.mark || game.dead) return;
+  const m = R.mark, p = toScreen(m.x, m.y), size = shipSize(), charge = R.t >= 0;
+  const a = (charge ? 0.65 + 0.35 * Math.sin(time * 36) : 0.62 + 0.29 * Math.sin(time * 9)) * (charge ? 1 : Math.min(1, m.life / 0.75));
+  const k = size / 120;   // the reference drawing's pixels -> this screen
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(p.x, p.y);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, (charge ? 63 : 43) * k);
+  g.addColorStop(0, "rgba(255,240,250,0.5)"); g.addColorStop(0.4, "rgba(255,104,199,0.35)"); g.addColorStop(1, "rgba(255,104,199,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, (charge ? 63 : 43) * k, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "#ff68c7"; ctx.lineWidth = 1.2 * k; ctx.setLineDash([3 * k, 6 * k]);
+  ctx.beginPath(); ctx.arc(0, 0, 37 * k, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+  ctx.save(); ctx.rotate((time - m.born) * 2); ctx.strokeStyle = "#ffb5e7"; ctx.lineWidth = 2.5 * k;
+  ctx.beginPath(); ctx.moveTo(0, -24 * k); ctx.lineTo(24 * k, 0); ctx.lineTo(0, 24 * k); ctx.lineTo(-24 * k, 0); ctx.closePath(); ctx.stroke(); ctx.restore();
+  ctx.strokeStyle = "#fff0fa"; ctx.lineWidth = 2 * k; ctx.beginPath(); ctx.moveTo(-8 * k, 0); ctx.lineTo(8 * k, 0); ctx.moveTo(0, -8 * k); ctx.lineTo(0, 8 * k); ctx.stroke();
+  ctx.restore();
+  // a faint dotted line from the ship to its mark, so it can be found
+  const s = shipScreen();
+  ctx.save(); ctx.globalAlpha = 0.25 * a; ctx.strokeStyle = "#ff68c7"; ctx.lineWidth = 1.5; ctx.setLineDash([2, 8]);
+  ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.restore();
+}
+function drawRiftBursts() {
+  const size = shipSize(), k = size / 120;
+  for (const b of riftBursts) {
+    const f = 1 - b.t / 0.6;
+    ctx.save(); ctx.globalAlpha = f;
+    if (b.line) {   // a pink streak where it tore through space, fading fast
+      const a = toScreen(b.x, b.y), c = { x: a.x + wrapDelta(b.x2 - b.x, WW), y: a.y + wrapDelta(b.y2 - b.y, WH) };
+      ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = `rgba(255,104,199,${0.5 * f})`; ctx.lineWidth = size * 0.08 * f;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(c.x, c.y); ctx.stroke(); ctx.restore(); continue;
+    }
+    const p = toScreen(b.x, b.y), r = (22 + (1 - f) * 70) * k * (b.small ? 0.6 : 1);
+    ctx.translate(p.x, p.y);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.4);
+    g.addColorStop(0, "rgba(255,240,250,0.8)"); g.addColorStop(0.4, "rgba(255,104,199,0.5)"); g.addColorStop(1, "rgba(255,104,199,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, r * 1.4, r, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = "#ff8bd8"; ctx.lineWidth = 2 * k;
+    ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); ctx.stroke();
+    ctx.restore();
+  }
 }
 
 // ---------- SKARN's jaw: catching shots and spitting them back ----------
@@ -1903,7 +2001,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -1944,10 +2042,11 @@ function updateWeapons(dt) {
   updateTalus(dt); updateChips(dt); updatePieces(dt); updateBeam(dt); updateNova(dt);
   if (!game.dead) updateSoak(dt);
   if (!game.dead) updateTrap(dt);
+  updateRift(dt); updateRiftBursts(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
-    if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].trap) {   // SKARN's jaw: each new press is one input
-      if (game.fire[1] !== null && !game.trapLatch) { game.trapLatch = true; trapPress(); }
+    if (i === 1 && slotWeapon(1) && (WEAPONS[slotWeapon(1)].trap || WEAPONS[slotWeapon(1)].rift)) {   // SKARN's jaw, DRAKON's rift: each new press is one input
+      if (game.fire[1] !== null && !game.trapLatch) { game.trapLatch = true; if (WEAPONS[slotWeapon(1)].rift) riftPress(); else trapPress(); }
       if (game.fire[1] === null) game.trapLatch = false;
       continue;
     }
@@ -1998,6 +2097,7 @@ function shoot(i) {
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
   if (Wp.ring) { startRing(w, S); return; }
+  if (Wp.cued && A && A.primary && i === 0) { game.anim = { seq: "primary", t: 0, bolts: w }; return; }   // DRAKON: the frames fire the bolts
   if (A && A.secondary && i === 1) {   // the secondary waits for its wind-up
     game.anim = { seq: "secondary", t: 0, pending: w };
     if (w === "iris") audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000);
@@ -2211,6 +2311,10 @@ function updateAnim(dt) {
   if (!a || !A) { game.anim = null; return; }
   const seq = A[a.seq], before = a.t;
   a.t += dt * 1000;
+  if (a.bolts) {   // a shot at every "bolt" frame it passed (once each, even if a slow frame jumps over it)
+    let at = 0;
+    for (const f of seq) { if (f[2] === "bolt" && before < at + 0.001 && a.t >= at) { spawnShots(a.bolts, gunsOf(shipById(game.ship), a.bolts)[0]); audio.shot(a.bolts); } at += f[1]; }
+  }
   if (a.pending) {
     const cue = cueTime(seq, "fire");
     if (before <= cue && a.t >= cue || seqFrame(seq, a.t) < 0) {
@@ -2474,7 +2578,7 @@ function preloadArt() {
   for (const S of SHIPS) {
     const A = S.anim;
     if (!A) continue;
-    const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.open, A.slam, A.spit].filter(Boolean).flatMap((q) => q.map((x) => x[0])), ...(A.loaded || [])];
+    const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.open, A.slam, A.spit, A.rift].filter(Boolean).flatMap((q) => q.map((x) => x[0])), ...(A.loaded || [])];
     for (const k in A.shotArt || {}) all.push(A.shotArt[k].file);
     if (A.hull) all.push(A.hull, A.ring);
     if (S.grows) for (let i = 0; i <= 5; i++) talusPicture(S, i, []);
@@ -2670,11 +2774,13 @@ function draw() {
     drawShots();
     drawShots(duel.shots);
     drawEggs();
+    drawRiftMark(); drawRiftBursts();
     drawChips(); drawPieces();
     drawParts();
     drawRings();
     ctx.restore();
     if (enemyShown()) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
+    if (game.rift && game.rift.mark) edgeArrow(game.rift.mark.x, game.rift.mark.y, "#ff68c7");   // DRAKON's mark, off screen
     if (crate.on) edgeArrow(crate.x, crate.y, WEAPONS[crate.w].color);
     drawCard(shown, Math.min(1, game.card * 2));
     drawRadar();
@@ -3000,6 +3106,14 @@ function drawShots(list = shots) {
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, d * (s.art.spin ? 1.1 : 0.45), 0, TAU); ctx.fill();
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s.art.spin ? s.life * s.art.spin : Math.atan2(ux, -uy));
       ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+    } else if (s.w === "dpulse") {
+      // DRAKON's bolt: a pink glow with a white needle
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy)); const k = size * 1.15 / 512; ctx.scale(k, k);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 25);
+      g.addColorStop(0, "#fff0fa"); g.addColorStop(0.35, "rgba(255,104,199,0.8)"); g.addColorStop(1, "rgba(255,104,199,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, 12, 25, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#ffe9ff"; ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(3, -1); ctx.lineTo(0, 15); ctx.lineTo(-3, -1); ctx.closePath(); ctx.fill();
+      ctx.restore();
     } else if (s.w === "spike") {
       // a bone shard with an ember-red tip
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(uy, ux)); const l = size * 0.1;
@@ -3105,6 +3219,13 @@ function weaponIcon(w, x, y, r, color) {
   } else if (w === "iris") {
     ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, TAU); ctx.stroke();
     for (let i = 0; i < 6; i++) { const a = i * TAU / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8); ctx.quadraticCurveTo(Math.cos(a + 0.9) * r * 0.5, Math.sin(a + 0.9) * r * 0.5, Math.cos(a + 1.6) * r * 0.2, Math.sin(a + 1.6) * r * 0.2); ctx.stroke(); }
+  } else if (w === "dpulse") {   // two bolts, one behind the other
+    for (const dy of [-0.45, 0.35]) { ctx.beginPath(); ctx.moveTo(0, (dy - 0.4) * r); ctx.lineTo(r * 0.22, dy * r); ctx.lineTo(0, (dy + 0.4) * r); ctx.lineTo(-r * 0.22, dy * r); ctx.closePath(); ctx.fill(); }
+  } else if (w === "rift") {   // a diamond marker; filled when a mark is set
+    const set = game.rift && game.rift.mark;
+    ctx.lineWidth = Math.max(2, r * 0.14);
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.8); ctx.lineTo(r * 0.8, 0); ctx.lineTo(0, r * 0.8); ctx.lineTo(-r * 0.8, 0); ctx.closePath(); set ? ctx.fill() : ctx.stroke();
+    ctx.strokeStyle = set ? "#1d1d26" : ctx.fillStyle; ctx.beginPath(); ctx.moveTo(-r * 0.3, 0); ctx.lineTo(r * 0.3, 0); ctx.moveTo(0, -r * 0.3); ctx.lineTo(0, r * 0.3); ctx.stroke();
   } else if (w === "spike") {   // two bone shards
     for (const dx of [-0.35, 0.35]) { ctx.beginPath(); ctx.moveTo(dx * r, -r * 0.9); ctx.lineTo(dx * r + r * 0.18, r * 0.2); ctx.lineTo(dx * r, r * 0.8); ctx.lineTo(dx * r - r * 0.18, r * 0.2); ctx.closePath(); ctx.fill(); }
   } else if (w === "trap") {   // jaws with teeth; dots for the shots held
@@ -3632,6 +3753,11 @@ function duelLink(event, data) {
     if (duel.shots.length < 60) audio.shot(m.w);
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
+  } else if (m.t === "rift") {   // their DRAKON jumped: bursts at both ends, and it is there at once
+    const fx = m.fx * WW, fy = m.fy * WH, x = m.x * WW, y = m.y * WH;
+    riftBursts.push({ x: fx, y: fy, t: 0 }, { x, y, t: 0 }, { line: true, x: fx, y: fy, x2: x, y2: y, t: 0 });
+    enemy.x = x; enemy.y = y; if (duel.net) { duel.net.x = m.x; duel.net.y = m.y; duel.net.at = performance.now(); }
+    audio.sfx("drakon", "rift_jump", 0, 0.7);
   } else if (m.t === "caught") {   // my SKARN's jaw caught one of their shots (their phone saw it fly in)
     trapGain(m.x * WW, m.y * WH);
   } else if (m.t === "nova") {   // their ORIAN's light blast: the flash, and my ship shaken (their phone sends the damage)
