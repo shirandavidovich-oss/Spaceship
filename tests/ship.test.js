@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("nineteen ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 19);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 19);
+ok("twenty ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 20);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 20);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -272,7 +272,7 @@ ok("DRAKON (drakon-layout.json): two bolts at 54 and 138 ms of 270; the jump at 
 ok("the computer enemy shoots only plain shots: its own when it can, else the twin cannon", () => {
   const g = (id) => enemyGuns(SHIPS.find((s) => s.id === id)).join();
   assert.strictEqual(g("brass"), "twin,iris"); assert.strictEqual(g("vexar"), "thorn"); assert.strictEqual(g("lyth"), "pulse");
-  assert.strictEqual(g("talus"), "shard,boulder"); assert.strictEqual(g("orian"), "bolt"); assert.strictEqual(g("skarn"), "spike"); assert.strictEqual(g("drakon"), "dpulse"); assert.strictEqual(g("xeltar"), "ice", "the stern crystal is not for the computer"); assert.strictEqual(g("kraal"), "hammer");
+  assert.strictEqual(g("talus"), "shard,boulder"); assert.strictEqual(g("orian"), "bolt"); assert.strictEqual(g("skarn"), "spike"); assert.strictEqual(g("drakon"), "dpulse"); assert.strictEqual(g("xeltar"), "ice", "the stern crystal is not for the computer"); assert.strictEqual(g("kraal"), "hammer"); assert.strictEqual(g("zorian"), "needle");
   for (const s of SHIPS) for (const w of enemyGuns(s)) assert(WEAPONS[w].speed > 0, s.id + " " + w);
 });
 ok("SKARN's magic: the jaw on chains bites 3 times; caught shots power up its shards", () => {
@@ -311,6 +311,19 @@ ok("KRAAL: the longer button 2 is held, the farther the bolts meet (up to a limi
   assert.strictEqual(crossReach(W2, 0), W2.near); assert.strictEqual(crossReach(W2, 99), W2.far);
   assert(crossReach(W2, 0.4) < crossReach(W2, 0.8) && crossReach(W2, 0.8) < crossReach(W2, 1.2), "farther the longer it is held");
   assert.strictEqual(SHIPS.find((s) => s.id === "kraal").magic, "hammer"); assert(MAGIC.hammer.dmg > 0 && MAGIC.hammer.speed > 2);
+});
+ok("ZORIAN (zorian-layout.json): the bolt at 75 ms; the thread lays 150-1,310 ms, warns, arms at 1,540, gone at 3,980", () => {
+  const S = SHIPS.find((s) => s.id === "zorian"), A = S.anim, W2 = WEAPONS.thread, px = (v) => Math.round(v / A.size * 512 + 256);
+  assert.strictEqual(seqLength(A.primary), 265); assert.strictEqual(cueTime(A.primary, "left"), 75);
+  assert.strictEqual(threadPhase(W2, 0.1), "charge"); assert.strictEqual(threadPhase(W2, 0.5), "lay"); assert.strictEqual(threadPhase(W2, 1.4), "warning");
+  assert.strictEqual(threadPhase(W2, 2), "armed"); assert.strictEqual(threadPhase(W2, 3.99), null);
+  assert.strictEqual(px(gunsOf(S, "needle")[0][1]), 63); assert.strictEqual(px(gunsOf(S, "thread")[0][1]), 441);
+  // a target moving across a piece of thread in one step is caught (swept), a target beside it is not
+  assert.strictEqual(segDistance({ x: -5, y: 0 }, { x: 5, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 }), 0);
+  assert(segDistance({ x: -5, y: 3 }, { x: 5, y: 3 }, { x: 0, y: -1 }, { x: 0, y: 1 }) > 1.9);
+  const dir = path.join(__dirname, "../app/src/main/assets/art/ships/zorian");
+  for (const f of [A.idle, A.shotArt.needle.file, ...[A.primary, A.projector].flatMap((q) => q.map((x) => x[0]))]) assert(fs.existsSync(path.join(dir, f)), f);
+  for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);

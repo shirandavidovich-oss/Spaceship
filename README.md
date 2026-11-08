@@ -113,8 +113,13 @@ to that point; they meet there together and blow up (32 damage). Only what is at
 hold to land it on the enemy. The point is fixed when the bolts leave. Its magic (a hammer): a fast dash at an enemy within
 2.2 screens (or straight ahead), and a blow with the hammer-head (30 damage) that knocks the enemy away.
 
+**ZORIAN**, the light-thread ship (`art/ships/zorian/`, own recorded sounds). Button 1: a blue needle bolt. Button 2:
+the projector at the stern draws a thread of light behind the ship as it flies (for about 1.2 s; standing still draws nothing,
+so fly a curve around the enemy). The thread stays where it was laid, blinks a warning, then arms: an enemy that crosses it
+takes 25, once. It fades 2.4 s later and a new one can be laid. A jump or a wrap across the arena starts a new piece. No magic yet.
+
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
-real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL), with its weapons and magic; tap one to fly it right away.
+real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.
 It is only for trying them: the choice is not saved, and in the real game each player has the one ship from the gift,
 changed only by trading. To turn the hangar off: `HANGAR = false` at the top of the game. `TRY_SHIP` (a ship id) still
 makes everyone fly one ship; `""` is the gift's surprise.
