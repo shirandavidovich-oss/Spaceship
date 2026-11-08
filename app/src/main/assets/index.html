@@ -3844,6 +3844,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
+  lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
   game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
@@ -4411,6 +4412,7 @@ function drawBounty() {
 }
 function destroyEnemy() {
   const E = shipById(enemy.ship);
+  lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
   enemy.on = false; enemy.respawn = RESPAWN; game.kills++; enemy.markT = 0; scoreKill(false); enemy.rw = null; enemy.rwHist = [];
   burstAt(enemy.x, enemy.y, 90, ["#ffffff", "#ffd166", E.flame, E.hull, E.trim, "#ff6b35"], 1.4, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
   burstAt(enemy.x, enemy.y, 30, ["#ffffff", "#fff3b0"], 0.5, 2, enemy.vx * 0.5, enemy.vy * 0.5);
@@ -7882,6 +7884,7 @@ function updateRival(dt) {
   // their ship blew up / came back
   if (n.d && enemy.on) {
     enemy.on = false; duel.won++; scoreKill(true);   // a player beaten: the reward
+    lenses.length = 0;   // (the false stars go out on both phones)
     burstAt(enemy.x, enemy.y, 90, ["#ffffff", "#ffd166", E.flame, E.hull, E.trim, "#ff6b35"], 1.4, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
     rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.7, r: shipSize() * 2.2, c: "#ffd166" });
     audio.boom(); buzz(220);
