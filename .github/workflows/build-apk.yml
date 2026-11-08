@@ -1,0 +1,46 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    # changes to the game itself reach phones on their own; no new APK needed
+    paths-ignore:
+      - "app/src/main/assets/**"
+      - "README.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04   # has the Android SDK built in
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Game tests
+        run: node tests/ship.test.js
+
+      - name: Build
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          gradle assembleDebug --no-daemon
+
+      - name: Publish as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk Spaceship.apk
+          gh release create "build-${{ github.run_number }}" Spaceship.apk \
+            --title "Spaceship build ${{ github.run_number }}" \
+            --notes "${{ github.event.head_commit.message }}" \
+            --latest

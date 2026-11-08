@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Spaceship</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #05060f; overflow: hidden; touch-action: none;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+"use strict";
+// ======================================================================
+//  SETTINGS  (the numbers worth playing with)
+// ======================================================================
+const HOLD_ANGLE = 35;   // degrees from flat: how people usually hold the phone. At this angle the ship stays still
+const DEAD_ZONE  = 4;    // degrees around HOLD_ANGLE (and around level side-to-side) that still count as "still"
+const FULL_TILT  = 22;   // degrees past the dead zone that give full engine power
+const GIFT_TAPS  = 3;    // taps on the gift until it opens
+const SWIPE_UP   = 0.18; // swipe-up length (part of the screen height) that asks to trade
+const LOOK_FOR   = 45;   // seconds to look for the other phone
+
+// <logic>  (pure game rules, no screen: tests/ship.test.js runs this part)
+const RARITY = {
+  common:    { odds: 50, name: "רגילה", stars: 1, color: "#9fb4d8" },
+  rare:      { odds: 30, name: "נדירה", stars: 2, color: "#4fc3ff" },
+  epic:      { odds: 15, name: "אפית",  stars: 3, color: "#c77dff" },
+  legendary: { odds: 5,  name: "אגדית", stars: 4, color: "#ffd166" }
+};
+
+// The ten ships. Shapes are drawn in code for now (nose up, units of the ship's length);
+// real drawings can replace them later, one file per ship.
+//   body / wing: the right half of the outline, mirrored to the left
+//   nozzles: x of each engine, at engineY (more engines push harder)
+const SHIPS = [
+  { id: "hornet", name: "צרעה", rarity: "common", mass: 0.8,
+    hull: "#ffd23f", wingC: "#2b2b36", trim: "#ffef9f", flame: "#ffb703",
+    body: [[0, -0.5], [0.07, -0.3], [0.1, 0.1], [0.07, 0.42]],
+    wing: [[0.08, -0.05], [0.36, 0.2], [0.34, 0.3], [0.08, 0.25]],
+    nozzles: [0], engineY: 0.44, cockpit: [0, -0.18, 0.05, 0.1] },
+  { id: "comet", name: "שביט", rarity: "common", mass: 1.0,
+    hull: "#7ce7ff", wingC: "#2a6f97", trim: "#e0fbff", flame: "#4cc9f0",
+    body: [[0, -0.5], [0.09, -0.25], [0.11, 0.3], [0.06, 0.45]],
+    wing: [[0.1, -0.1], [0.42, 0.32], [0.4, 0.4], [0.1, 0.32]],
+    nozzles: [-0.06, 0.06], engineY: 0.45, cockpit: [0, -0.22, 0.055, 0.11] },
+  { id: "falcon", name: "נץ", rarity: "common", mass: 1.1,
+    hull: "#ff9f1c", wingC: "#7f4f24", trim: "#ffd6a5", flame: "#ff6b35",
+    body: [[0, -0.5], [0.12, -0.15], [0.13, 0.35], [0.08, 0.45]],
+    wing: [[0.12, -0.2], [0.48, 0.38], [0.12, 0.3]],
+    nozzles: [-0.07, 0.07], engineY: 0.45, cockpit: [0, -0.2, 0.06, 0.12] },
+  { id: "beetle", name: "חיפושית", rarity: "common", mass: 1.3,
+    hull: "#80ed99", wingC: "#2d6a4f", trim: "#d8f3dc", flame: "#57cc99",
+    body: [[0, -0.42], [0.2, -0.32], [0.28, 0], [0.22, 0.32], [0.08, 0.44]],
+    wing: [[0.24, -0.1], [0.36, 0.05], [0.33, 0.22], [0.24, 0.18]],
+    nozzles: [0], engineY: 0.44, cockpit: [0, -0.14, 0.11, 0.1] },
+  { id: "orion", name: "אוריון", rarity: "rare", mass: 1.2,
+    hull: "#4895ef", wingC: "#3a6ea5", trim: "#caf0f8", flame: "#4cc9f0", twin: 0.2,
+    body: [[0, -0.5], [0.06, -0.3], [0.07, 0.4], [0.04, 0.46]],
+    wing: [[0, -0.05], [0.32, 0.05], [0.32, 0.15], [0, 0.12]],
+    nozzles: [-0.2, 0.2], engineY: 0.46, cockpit: [0, -0.02, 0.07, 0.08] },
+  { id: "nebula", name: "ערפילית", rarity: "rare", mass: 0.9, saucer: 0.42,
+    hull: "#f7aef8", wingC: "#7209b7", trim: "#ffe5ff", flame: "#f72585",
+    body: [], wing: [],
+    nozzles: [-0.12, 0, 0.12], engineY: 0.22, cockpit: [0, -0.04, 0.12, 0.1] },
+  { id: "pulsar", name: "פולסר", rarity: "rare", mass: 1.0, ring: 0.36,
+    hull: "#2ec4b6", wingC: "#0b3d3a", trim: "#cbf3f0", flame: "#2ec4b6",
+    body: [[0, -0.46], [0.08, -0.2], [0.09, 0.3], [0.05, 0.42]],
+    wing: [],
+    nozzles: [-0.05, 0.05], engineY: 0.42, cockpit: [0, -0.16, 0.05, 0.1] },
+  { id: "nova", name: "נובה", rarity: "epic", mass: 1.1,
+    hull: "#ef233c", wingC: "#8d99ae", trim: "#ffccd5", flame: "#ff7b00",
+    body: [[0, -0.5], [0.1, -0.2], [0.12, 0.35], [0.07, 0.46]],
+    wing: [[0.1, 0.3], [0.46, -0.12], [0.5, -0.05], [0.18, 0.42]],
+    nozzles: [-0.09, 0, 0.09], engineY: 0.46, cockpit: [0, -0.22, 0.06, 0.12] },
+  { id: "quasar", name: "קוואזר", rarity: "epic", mass: 1.4,
+    hull: "#f8f9fa", wingC: "#c9a227", trim: "#fff3b0", flame: "#90e0ef",
+    body: [[0, -0.5], [0.05, -0.35], [0.08, 0.4], [0.05, 0.47]],
+    wing: [[0.07, 0.05], [0.26, 0.28], [0.3, 0.45], [0.07, 0.36]],
+    nozzles: [-0.22, -0.08, 0.08, 0.22], engineY: 0.45, cockpit: [0, -0.26, 0.04, 0.12] },
+  { id: "stardragon", name: "דרקון כוכבים", rarity: "legendary", mass: 1.6,
+    hull: "#ffd166", wingC: "#6a0dad", trim: "#fff1c1", flame: "#c77dff",
+    body: [[0, -0.5], [0.06, -0.42], [0.12, -0.2], [0.14, 0.2], [0.06, 0.47]],
+    wing: [[0.12, -0.18], [0.3, -0.36], [0.5, -0.1], [0.44, 0.1], [0.5, 0.3], [0.3, 0.2], [0.13, 0.3]],
+    nozzles: [-0.24, -0.08, 0.08, 0.24], engineY: 0.4, cockpit: [0, -0.3, 0.05, 0.08] }
+];
+const shipById = (id) => SHIPS.find((s) => s.id === id) || null;
+
+// The gift's surprise: rarity by its odds, then one ship of that rarity.
+function chooseShip(rand = Math.random) {
+  const total = Object.values(RARITY).reduce((a, r) => a + r.odds, 0);
+  let k = rand() * total, pick = "common";
+  for (const [name, r] of Object.entries(RARITY)) { if (k < r.odds) { pick = name; break; } k -= r.odds; }
+  const pool = SHIPS.filter((s) => s.rarity === pick);
+  return pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))].id;
+}
+
+// Phone tilt -> engine power. g = the gravity sensor (x right, y up the screen, z out of the screen).
+// pitch: 0 = lying flat, 90 = standing upright. At HOLD_ANGLE the ship gets no push.
+function tiltOf(gx, gy, gz) {
+  const m = Math.hypot(gx, gy, gz) || 1;
+  const x = gx / m, y = gy / m, z = gz / m;
+  return { pitch: Math.atan2(y, z) * 180 / Math.PI, roll: Math.asin(Math.max(-1, Math.min(1, -x))) * 180 / Math.PI };
+}
+function shape(deg) {
+  const a = Math.abs(deg) - DEAD_ZONE;
+  if (a <= 0) return 0;
+  return Math.sign(deg) * Math.min(1, a / FULL_TILT);
+}
+// returns { side, fwd } in -1..1. fwd > 0: top of the phone tipped away from you -> ship flies up the screen
+function controlFromTilt(t) {
+  if (t.pitch < -30 || t.pitch > 120) return { side: 0, fwd: 0 };   // phone upside down or face down: no control
+  return { side: shape(t.roll), fwd: shape(HOLD_ANGLE - t.pitch) };
+}
+// </logic>
+
+// ======================================================================
+//  SCREEN
+// ======================================================================
+const cv = document.getElementById("c");
+const ctx = cv.getContext("2d");
+let W = 0, H = 0, U = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(2.5, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight; U = Math.min(W, H);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  makeStars();
+}
+addEventListener("resize", resize);
+
+const native = window.ShipNative || null;
+const params = new URLSearchParams(location.search);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const ease = (k) => 1 - Math.pow(1 - clamp(k, 0, 1), 3);
+function buzz(ms) { try { native && native.vibrate(ms); } catch (e) {} }
+
+// ---------- saved game ----------
+const SAVE_KEY = "spaceship.save";
+if (params.has("reset")) { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && shipById(s.ship)) return s; } catch (e) {} return null; }
+function saveShip(id, from) { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, ship: id, from, at: Date.now() })); } catch (e) {} }
+
+// ---------- tilt ----------
+const tilt = { native: false, have: false, pitch: HOLD_ANGLE, roll: 0, sim: { pitch: HOLD_ANGLE, roll: 0 } };
+function feedGravity(x, y, z) { const t = tiltOf(x, y, z); tilt.pitch = t.pitch; tilt.roll = t.roll; tilt.have = true; }
+window.shipGravity = (x, y, z) => { tilt.native = true; feedGravity(x, y, z); };
+addEventListener("devicemotion", (e) => {
+  const a = e.accelerationIncludingGravity;
+  if (!tilt.native && a && a.x != null) feedGravity(a.x, a.y, a.z);
+});
+// on a computer: arrow keys tilt the "phone"
+const keys = {};
+addEventListener("keydown", (e) => { keys[e.key] = true; });
+addEventListener("keyup", (e) => { keys[e.key] = false; });
+function updateSimTilt(dt) {
+  if (tilt.have) return;
+  const s = tilt.sim, k = 1 - Math.exp(-dt * 6);
+  const tp = HOLD_ANGLE + (keys.ArrowDown ? 25 : 0) - (keys.ArrowUp ? 25 : 0);
+  const tr = (keys.ArrowRight ? 25 : 0) - (keys.ArrowLeft ? 25 : 0);
+  s.pitch = lerp(s.pitch, tp, k); s.roll = lerp(s.roll, tr, k);
+  tilt.pitch = s.pitch; tilt.roll = s.roll;
+}
+
+// ---------- sound (made on the fly, no files yet) ----------
+const audio = {
+  ctx: null, hum: null, humGain: null, humFilter: null,
+  wake() {
+    try {
+      if (!this.ctx) {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.out = this.ctx.createGain(); this.out.gain.value = 0.8; this.out.connect(this.ctx.destination);
+      }
+      if (this.ctx.state === "suspended") this.ctx.resume();
+    } catch (e) {}
+  },
+  tone(freq, dur, type = "sine", vol = 0.2, slide = 0, delay = 0) {
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * slide), t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.out); o.start(t); o.stop(t + dur + 0.05);
+  },
+  tap(n) { this.tone(180 + n * 90, 0.18, "triangle", 0.3, 0.6); this.tone(900 + n * 300, 0.12, "sine", 0.08, 1.5); },
+  open() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.9, "triangle", 0.16, 1, i * 0.09)); this.tone(80, 0.8, "sine", 0.35, 0.5); },
+  reveal(stars) { const base = [392, 494, 587, 784, 988]; for (let i = 0; i < 2 + stars; i++) this.tone(base[i % 5] * (i > 4 ? 2 : 1), 1.2, "sine", 0.12, 1, 0.12 * i); },
+  bump() { this.tone(70, 0.2, "sine", 0.35, 0.6); },
+  whoosh() { this.tone(200, 0.7, "sawtooth", 0.08, 6); },
+  pop() { this.tone(600, 0.1, "sine", 0.15, 1.8); },
+  // engine hum that follows the throttle
+  engine(power) {
+    if (!this.ctx) return;
+    if (!this.hum) {
+      const c = this.ctx;
+      this.hum = c.createOscillator(); this.hum.type = "sawtooth"; this.hum.frequency.value = 52;
+      this.humFilter = c.createBiquadFilter(); this.humFilter.type = "lowpass"; this.humFilter.frequency.value = 200;
+      this.humGain = c.createGain(); this.humGain.gain.value = 0;
+      this.hum.connect(this.humFilter); this.humFilter.connect(this.humGain); this.humGain.connect(this.out); this.hum.start();
+    }
+    const t = this.ctx.currentTime;
+    this.humGain.gain.setTargetAtTime(0.015 + power * 0.06, t, 0.08);
+    this.hum.frequency.setTargetAtTime(48 + power * 40, t, 0.1);
+    this.humFilter.frequency.setTargetAtTime(160 + power * 700, t, 0.1);
+  }
+};
+window.shipPause = () => { try { audio.ctx && audio.ctx.suspend(); } catch (e) {} };
+window.shipResume = () => { audio.wake(); };
+audio.wake();
+
+// ======================================================================
+//  GAME STATE
+// ======================================================================
+const save = loadSave();
+const game = {
+  stage: save ? "arrive" : "gift",   // gift -> opening -> fly ; arrive -> fly
+  t: 0,
+  ship: save ? save.ship : null,
+  x: 0, y: 0, vx: 0, vy: 0, power: 0, fwd: 0, side: 0,
+  card: 0,          // seconds left to show the ship's name card
+  hitCool: 0
+};
+const gift = { taps: 0, wob: 0, squash: 0, hint: 0 };
+let time = 0;
+
+// ---------- stars (three depths, for the window-into-space feel) ----------
+let stars = [];
+function makeStars() {
+  stars = [];
+  const n = Math.round((W * H) / 2600);
+  for (let i = 0; i < n; i++) {
+    const d = Math.random() < 0.6 ? 0 : Math.random() < 0.7 ? 1 : 2;
+    stars.push({ x: Math.random() * W, y: Math.random() * H, d, r: [0.6, 1.1, 1.8][d] * (0.7 + Math.random() * 0.6), tw: Math.random() * 6.28 });
+  }
+}
+
+// ---------- particles ----------
+const parts = [];
+function burst(x, y, n, colors, speed = 1, size = 1) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = (0.2 + Math.random()) * U * 0.6 * speed;
+    parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, max: 0.6 + Math.random() * 0.9,
+      c: colors[i % colors.length], s: (2 + Math.random() * 4) * size, star: Math.random() < 0.35 });
+  }
+}
+
+// ======================================================================
+//  TOUCH
+// ======================================================================
+let swipe = null;
+cv.addEventListener("pointerdown", (e) => {
+  audio.wake();
+  swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
+  if (trade.stage && tradeTap(e.clientX, e.clientY)) { swipe = null; return; }
+  if (game.stage === "gift" && hitGift(e.clientX, e.clientY)) { tapGift(); swipe = null; return; }
+  if (game.stage === "opening" && game.t > 2.2) { toFly(); swipe = null; return; }
+  if (game.stage === "fly" && Math.hypot(e.clientX - game.x, e.clientY - game.y) < shipSize() * 0.6) { game.card = 2.5; audio.pop(); }
+});
+cv.addEventListener("pointerup", (e) => {
+  if (!swipe || e.pointerId !== swipe.id) return;
+  const up = swipe.y - e.clientY;
+  if (up > H * SWIPE_UP && performance.now() - swipe.t < 900 && game.stage === "fly") openTrade();
+  swipe = null;
+});
+cv.addEventListener("pointercancel", () => { swipe = null; });
+
+// Android back: close the bubble or card first, then leave
+window.shipBack = () => {
+  if (trade.stage && trade.stage !== "swapping") { if (trade.stage === "offer" || trade.stage === "waiting") link.send({ t: "no" }); endTrade(); return true; }
+  if (game.card > 0) { game.card = 0; return true; }
+  return false;
+};
+
+// ======================================================================
+//  THE GIFT
+// ======================================================================
+function giftBox() { const s = U * 0.42; return { cx: W / 2, cy: H * 0.52, s }; }
+function hitGift(x, y) { const g = giftBox(); return Math.abs(x - g.cx) < g.s * 0.65 && Math.abs(y - g.cy) < g.s * 0.7; }
+function tapGift() {
+  gift.taps++; gift.wob = 1; gift.squash = 1; gift.hint = 0;
+  const g = giftBox();
+  burst(g.cx, g.cy - g.s * 0.3, 8 + gift.taps * 6, ["#ffd166", "#c77dff", "#ffffff"], 0.6, 0.8);
+  audio.tap(gift.taps); buzz(20 + gift.taps * 15);
+  if (gift.taps >= GIFT_TAPS) {
+    // decided now and saved at once, so closing the app mid-animation keeps the same ship
+    game.ship = chooseShip();
+    saveShip(game.ship, "gift");
+    game.stage = "opening"; game.t = 0;
+    audio.open(); buzz(80);
+  }
+}
+function toFly() {
+  game.stage = "fly"; game.t = 0;
+  if (!game.x) { game.x = W / 2; game.y = H * 0.6; }
+  game.card = 0;
+}
+
+// ======================================================================
+//  UPDATE
+// ======================================================================
+function shipSize() { return U * 0.26; }
+
+function update(dt) {
+  time += dt; game.t += dt;
+  updateSimTilt(dt);
+  gift.wob = Math.max(0, gift.wob - dt * 2.2);
+  gift.squash = Math.max(0, gift.squash - dt * 5);
+  if (game.stage === "gift") gift.hint += dt;
+  game.card = Math.max(0, game.card - dt);
+  game.hitCool = Math.max(0, game.hitCool - dt);
+
+  const c = controlFromTilt(tilt);
+  game.side = c.side; game.fwd = c.fwd;
+
+  // stars drift past slowly; the tilt shifts the near ones more (depth)
+  const cruise = U * 0.02;
+  for (const s of stars) {
+    s.y += (cruise * (s.d + 1) - game.vy * 0.04 * (s.d + 1)) * dt;
+    s.x -= game.vx * 0.04 * (s.d + 1) * dt;
+    if (s.y > H + 4) { s.y -= H + 8; s.x = Math.random() * W; }
+    if (s.y < -4) { s.y += H + 8; s.x = Math.random() * W; }
+    if (s.x > W + 4) s.x -= W + 8;
+    if (s.x < -4) s.x += W + 8;
+  }
+
+  if (game.stage === "opening") {
+    if (game.t > 1.25 && !game.burstDone) {
+      game.burstDone = true;
+      const R = RARITY[shipById(game.ship).rarity], g = giftBox();
+      burst(g.cx, H * 0.4, 50 + R.stars * 25, [R.color, "#ffffff", shipById(game.ship).hull], 1.2, 1.2);
+      audio.reveal(R.stars); buzz(40 * R.stars);
+    }
+    if (game.t > 6) toFly();
+  }
+  if (game.stage === "arrive" && game.t > 0.9) { game.x = W / 2; game.y = H * 0.6; game.stage = "fly"; game.t = 0; }
+
+  if (game.stage === "fly" && trade.stage !== "swapping") flyShip(dt);
+  updateTrade(dt);
+
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.life += dt;
+    if (p.life > p.max) { parts.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.exp(-dt * 2.5); p.vy *= Math.exp(-dt * 2.5);
+  }
+}
+
+function flyShip(dt) {
+  const S = shipById(game.ship), size = shipSize();
+  // heavier ships push off slower; more engines push harder
+  const thrust = U * 2.6 * (0.7 + 0.15 * S.nozzles.length) / S.mass;
+  game.vx += game.side * thrust * dt;
+  game.vy -= game.fwd * thrust * dt;
+  // a gentle brake, so the ship comes to rest when the phone is back at its usual angle
+  const drag = Math.exp(-dt * 1.8);
+  game.vx *= drag; game.vy *= drag;
+  game.x += game.vx * dt; game.y += game.vy * dt;
+  game.power = lerp(game.power, Math.min(1, Math.hypot(game.side, game.fwd)), 1 - Math.exp(-dt * 8));
+  audio.engine(game.power);
+
+  // soft bounce off the edges of the screen
+  const mx = size * 0.45, my = size * 0.55;
+  let hit = 0;
+  if (game.x < mx) { game.x = mx; hit = Math.abs(game.vx); game.vx = Math.abs(game.vx) * 0.4; }
+  if (game.x > W - mx) { game.x = W - mx; hit = Math.abs(game.vx); game.vx = -Math.abs(game.vx) * 0.4; }
+  if (game.y < my) { game.y = my; hit = Math.abs(game.vy); game.vy = Math.abs(game.vy) * 0.4; }
+  if (game.y > H - my) { game.y = H - my; hit = Math.abs(game.vy); game.vy = -Math.abs(game.vy) * 0.4; }
+  if (hit > U * 0.35 && !game.hitCool) {
+    game.hitCool = 0.25; audio.bump(); buzz(Math.min(60, hit / U * 40));
+    burst(game.x, game.y, 8, ["#ffffff", S.trim], 0.4, 0.6);
+  }
+}
+
+// ======================================================================
+//  DRAWING
+// ======================================================================
+function drawSpace() {
+  const g = ctx.createRadialGradient(W * 0.5, H * 0.35, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.9);
+  g.addColorStop(0, "#141a3a"); g.addColorStop(0.55, "#090b1e"); g.addColorStop(1, "#030308");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // a far planet that shifts with the tilt (the screen is a window)
+  const ox = -tilt.roll * U * 0.004, oy = (tilt.pitch - HOLD_ANGLE) * U * 0.004;
+  const px = W * 0.82 + ox, py = H * 0.16 + oy, pr = U * 0.2;
+  const pg = ctx.createRadialGradient(px - pr * 0.4, py - pr * 0.4, pr * 0.1, px, py, pr);
+  pg.addColorStop(0, "#6c5ce7"); pg.addColorStop(0.7, "#2d1b69"); pg.addColorStop(1, "#120a2e");
+  ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(px, py, pr, 0, 6.2832); ctx.fill();
+  ctx.save(); ctx.translate(px, py); ctx.rotate(-0.35); ctx.scale(1, 0.22);
+  ctx.strokeStyle = "rgba(200,180,255,0.35)"; ctx.lineWidth = U * 0.03; ctx.beginPath(); ctx.arc(0, 0, pr * 1.55, 0, 6.2832); ctx.stroke();
+  ctx.restore();
+  for (const s of stars) {
+    const k = (s.d + 1) * 0.6;
+    const x = s.x - tilt.roll * k * U * 0.006, y = s.y + (tilt.pitch - HOLD_ANGLE) * k * U * 0.006;
+    ctx.globalAlpha = 0.45 + 0.55 * Math.abs(Math.sin(time * 1.3 + s.tw));
+    ctx.fillStyle = s.d === 2 ? "#dfe8ff" : "#aab6e8";
+    ctx.beginPath(); ctx.arc(x, y, s.r, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function mirrorPath(half) {
+  ctx.beginPath();
+  half.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  for (let i = half.length - 1; i >= 0; i--) ctx.lineTo(-half[i][0], half[i][1]);
+  ctx.closePath();
+}
+
+// one ship, nose up, centered at (x, y), `size` long
+function drawShip(S, x, y, size, o = {}) {
+  const power = o.power ?? 0.25, bank = o.bank ?? 0, alpha = o.alpha ?? 1;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y); ctx.rotate(bank * 0.25); ctx.scale(size * Math.cos(bank * 0.9), size);
+  ctx.lineJoin = "round";
+  // engine flames (behind everything)
+  for (const ex of S.nozzles) {
+    const len = 0.1 + power * 0.32 + Math.sin(time * 40 + ex * 9) * 0.03;
+    const w = S.nozzles.length >= 4 ? 0.035 : 0.05;
+    const fg = ctx.createLinearGradient(0, S.engineY, 0, S.engineY + len);
+    fg.addColorStop(0, "#ffffff"); fg.addColorStop(0.3, S.flame); fg.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = fg;
+    ctx.beginPath(); ctx.moveTo(ex - w, S.engineY); ctx.quadraticCurveTo(ex, S.engineY + len * 1.4, ex + w, S.engineY); ctx.fill();
+  }
+  // soft glow under the ship (it hovers)
+  const glow = ctx.createRadialGradient(0, 0.05, 0, 0, 0.05, 0.6);
+  glow.addColorStop(0, hexA(S.flame, 0.18 + power * 0.12)); glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow; ctx.fillRect(-0.7, -0.6, 1.4, 1.3);
+
+  ctx.lineWidth = 0.018; ctx.strokeStyle = "rgba(0,0,0,0.55)";
+  if (S.ring) {
+    ctx.beginPath(); ctx.arc(0, 0.02, S.ring, 0, 6.2832); ctx.lineWidth = 0.07; ctx.strokeStyle = S.wingC; ctx.stroke();
+    ctx.lineWidth = 0.025; ctx.strokeStyle = S.trim; ctx.stroke();
+    ctx.lineWidth = 0.018; ctx.strokeStyle = "rgba(0,0,0,0.55)";
+    for (const a of [0, Math.PI]) { ctx.save(); ctx.rotate(a + Math.PI / 2); ctx.fillStyle = S.wingC; ctx.fillRect(-0.02, 0.05, 0.04, S.ring - 0.05); ctx.restore(); }
+  }
+  if (S.wing.length) {
+    const sides = S.twin ? [-S.twin, S.twin] : [0];
+    ctx.fillStyle = S.wingC; mirrorPath(S.wing); ctx.fill(); ctx.stroke();
+    if (S.twin) for (const dx of sides) { ctx.save(); ctx.translate(dx, 0); ctx.fillStyle = shade(S.hull, -0.15); mirrorPath(S.body); ctx.fill(); ctx.stroke(); ctx.restore(); }
+  }
+  if (S.saucer) {
+    const r = S.saucer;
+    const sg = ctx.createRadialGradient(-r * 0.3, -r * 0.4, r * 0.1, 0, 0, r);
+    sg.addColorStop(0, S.trim); sg.addColorStop(0.6, S.hull); sg.addColorStop(1, shade(S.hull, -0.35));
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.62, 0, 0, 6.2832); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = S.wingC; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.68, r * 0.4, 0, 0, 6.2832); ctx.fill();
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * 6.2832 + time * 1.5;
+      ctx.fillStyle = Math.sin(time * 6 + i) > 0 ? S.trim : S.flame;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.84, Math.sin(a) * r * 0.52, 0.025, 0, 6.2832); ctx.fill();
+    }
+  } else if (!S.twin) {
+    const bg = ctx.createLinearGradient(-0.15, 0, 0.15, 0);
+    bg.addColorStop(0, shade(S.hull, -0.3)); bg.addColorStop(0.45, S.hull); bg.addColorStop(0.55, S.trim); bg.addColorStop(1, shade(S.hull, -0.25));
+    ctx.fillStyle = bg; mirrorPath(S.body); ctx.fill(); ctx.stroke();
+  }
+  // engine nozzles
+  for (const ex of S.nozzles) { ctx.fillStyle = "#30303c"; ctx.fillRect(ex - 0.035, S.engineY - 0.045, 0.07, 0.05); }
+  // cockpit
+  const [cx, cy, rx, ry] = S.cockpit;
+  const cg = ctx.createLinearGradient(cx - rx, cy - ry, cx + rx, cy + ry);
+  cg.addColorStop(0, "#e9f7ff"); cg.addColorStop(0.35, "#5fa8d3"); cg.addColorStop(1, "#14213d");
+  ctx.fillStyle = cg; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, 6.2832); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (v) => Math.round(clamp(k < 0 ? v * (1 + k) : v + (255 - v) * k, 0, 255));
+  return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
+}
+
+function drawGift(cx, cy, s, o = {}) {
+  const wob = Math.sin(time * 28) * gift.wob * 0.12, sq = gift.squash * 0.08;
+  const bob = Math.sin(time * 2) * s * 0.03 + (o.dy || 0);
+  ctx.save();
+  ctx.translate(cx + tilt.roll * -s * 0.004, cy + bob); ctx.rotate(wob + tilt.roll * 0.002);
+  ctx.scale(1 + sq, 1 - sq);
+  ctx.globalAlpha = o.alpha ?? 1;
+  // glow
+  const gl = ctx.createRadialGradient(0, 0, s * 0.1, 0, 0, s * 1.1);
+  gl.addColorStop(0, `rgba(199,125,255,${0.25 + 0.1 * Math.sin(time * 3) + gift.taps * 0.08})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, s * 1.1, 0, 6.2832); ctx.fill();
+  const bw = s, bh = s * 0.72, top = -bh * 0.35;
+  // box
+  const bg = ctx.createLinearGradient(-bw / 2, 0, bw / 2, 0);
+  bg.addColorStop(0, "#5a189a"); bg.addColorStop(0.5, "#9d4edd"); bg.addColorStop(1, "#3c096c");
+  ctx.fillStyle = bg; roundRect(-bw / 2, top, bw, bh, s * 0.05); ctx.fill();
+  ctx.fillStyle = "#ffd166"; ctx.fillRect(-s * 0.075, top, s * 0.15, bh);
+  // stars printed on the paper
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  for (const [x, y] of [[-0.32, 0.05], [0.3, 0.12], [-0.22, 0.25], [0.24, 0.3]]) starShape(x * s, top + y * s + s * 0.1, s * 0.035);
+  // cracks of light as it is about to open
+  if (gift.taps > 0) {
+    ctx.strokeStyle = `rgba(255,240,180,${0.4 + 0.3 * Math.sin(time * 10)})`; ctx.lineWidth = 2 + gift.taps;
+    ctx.beginPath(); ctx.moveTo(-bw / 2, top); ctx.lineTo(bw / 2, top); ctx.stroke();
+  }
+  // lid (flies off when opening)
+  ctx.save();
+  ctx.translate(0, top + (o.lidY || 0)); ctx.rotate(o.lidRot || 0); ctx.globalAlpha *= o.lidAlpha ?? 1;
+  const lw = s * 1.12, lh = s * 0.2;
+  const lg = ctx.createLinearGradient(-lw / 2, 0, lw / 2, 0);
+  lg.addColorStop(0, "#7b2cbf"); lg.addColorStop(0.5, "#c77dff"); lg.addColorStop(1, "#5a189a");
+  ctx.fillStyle = lg; roundRect(-lw / 2, -lh, lw, lh, s * 0.04); ctx.fill();
+  ctx.fillStyle = "#ffd166"; ctx.fillRect(-s * 0.075, -lh, s * 0.15, lh);
+  // bow
+  ctx.fillStyle = "#ffbe0b"; ctx.strokeStyle = "#e09f00"; ctx.lineWidth = 2;
+  for (const d of [-1, 1]) { ctx.beginPath(); ctx.ellipse(d * s * 0.13, -lh - s * 0.08, s * 0.14, s * 0.08, d * -0.5, 0, 6.2832); ctx.fill(); ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(0, -lh - s * 0.05, s * 0.06, 0, 6.2832); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function starShape(x, y, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+  ctx.closePath(); ctx.fill();
+}
+
+function drawRays(cx, cy, k, color) {
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(time * 0.4);
+  for (let i = 0; i < 14; i++) {
+    ctx.rotate(Math.PI * 2 / 14);
+    const g = ctx.createLinearGradient(0, 0, 0, -U * 0.9);
+    g.addColorStop(0, hexA(color, 0.5 * k)); g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-U * 0.08, -U * 0.9); ctx.lineTo(U * 0.08, -U * 0.9); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// the ship's name card: name, rarity, stars
+function drawCard(S, alpha) {
+  if (alpha <= 0) return;
+  const R = RARITY[S.rarity];
+  const w = Math.min(W * 0.8, U * 0.8), h = U * 0.3, x = W / 2 - w / 2, y = H * 0.73;
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.fillStyle = "rgba(12,14,36,0.85)"; roundRect(x, y, w, h, h * 0.18); ctx.fill();
+  ctx.strokeStyle = R.color; ctx.lineWidth = 3; ctx.stroke();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+  ctx.fillStyle = "#ffffff"; ctx.font = `800 ${Math.round(h * 0.26)}px Rubik, Arial, sans-serif`;
+  ctx.fillText(S.name, W / 2, y + h * 0.3);
+  ctx.fillStyle = R.color; ctx.font = `600 ${Math.round(h * 0.15)}px Rubik, Arial, sans-serif`;
+  ctx.fillText("חללית " + R.name, W / 2, y + h * 0.56);
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = i < R.stars ? R.color : "rgba(255,255,255,0.15)";
+    starShape(W / 2 + (i - 1.5) * h * 0.18, y + h * 0.8, h * 0.07);
+  }
+  ctx.restore();
+}
+
+function drawParts() {
+  for (const p of parts) {
+    const k = 1 - p.life / p.max;
+    ctx.globalAlpha = k; ctx.fillStyle = p.c;
+    if (p.star) starShape(p.x, p.y, p.s * 1.3);
+    else { ctx.beginPath(); ctx.arc(p.x, p.y, p.s * k + 0.5, 0, 6.2832); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function draw() {
+  drawSpace();
+  const S = shipById(game.ship);
+
+  if (game.stage === "gift") {
+    const g = giftBox();
+    drawGift(g.cx, g.cy, g.s);
+    // after a while with no taps: a little finger pulses over the box (no words)
+    if (gift.hint > 4) {
+      const k = (gift.hint * 1.2) % 1;
+      ctx.save(); ctx.globalAlpha = 0.6 * (1 - k); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(g.cx, g.cy, g.s * (0.15 + k * 0.3), 0, 6.2832); ctx.stroke(); ctx.restore();
+    }
+  }
+
+  if (game.stage === "opening") {
+    const g = giftBox(), t = game.t, R = RARITY[S.rarity];
+    drawRays(g.cx, g.cy - g.s * 0.3, ease((t - 0.3) / 0.8) * (t > 4.5 ? Math.max(0, 1 - (t - 4.5)) : 1), R.color);
+    drawGift(g.cx, g.cy, g.s, {
+      lidY: -ease(t / 0.6) * H * 0.7, lidRot: ease(t / 0.6) * 2.2, lidAlpha: 1 - clamp(t / 0.6, 0, 1),
+      alpha: 1 - clamp((t - 1.4) / 0.8, 0, 1), dy: ease((t - 1.2) / 0.8) * g.s * 0.5
+    });
+    if (t > 0.5) {
+      const k = ease((t - 0.5) / 1.0);
+      const y = lerp(g.cy - g.s * 0.25, H * 0.42, k) + Math.sin(time * 2.2) * U * 0.01;
+      drawShip(S, g.cx, y, shipSize() * (0.25 + 0.95 * k), { power: 0.5 + 0.3 * Math.sin(time * 3) });
+    }
+    drawCard(S, clamp((t - 1.5) / 0.5, 0, 1));
+  }
+
+  if (game.stage === "arrive") {
+    const k = ease(game.t / 0.9);
+    ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = S.flame; ctx.lineWidth = U * 0.05 * (1 - k);
+    ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, lerp(0, H * 0.6, k)); ctx.stroke(); ctx.restore();
+    drawShip(S, W / 2, lerp(-shipSize(), H * 0.6, k), shipSize() * (0.6 + 0.4 * k), { power: 1 - k * 0.7 });
+  }
+
+  if (game.stage === "fly") {
+    const bob = Math.sin(time * 2.1) * U * 0.006;
+    const bank = clamp(game.vx / (U * 1.4), -1, 1) * 0.55;
+    let y = game.y + bob + tradeOffsetY();
+    const shown = trade.stage === "swapping" && trade.t > 0.9 ? shipById(trade.incoming) : S;
+    drawShip(shown, game.x, y, shipSize() * (1 + game.fwd * 0.04), { power: trade.stage === "swapping" ? 1 : 0.2 + game.power * 0.8, bank });
+    drawCard(shown, Math.min(1, game.card * 2));
+  }
+
+  drawParts();
+  drawTrade();
+}
+
+// ======================================================================
+//  TRADING  (swipe up: the ship offers to swap with a phone nearby)
+//  The phones talk directly (Bluetooth / Wi-Fi), no server, no internet.
+//  Both players must say yes; then each ship flies out of the top of its
+//  screen and arrives on the other phone.
+// ======================================================================
+const trade = { stage: null, t: 0, peer: null, myYes: false, peerYes: false, buttons: [], incoming: null };
+const fakePeer = params.has("fake");   // on a computer: ?fake pretends another phone answered
+const link = {
+  start(name) {
+    if (native && native.tradeStart) { try { native.tradeStart(name); } catch (e) {} return; }
+    if (fakePeer) setTimeout(() => window.shipLink("connected", ""), 1200);
+  },
+  send(obj) {
+    if (native && native.tradeSend) { try { native.tradeSend(JSON.stringify(obj)); } catch (e) {} return; }
+    if (!fakePeer) return;
+    if (obj.t === "offer") setTimeout(() => window.shipLink("message", JSON.stringify({ t: "offer", s: SHIPS.filter((s) => s.id !== game.ship)[Math.floor(Math.random() * 9)].id })), 500);
+    if (obj.t === "yes") setTimeout(() => window.shipLink("message", JSON.stringify({ t: "yes" })), 900);
+  },
+  stop() { try { native && native.tradeStop && native.tradeStop(); } catch (e) {} }
+};
+function setTrade(stage) { trade.stage = stage; trade.t = 0; }
+function endTrade() { link.stop(); trade.stage = null; trade.peer = null; trade.myYes = trade.peerYes = false; }
+function openTrade() {
+  if (trade.stage || game.stage !== "fly") return;
+  setTrade("ask"); audio.pop(); buzz(15);
+}
+function startLooking() {
+  setTrade("looking");
+  // a random part in the name decides which phone calls the other
+  link.start(game.ship + "|" + Math.random().toString(36).slice(2, 10));
+}
+window.shipLink = (event, data) => {
+  if (!trade.stage) return;
+  if (event === "connected") {
+    link.send({ t: "offer", s: game.ship });
+  } else if (event === "message") {
+    let m = null; try { m = JSON.parse(data); } catch (e) { return; }
+    if (m.t === "offer" && shipById(m.s)) {
+      trade.peer = m.s;
+      if (trade.stage === "looking") { setTrade("offer"); audio.reveal(1); buzz(20); }
+    } else if (m.t === "yes") { trade.peerYes = true; maybeSwap(); }
+    else if (m.t === "no") { setTrade("declined"); audio.bump(); link.stop(); }
+  } else if (event === "lost" && trade.stage !== "swapping") { setTrade("declined"); link.stop(); }
+  else if (event === "error" || event === "denied") setTrade("declined");
+};
+function maybeSwap() {
+  if (trade.myYes && trade.peerYes && trade.peer && trade.stage !== "swapping") {
+    trade.incoming = trade.peer; setTrade("swapping"); audio.whoosh(); buzz(60);
+  }
+}
+function answer(yes) {
+  const st = trade.stage;
+  if (st === "ask") { if (yes) startLooking(); else endTrade(); return; }
+  if (st === "looking" && !yes) { endTrade(); return; }
+  if (st === "offer") {
+    if (yes) { trade.myYes = true; link.send({ t: "yes" }); setTrade("waiting"); maybeSwap(); }
+    else { link.send({ t: "no" }); setTimeout(endTrade, 300); trade.stage = null; }
+    return;
+  }
+  if (st === "waiting" && !yes) { link.send({ t: "no" }); setTimeout(endTrade, 300); trade.stage = null; }
+}
+function tradeTap(x, y) {
+  for (const b of trade.buttons) if (Math.hypot(x - b.x, y - b.y) < b.r) { answer(b.yes); audio.pop(); return true; }
+  return false;
+}
+function updateTrade(dt) {
+  if (!trade.stage) return;
+  trade.t += dt;
+  if (trade.stage === "looking" && trade.t > LOOK_FOR) { endTrade(); audio.bump(); }
+  if (trade.stage === "declined" && trade.t > 1.4) endTrade();
+  if (trade.stage === "ask" && trade.t > 12) endTrade();
+  if (trade.stage === "swapping") {
+    if (trade.t > 0.9 && game.ship !== trade.incoming) {
+      // ours is gone through the top; the other one comes in
+      game.ship = trade.incoming; saveShip(game.ship, "trade");
+      game.x = W / 2; game.vx = game.vy = 0;
+      audio.reveal(RARITY[shipById(game.ship).rarity].stars);
+    }
+    if (trade.t > 2.2) {
+      endTrade(); game.y = H * 0.6; game.card = 3;
+      const S = shipById(game.ship);
+      burst(game.x, game.y, 30, [RARITY[S.rarity].color, "#ffffff"], 0.8);
+    }
+  }
+}
+// during a swap: our ship shoots up and away, the new one drops in from the top
+function tradeOffsetY() {
+  if (trade.stage !== "swapping") return 0;
+  const t = trade.t;
+  if (t < 0.9) return -Math.pow(t / 0.9, 2) * (game.y + shipSize());
+  const k = ease((t - 0.9) / 0.9);
+  return (1 - k) * -(H * 0.6 + shipSize()) + (H * 0.6 - game.y);
+}
+
+function drawTrade() {
+  trade.buttons = [];
+  const st = trade.stage;
+  if (!st || st === "swapping") return;
+  const bw = Math.min(W * 0.72, U * 0.74), bh = bw * 0.74;
+  const bx = W / 2 - bw / 2, by = H * 0.1;
+  const pop = Math.min(1, trade.t / 0.25);
+  const sc = st === "declined" ? 1 - Math.max(0, trade.t - 0.9) * 2 : 0.6 + 0.4 * ease(pop);
+  if (sc <= 0) return;
+  ctx.save();
+  ctx.translate(W / 2, by + bh / 2); ctx.scale(sc, sc); ctx.translate(-W / 2, -(by + bh / 2));
+  ctx.fillStyle = "rgba(14,16,40,0.92)"; ctx.strokeStyle = "#7c8cff"; ctx.lineWidth = 2.5;
+  roundRect(bx, by, bw, bh, bh * 0.2); ctx.fill(); ctx.stroke();
+  const cx = W / 2, top = by + bh * 0.4;
+  if (st === "ask" || st === "looking") swapIcon(cx, top, bh * 0.2, st === "looking" ? time * 3 : 0);
+  if (st === "looking") {
+    for (let i = 0; i < 3; i++) {
+      const k = (time * 0.8 + i / 3) % 1;
+      ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = "#7c8cff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, top, bh * (0.24 + k * 0.4), 0, 6.2832); ctx.stroke(); ctx.restore();
+    }
+  }
+  if (st === "offer" || st === "waiting") {
+    const P = shipById(trade.peer);
+    drawShip(P, cx, by + bh * 0.3 + Math.sin(time * 3) * 3, bh * 0.36, { power: 0.4 });
+    ctx.textAlign = "center"; ctx.fillStyle = RARITY[P.rarity].color; ctx.font = `700 ${Math.round(bh * 0.08)}px Rubik, Arial, sans-serif`;
+    ctx.fillText(P.name, cx, by + bh * 0.62);
+    if (st === "waiting") for (let i = 0; i < 3; i++) {
+      ctx.globalAlpha = 0.3 + 0.7 * Math.max(0, Math.sin(time * 5 - i));
+      ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(cx - 16 + i * 16, by + bh * 0.84, 4, 0, 6.2832); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+  if (st === "declined") cross(cx, top, bh * 0.2);
+  const btn = (x, y, r, yes) => {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832);
+    ctx.fillStyle = yes ? "#2a9d5c" : "#c0394b"; ctx.fill();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
+    if (yes) { ctx.beginPath(); ctx.moveTo(x - r * 0.45, y); ctx.lineTo(x - r * 0.1, y + r * 0.38); ctx.lineTo(x + r * 0.5, y - r * 0.35); ctx.lineWidth = 4; ctx.stroke(); }
+    else cross(x, y, r * 0.45, "#ffffff");
+    trade.buttons.push({ x, y, r: r * 1.3, yes });
+  };
+  const r = bh * 0.11, yb = by + bh * 0.84;
+  if (st === "ask" || st === "offer") { btn(cx + bw * 0.22, yb, r, true); btn(cx - bw * 0.22, yb, r, false); }
+  if (st === "looking" || st === "waiting") btn(cx - bw * 0.34, yb, r * 0.8, false);
+  ctx.restore();
+}
+function swapIcon(x, y, r, spin) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(spin); ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.strokeStyle = "#c77dff";
+  for (const a of [0, Math.PI]) {
+    ctx.beginPath(); ctx.arc(0, 0, r, a + 0.3, a + Math.PI - 0.3); ctx.stroke();
+    const ea = a + Math.PI - 0.3, ex = Math.cos(ea) * r, ey = Math.sin(ea) * r;
+    ctx.save(); ctx.translate(ex, ey); ctx.rotate(ea + Math.PI / 2);
+    ctx.beginPath(); ctx.moveTo(-r * 0.28, -r * 0.2); ctx.lineTo(0, 0); ctx.lineTo(-r * 0.28, r * 0.25); ctx.stroke(); ctx.restore();
+  }
+  ctx.restore();
+}
+function cross(x, y, r, color = "#ff6b6b") {
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(x - r, y - r); ctx.lineTo(x + r, y + r); ctx.moveTo(x + r, y - r); ctx.lineTo(x - r, y + r); ctx.stroke();
+  ctx.restore();
+}
+
+// ======================================================================
+//  LOOP
+// ======================================================================
+resize();
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  update(dt); draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+// test hooks (used by the screenshot checks on a computer)
+window.__ship = { game, gift, tilt, trade, tapGift, openTrade, answer };
+</script>
+</body>
+</html>
