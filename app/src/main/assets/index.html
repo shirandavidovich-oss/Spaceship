@@ -240,7 +240,26 @@ const SHIPS = [
     guns: { dpulse: [[0.11, -0.454]], rift: [[0, 0]] },
     anim: { dir: "drakon", size: 1.15, idle: "idle.webp",
       primary: frames("pulse", 6, (n) => [54, 41, 43, 42, 50, 40][n - 1], { 2: "bolt", 4: "bolt" }),   // 270 ms: bolts at 54 and 138
-      rift: frames("rift", 11, (n) => [90, 90, 90, 90, 110, 50, 50, 50, 70, 50, 50][n - 1], { 6: "jump" }) } }   // 790 ms, jump at 470
+      rift: frames("rift", 11, (n) => [90, 90, 90, 90, 110, 50, 50, 50, 70, 50, 50][n - 1], { 6: "jump" }) } },   // 790 ms, jump at 470
+  // XELTAR, the frozen squid (art/ships/xeltar/, 512 x 512, center pivot, nose up), from xeltar-layout.json.
+  // Button 1: three small ice shards from the nose (at 78 ms). Button 2: its four arms curl round a growing ice crystal and
+  // at 1,070 ms launch it BACKWARD from the stern (aim the stern at the target: turn the nose away). Magic: ink. The body
+  // swells, and at 570 ms an ink cloud bursts from the stern; it stays where it was let out and spreads for 3.4 s,
+  // and the enemy loses sight of you.
+  { id: "xeltar", name: "XELTAR", rarity: "epic", mass: 1.0, fuel: 30, refill: 15, sfx: "xeltar", magic: "ink",
+    sfxNames: ["crystal_launch", "ice_charge", "ice_shard", "ink_inflate", "ink_release"],
+    hull: "#2a6fe0", wingC: "#0d1f4a", trim: "#9fe8ff", flame: "#8fe3ff",
+    body: [], wing: [], nozzles: [0], engineY: 0.42, cockpit: [0, -0.2, 0.05, 0.1], noFlame: true,   // it swims: one engine's push, no flame
+    weapons: ["ice", "crystal"],
+    // anchors: front (256,46), rear (256,401); ink (256,387)
+    guns: { ice: [[0, -0.492]], crystal: [[0, 0.34]] },
+    anim: { dir: "xeltar", size: 1.2, idle: "hull.webp",
+      primary: frames("front", 6, (n) => [48, 30, 34, 47, 52, 49][n - 1], { 3: "left" }),   // 260 ms, the shards at 78
+      secondary: frames("rear", 16, (n) => [80, 80, 80, 90, 110, 110, 120, 120, 120, 110, 50, 70, 80, 100, 110, 110][n - 1], { 12: "fire" }),   // 1,540 ms, launch at 1,070
+      smoke: frames("ink", 13, (n) => [80, 80, 90, 95, 95, 80, 50, 80, 85, 85, 100, 80, 60][n - 1], { 8: "release" }),   // 1,060 ms, ink at 570
+      // the ink cloud: stays where it was let out, turned the way the ship faced; its canvas is the ship's (512 -> 1.2)
+      cloud: { frames: frames("cloud", 15, (n) => [90, 90, 90, 110, 130, 180, 210, 250, 330, 320, 400, 380, 400, 270, 150][n - 1]), size: 1.2, y: 0.307 },
+      shotArt: { ice: { file: "small_crystal.webp", size: 0.3 }, crystal: { file: "large_crystal.webp", size: 0.45, spin: 1.6 } } } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -280,6 +299,9 @@ const WEAPONS = {
   trap:    { name: "מלכודת",    dmg: 0,  speed: 0,   life: 0,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#ff6a3d", trap: true },
   fossil:  { name: "יריקה",     dmg: 14, speed: 2.2, life: 1.5, cool: 0,    ammo: 0,  r: 0.05,  color: "#ff8a5a" },
   // DRAKON. dpulse: one press, two bolts at its "bolt" frames (cued). rift: mark, then jump back (life: seconds a mark lasts)
+  // XELTAR. ice: 3 shards (fan ±0.075). crystal: flies out of the stern, the opposite way to the nose (rear)
+  ice:     { name: "רסיסי קרח", dmg: 4,  speed: 2.4, life: 1.0, cool: 0.26, ammo: 30, refill: 8,  r: 0.02,  color: "#bfefff", pellets: 3, fan: 0.075 },
+  crystal: { name: "גביש קרח",  dmg: 28, speed: 1.5, life: 2.6, cool: 1.6,  ammo: 3,  refill: 10, r: 0.09,  color: "#7fd6ff", rear: true },
   dpulse:  { name: "פולס כפול", dmg: 5,  speed: 2.5, life: 1.0, cool: 0.3,  ammo: 24, refill: 7,  r: 0.025, color: "#ff68c7", cued: true },
   rift:    { name: "קרע",       dmg: 0,  speed: 0,   life: 8,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#ff68c7", rift: true },
   thorn:   { name: "קוצים",     dmg: 5,  speed: 2.6, life: 1.0, cool: 0.16, ammo: 30, refill: 8,  r: 0.02,  color: "#b8ff3a" },
@@ -313,6 +335,8 @@ const MAGIC = {
   // SKARN's devour: the jaw shoots out on chains to an enemy within `range` ship-lengths (`speed` screens a second),
   // bites `bites` times (`dmg` each, `bite` seconds a bite) holding it, then reels back in
   devour: { name: "בליעה בשלשלאות", range: 4.5, speed: 3.2, bites: 3, bite: 0.32, dmg: 10, cool: 10, look: "chain", color: "#ff6a3d" },
+  // XELTAR's ink: like the smoke screen (hide: seconds the enemy cannot see you), but a drawn ink cloud and no pouring smoke
+  ink:   { name: "ענן דיו", pour: 0, hide: 4, cool: 12, look: "ink", color: "#8a7fd6" },
   tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 9.6, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
 };
 // VEXAR's tail pieces along a tail `total` art-pixels long (the art is 512 px per 1.2 ship-lengths):
@@ -337,7 +361,7 @@ function inTrap(T, side, forward) { return forward >= T.near && forward <= T.far
 // which of a ship's weapons the computer enemy can use: plain shots only (no eggs, rings, jaws, rifts, beams).
 // Its first weapon if it can, else the twin cannon; its second only if that is plain shots too
 function enemyGuns(S) {
-  const plain = (w) => WEAPONS[w] && !WEAPONS[w].egg && !WEAPONS[w].ring && !WEAPONS[w].trap && !WEAPONS[w].rift && !WEAPONS[w].beam && WEAPONS[w].speed > 0;
+  const plain = (w) => WEAPONS[w] && !WEAPONS[w].egg && !WEAPONS[w].ring && !WEAPONS[w].trap && !WEAPONS[w].rift && !WEAPONS[w].beam && !WEAPONS[w].rear && WEAPONS[w].speed > 0;
   const [a, b] = weaponsOf(S);
   return [plain(a) ? a : "twin", ...(plain(b) ? [b] : [])];
 }
@@ -671,6 +695,8 @@ const audio = {
     // iris: the heavy release (the gear grind and the latch come first, in windUp)
     else if (w === "iris") this.cannon();
     else if (w === "dpulse") this.sfx("drakon", "double_pulse", 0, 0.8);
+    else if (w === "ice") this.sfx("xeltar", "ice_shard", 0, 0.8);
+    else if (w === "crystal") this.sfx("xeltar", "crystal_launch");
     else if (w === "spike") { this.sfx("skarn", "shards_prime", 0, 0.5); this.sfx("skarn", "shards_fire", 0.03); }
     else if (w === "fossil") { }   // (the spit has its own sound)
     else if (w === "bolt") { this.sfx("orian", "pulse_prime", 0, 0.6); this.sfx("orian", "pulse_fire", 0.05); }
@@ -743,7 +769,7 @@ const audio = {
   lash() { this.tone(300, 0.5, "sawtooth", 0.05, 0.35); this.noise(0.4, 0.15, 2200); this.tone(1400, 0.12, "triangle", 0.04, 0.5, 0.35); },
   zap() { this.tone(900 + Math.random() * 300, 0.07, "square", 0.04, 0.4); },
   // the smoke hatches: the vent covers slide open (a metal scrape and a clunk)
-  hatch() { this.noise(0.35, 0.18, 3500); this.tone(420, 0.3, "sawtooth", 0.03, 1.6); this.tone(90, 0.12, "square", 0.08, 0.6, 0.3); },
+  vents() { this.noise(0.35, 0.18, 3500); this.tone(420, 0.3, "sawtooth", 0.03, 1.6); this.tone(90, 0.12, "square", 0.08, 0.6, 0.3); },
   // the smoke screen: a long hiss, and a little magic chime
   magic() { this.noise(2.8, 0.3, 1400); [988, 1319, 1568, 1976].forEach((f, i) => this.tone(f, 0.5, "sine", 0.06, 1, 0.08 * i)); },
   // engine hum that follows the throttle
@@ -1204,7 +1230,8 @@ function useMagic() {
     if (game.anim && game.anim.seq === "secondary") { game.magicWait = true; return; }   // after the cannon shot
     game.magicCool = M.cool;
     game.anim = { seq: "smoke", t: 0, release: true };
-    audio.hatch(); buzz(40);
+    if (S.id === "xeltar") audio.sfx(S.sfx, "ink_inflate"); else audio.vents();
+    buzz(40);
     return;
   }
   game.magicCool = M.cool;
@@ -1212,10 +1239,35 @@ function useMagic() {
 }
 // the smoke is out: thick smoke starts pouring from the engines; the enemy loses you, and only knows where you were
 function releaseSmoke() {
-  const M = magicOf(shipById(game.ship));
+  const S = shipById(game.ship), M = magicOf(S);
   game.magicPour = M.pour; game.hidden = M.hide;
   enemy.ghostX = game.x; enemy.ghostY = game.y;
+  if (S.anim && S.anim.cloud) {   // XELTAR: the drawn ink cloud, from the stern, staying where it was let out
+    const C = S.anim.cloud, m = rotatePt(0, C.y * shipSize(), game.ang), c = { x: game.x + m.x, y: game.y + m.y, ang: game.ang, t: 0, ship: S.id };
+    clouds.push(c);
+    duelSend({ t: "ink", x: c.x / WW, y: c.y / WH, a: +c.ang.toFixed(3), s: S.id });
+    audio.sfx(S.sfx, "ink_release"); buzz(90);
+    return;
+  }
   audio.magic(); buzz(90);
+}
+// ink clouds (anyone's): each plays its frames where it was let out, turned the way its ship faced then
+const clouds = [];
+function updateClouds(dt) {
+  for (let k = clouds.length - 1; k >= 0; k--) {
+    const c = clouds[k], C = shipById(c.ship).anim.cloud;
+    c.t += dt * 1000;
+    if (seqFrame(C.frames, c.t) < 0) clouds.splice(k, 1);
+  }
+}
+function drawClouds() {
+  for (const c of clouds) {
+    const S = shipById(c.ship), C = S.anim.cloud, f = seqFrame(C.frames, c.t);
+    const img = f >= 0 && artImage(framePath(S.anim.dir, C.frames[f][0]));
+    if (!img) continue;
+    const p = toScreen(c.x, c.y), d = C.size * shipSize();
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(c.ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+  }
 }
 function updateMagic(dt) {
   const S = shipById(game.ship), M = magicOf(S);
@@ -1303,6 +1355,30 @@ function drawDevour(o, S, D) {
   if (jaw) {
     ctx.drawImage(jaw, -w / 2, -gap / 2 - bh, w, bh);                     // upper bar, teeth down (toward the middle)
     ctx.save(); ctx.scale(1, -1); ctx.drawImage(jaw, -w / 2, -gap / 2 - bh, w, bh); ctx.restore();   // lower bar, turned over
+  }
+  ctx.restore();
+}
+// XELTAR's magic button: an icy shell with a swirl of ink in it. Ready: the ink swirls and a pale-violet glow
+function drawInkButton(b, M, ready, k) {
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (ready) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
+    gl.addColorStop(0, `rgba(138,127,214,${0.3 + 0.1 * Math.sin(time * 3)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#3d79e6"); bg.addColorStop(1, "#0b1b45");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(159,232,255,0.2)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = "#9fe8ff"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  // ink blobs swirling
+  ctx.globalAlpha = ready ? 1 : 0.45;
+  for (let i = 0; i < 5; i++) {
+    const a = time * (ready ? 1.4 : 0.3) + i * TAU / 5, r = b.r * (0.12 + 0.06 * i), x = Math.cos(a) * b.r * 0.22, y = Math.sin(a) * b.r * 0.22;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, "rgba(20,14,40,0.95)"); g.addColorStop(1, "rgba(60,40,110,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
   }
   ctx.restore();
 }
@@ -2235,6 +2311,7 @@ function updateWeapons(dt) {
   updateTalus(dt); updateChips(dt); updatePieces(dt); updateBeam(dt); updateNova(dt);
   if (!game.dead) updateSoak(dt);
   if (!game.dead) updateTrap(dt);
+  updateClouds(dt);
   updateRift(dt); updateRiftBursts(dt);
   enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt);
   for (let i = 0; i < 3; i++) {
@@ -2295,6 +2372,7 @@ function shoot(i) {
   if (A && A.secondary && i === 1) {   // the secondary waits for its wind-up
     game.anim = { seq: "secondary", t: 0, pending: w };
     if (w === "iris") audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000);
+    else if (w === "crystal") audio.sfx(S.sfx, "ice_charge");
     else if (w === "solar") {   // the charge, a click at each mirror's hinge, and the mirrors folding back
       audio.sfx(S.sfx, "solar_charge");
       for (let k = 0; k < 5; k++) audio.sfx(S.sfx, "mirror_step", k * 0.082, 0.7);
@@ -2318,7 +2396,7 @@ function spawnShots(w, g) {
   const pow = w === "spike" && game.trap ? game.trap.power || 0 : 0;   // SKARN's powered-up shards
   if (Wp.beam) { game.beam = { w, t: 0, ang: game.ang, hit: false }; duelSend({ t: "bm", a: +game.ang.toFixed(3) }); shake(0.3); buzz(90); return; }
   for (const a of pelletAngles(Wp)) {
-    const dir = game.ang + a, v = Wp.speed * U;
+    const dir = game.ang + a + (Wp.rear ? Math.PI : 0), v = Wp.speed * U;   // (XELTAR's crystal: out of the stern)
     shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * v, vy: game.vy - Math.cos(dir) * v, life: 0, pow });
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
@@ -2654,7 +2732,7 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.translate(x, y); ctx.rotate(ang + bank * 0.15); ctx.scale(size * Math.cos(bank * 0.9), size);
   ctx.lineJoin = "round";
   // engine flames (behind everything)
-  if (!o.out) S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
+  if (!o.out && !S.noFlame) S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
     const ey = S.engineYs ? S.engineYs[n] : S.engineY;   // a drawing can have its engines at different heights
     // a steam engine's flame is ragged and jumpy
     const rag = S.steam ? (Math.random() - 0.3) * 0.12 * power : 0;
@@ -2773,7 +2851,7 @@ function preloadArt() {
   for (const S of SHIPS) {
     const A = S.anim;
     if (!A) continue;
-    const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.open, A.slam, A.spit, A.rift].filter(Boolean).flatMap((q) => q.map((x) => x[0])), ...(A.loaded || [])];
+    const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.open, A.slam, A.spit, A.rift, A.cloud && A.cloud.frames].filter(Boolean).flatMap((q) => q.map((x) => x[0])), ...(A.loaded || [])];
     for (const k in A.shotArt || {}) all.push(A.shotArt[k].file);
     if (A.hull) all.push(A.hull, A.ring);
     if (S.grows) for (let i = 0; i <= 5; i++) talusPicture(S, i, []);
@@ -2971,6 +3049,7 @@ function draw() {
     drawShots(duel.shots);
     drawShots(eshots);
     drawEggs();
+    drawClouds();
     drawRiftMark(); drawRiftBursts();
     drawChips(); drawPieces();
     drawParts();
@@ -3420,6 +3499,10 @@ function weaponIcon(w, x, y, r, color) {
   } else if (w === "iris") {
     ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, TAU); ctx.stroke();
     for (let i = 0; i < 6; i++) { const a = i * TAU / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8); ctx.quadraticCurveTo(Math.cos(a + 0.9) * r * 0.5, Math.sin(a + 0.9) * r * 0.5, Math.cos(a + 1.6) * r * 0.2, Math.sin(a + 1.6) * r * 0.2); ctx.stroke(); }
+  } else if (w === "ice") {   // three ice splinters fanning out
+    for (const a of [-0.35, 0, 0.35]) { ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.14, -r * 0.3); ctx.lineTo(0, r * 0.3); ctx.lineTo(-r * 0.14, -r * 0.3); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  } else if (w === "crystal") {   // a big crystal, with an arrow out the back
+    for (let i = 0; i < 6; i++) { ctx.save(); ctx.rotate(i * TAU / 6); ctx.beginPath(); ctx.moveTo(0, -r * 0.75); ctx.lineTo(r * 0.2, -r * 0.1); ctx.lineTo(-r * 0.2, -r * 0.1); ctx.closePath(); ctx.fill(); ctx.restore(); }
   } else if (w === "dpulse") {   // two bolts, one behind the other
     for (const dy of [-0.45, 0.35]) { ctx.beginPath(); ctx.moveTo(0, (dy - 0.4) * r); ctx.lineTo(r * 0.22, dy * r); ctx.lineTo(0, (dy + 0.4) * r); ctx.lineTo(-r * 0.22, dy * r); ctx.closePath(); ctx.fill(); }
   } else if (w === "rift") {   // a diamond marker; filled when a mark is set
@@ -3519,6 +3602,7 @@ function drawMagic() {
   if (M.look === "shatter") drawShatterButton(b, M, ready, k);
   if (M.look === "sun") drawSunButton(b, M, ready, k);
   if (M.look === "chain") drawChainButton(b, M, ready, k);
+  if (M.look === "ink") drawInkButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
     // a magic glow when ready
@@ -3962,6 +4046,8 @@ function duelLink(event, data) {
     if (duel.shots.length < 60) audio.shot(m.w);
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
+  } else if (m.t === "ink" && shipById(m.s)) {   // their XELTAR's ink cloud
+    clouds.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, ship: m.s }); audio.sfx("xeltar", "ink_release", 0, 0.7);
   } else if (m.t === "rift") {   // their DRAKON jumped: bursts at both ends, and it is there at once
     const fx = m.fx * WW, fy = m.fy * WH, x = m.x * WW, y = m.y * WH;
     riftBursts.push({ x: fx, y: fy, t: 0 }, { x, y, t: 0 }, { line: true, x: fx, y: fy, x2: x, y2: y, t: 0 });

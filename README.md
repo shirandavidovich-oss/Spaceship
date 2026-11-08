@@ -99,8 +99,13 @@ from one press. Button 2, the rift: the first press marks the spot where the shi
 for 8 s; off screen, a pink arrow at the edge points to it). Fly off; the second press opens the glowing seam in the hull and
 the ship jumps back to the mark, keeping its heading and speed, with pink bursts at both ends. No magic yet.
 
+**XELTAR**, the frozen squid (`art/ships/xeltar/`, own recorded sounds). Button 1: three small ice shards from the nose.
+Button 2: its four arms curl round a growing ice crystal and launch it **backward** out of the stern; to hit something,
+turn your nose away from it. Its magic (a swirl of ink): the body swells and an ink cloud bursts from the stern; the cloud
+stays where it was let out and spreads for 3.4 s, and the enemy loses sight of you for 4 s. No engine flame: it swims.
+
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
-real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON), with its weapons and magic; tap one to fly it right away.
+real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR), with its weapons and magic; tap one to fly it right away.
 It is only for trying them: the choice is not saved, and in the real game each player has the one ship from the gift,
 changed only by trading. To turn the hangar off: `HANGAR = false` at the top of the game. `TRY_SHIP` (a ship id) still
 makes everyone fly one ship; `""` is the gift's surprise.

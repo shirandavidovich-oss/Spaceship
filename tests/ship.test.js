@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("seventeen ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 17);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 17);
+ok("eighteen ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 18);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 18);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -272,13 +272,25 @@ ok("DRAKON (drakon-layout.json): two bolts at 54 and 138 ms of 270; the jump at 
 ok("the computer enemy shoots only plain shots: its own when it can, else the twin cannon", () => {
   const g = (id) => enemyGuns(SHIPS.find((s) => s.id === id)).join();
   assert.strictEqual(g("brass"), "twin,iris"); assert.strictEqual(g("vexar"), "thorn"); assert.strictEqual(g("lyth"), "pulse");
-  assert.strictEqual(g("talus"), "shard,boulder"); assert.strictEqual(g("orian"), "bolt"); assert.strictEqual(g("skarn"), "spike"); assert.strictEqual(g("drakon"), "dpulse");
+  assert.strictEqual(g("talus"), "shard,boulder"); assert.strictEqual(g("orian"), "bolt"); assert.strictEqual(g("skarn"), "spike"); assert.strictEqual(g("drakon"), "dpulse"); assert.strictEqual(g("xeltar"), "ice", "the stern crystal is not for the computer");
   for (const s of SHIPS) for (const w of enemyGuns(s)) assert(WEAPONS[w].speed > 0, s.id + " " + w);
 });
 ok("SKARN's magic: the jaw on chains bites 3 times; caught shots power up its shards", () => {
   const S = SHIPS.find((s) => s.id === "skarn"), M = MAGIC.devour;
   assert.strictEqual(S.magic, "devour"); assert.strictEqual(M.bites * M.dmg, 30); assert(M.range > 2);
   assert(fs.existsSync(path.join(__dirname, "../app/src/main/assets/art/ships/skarn", S.anim.jaw)));
+});
+ok("XELTAR (xeltar-layout.json): shards at 78 ms; the crystal at 1,070 ms flies out of the stern; ink at 570 ms, cloud 3.4 s", () => {
+  const S = SHIPS.find((s) => s.id === "xeltar"), A = S.anim, px = (v) => Math.round(v / A.size * 512 + 256);
+  assert.strictEqual(seqLength(A.primary), 260); assert.strictEqual(cueTime(A.primary, "left"), 78);
+  assert.strictEqual(seqLength(A.secondary), 1540); assert.strictEqual(cueTime(A.secondary, "fire"), 1070);
+  assert.strictEqual(seqLength(A.smoke), 1060); assert.strictEqual(cueTime(A.smoke, "release"), 570); assert.strictEqual(seqLength(A.cloud.frames), 3400);
+  assert(WEAPONS.crystal.rear && !WEAPONS.ice.rear); assert.strictEqual(WEAPONS.ice.pellets, 3);
+  const [f] = gunsOf(S, "ice"), [r] = gunsOf(S, "crystal");
+  assert.strictEqual([px(f[0]), px(f[1]), px(r[0]), px(r[1]), px(A.cloud.y)].join(), "256,46,256,401,387");
+  const dir = path.join(__dirname, "../app/src/main/assets/art/ships/xeltar");
+  for (const x of [A.idle, ...[A.primary, A.secondary, A.smoke, A.cloud.frames].flatMap((q) => q.map((y) => y[0])), A.shotArt.ice.file, A.shotArt.crystal.file]) assert(fs.existsSync(path.join(dir, x)), x);
+  for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
