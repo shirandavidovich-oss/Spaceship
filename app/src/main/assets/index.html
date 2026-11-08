@@ -33,6 +33,9 @@ const ENEMY_KEEP = 0.9;  // how close the enemy likes to stay to you, in screen-
 const ZOOM_MIN   = 0.4;  // like Star Control: the view zooms out (down to this much) to keep both ships on screen
 const TRY_SHIP   = "brass"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
 const ENEMY_HP   = 100;  // the enemy's health
+const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
+const RAM_DAMAGE = 25;   // damage from crashing into the enemy at full speed (both ships take it)
+const SHAKE      = 1;    // how hard the screen shakes (cannon, hits, explosions). 0 = never
 const RESPAWN    = 4;    // seconds until a new enemy arrives after one is destroyed
 
 // <logic>  (pure game rules, no screen: tests/ship.test.js runs this part)
@@ -142,6 +145,8 @@ const MAGIC = {
 };
 // how the steam engine misbehaves (chances per second while the engine runs)
 const STEAM = { dies: 0.09, out: [0.5, 1.3], backfire: 0.35, creak: 0.3 };
+// crash damage for an impact at `speed` screens per second (gentle bumps do nothing)
+function ramDamage(speed) { return speed <= 0.25 ? 0 : Math.round(RAM_DAMAGE * Math.min(1, (speed - 0.25) / 1.25)); }
 // can the enemy see you? Not while you are hidden in your smoke
 function enemySees(hidden) { return !(hidden > 0); }
 // what a ship drops when it is destroyed
@@ -373,7 +378,7 @@ const audio = {
     // twin cannon: a quick metal snap and a short spring chatter
     if (w === "twin") { this.tone(1900, 0.03, "square", 0.04, 0.5); this.noise(0.06, 0.14, 2600); [0.04, 0.07, 0.1].forEach((d) => this.tone(700, 0.025, "triangle", 0.02, 0.8, d)); }
     // iris: the heavy release (the gear grind and the latch come first, in windUp)
-    else if (w === "iris") { this.noise(0.5, 0.45, 900); this.tone(90, 0.6, "sawtooth", 0.16, 0.4); this.tone(700, 0.4, "sine", 0.06, 0.35); }
+    else if (w === "iris") this.cannon();
     else if (w === "laser") this.tone(1500, 0.12, "sawtooth", 0.05, 0.3);
     else if (w === "missile") { this.tone(320, 0.35, "triangle", 0.1, 0.4); this.noise(0.3, 0.08, 1200); }
     else this.noise(0.12, 0.2, 1800);
@@ -381,6 +386,30 @@ const audio = {
   // the iris winding up: a rising gear grind, then the latch clicks
   windUp() { this.tone(70, 0.28, "sawtooth", 0.06, 3); this.tone(140, 0.28, "square", 0.025, 2.5); this.tone(2200, 0.03, "square", 0.05, 0.6, 0.25); },
   hit() { this.tone(950, 0.05, "square", 0.04, 0.5); },
+  // the cannon: a deep thump, a sharp blast, a long rumble, and an echo across space
+  cannon() {
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime;
+    if (!this.echo) {   // one echo line, shared: delay with feedback, darkened
+      this.echo = c.createDelay(1); this.echo.delayTime.value = 0.32;
+      const fb = c.createGain(); fb.gain.value = 0.38; const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 700;
+      this.echoIn = c.createGain(); this.echoIn.gain.value = 0.5;
+      this.echoIn.connect(this.echo); this.echo.connect(lp); lp.connect(fb); fb.connect(this.echo); lp.connect(this.out);
+    }
+    const o = c.createOscillator(), g = c.createGain();   // the thump: drops from 140 Hz to 32 Hz
+    o.type = "sine"; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(32, t + 0.9);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.9, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+    o.connect(g); g.connect(this.out); g.connect(this.echoIn); o.start(t); o.stop(t + 1.4);
+    const n = Math.round(c.sampleRate * 2.2), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) { const k = i / n; d[i] = (Math.random() * 2 - 1) * (i < c.sampleRate * 0.04 ? 1 : Math.pow(1 - k, 3) * 0.6); }
+    const src = c.createBufferSource(), f = c.createBiquadFilter(), ng = c.createGain();
+    src.buffer = buf; f.type = "lowpass"; f.frequency.setValueAtTime(5000, t); f.frequency.exponentialRampToValueAtTime(160, t + 1.5);
+    ng.gain.value = 0.75; src.connect(f); f.connect(ng); ng.connect(this.out); ng.connect(this.echoIn); src.start(t);
+    this.tone(60, 1.6, "sawtooth", 0.12, 0.5);   // the rumble
+    this.tone(1800, 0.05, "square", 0.05, 0.4);  // the metal crack
+  },
+  // your ship is hit / your ship blows up
+  hurt() { this.noise(0.25, 0.4, 1500); this.tone(180, 0.3, "square", 0.1, 0.4); },
   boom() { this.noise(1.3, 0.6, 500); this.tone(70, 1.1, "sawtooth", 0.25, 0.3); this.tone(140, 0.6, "square", 0.1, 0.3); },
   pickup() { [660, 880, 1320].forEach((f, i) => this.tone(f, 0.25, "triangle", 0.12, 1, i * 0.07)); },
   // the steam engine: the fire goes out (chug... chug... cough), backfires (bang), the frame creaks
@@ -447,6 +476,11 @@ const game = {
   hidden: 0,        // seconds the enemy cannot see you
   gear: 0,          // how far the gear button has turned
   magicFinger: null,
+  hp: SHIP_HP,      // your ship's health
+  hurt: 0,          // seconds of the red "hit" flash
+  dead: 0,          // seconds until your ship comes back after blowing up (0 = flying)
+  shakeT: 0,        // how hard the screen is shaking right now
+  deaths: 0,
   anim: null        // the firing drawings playing now: { seq: "primary" | "secondary", t: ms, pending }
 };
 function fillAmmo() { const S = shipById(game.ship); game.ammo = weaponsOf(S).map((w) => WEAPONS[w].ammo); }
@@ -454,6 +488,7 @@ function fillAmmo() { const S = shipById(game.ship); game.ammo = weaponsOf(S).ma
 function placeShip() {
   game.x = WW / 2; game.y = WH / 2 - U * 1.6; game.vx = game.vy = 0; game.ang = 0; game.lx = game.ly = 0;
   if (game.ship) { game.fuel = shipStats(shipById(game.ship)).fuel; fillAmmo(); }
+  game.hp = SHIP_HP; game.hurt = 0;
   game.locked = false;
 }
 const gift = { taps: 0, wob: 0, squash: 0, hint: 0 };
@@ -603,7 +638,14 @@ function update(dt) {
   }
   if (game.stage === "arrive" && game.t > 0.9) { game.stage = "fly"; game.t = 0; spawnEnemy(); }
 
-  if (game.stage === "fly" && trade.stage !== "swapping") { flyShip(dt); updateMagic(dt); updateEnemy(dt); updateWeapons(dt); updateCrate(dt); }
+  game.shakeT = Math.max(0, game.shakeT - dt * 2.5);
+  game.hurt = Math.max(0, game.hurt - dt);
+  game.arriveT = Math.max(0, (game.arriveT || 0) - dt * 1.5);
+  if (game.stage === "fly" && trade.stage !== "swapping") {
+    if (game.dead) { game.dead -= dt; game.thrust = null; game.fire = [null, null, null]; if (game.dead <= 0) respawnShip(); }
+    else { flyShip(dt); updateMagic(dt); }
+    updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
+  }
   updateTrade(dt);
 
   for (let i = parts.length - 1; i >= 0; i--) {
@@ -751,7 +793,7 @@ function smokeAt(x, y, o, S, big = 1, life = 1.6) {
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
 function useMagic() {
   const M = magicOf(shipById(game.ship));
-  if (!M || game.magicCool > 0) return;
+  if (!M || game.magicCool > 0 || game.dead) return;
   game.magicCool = M.cool; game.magicPour = M.pour; game.hidden = M.hide;
   // the enemy only knows where you were
   enemy.ghostX = game.x; enemy.ghostY = game.y;
@@ -802,13 +844,14 @@ function updateEnemy(dt) {
   const E = shipById(enemy.ship);
   // hidden in your smoke: it heads for where it last saw you, searching around there
   let prey = game;
-  if (!enemySees(game.hidden)) {
+  if (!enemySees(game.hidden) || game.dead) {
+    if (game.dead && enemy.ghostX === undefined) { enemy.ghostX = game.x; enemy.ghostY = game.y; }
     enemy.ghostX += Math.sin(time * 0.7) * U * 0.6 * dt; enemy.ghostY += Math.cos(time * 0.5) * U * 0.6 * dt;
     prey = { x: enemy.ghostX, y: enemy.ghostY, vx: 0, vy: 0 };
   }
   const c = enemyControl(enemy, prey, shipStats(E), { ww: WW, wh: WH, u: U, planetR: U * PLANET_R });
   moveShip(enemy, E, c, dt);
-  bumpShips(game, shipById(game.ship), enemy, E);
+  if (!game.dead) bumpShips(game, shipById(game.ship), enemy, E);
 }
 // ships bounce off each other (the heavier one is pushed less)
 function bumpShips(a, A, b, B) {
@@ -824,11 +867,43 @@ function bumpShips(a, A, b, B) {
   const j = -1.8 * vn / (1 / ma + 1 / mb);
   a.vx -= j / ma * nx; a.vy -= j / ma * ny;
   b.vx += j / mb * nx; b.vy += j / mb * ny;
+  // crashing hurts both ships, more the faster it was
+  const ram = ramDamage(-vn / U);
+  if (ram > 0) {
+    damageShip(ram);
+    if (enemy.on) { enemy.hp -= ram; enemy.hurt = 0.15; if (enemy.hp <= 0) destroyEnemy(); }
+  }
   if (-vn > U * 0.1) {
     audio.bump(); buzz(Math.min(80, -vn / U * 60));
     const p = toScreen(a.x + nx * touch / 2, a.y + ny * touch / 2);
     burst(p.x, p.y, 16, ["#ffffff", A.trim, B.trim], 0.5, 0.8);
   }
+}
+
+// ======================================================================
+//  YOUR SHIP'S HEALTH
+// ======================================================================
+function shake(k) { game.shakeT = Math.min(1.2, Math.max(game.shakeT, k * SHAKE)); }
+function damageShip(n) {
+  if (game.dead || game.stage !== "fly" || n <= 0) return;
+  game.hp = Math.max(0, game.hp - n); game.hurt = 0.35;
+  shake(0.25 + n / 40); audio.hurt(); buzz(60 + n * 3);
+  if (game.hp <= 0) blowUpShip();
+}
+// health gone: the ship blows up, and comes back near where it started a few seconds later
+function blowUpShip() {
+  const S = shipById(game.ship);
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null;
+  burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
+  for (let k = 0; k < 10; k++) smokeAt(game.x, game.y, game, S, 2.5, 2.5);
+  rings.push({ x: game.x, y: game.y, t: 0, max: 0.8, r: shipSize() * 2.6, c: S.flame });
+  audio.boom(); audio.cannon(); shake(1.2); buzz(400);
+  enemy.ghostX = game.x; enemy.ghostY = game.y;
+}
+function respawnShip() {
+  game.dead = 0; placeShip(); game.zoom = 1;
+  game.arriveT = 1;   // a flash as it comes back
+  audio.whoosh();
 }
 
 // ======================================================================
@@ -914,7 +989,12 @@ function spawnShots(w, g) {
   if (!S.anim) burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
   else if (w === "iris") burstAt(x, y, 10, ["#fff3b0", "#ffb347"], 0.3, 0.6, game.vx, game.vy);
   // the big brass shot kicks the ship back a little
-  if (w === "iris") { game.vx -= Math.sin(game.ang) * U * 0.08; game.vy += Math.cos(game.ang) * U * 0.08; buzz(35); }
+  if (w === "iris") {
+    game.vx -= Math.sin(game.ang) * U * 0.16; game.vy += Math.cos(game.ang) * U * 0.16;
+    shake(0.9); buzz(160);
+    // a puff of smoke from the iris
+    for (let k = 0; k < 4; k++) smokeAt(x, y, { ang: game.ang + Math.PI, vx: game.vx, vy: game.vy }, S, 1.4, 1.2);
+  }
 }
 // moves the firing drawings along; each shot cue fires once, even if a slow frame jumps past it
 function updateAnim(dt) {
@@ -1269,7 +1349,13 @@ function draw() {
 
   // everything out in space is drawn through the zoom; the buttons and map are not
   const flying = game.stage === "fly";
-  if (flying) { ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(game.zoom, game.zoom); ctx.translate(-W / 2, -H / 2); }
+  if (flying) {
+    ctx.save();
+    // screen shake (cannon, hits, explosions)
+    const sk = game.shakeT * game.shakeT * U * 0.035;
+    if (sk > 0.2) ctx.translate((Math.random() - 0.5) * sk, (Math.random() - 0.5) * sk);
+    ctx.translate(W / 2, H / 2); ctx.scale(game.zoom, game.zoom); ctx.translate(-W / 2, -H / 2);
+  }
   if (game.stage !== "gift" && game.stage !== "opening") drawPlanet();
 
   if (flying) {
@@ -1281,8 +1367,15 @@ function draw() {
     const swapping = trade.stage === "swapping";
     drawCrate();
     drawEnemy();
-    drawShip(shown, p.x, p.y + bob + tradeOffsetY(p.y), shipSize(),
-      { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: swapping ? 0 : game.ang, out: game.sputter > 0 && !swapping });
+    if (!game.dead) {
+      const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
+      drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize(),
+        { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping });
+      if (game.arriveT > 0) {   // coming back after blowing up: a flash
+        ctx.save(); ctx.globalAlpha = game.arriveT; ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.arc(p.x, p.y, shipSize() * (1.2 - game.arriveT * 0.6), 0, TAU); ctx.fill(); ctx.restore();
+      }
+    }
     drawShots();
     drawParts();
     drawRings();
@@ -1291,9 +1384,8 @@ function draw() {
     if (crate.on) edgeArrow(crate.x, crate.y, WEAPONS[crate.w].color);
     drawCard(shown, Math.min(1, game.card * 2));
     drawRadar();
-    drawThrust();
-    drawFire();
-    drawMagic();
+    drawHealth();
+    if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
   } else drawParts();
 
   drawTrade();
@@ -1386,6 +1478,49 @@ function drawRadar() {
   ctx.translate(sx, sy); ctx.rotate(game.ang);
   ctx.fillStyle = shipById(game.ship).hull;
   ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 4); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// the ship rattles: a mechanical engine shudders while it runs and jerks when it misfires;
+// winding up the cannon makes it tremble more and more, and the shot jolts it
+function rattle(S) {
+  let k = 0;
+  if (S.steam) k += game.power * 0.006 + (game.sputter > 0 ? 0.01 : 0);
+  if (game.anim && game.anim.seq === "secondary") {
+    const t = game.anim.t, fire = 275;
+    k += t < fire ? 0.004 + 0.016 * t / fire : 0.03 * Math.max(0, 1 - (t - fire) / 350);
+  }
+  if (game.anim && game.anim.seq === "primary") k += 0.004;
+  k += game.shakeT * 0.012;
+  const a = U * k;
+  return { x: (Math.random() - 0.5) * a, y: (Math.random() - 0.5) * a, a: (Math.random() - 0.5) * k * 1.5 };
+}
+// your ship's health: a big bar at the top left. Green when healthy, through yellow, to red;
+// it flashes when hit, and the screen edges glow red. Under a quarter it pulses
+function drawHealth() {
+  const k = clamp(game.hp / SHIP_HP, 0, 1), w = Math.min(W * 0.42, U * 0.5), h = Math.max(12, U * 0.032);
+  const x = U * 0.04, y = U * 0.05;
+  ctx.save();
+  if (game.hurt > 0) {   // red glow around the edges
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+    g.addColorStop(0, "rgba(255,0,40,0)"); g.addColorStop(1, `rgba(255,0,40,${game.hurt / 0.35 * 0.45})`);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  const low = k < 0.25 && !game.dead ? 0.5 + 0.5 * Math.sin(time * 8) : 0;
+  ctx.fillStyle = "rgba(10,12,32,0.7)"; ctx.strokeStyle = low ? `rgba(255,77,109,${0.5 + low * 0.5})` : "rgba(124,140,255,0.5)"; ctx.lineWidth = 2;
+  roundRect(x, y, w, h, h / 2); ctx.fill(); ctx.stroke();
+  if (k > 0) {
+    const c = `hsl(${Math.round(k * 120)},85%,${55 + (game.hurt > 0 ? 25 : 0)}%)`;
+    ctx.fillStyle = c; roundRect(x + 2, y + 2, Math.max(h - 4, (w - 4) * k), h - 4, (h - 4) / 2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.25)"; roundRect(x + 4, y + 3, Math.max(0, (w - 8) * k), (h - 4) * 0.35, 3); ctx.fill();
+  }
+  // a little heart at the start of the bar
+  const hx = x + h * 0.05, hy = y + h / 2, hr = h * 0.75;
+  ctx.fillStyle = "#ff4d6d"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(hx, hy + hr * 0.7);
+  ctx.bezierCurveTo(hx - hr * 1.2, hy - hr * 0.1, hx - hr * 0.5, hy - hr * 0.9, hx, hy - hr * 0.3);
+  ctx.bezierCurveTo(hx + hr * 0.5, hy - hr * 0.9, hx + hr * 1.2, hy - hr * 0.1, hx, hy + hr * 0.7);
+  ctx.fill(); ctx.stroke();
   ctx.restore();
 }
 
@@ -1755,7 +1890,7 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 // test hooks (used by the screenshot checks on a computer)
-window.__ship = { SHIPS, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic };
+window.__ship = { SHIPS, damageShip, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic };
 </script>
 </body>
 </html>

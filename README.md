@@ -19,6 +19,11 @@ is empty and it explodes, leaving a crate with its weapon (laser, missiles or fa
 **button 3** appears with that weapon. It does not refill; when it is empty, button 3 goes away.
 A new enemy arrives a few seconds later.
 
+**Your health:** the bar with the heart at the top left. Crashing into the enemy hurts both ships (harder
+crash = more damage). The screen edges flash red when you are hit, and the bar pulses under a quarter.
+At zero your ship blows up and comes back 3 seconds later with full health (lives are unlimited).
+The cannonball (button 2) fires with a deep boom and an echo, kicks the ship back, and shakes the screen.
+
 **Magic (left thumb, above thrust):** each ship's magic button looks like the ship's style. The brass ship's
 is a turning brass gear: tap it and thick smoke pours from the engines; for a few seconds the enemy
 cannot see you and searches where it last saw you. Then the gear recharges (its brass fills back in).
