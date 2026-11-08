@@ -106,8 +106,13 @@ stays where it was let out and spreads for 3.4 s, and the enemy loses sight of y
 is covered in black ink: it loses 15 health and for 20 s it cannot steer, thrust or shoot; it drifts on the way it was going,
 at the speed it had (only the planet bounces it). In a duel the inked player's own phone does that to their ship. No engine flame: it swims.
 
+**KRAAL**, the crimson hammerhead (`art/ships/kraal/`, own recorded sounds). Button 1: two parallel bolts from the two ends
+of the hammer. Button 2: lines of light run out to the two muzzles, and each sends a bolt to one point about a ship-length
+ahead of the nose; they meet there together and blow up (32 damage). Only what is at that point is hit: closer to the hull,
+the bolts have not met yet. The point is fixed when the bolts leave, so turning afterwards does not move it. No magic yet.
+
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
-real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR), with its weapons and magic; tap one to fly it right away.
+real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL), with its weapons and magic; tap one to fly it right away.
 It is only for trying them: the choice is not saved, and in the real game each player has the one ship from the gift,
 changed only by trading. To turn the hangar off: `HANGAR = false` at the top of the game. `TRY_SHIP` (a ship id) still
 makes everyone fly one ship; `""` is the gift's surprise.

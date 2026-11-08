@@ -259,7 +259,24 @@ const SHIPS = [
       smoke: frames("ink", 13, (n) => [80, 80, 90, 95, 95, 80, 50, 80, 85, 85, 100, 80, 60][n - 1], { 8: "release" }),   // 1,060 ms, ink at 570
       // the ink cloud: stays where it was let out, turned the way the ship faced; its canvas is the ship's (512 -> 1.2)
       cloud: { frames: frames("cloud", 15, (n) => [90, 90, 90, 110, 130, 180, 210, 250, 330, 320, 400, 380, 400, 270, 150][n - 1]), size: 1.9, y: 0.307 },
-      shotArt: { ice: { file: "small_crystal.webp", size: 0.3 }, crystal: { file: "large_crystal.webp", size: 0.45, spin: 1.6 } } } }
+      shotArt: { ice: { file: "small_crystal.webp", size: 0.3 }, crystal: { file: "large_crystal.webp", size: 0.45, spin: 1.6 } } } },
+  // KRAAL, the crimson hammerhead (art/ships/kraal/, 512 x 512, center pivot, nose up), from kraal-layout.json.
+  // Button 1: two parallel bolts from the two ends of the hammer (at 80 ms). Button 2: lines of light run out to the
+  // two muzzles, and at 650 ms each muzzle sends a bolt to one point ahead of the nose; they meet there 425 ms later and
+  // blow up together. Only what is AT that point is hit: too close to the hull and the bolts cross behind it.
+  { id: "kraal", name: "KRAAL", rarity: "rare", mass: 1.2, fuel: 30, refill: 15, sfx: "kraal",
+    sfxNames: ["convergence_blast", "cross_charge", "cross_launch", "twin_fire"],
+    hull: "#c0161b", wingC: "#3a0a0c", trim: "#ff6a4a", flame: "#ff4a3a",
+    body: [], wing: [], nozzles: [0], engineY: 0.27, cockpit: [0, -0.2, 0.05, 0.1],
+    weapons: ["hammer", "cross"],
+    // the muzzles (93,143) and (419,143); the meeting point (0,-424) from the center
+    guns: { hammer: [[-0.382, -0.265], [0.382, -0.265]], cross: [[-0.382, -0.265], [0.382, -0.265]] },
+    focus: -0.994,
+    anim: { dir: "kraal", size: 1.2, idle: "hull.webp",
+      primary: frames("primary", 6, (n) => [45, 35, 45, 55, 55, 60][n - 1], { 3: "left" }),   // 295 ms, the bolts at 80
+      secondary: frames("cross", 14, (n) => [70, 70, 70, 70, 70, 70, 70, 70, 90, 70, 75, 80, 80, 55][n - 1], { 10: "fire" }),   // 1,010 ms, release at 650
+      blast: frames("blast", 10, (n) => [35, 35, 35, 40, 50, 50, 55, 55, 45, 30][n - 1]),   // 430 ms, 256 px (half the ship's canvas)
+      shotArt: { hammer: { file: "bolt.webp", size: 0.225 } }, crossBolt: "cross_bolt.webp" } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -302,6 +319,10 @@ const WEAPONS = {
   // XELTAR. ice: 3 shards (fan ±0.075). crystal: flies out of the stern, the opposite way to the nose (rear)
   ice:     { name: "רסיסי קרח", dmg: 4,  speed: 2.4, life: 1.0, cool: 0.26, ammo: 30, refill: 8,  r: 0.02,  color: "#bfefff", pellets: 3, fan: 0.075 },
   crystal: { name: "גביש קרח",  dmg: 28, speed: 1.5, life: 2.6, cool: 1.6,  ammo: 3,  refill: 10, r: 0.09,  color: "#7fd6ff", rear: true },
+  // KRAAL. hammer: both muzzles, same heading. cross: two bolts to one point; `life` seconds to get there, a blast
+  // of radius `r` ship-lengths there doing `dmg` once
+  hammer:  { name: "פטיש",      dmg: 5,  speed: 2.5, life: 1.0, cool: 0.3,  ammo: 30, refill: 8,  r: 0.025, color: "#ff6a4a", both: true },
+  cross:   { name: "הצלבה",     dmg: 32, speed: 0,   life: 0.425, cool: 1.1, ammo: 4, refill: 9, r: 0.136, color: "#ff4a3a", converge: true },
   dpulse:  { name: "פולס כפול", dmg: 5,  speed: 2.5, life: 1.0, cool: 0.3,  ammo: 24, refill: 7,  r: 0.025, color: "#ff68c7", cued: true },
   rift:    { name: "קרע",       dmg: 0,  speed: 0,   life: 8,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#ff68c7", rift: true },
   thorn:   { name: "קוצים",     dmg: 5,  speed: 2.6, life: 1.0, cool: 0.16, ammo: 30, refill: 8,  r: 0.02,  color: "#b8ff3a" },
@@ -363,7 +384,7 @@ function inTrap(T, side, forward) { return forward >= T.near && forward <= T.far
 // which of a ship's weapons the computer enemy can use: plain shots only (no eggs, rings, jaws, rifts, beams).
 // Its first weapon if it can, else the twin cannon; its second only if that is plain shots too
 function enemyGuns(S) {
-  const plain = (w) => WEAPONS[w] && !WEAPONS[w].egg && !WEAPONS[w].ring && !WEAPONS[w].trap && !WEAPONS[w].rift && !WEAPONS[w].beam && !WEAPONS[w].rear && WEAPONS[w].speed > 0;
+  const plain = (w) => WEAPONS[w] && !WEAPONS[w].egg && !WEAPONS[w].ring && !WEAPONS[w].trap && !WEAPONS[w].rift && !WEAPONS[w].beam && !WEAPONS[w].rear && !WEAPONS[w].converge && WEAPONS[w].speed > 0;
   const [a, b] = weaponsOf(S);
   return [plain(a) ? a : "twin", ...(plain(b) ? [b] : [])];
 }
@@ -698,6 +719,8 @@ const audio = {
     else if (w === "iris") this.cannon();
     else if (w === "dpulse") this.sfx("drakon", "double_pulse", 0, 0.8);
     else if (w === "ice") this.sfx("xeltar", "ice_shard", 0, 0.8);
+    else if (w === "hammer") this.sfx("kraal", "twin_fire", 0, 0.8);
+    else if (w === "cross") { }   // (its launch sound plays at the release)
     else if (w === "crystal") this.sfx("xeltar", "crystal_launch");
     else if (w === "spike") { this.sfx("skarn", "shards_prime", 0, 0.5); this.sfx("skarn", "shards_fire", 0.03); }
     else if (w === "fossil") { }   // (the spit has its own sound)
@@ -1476,6 +1499,55 @@ function drawChainButton(b, M, ready, k) {
     for (let i = 0; i < 4; i++) { const x = -b.r * 0.3 + i * b.r * 0.2; ctx.beginPath(); ctx.moveTo(x - b.r * 0.06, y); ctx.lineTo(x, y - sy * b.r * 0.12); ctx.lineTo(x + b.r * 0.06, y); ctx.fill(); }
   }
   ctx.restore();
+}
+
+// ---------- KRAAL's crossing bolts ----------
+// at the release the two muzzles and the meeting point are fixed in space; the bolts fly straight to it and arrive
+// together; there one blast hurts what is inside it, once. Turning or flying after that changes nothing
+const crosses = [], blasts = [];
+function crossRelease(w, S) {
+  const size = shipSize(), at = (g) => { const m = rotatePt(g[0] * size, g[1] * size, game.ang); return { x: game.x + m.x, y: game.y + m.y }; };
+  const [a, b] = S.guns.cross.map(at), f = at([0, S.focus]);
+  const c = { w, a, b, f, t: 0, ship: S.id };
+  crosses.push(c);
+  duelSend({ t: "cv", w, s: S.id, p: [a.x / WW, a.y / WH, b.x / WW, b.y / WH, f.x / WW, f.y / WH] });
+  audio.sfx(S.sfx, "cross_launch"); buzz(40);
+}
+function updateCrosses(dt) {
+  for (let k = crosses.length - 1; k >= 0; k--) {
+    const c = crosses[k], Wp = WEAPONS[c.w];
+    c.t += dt;
+    if (c.t < Wp.life) continue;
+    // they meet: one blast
+    crosses.splice(k, 1);
+    blasts.push({ x: c.f.x, y: c.f.y, t: 0, ship: c.ship });
+    audio.sfx(shipById(c.ship).sfx, "convergence_blast"); shake(0.25); buzz(80);
+    const R = Wp.r * shipSize();
+    if (!c.remote && enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - c.f.x, WW), wrapDelta(enemy.y - c.f.y, WH)) <= R + shipSize() * 0.3)
+      hitEnemy({ x: c.f.x, y: c.f.y, vx: 0, vy: 0 }, Wp);
+  }
+  for (let k = blasts.length - 1; k >= 0; k--) { blasts[k].t += dt * 1000; if (seqFrame(shipById(blasts[k].ship).anim.blast, blasts[k].t) < 0) blasts.splice(k, 1); }
+}
+function drawCrosses() {
+  const size = shipSize();
+  for (const c of crosses) {
+    const S = shipById(c.ship), Wp = WEAPONS[c.w], u = Math.min(1, c.t / Wp.life), img = artImage(framePath(S.anim.dir, S.anim.crossBolt));
+    for (const m of [c.a, c.b]) {
+      const dx = wrapDelta(c.f.x - m.x, WW), dy = wrapDelta(c.f.y - m.y, WH), p = toScreen(m.x + dx * u, m.y + dy * u), s0 = toScreen(m.x, m.y);
+      // a faint red line where it flies, and the bolt
+      ctx.save(); ctx.strokeStyle = "rgba(255,74,58,0.25)"; ctx.lineWidth = Math.max(1, size * 0.02);
+      ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s0.x + dx, s0.y + dy); ctx.stroke(); ctx.restore();
+      if (!img) continue;
+      const d = size * 0.3;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(dx, -dy)); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+    }
+  }
+  for (const b of blasts) {
+    const S = shipById(b.ship), f = seqFrame(S.anim.blast, b.t), img = f >= 0 && artImage(framePath(S.anim.dir, S.anim.blast[f][0]));
+    if (!img) continue;
+    const p = toScreen(b.x, b.y), d = size * S.anim.size * 0.5;   // its 256 px canvas at the hull's scale
+    ctx.drawImage(img, p.x - d / 2, p.y - d / 2, d, d);
+  }
 }
 
 // ---------- the enemy's guns ----------
@@ -2389,7 +2461,7 @@ function updateWeapons(dt) {
   if (!game.dead) updateSoak(dt);
   if (!game.dead) updateTrap(dt);
   updateClouds(dt);
-  updateRift(dt); updateRiftBursts(dt);
+  updateRift(dt); updateRiftBursts(dt); updateCrosses(dt);
   enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
@@ -2449,6 +2521,7 @@ function shoot(i) {
   if (A && A.secondary && i === 1) {   // the secondary waits for its wind-up
     game.anim = { seq: "secondary", t: 0, pending: w };
     if (w === "iris") audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000);
+    else if (w === "cross") audio.sfx(S.sfx, "cross_charge");
     else if (w === "crystal") audio.sfx(S.sfx, "ice_charge");
     else if (w === "solar") {   // the charge, a click at each mirror's hinge, and the mirrors folding back
       audio.sfx(S.sfx, "solar_charge");
@@ -2470,6 +2543,7 @@ function spawnShots(w, g) {
   const m = rotatePt(g[0] * size, g[1] * size, game.ang);
   const x = game.x + m.x, y = game.y + m.y;
   if (Wp.egg) { layEgg(x, y, Wp, S); return; }
+  if (Wp.converge) { crossRelease(w, S); return; }
   const pow = w === "spike" && game.trap ? game.trap.power || 0 : 0;   // SKARN's powered-up shards
   if (Wp.beam) { game.beam = { w, t: 0, ang: game.ang, hit: false }; duelSend({ t: "bm", a: +game.ang.toFixed(3) }); shake(0.3); buzz(90); return; }
   for (const a of pelletAngles(Wp)) {
@@ -2929,9 +3003,10 @@ function preloadArt() {
   for (const S of SHIPS) {
     const A = S.anim;
     if (!A) continue;
-    const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.open, A.slam, A.spit, A.rift, A.cloud && A.cloud.frames].filter(Boolean).flatMap((q) => q.map((x) => x[0])), ...(A.loaded || [])];
+    const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.open, A.slam, A.spit, A.rift, A.cloud && A.cloud.frames, A.blast].filter(Boolean).flatMap((q) => q.map((x) => x[0])), ...(A.loaded || [])];
     for (const k in A.shotArt || {}) all.push(A.shotArt[k].file);
     if (A.hull) all.push(A.hull, A.ring);
+    if (A.crossBolt) all.push(A.crossBolt);
     if (S.grows) for (let i = 0; i <= 5; i++) talusPicture(S, i, []);
     if (A.egg) {
       for (const k in A.egg.broods) all.push(...[A.egg.broods[k].pulse, A.egg.broods[k].hatch].flatMap((q) => q.map((x) => x[0])));
@@ -3127,6 +3202,7 @@ function draw() {
     drawShots();
     drawShots(duel.shots);
     drawShots(eshots);
+    drawCrosses();
     drawEggs();
     drawClouds();
     drawRiftMark(); drawRiftBursts();
@@ -3579,6 +3655,11 @@ function weaponIcon(w, x, y, r, color) {
   } else if (w === "iris") {
     ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, TAU); ctx.stroke();
     for (let i = 0; i < 6; i++) { const a = i * TAU / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8); ctx.quadraticCurveTo(Math.cos(a + 0.9) * r * 0.5, Math.sin(a + 0.9) * r * 0.5, Math.cos(a + 1.6) * r * 0.2, Math.sin(a + 1.6) * r * 0.2); ctx.stroke(); }
+  } else if (w === "hammer") {   // two bolts side by side
+    for (const dx of [-0.42, 0.42]) { ctx.beginPath(); ctx.moveTo(dx * r, -r * 0.8); ctx.lineTo(dx * r + r * 0.17, 0); ctx.lineTo(dx * r, r * 0.8); ctx.lineTo(dx * r - r * 0.17, 0); ctx.closePath(); ctx.fill(); }
+  } else if (w === "cross") {   // two lines meeting at a burst
+    ctx.lineWidth = Math.max(2, r * 0.13); ctx.beginPath(); ctx.moveTo(-r * 0.8, r * 0.75); ctx.lineTo(0, -r * 0.35); ctx.lineTo(r * 0.8, r * 0.75); ctx.stroke();
+    for (let i = 0; i < 8; i++) { const a = i * TAU / 8; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.15, -r * 0.5 + Math.sin(a) * r * 0.15); ctx.lineTo(Math.cos(a) * r * 0.38, -r * 0.5 + Math.sin(a) * r * 0.38); ctx.stroke(); }
   } else if (w === "ice") {   // three ice splinters fanning out
     for (const a of [-0.35, 0, 0.35]) { ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.14, -r * 0.3); ctx.lineTo(0, r * 0.3); ctx.lineTo(-r * 0.14, -r * 0.3); ctx.closePath(); ctx.fill(); ctx.restore(); }
   } else if (w === "crystal") {   // a big crystal, with an arrow out the back
@@ -4126,6 +4207,9 @@ function duelLink(event, data) {
     if (duel.shots.length < 60) audio.shot(m.w);
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
+  } else if (m.t === "cv" && shipById(m.s) && Array.isArray(m.p)) {   // their KRAAL's crossing bolts (their phone counts the blast)
+    const q = m.p; crosses.push({ w: m.w, ship: m.s, t: 0, remote: true, a: { x: q[0] * WW, y: q[1] * WH }, b: { x: q[2] * WW, y: q[3] * WH }, f: { x: q[4] * WW, y: q[5] * WH } });
+    audio.sfx("kraal", "cross_launch", 0, 0.7);
   } else if (m.t === "ink" && shipById(m.s)) {   // their XELTAR's ink cloud
     clouds.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, ship: m.s, remote: true }); audio.sfx("xeltar", "ink_release", 0, 0.7);
   } else if (m.t === "inked") {   // their ink got my ship (their phone saw it touch the cloud; the damage comes with their state)
