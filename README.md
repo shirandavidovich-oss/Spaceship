@@ -235,6 +235,11 @@ swells in three pulses into the egg (its kind is picked at the press), which wob
 
 VEXAR's tail is one tap now: it grows out, stays out 8 s, and pulls back in by itself (`MAGIC.tail.hold`).
 
+TALUS forges its boulder (talus-forge): the fissures light red, 20 fragments tear off the hull and spiral into a point
+ahead of the nose, the rock grows in four steps with a flash after each, and at 1,430 ms it leaves at the size it was
+formed; in flight its glowing cracks cool (hot -> warm -> cool). TALUS keeps its own colored layers meanwhile (the
+package's flipbook frames are of the plain hull, so the forging is drawn in code with the package's rock and chip art).
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

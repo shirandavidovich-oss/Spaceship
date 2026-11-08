@@ -189,7 +189,9 @@ const SHIPS = [
   // Crash into the body in the middle: rock chips fly off it and fuse into the hull, which grows a stage (5 at most).
   // Each new layer takes the color of the body it came from. After each growth a ring of light around the ship runs
   // white -> black like the thrust button; until it is gone, the next crash adds nothing. Hot bodies do not burn it.
-  // Its weapons are drawn in code (the package had none): stone shards, and a heavy boulder that the planet pulls.
+  // Its weapons: stone shards (drawn in code), and a heavy boulder that the planet pulls. The boulder is forged first
+  // (talus-forge): the fissures light, fragments tear off the hull and spiral into a point ahead of the nose, the rock
+  // grows in steps with a flash after each, and at 1,430 ms it leaves; in flight its glowing cracks cool.
   // magic: shatter (it bursts into the pieces it has built, which fly off and blow up; then it is small again)
   { id: "talus", name: "TALUS", rarity: "epic", mass: 1.1, fuel: 30, refill: 15, magic: "shatter", grows: true,
     hull: "#e8dcc4", wingC: "#6b5d52", trim: "#ff4d3a", flame: "#bfe9ff",
@@ -527,7 +529,8 @@ const WEAPONS = {
              ring: true, unlock: 0.33, out: 0.96, back: 0.9, lock: 0.34 },
   shard:   { name: "רסיסים",    dmg: 4,  speed: 2.6, life: 0.9, cool: 0.12, ammo: 36, refill: 8,  r: 0.02,  color: "#ffe8c8" },
   // the boulder: heavy and slow, and the body in the middle pulls it (gravity: true)
-  boulder: { name: "סלע",       dmg: 26, speed: 1.0, life: 3.0, cool: 0.9,  ammo: 4,  refill: 10, r: 0.07,  color: "#d9c7a8", gravity: true },
+  // forge: TALUS forms it ahead of its nose first (talusForge), then it leaves at `forge` s; its size from the forming
+  boulder: { name: "סלע",       dmg: 26, speed: 1.0, life: 3.0, cool: 0.9,  ammo: 4,  refill: 10, r: 0.07,  color: "#d9c7a8", gravity: true, forge: 1.43 },
   bolt:    { name: "בזק אור",   dmg: 6,  speed: 2.4, life: 1.1, cool: 0.3,  ammo: 30, refill: 7,  r: 0.025, color: "#fff1ba" },
   // the solar beam: `life` seconds long, `len` screens long, `dmg` once to a ship it touches (width `r` ship-lengths)
   solar:   { name: "קרן שמש",   dmg: 30, speed: 0,   life: 0.29, cool: 1.0,  ammo: 3,  refill: 10, r: 0.14,  color: "#ffcc63", beam: true, len: 2.6 },
@@ -1174,6 +1177,19 @@ function vexarEggFlight(ms) {
   const sm = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); }, t = Math.max(0, Math.min(1, ms / 460)), settle = 1 - sm(ms / 350);
   return { dist: 295 * (1 - (1 - t) ** 2.6), d: 118 - 16 * sm((ms - 100) / 360), stretch: 1 + 0.21 * Math.sin(ms * 0.024) * settle, tilt: 0.24 * Math.sin(ms * 0.016) * settle };
 }
+// TALUS forging a boulder (talus-forge.js), ms since the press. In px of its 512 master drawing, from its pivot: the
+// rock's radius and turn, how much its fissures glow, a flash after each merge, and 20 fragments on their way in
+function talusForge(ms) {
+  const sm = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); }, b = (a, c) => sm((ms - a) / (c - a));
+  const gather = b(10, 265) * (1 - b(1430, 1650)), thump = [460, 728, 1044, 1430].reduce((g, t) => Math.max(g, ms < t ? 0 : 1 - b(t, t + 145)), 0);
+  const lift = [[-64, 20], [76, 38], [-28, -50], [37, 81]];
+  return { radius: 15 * b(210, 455) + 17 * b(510, 725) + 15 * b(810, 1040) + 8 * b(1100, 1230), angle: 0.7 - 0.9 * b(310, 660) + 0.63 * b(695, 990) - 0.16 * b(1020, 1250),
+    glow: (0.72 * gather + 0.28 * thump) * (1 - b(1430, 1690)), thump,
+    chips: Array.from({ length: 20 }, (_, i) => {
+      const p = Math.max(0, Math.min(1, (ms - (115 + i * 46)) / (395 + (i % 4) * 42))), s = lift[i % 4], a = i * 2.39996 + 4.1 * p, d = (82 + (i * 13) % 51) * Math.sin(Math.PI * p), u = sm(p);
+      return { x: s[0] * (1 - u) + Math.cos(a) * d, y: s[1] * (1 - u) - 256 * u + Math.sin(a) * d, alpha: sm(p / 0.14) * (1 - sm((p - 0.8) / 0.2)), size: 5 + i % 7, angle: a + i + p * 6, v: i % 3 };
+    }) };
+}
 // can BORER start a dive here? gap: from its edge to the star's surface, in ship-lengths
 function starMineCheck(gap, busy, M) { return busy ? "occupied" : !(gap >= 0) || gap > M.reach ? "range" : "ok"; }
 // </logic>
@@ -1802,7 +1818,7 @@ function update(dt) {
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
-  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
+  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
   updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
@@ -3824,7 +3840,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null;
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -3973,6 +3989,7 @@ function shoot(i) {
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
   if (Wp.ring) { startRing(w, S); return; }
+  if (Wp.forge && S.grows) { game.forge = { t: 0, w, thumps: 0 }; audio.tone(70, 1.4, "sawtooth", 0.05, 1.6); audio.noise(1.2, 0.08, 500); buzz(30); return; }   // TALUS forges it first
   if (Wp.modules) { game.repPending = { w, t: 0, next: 0 }; return; }   // REPRISE: its buildings fire in turn
   if (Wp.cued && A && A.primary && i === 0) { game.anim = { seq: "primary", t: 0, bolts: w }; if (w === "lightning") audio.sfx(S.sfx, "lightning-charge"); if (w === "mpulse") audio.tone(440, 0.28, "sine", 0.03, 2.5); return; }   // DRAKON: the frames fire the bolts
   if (A && A.secondary && i === 1 && Wp.chord) { game.anim = { seq: "secondary", t: 0, chord: [], w }; return; }   // CANTOR: the chord charges
@@ -4313,6 +4330,7 @@ function updateAnim(dt) {
 }
 // button 2 waits while the heavy cannon or the smoke hatches are still playing (so a shot never cuts a sequence short)
 function waitsForFrames(i) {
+  if (game.forge && i === 1) return true;   // TALUS still forging a boulder
   if (game.inked > 0) return true;   // inked: its guns are clogged
   if (game.rw) return true;   // going back in time
   if (game.flipT >= 0 && i < 2) return true;   // RIVET turning: nothing fires until the new nose locks
@@ -5001,6 +5019,51 @@ function thrustFrame(o, S, held) {
   const T = o.bthr || (o.bthr = { pos: 0, hold: 0, opening: false, at: time }), dt = Math.min(0.1, Math.max(0, time - T.at));
   T.at = time;
   return borerThrust(T, held, dt, S.anim.thrust);
+}
+// ---------- TALUS: forging the boulder ----------
+// game.forge: { t, w, thumps } seconds since the press; the rock leaves at Wp.forge, the effects end at 1.77 s
+function forgeK() { const S = shipById(game.ship); return S.anim.size / 512 * shipSize() * shipScale(); }   // world units per master px
+function updateForge(dt) {
+  const F = game.forge;
+  if (!F) return;
+  if (game.dead || !shipById(game.ship).grows) { game.forge = null; return; }
+  const Wp = WEAPONS[F.w], t0 = F.t * 1000; F.t += dt; const ms = F.t * 1000;
+  for (const at of [460, 728, 1044]) if (t0 < at && ms >= at) { audio.tone(110, 0.18, "triangle", 0.07, 0.5); audio.noise(0.1, 0.12, 900); shake(0.12); }   // each merge: a thump
+  if (t0 < Wp.forge * 1000 && ms >= Wp.forge * 1000) {   // it leaves, from the point ahead of the nose, at the size it was formed
+    const k = forgeK(), P = talusForge(Wp.forge * 1000), m = rotatePt(0, -256 * k, game.ang), v = Wp.speed * U, R = P.radius * k;
+    const q = { w: F.w, x: game.x + m.x, y: game.y + m.y, vx: game.vx + Math.sin(game.ang) * v, vy: game.vy - Math.cos(game.ang) * v, life: 0, sz: R / (Wp.r * shipSize()), rot: P.angle };
+    shots.push(q);
+    if (duel.stage === "on") { q.id = ++shotSeq; duelSend({ t: "f", w: F.w, ...netPos(q), s: game.ship, id: q.id, z: +q.sz.toFixed(3) }); }
+    burstAt(q.x, q.y, 18, ["#ffffff", "#ff4d3a", "#e8dcc4", "#8a7a68"], 0.5, 0.7, q.vx * 0.3, q.vy * 0.3);
+    audio.tone(60, 0.4, "square", 0.07, 0.4); audio.noise(0.3, 0.2, 700); shake(0.4); buzz(90);
+  }
+  if (ms >= 1770) game.forge = null;
+}
+// the forging, over the hull (o: the ship, at screen x, y; k: screen px per master px): the fissures glow red, the
+// fragments spiral in, and the rock (still on the ship) grows ahead of the nose
+function drawForge(o, ms, x, y, k) {
+  const P = talusForge(ms);
+  ctx.save(); ctx.translate(x, y); ctx.rotate(o.ang); ctx.scale(k, k);
+  if (P.glow > 0.01) {   // the hull's fissures lit
+    ctx.save(); ctx.globalCompositeOperation = "lighter"; const g = ctx.createRadialGradient(0, 0, 20, 0, 0, 230);
+    g.addColorStop(0, `rgba(255,77,58,${0.35 * P.glow})`); g.addColorStop(1, "rgba(255,77,58,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 230, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  for (const c of P.chips) {
+    if (c.alpha <= 0) continue;
+    const im = artImage(framePath("talus", "chip_" + c.v + ".webp")), d = c.size * 3.2;
+    if (!im) continue;
+    ctx.save(); ctx.globalAlpha = c.alpha; ctx.translate(c.x, c.y); ctx.rotate(c.angle); ctx.drawImage(im, -d / 2, -d / 2, d, d); ctx.restore();
+  }
+  if (ms < 1430 && P.radius > 0.5) {
+    if (P.thump > 0.01) {   // the flash of a merge
+      ctx.save(); ctx.globalCompositeOperation = "lighter"; const g = ctx.createRadialGradient(0, -256, 0, 0, -256, P.radius * 2.6);
+      g.addColorStop(0, `rgba(255,240,200,${0.8 * P.thump})`); g.addColorStop(0.4, `rgba(255,120,60,${0.45 * P.thump})`); g.addColorStop(1, "rgba(255,77,58,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -256, P.radius * 2.6, 0, TAU); ctx.fill(); ctx.restore();
+    }
+    const im = artImage(framePath("talus", "rock_hot.webp")), d = 160 * P.radius / 64;
+    if (im) { ctx.translate(0, -256); ctx.rotate(P.angle); ctx.drawImage(im, -d / 2, -d / 2, d, d); }
+  }
+  ctx.restore();
 }
 // cracks of green light from the bomb out through the star (made once, when it is planted): each a jagged line
 function mineVeins(bx, by) {
@@ -6229,6 +6292,7 @@ function preloadArt() {
     if (A.parts) all.push(A.parts.hull, A.parts.left, A.parts.right);
     if (A.idleLoop) all.push(...A.idleLoop);
     if (A.spin) all.push(...A.spin);
+    if (S.grows) all.push("rock_hot.webp", "rock_warm.webp", "rock_cool.webp", "chip_0.webp", "chip_1.webp", "chip_2.webp");
     if (A.thrust) for (const [k, n] of [["open", A.thrust.open], ["hold", A.thrust.hold], ["close", A.thrust.close]]) for (let i = 1; i <= n; i++) all.push("thrust_" + k + "_" + String(i).padStart(2, "0") + ".webp");
     if (A.fireAnim) for (const k of ["fireL", "fireR", "torpedo"]) all.push(...A[k].map((x) => x[0]));
     if (A.mech) for (const k of ["pin", "rail", "scatter", "wave", "magic"]) all.push(...A[k].map((x) => x[0]));
@@ -6430,6 +6494,7 @@ function draw() {
       if (shown === S) drawDevour(game, S, game.devour);
       if (shown === S) drawDash();
       if (shown === S) drawChordGuides();
+      if (shown === S && game.forge) drawForge(game, game.forge.t * 1000, p.x + r.x, p.y + bob + r.y, forgeK());
       if (shown === S) drawAttachedEgg(game, S, game.anim, game.eggKind, p.x + r.x, p.y + bob + r.y, shipSize() * sc);
       if (shown === S && game.bub) drawHeldBubble(game, game.bub.t * 1000);
       if (shown === S && trapOpen()) drawSuck(game, S);
@@ -6681,6 +6746,7 @@ function drawEnemy() {
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
+    if (enemy.remote && duel.net && duel.net.fg && E.grows) drawForge(enemy, duel.net.fg, p.x, p.y, E.anim.size / 512 * size * esc);   // their TALUS forging
     if (enemy.remote && duel.net) drawAttachedEgg(enemy, E, enemy.anim, duel.net.ek, p.x, p.y, size * esc);   // their VEXAR's egg forming
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
     drawRewind(p.x, p.y, size, !!enemy.rw || enemy.rwShow > 0);
@@ -6943,6 +7009,16 @@ function drawShots(list = shots) {
       ctx.fillStyle = "#efe4cf"; ctx.beginPath(); ctx.moveTo(l * 0.55, 0); ctx.lineTo(-l * 0.1, l * 0.12); ctx.lineTo(-l * 0.5, 0); ctx.lineTo(-l * 0.1, -l * 0.12); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = "#ff4d3a"; ctx.lineWidth = Math.max(1, l * 0.05); ctx.beginPath(); ctx.moveTo(l * 0.45, 0); ctx.lineTo(-l * 0.3, 0); ctx.stroke();
       ctx.restore();
+    } else if (s.w === "boulder" && s.sz && artImage(framePath("talus", "rock_cool.webp"))) {
+      // TALUS's forged rock: turning slowly, its fissures cooling from hot to warm to cool
+      const R = Wp.r * size * s.sz, d = 160 * R / 64, c = Math.min(2, s.life / 0.6);
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate((s.rot || 0) + s.life * 1.5);
+      for (const [n, a] of [["rock_hot", Math.max(0, 1 - c)], ["rock_warm", 1 - Math.abs(c - 1)], ["rock_cool", Math.max(0, c - 1)]]) {
+        const im = artImage(framePath("talus", n + ".webp")); if (!im || a <= 0) continue;
+        ctx.globalAlpha = a; ctx.drawImage(im, -d / 2, -d / 2, d, d);
+      }
+      ctx.restore();
+      if (Math.random() < 0.3) burstAt(s.x, s.y, 1, ["#8a7a68", "#cdbb9e"], 0.08, 0.6, s.vx * 0.2, s.vy * 0.2);   // a little dust
     } else if (s.w === "boulder") {
       // a tumbling boulder with glowing red fissures, leaving a little dust
       const r = Wp.r * size * 1.4;
@@ -7872,7 +7948,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
@@ -8107,7 +8183,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 function tryShip(id) {
   game.ship = id;
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();
