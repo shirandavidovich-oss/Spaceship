@@ -288,8 +288,11 @@ const SHIPS = [
     guns: { hammer: [[-0.382, -0.265], [0.382, -0.265]], cross: [[-0.382, -0.265], [0.382, -0.265]] },
     focus: -0.994,
     anim: { dir: "kraal", size: 1.2, idle: "hull.webp",
-      primary: frames("primary", 6, (n) => [45, 35, 45, 55, 55, 60][n - 1], { 3: "left" }),   // 295 ms, the bolts at 80
-      secondary: frames("cross", 14, (n) => [70, 70, 70, 70, 70, 70, 70, 70, 90, 70, 75, 80, 80, 55][n - 1], { 10: "fire" }),   // 1,010 ms, release at 650
+      // the gun pods slide forward, fire together at 80 ms and run back on their recoil rails (14 frames, 295 ms)
+      primary: frames("primary", 14, (n) => [15, 15, 15, 15, 20, 12, 13, 20, 20, 25, 30, 35, 35, 25][n - 1], { 6: "left" }),
+      // the middle plate lifts on the hot core, the energy runs out to the pods, they turn inward and fire along the
+      // crossing lines at 650 ms, then straighten and the plate shuts (26 frames, 1,010 ms)
+      secondary: frames("cross", 26, (n) => [40, 40, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 30, 15, 20, 25, 30, 35, 40, 40, 40, 45, 45, 25][n - 1], { 16: "fire" }),
       blast: frames("blast", 10, (n) => [35, 35, 35, 40, 50, 50, 55, 55, 45, 30][n - 1]),   // 430 ms, 256 px (half the ship's canvas)
       shotArt: { hammer: { file: "bolt.webp", size: 0.225 } }, crossBolt: "cross_bolt.webp" } },
   // ZORIAN, the light-thread ship (art/ships/zorian/, 512 x 512, center pivot, nose up), from zorian-layout.json.
@@ -306,8 +309,10 @@ const SHIPS = [
     // the muzzle (256,63); the thread projector (256,441)
     guns: { needle: [[0, -0.452]], thread: [[0, 0.434]] },
     anim: { dir: "zorian", size: 1.2, idle: "hull.webp",
-      primary: frames("primary", 6, (n) => [40, 35, 45, 45, 50, 50][n - 1], { 3: "left" }),   // 265 ms, the bolt at 75
-      projector: frames("projector", 12, (n) => [45, 45, 60, 230, 380, 380, 165, 45, 90, 90, 40, 40][n - 1]),   // 1,610 ms
+      // the blue stripe is an energy channel: firing, a pulse runs up it to the nose (the bolt at 75 ms, 14 frames,
+      // 265 ms); laying a thread it runs the other way, feeding the projector in pulses (42 frames, 1,610 ms)
+      primary: frames("primary", 14, (n) => [12, 12, 12, 12, 12, 15, 15, 20, 25, 25, 25, 30, 25, 25][n - 1], { 7: "left" }),
+      projector: frames("projector", 42, (n) => n <= 6 ? 25 : n <= 35 ? 40 : [50, 50, 50, 50, 30, 30, 40][n - 36]),
       shotArt: { needle: { file: "bolt.webp", size: 0.225 } } } },
   // VANTA, the liquid-weapon ship (art/ships/vanta/, 512 x 512, center pivot, nose up), from vanta-layout.json.
   // A ribbon of lime liquid floats in its glass chamber (drawn live over the bare hull while idle).
