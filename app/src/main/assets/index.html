@@ -191,7 +191,8 @@ const SHIPS = [
   // Button 1: a light bolt from the lens (at 95 ms). Button 2: five gold mirrors fan open behind the pod, catch the
   // light of the body in the middle (rays from it to each mirror, and from the mirrors to the lens), and the lens fires
   // a solar beam at 1,100 ms, straight out the way the nose pointed then, for 290 ms. Its own recorded sounds (sfx/).
-  { id: "orian", name: "ORIAN", rarity: "legendary", mass: 1.0, fuel: 30, refill: 15, sfx: "orian", busyBlocks: true,
+  // magic: soak (hold to drink the starlight: 3 charges = double speed until the tank runs dry; 6 = a light blast)
+  { id: "orian", name: "ORIAN", rarity: "legendary", mass: 1.0, fuel: 30, refill: 15, sfx: "orian", busyBlocks: true, magic: "soak",
     sfxNames: ["mirror_close", "mirror_step", "pulse_fire", "pulse_prime", "solar_beam", "solar_charge"],
     hull: "#2f3fbf", wingC: "#5a4836", trim: "#ffd27a", flame: "#ffc65a",
     body: [], wing: [], nozzles: [0], engineY: 0.39, cockpit: [0, -0.2, 0.05, 0.1],
@@ -258,6 +259,11 @@ const MAGIC = {
   // TALUS's shatter: per: pieces for each stage it has built   fuse: seconds until a piece blows up (from, to)
   //   speed: how fast they fly off (screens a second, from, to)   blast: explosion radius in ship-lengths   dmg: per explosion
   shatter: { name: "התפרקות", per: 3, fuse: [1.0, 2.0], speed: [0.5, 1.3], blast: 0.9, dmg: 12, cool: 6, look: "shatter", color: "#ff4d3a" },
+  // ORIAN's soak: hold the button; every `stage` seconds of holding is one charge. While holding, steering works only
+  // `steer` as well. At 3 charges the ship is `boost` times as fast (and its tank is full) until the tank runs dry.
+  // Keep charging without using that speed: at 6 the button is full, and the next tap is a blast of light that shakes
+  // both ships and hurts the enemy wherever it is (`dmg`). Then `cool` seconds to recharge
+  soak:  { name: "קציר אור", stage: 1.6, steer: 0.2, boost: 2, dmg: 35, cool: 10, look: "sun", color: "#ffcc63" },
   tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 9.6, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
 };
 // VEXAR's tail pieces along a tail `total` art-pixels long (the art is 512 px per 1.2 ship-lengths):
@@ -277,6 +283,8 @@ function tailPieces(total) {
   out.push({ role: "stinger", w: 56, start: at, end: at + sting, ob: 10, oa: 0 });
   return out;
 }
+// ORIAN's soak: charges for `held` seconds of holding (whole charges count; 6 at most)
+function soakCharges(M, held) { return Math.min(6, Math.floor(held / M.stage)); }
 // ORIAN's mirrors t ms into the beam: how open each one is, how lit by the star, and where its center is
 // (art pixels from the ship's center, nose up), from orian-animation.js
 function orianPanels(fan, t) {
@@ -794,7 +802,7 @@ cv.addEventListener("pointerdown", (e) => {
   }
   // the right thumb on a fire button (hold to keep firing); the gear = magic
   if (game.stage === "fly" && trade.stage !== "swapping") {
-    if (hitMagic(e.clientX, e.clientY)) { useMagic(); return; }
+    if (hitMagic(e.clientX, e.clientY)) { game.magicFinger = e.pointerId; useMagic(); return; }
     const b = hitFire(e.clientX, e.clientY);
     if (b) {
       game.fire[b.i] = e.pointerId; buzz(8);
@@ -814,6 +822,7 @@ cv.addEventListener("pointermove", (e) => {
   game.stick.dx = e.clientX - game.stick.ox; game.stick.dy = e.clientY - game.stick.oy;
 });
 function fingerUp(e) {
+  if (e.pointerId === game.magicFinger) { game.magicFinger = null; return; }
   if (e.pointerId === game.thrust) { game.thrust = null; game.stick = null; return; }
   const f = game.fire.indexOf(e.pointerId);
   if (f >= 0) { game.fire[f] = null; return; }
@@ -824,16 +833,17 @@ function fingerUp(e) {
 }
 cv.addEventListener("pointerup", fingerUp);
 cv.addEventListener("pointercancel", fingerUp);
-addEventListener("blur", () => { game.thrust = null; game.stick = null; game.fire = [null, null, null]; });
+addEventListener("blur", () => { game.magicFinger = null; game.thrust = null; game.stick = null; game.fire = [null, null, null]; });
 // on a computer: the space bar is the thrust button; Z, X, C are fire buttons 1, 2, 3
 const FIRE_KEYS = ["z", "x", "c"];
 addEventListener("keydown", (e) => {
   if (e.key === " " && game.stage === "fly" && !game.locked) game.thrust = "key";
   const f = FIRE_KEYS.indexOf(e.key.toLowerCase());
   if (f >= 0 && game.stage === "fly") game.fire[f] = "key";
-  if (e.key.toLowerCase() === "v" && game.stage === "fly") useMagic();   // V = the magic button
+  if (e.key.toLowerCase() === "v" && game.stage === "fly" && !e.repeat) { game.magicFinger = "key"; useMagic(); }   // V = the magic button
 });
 addEventListener("keyup", (e) => {
+  if (e.key.toLowerCase() === "v" && game.magicFinger === "key") game.magicFinger = null;
   if (e.key === " " && game.thrust === "key") game.thrust = null;
   const f = FIRE_KEYS.indexOf(e.key.toLowerCase());
   if (f >= 0 && game.fire[f] === "key") game.fire[f] = null;
@@ -932,6 +942,7 @@ function flyShip(dt) {
   const wasEmpty = game.locked;
   // out of fuel: the engine stops, but a thumb still holding keeps steering, and the engine
   // starts again by itself once the tank has refilled enough
+  if (soaking()) turn *= magicOf(S).steer;   // ORIAN drinking light: hard to steer
   const hit = moveShip(game, S, { target, turn, thrust: game.thrust !== null }, dt);
   // LYTH: the engine vent plates slide open / shut (a sound only when it changes)
   const burning = game.thrust !== null && !game.locked;
@@ -965,6 +976,7 @@ function flyShip(dt) {
 // returns how hard it hit something (0 = nothing)
 function moveShip(o, S, c, dt) {
   const st = shipStats(S), size = shipSize();
+  if (o === game && game.soak && game.soak.boost) { const M = magicOf(S); st.push *= M.boost; st.top *= M.boost; }   // ORIAN charged: twice as fast
   // 1. turning, at the ship's own speed
   const before = o.ang;
   if (c.target === null || c.target === undefined) o.ang += c.turn * st.turn * dt;
@@ -1095,6 +1107,10 @@ function useMagic() {
   const S = shipById(game.ship), M = magicOf(S);
   if (!M || game.magicCool > 0 || game.dead) return;
   if (M.look === "shatter") { useShatter(S, M); return; }
+  if (M.look === "sun") {   // ORIAN: full -> the light blast; else holding the button charges (updateSoak)
+    if (game.soak && game.soak.held >= 6 * M.stage) novaBlast(S, M);
+    return;
+  }
   if (M.look === "grinder") {   // LYTH: only if the enemy is near enough (and the ring is home)
     if (game.grind) return;
     if (!grindReach() || game.ring) { audio.nope(); buzz(25); game.rangeT = 0.8; return; }
@@ -1140,6 +1156,111 @@ function updateMagic(dt) {
   if (Math.random() < 30 * dt) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, 2.6 + Math.random() * 1.5, M.hide - 0.5);
 }
 
+// ---------- ORIAN's magic: soaking up starlight ----------
+// game.soak: { held: seconds charged (6 charges at most), boost: twice as fast now, heat: how hot it glows (0..1) }
+function soaking() {
+  const S = shipById(game.ship), M = magicOf(S);
+  return !!(M && M.look === "sun" && game.magicFinger !== null && game.magicCool <= 0 && !game.dead && game.soak && game.soak.held < 6 * M.stage);
+}
+function updateSoak(dt) {
+  const S = shipById(game.ship), M = magicOf(S);
+  if (!M || M.look !== "sun") { game.soak = null; return; }
+  const K = game.soak || (game.soak = { held: 0, boost: false, heat: 0, hum: 0 });
+  const on = soaking();
+  if (on) {
+    const before = soakCharges(M, K.held);
+    K.held = Math.min(6 * M.stage, K.held + dt);
+    const now = soakCharges(M, K.held);
+    // the fan opens and stays open while it drinks the light
+    if (!game.anim || game.anim.seq !== "secondary") game.anim = { seq: "secondary", t: 0 };
+    game.anim.t = Math.min(game.anim.t, 1000);
+    K.hum -= dt; if (K.hum <= 0) { K.hum = 0.5; audio.sfx(S.sfx, "solar_charge", 0, 0.35); }
+    if (now > before) {   // one more charge
+      audio.sfx(S.sfx, "mirror_step"); buzz(40 + now * 10);
+      burstAt(game.x, game.y, 12 + now * 4, ["#ffffff", "#fff1ba", "#ffcc63"], 0.4, 0.6, game.vx, game.vy);
+      if (now === 3) { K.boost = true; game.fuel = shipStats(S).fuel; game.locked = false; audio.sfx(S.sfx, "solar_beam", 0, 0.7); }
+      if (now === 6) { audio.sfx(S.sfx, "solar_beam"); shake(0.3); }
+    }
+  } else if (game.anim && game.anim.seq === "secondary" && !game.anim.pending && game.anim.t < 1390) {
+    game.anim.t = 1390;   // let go: the mirrors fold
+    audio.sfx(S.sfx, "mirror_close", 0, 0.7);
+  }
+  // the boost lasts until the tank runs dry; then the ship is normal again (and the charges are gone)
+  if (K.boost && game.locked) { K.boost = false; K.held = 0; }
+  // glowing hotter as it charges
+  const want = K.held / (6 * M.stage);
+  K.heat += (want - K.heat) * (1 - Math.exp(-dt * 3));
+}
+// the hot halo around ORIAN: gold, then orange-red, then white-hot and pulsing; bigger as it charges
+function drawSoakHalo(x, y, size, heat, held, M) {
+  if (!(heat > 0.01)) return;
+  const n = Math.min(6, held / M.stage), r = size * (0.55 + 0.35 * heat) * (1 + 0.05 * Math.sin(time * (6 + n * 3)));
+  const col = n < 3 ? `255,${Math.round(200 - n * 30)},${Math.round(80 - n * 20)}` : `255,${Math.round(230 + (n - 3) * 8)},${Math.round(150 + (n - 3) * 35)}`;
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  const g = ctx.createRadialGradient(x, y, size * 0.15, x, y, r);
+  g.addColorStop(0, `rgba(${col},${0.55 * heat})`); g.addColorStop(0.6, `rgba(${col},${0.25 * heat})`); g.addColorStop(1, `rgba(${col},0)`);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  // heat shimmer: thin rings wavering outward
+  ctx.strokeStyle = `rgba(${col},${0.35 * heat})`; ctx.lineWidth = Math.max(1, size * 0.012);
+  for (let i = 0; i < 3; i++) { const k = (time * 0.9 + i / 3) % 1; ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.arc(x, y, r * (0.6 + 0.5 * k), 0, TAU); ctx.stroke(); }
+  ctx.restore();
+}
+// the light blast: a flash over the whole screen, a ring of light racing out, both ships shaken, the enemy hurt wherever it is
+function novaBlast(S, M) {
+  game.soak.held = 0; game.soak.boost = false; game.magicCool = M.cool;
+  game.nova = { t: 0 };
+  shake(1.2); buzz(400); audio.sfx(S.sfx, "solar_beam"); audio.boom();
+  burstAt(game.x, game.y, 120, ["#ffffff", "#fff8ce", "#ffcc63", "#ffad35"], 2.0, 1.4, game.vx, game.vy);
+  if (enemy.on && enemy.warp < 0.5) {
+    const dx = wrapDelta(enemy.x - game.x, WW), dy = wrapDelta(enemy.y - game.y, WH), d = Math.hypot(dx, dy) || 1;
+    hitEnemy({ x: enemy.x, y: enemy.y, vx: dx / d * U, vy: dy / d * U }, { dmg: M.dmg, color: "#fff1ba" });
+    if (!enemy.remote) { enemy.vx += dx / d * U * 0.6; enemy.vy += dy / d * U * 0.6; enemy.spin = 8; }   // shaken
+  }
+  duelSend({ t: "nova" });
+}
+function updateNova(dt) { if (game.nova) { game.nova.t += dt; if (game.nova.t > 1.2) game.nova = null; } }
+function drawNova() {   // after the zoom (the flash covers the screen)
+  const N = game.nova || duel.nova;
+  if (!N) return;
+  const k = N.t / 1.2;
+  ctx.save();
+  ctx.fillStyle = `rgba(255,248,220,${Math.max(0, 0.85 - k * 1.6)})`; ctx.fillRect(0, 0, W, H);
+  const p = N === game.nova ? zoomed(shipScreen()) : zoomed(toScreen(enemy.x, enemy.y));
+  ctx.globalCompositeOperation = "lighter";
+  ctx.strokeStyle = `rgba(255,204,99,${0.9 * (1 - k)})`; ctx.lineWidth = U * 0.06 * (1 - k);
+  ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(W, H) * 1.2 * ease(k), 0, TAU); ctx.stroke();
+  ctx.restore();
+}
+// the magic button: a sun with 6 charge marks round it (3 gold, 3 white). Full: it blazes white and pulses (tap = blast)
+function drawSunButton(b, M, ready, k) {
+  const K = game.soak || { held: 0, heat: 0 }, n = Math.min(6, K.held / M.stage), full = n >= 6 && ready, held = soaking();
+  ctx.save(); ctx.translate(b.x, b.y);
+  const glowA = full ? 0.55 + 0.25 * Math.sin(time * 8) : held ? 0.4 : ready ? 0.2 : 0;
+  if (glowA > 0) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.5, 0, 0, b.r * 1.9);
+    gl.addColorStop(0, `rgba(255,${full ? 250 : 204},${full ? 220 : 99},${glowA})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.9, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#3a3a6e"); bg.addColorStop(1, "#11122a");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  if (!ready) { ctx.strokeStyle = M.color; ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke(); }
+  for (let i = 0; i < 6; i++) {   // the 6 charge marks
+    const a0 = -Math.PI / 2 + i * TAU / 6 + 0.08, a1 = a0 + TAU / 6 - 0.16, f = clamp(n - i, 0, 1);
+    ctx.lineWidth = Math.max(3, b.r * 0.12); ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(255,255,255,0.12)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.82, a0, a1); ctx.stroke();
+    if (f > 0) { ctx.strokeStyle = i < 3 ? "#ffcc63" : "#fff8e8"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.82, a0, a0 + (a1 - a0) * f); ctx.stroke(); }
+  }
+  ctx.globalAlpha = ready ? 1 : 0.5;   // the sun in the middle, its rays turning
+  ctx.rotate(time * (held ? 3 : 0.4));
+  ctx.strokeStyle = full ? "#ffffff" : "#ffcc63"; ctx.lineWidth = Math.max(2, b.r * 0.07);
+  for (let i = 0; i < 8; i++) { const a = i * TAU / 8; ctx.beginPath(); ctx.moveTo(Math.cos(a) * b.r * 0.36, Math.sin(a) * b.r * 0.36); ctx.lineTo(Math.cos(a) * b.r * 0.55, Math.sin(a) * b.r * 0.55); ctx.stroke(); }
+  const sg = ctx.createRadialGradient(0, 0, 0, 0, 0, b.r * 0.3);
+  sg.addColorStop(0, "#ffffff"); sg.addColorStop(0.6, full ? "#fff8e8" : "#ffe28a"); sg.addColorStop(1, full ? "#ffd27a" : "#ffad35");
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.3, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
 // ---------- ORIAN: the solar beam, and the starlight on the mirrors ----------
 // the beam: from the live muzzle, in the direction the nose pointed when it fired. It hurts a ship it touches, once
 function muzzleOf(o, S) { const g = S.guns.solar[0], m = rotatePt(g[0] * shipSize(), g[1] * shipSize(), o.ang); return { x: o.x + m.x, y: o.y + m.y }; }
@@ -1176,9 +1297,10 @@ function drawBeam2(o, S, B) {
 }
 // starlight: while the mirrors are open, a ray runs from the body in the middle to each lit mirror, and from each mirror
 // to the lens. The light takes the body's own color (a red giant's light is red, a pulsar's cyan...)
-function drawStarlight(o, S, a) {
+function drawStarlight(o, S, a, soak = 0) {
   if (!a || a.seq !== "secondary" || !S.anim || !S.anim.fan) return;
-  const panels = orianPanels(S.anim.fan, a.t), px = shipSize() * S.anim.size / 512, B = body();
+  // soaking (the magic): every mirror open and drinking hard, the light thicker the hotter it is
+  const panels = soak ? orianPanels(S.anim.fan, 1050).map((p) => ({ ...p, light: Math.min(1, a.t / 600) * (1 + soak) })) : orianPanels(S.anim.fan, a.t), px = shipSize() * S.anim.size / 512, B = body();
   const star = toScreen(WW / 2, WH / 2), R = planetR(), lens = toScreen(muzzleOf(o, S).x, muzzleOf(o, S).y), size = shipSize();
   const col = B.kind === "hole" ? "255,190,110" : hexRgb(B.color);
   ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
@@ -1191,7 +1313,7 @@ function drawStarlight(o, S, a) {
     // a wide soft ray, then a bright thread, from the body to the mirror
     const g = ctx.createLinearGradient(from.x, from.y, spot.x, spot.y);
     g.addColorStop(0, `rgba(${col},${0.35 * pn.light})`); g.addColorStop(1, `rgba(${col},${0.12 * pn.light})`);
-    ctx.strokeStyle = g; ctx.lineWidth = size * 0.16; ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(spot.x, spot.y); ctx.stroke();
+    ctx.strokeStyle = g; ctx.lineWidth = size * 0.16 * (1 + soak * 1.5); ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(spot.x, spot.y); ctx.stroke();
     ctx.strokeStyle = `rgba(255,241,186,${0.75 * pn.light * flick})`; ctx.lineWidth = Math.max(1.2, size * 0.012);
     ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(spot.x, spot.y); ctx.stroke();
     // little sparks of light running along it toward the ship
@@ -1207,7 +1329,7 @@ function drawStarlight(o, S, a) {
     ctx.beginPath(); ctx.moveTo(spot.x, spot.y); ctx.lineTo(lens.x, lens.y); ctx.stroke();
   }
   // the lens gathering it all: brighter as it charges
-  const charge = smoothStep((a.t - 540) / 535) * (1 - smoothStep((a.t - 1150) / 240));
+  const charge = soak ? Math.min(1, a.t / 600) : smoothStep((a.t - 540) / 535) * (1 - smoothStep((a.t - 1150) / 240));
   if (charge > 0.01) {
     const g = ctx.createRadialGradient(lens.x, lens.y, 0, lens.x, lens.y, size * (0.1 + 0.2 * charge));
     g.addColorStop(0, `rgba(255,255,236,${charge})`); g.addColorStop(0.4, `rgba(255,243,178,${0.8 * charge})`); g.addColorStop(1, "rgba(255,151,48,0)");
@@ -1689,6 +1811,7 @@ function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
   game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null;
+  if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
   for (let k = 0; k < 10; k++) smokeAt(game.x, game.y, game, S, 2.5, 2.5);
@@ -1724,7 +1847,8 @@ function updateWeapons(dt) {
   updateEggs(dt);
   if (!game.dead) updateRing(dt);
   updateGrind(dt);
-  updateTalus(dt); updateChips(dt); updatePieces(dt); updateBeam(dt);
+  updateTalus(dt); updateChips(dt); updatePieces(dt); updateBeam(dt); updateNova(dt);
+  if (!game.dead) updateSoak(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
     if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && slotAmmo(i) >= 1 && !waitsForFrames(i)) shoot(i);
@@ -2412,7 +2536,10 @@ function draw() {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
       const sc = shown === S ? shipScale() : 1;
-      if (shown === S) drawStarlight(game, S, game.anim);
+      if (shown === S) drawStarlight(game, S, game.anim, soaking() ? 0.5 + game.soak.heat : 0);
+      if (shown === S && game.soak) drawSoakHalo(p.x, p.y, shipSize(), game.soak.heat, game.soak.held, magicOf(S));
+      if (shown === S && game.soak && game.soak.boost && game.power > 0.3 && Math.random() < 0.6)   // twice as fast: a trail of light
+        for (const e of exhausts(game, S)) burstAt(e.x, e.y, 2, ["#fff8ce", "#ffcc63"], 0.12, 0.5, game.vx * 0.3, game.vy * 0.3);
       if (shown === S && S.grows) drawTalusRing(p.x, p.y, shipSize() * sc, game.talus.ring);
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
@@ -2442,6 +2569,7 @@ function draw() {
     if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
     drawDuel();
     drawBodyLabel();
+    drawNova();
   } else drawParts();
 
   drawTrade();
@@ -2639,7 +2767,11 @@ function drawEnemy() {
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (enemy.remote) drawRing(duel.ring, E);
-    if (enemy.remote) { drawStarlight(enemy, E, enemy.anim); drawBeam2(enemy, E, duel.beam); }
+    if (enemy.remote) {
+      const sk = duel.net && duel.net.sk;
+      drawStarlight(enemy, E, enemy.anim, sk && sk[2] ? 0.5 + sk[0] : 0); drawBeam2(enemy, E, duel.beam);
+      if (sk && magicOf(E)) drawSoakHalo(p.x, p.y, size, sk[0], sk[1], magicOf(E));
+    }
     if (enemy.remote && duel.grind && !game.dead) drawBeam(enemy, game, duel.grind.phase === "release" ? 1 - duel.grind.teeth : 1);
     if (enemy.hurt > 0) {   // hit: a quick white flash
       ctx.save(); ctx.globalAlpha = enemy.hurt / 0.15 * 0.45; ctx.fillStyle = "#ffffff";
@@ -2916,6 +3048,7 @@ function drawMagic() {
   if (M.look === "tail") drawTailButton(b, M, ready, k);
   if (M.look === "grinder") drawGrinderButton(b, M, ready, k);
   if (M.look === "shatter") drawShatterButton(b, M, ready, k);
+  if (M.look === "sun") drawSunButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
     // a magic glow when ready
@@ -3359,6 +3492,9 @@ function duelLink(event, data) {
     if (duel.shots.length < 60) audio.shot(m.w);
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
+  } else if (m.t === "nova") {   // their ORIAN's light blast: the flash, and my ship shaken (their phone sends the damage)
+    duel.nova = { t: 0 }; shake(1.2); buzz(300); audio.boom();
+    game.vx += (Math.random() - 0.5) * U * 0.8; game.vy += (Math.random() - 0.5) * U * 0.8;
   } else if (m.t === "bm") {   // their ORIAN fired its beam
     duel.beam = { w: "solar", t: 0, ang: m.a };
   } else if (m.t === "sh" && Array.isArray(m.p)) {   // their TALUS burst: its pieces fly here too (their phone counts the damage)
@@ -3435,6 +3571,7 @@ function updateDuel(dt) {
   if (!duel.stage) return;
   duel.t += dt;
   if (duel.beam) { duel.beam.t += dt; if (duel.beam.t > WEAPONS.solar.life) duel.beam = null; }
+  if (duel.nova) { duel.nova.t += dt; if (duel.nova.t > 1.2) duel.nova = null; }
   if (duel.stage === "looking" && duel.t > LOOK_FOR) { endDuel(false); duel.stage = null; audio.bump(); return; }
   if (duel.stage === "over") { if (duel.t > 2) duel.stage = null; return; }
   if (duel.stage === "count" && duel.t > 3) { duel.stage = "on"; duel.t = 0; audio.open(); buzz(80); }
@@ -3466,6 +3603,7 @@ function updateDuel(dt) {
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
       ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
+      sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
       gr: game.grind ? [game.grind.phase, +game.grind.spin.toFixed(2), +game.grind.teeth.toFixed(2), +game.grind.nx.toFixed(3), +game.grind.ny.toFixed(3)] : 0 });
     duel.outDmg = 0;
   }

@@ -77,7 +77,12 @@ Then it is a seed again and has to build up from the bodies once more. It loses 
 Button 2: five gold mirrors fan open behind the pod one after another (a click at each hinge), and rays of light run from
 the body in the middle to each mirror and on to the lens, in that body's own color (red from a red giant, cyan from a pulsar...).
 At 1.1 s the lens fires a solar beam straight ahead (2.6 screens long, 30 damage to a ship it touches), then the mirrors fold.
-Nothing else fires while the fan is busy. No magic yet.
+Nothing else fires while the fan is busy.
+Its magic button is a sun with 6 charge marks. **Hold it**: the mirrors open and drink thick light from the body in the
+middle, the ship is hard to steer, and it glows hotter and hotter (gold, then orange-red, then white-hot). Every 1.6 s of holding
+is one charge. At 3 charges it is twice as fast (with a full tank) until the tank runs dry, then normal again and the charges are
+gone. Keep charging instead of using the speed: at 6 the button blazes white, and a **tap** lets out a blast of light over the
+whole screen that shakes both ships and takes 35 health from the enemy wherever it is (then 10 s to recharge).
 
 While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"orian"`; `"talus"` for TALUS, `"lyth"` for LYTH, `"vexar"` for VEXAR, `"brass"` for THUL,
 `""` for the gift's surprise again).
