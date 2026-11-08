@@ -426,7 +426,8 @@ ok("NIMBUS (nimbus-motion.js): the bolt at 360 of 750 ms, the storm at 750 of 1,
   assert(rainbowPose(1.25).opacity < 0.01 && rainbowPose(0.6).opacity > 0.9);
   assert.strictEqual(WEAPONS.storm.strikes.map((q) => q[0]).join(), "1.23,1.83,2.48");
   const dir = path.join(__dirname, "../app/src/main/assets/art/ships/nimbus");
-  for (const f of [A.idle, ...A.field, ...A.arc, ...A.shotArt.lightning.frames, ...[A.primary, A.secondary, A.rainbow].flatMap((q) => q.map((x) => x[0]))]) assert(fs.existsSync(path.join(dir, f)), f);
+  assert.strictEqual(A.idleLoop.length, 32);
+  for (const f of [A.idle, ...A.idleLoop, ...A.field, ...A.arc, ...A.shotArt.lightning.frames, ...[A.primary, A.secondary, A.rainbow].flatMap((q) => q.map((x) => x[0]))]) assert(fs.existsSync(path.join(dir, f)), f);
   for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {

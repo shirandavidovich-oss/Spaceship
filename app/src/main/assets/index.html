@@ -377,6 +377,7 @@ const SHIPS = [
     weapons: ["lightning", "storm"],
     guns: { lightning: [[0, -0.3773]], storm: [[0, -0.3773]] },
     anim: { dir: "nimbus", size: 1.2, idle: "idle.webp",
+      idleLoop: frames("idle", 32, () => 50).map((f) => f[0]),   // at rest the cloud banks billow (32 frames, 50 ms, looping)
       // 15 frames, 50 ms each; the bolt leaves at 360 ms (frame 8 split to put a cue there)
       primary: [...frames("lightning", 7, () => 50), ["lightning_08.webp", 10], ["lightning_08.webp", 40, "bolt"], ...frames("lightning", 15, () => 50).slice(8)],
       secondary: frames("storm", 23, () => 50, { 16: "fire" }),     // 1,150 ms, the storm let go at 750
@@ -3696,6 +3697,7 @@ function waitsForFrames(i) {
 function shipFrame(S, a) {
   if (!S.anim) return null;
   if (a && S.anim[a.seq]) { const f = seqFrame(S.anim[a.seq], a.t); if (f >= 0) return S.anim[a.seq][f][0]; }
+  if (S.anim.idleLoop) { const L = S.anim.idleLoop, f = L[Math.floor(time * 20) % L.length]; if (artImage(framePath(S.anim.dir, f))) return f; }   // NIMBUS: a living idle
   return S.anim.idle;
 }
 
@@ -4724,6 +4726,7 @@ function preloadArt() {
     if (A.ribbon) all.push(A.ribbon, A.boosted, A.markGlow, A.exitWarn);
     if (A.layers) all.push(A.layers.left, A.layers.right);
     if (A.modules) all.push(...A.modules.map((m) => m.file));
+    if (A.idleLoop) all.push(...A.idleLoop);
     if (A.field) all.push(...A.field, ...A.arc, ...A.rainbow.map((x) => x[0]), ...A.shotArt.lightning.frames);
     if (S.grows) for (let i = 0; i <= 5; i++) talusPicture(S, i, []);
     if (A.egg) {
