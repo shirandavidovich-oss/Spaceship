@@ -53,9 +53,10 @@ Button 1 fires thorns from the two claws, taking turns. Button 2: the mandibles 
 and an egg is laid; it drifts to a stop and pulses, then cracks and lets out 3 hunters that chase the enemy
 (each hit takes 9 health; they fly about 4.5 s). Each egg is one of 4 kinds, picked at random: the green egg holds
 one of each insect (an orange wasp, a turquoise beetle, a pink-violet moth); the orange, turquoise and magenta eggs hold 3 of one kind. The enemy can crush the egg by flying into it before it hatches: then no hunters.
-Its magic button is a curled stinger tail: tap it and a long segmented tail (9.6 ship-lengths) grows out behind the ship and drags
-and swings after it as you fly and turn. It is drawn from VEXAR's tail art: a mount, vertebrae that narrow toward the end, and a stinger. A ship touching it loses health (28 a second) while it touches. After it has
-been all the way out it pulls back into the ship (about 3.3 s), and the button recharges (9 s).
+Its magic button is a tail with a spiked iron ball: hold it and a long segmented tail (9.6 ship-lengths) grows out behind
+the ship, with a spiked ball at its tip, and the ship stops and stays put while you hold (it still turns, so turning swings the
+tail round). It is drawn from VEXAR's tail art (a mount, vertebrae that narrow toward the end), the ball drawn in code. The ball
+hits a ship it touches for 20 (at most every 0.6 s) and knocks it away. Let go and the tail pulls back in and the ship flies on.
 
 **LYTH**, the mechanical ring duelist (`art/ships/lyth/`), with its own recorded sounds (`sfx/`).
 Button 1: the pulse (the shutters slide apart and the emitter flashes). Button 2: the big ring around the hull unlatches
@@ -114,10 +115,10 @@ hold to land it on the enemy. The point is fixed when the bolts leave. Its magic
 2.2 screens (or straight ahead), and a blow with the hammer-head (30 damage) that knocks the enemy away.
 
 **ZORIAN**, the light-thread ship (`art/ships/zorian/`, own recorded sounds). Button 1: a blue needle bolt. Button 2:
-a spiked ball on a chain of light from the stern. It trails and swings as the ship flies (a fast knock hurts a little, 8);
-a press swings it once right round the ship (24, and the enemy is knocked away). Its magic (an anchor): hold it and the ship
-stops dead and stays put (it still turns and shoots); let go and it flies on. (The light-thread weapon from the package is
-still in the code, unused: `weapons: ["needle", "thread"]` brings it back.)
+the projector at the stern draws a thread of light behind the ship as it flies (for about 1.2 s; standing still draws nothing,
+so fly a curve around the enemy). The thread stays where it was laid, blinks a warning, then arms: an enemy that crosses it
+takes 25, once. It fades 2.4 s later and a new one can be laid. A jump or a wrap across the arena starts a new piece. No magic yet.
+(A spiked-ball-on-a-chain weapon and an anchor magic are in the code, unused.)
 
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.

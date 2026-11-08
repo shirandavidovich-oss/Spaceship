@@ -189,7 +189,7 @@ ok("the tail grows out, stays, pulls back in, and is gone after that", () => {
   assert.strictEqual(tailOut(M, M.out + M.hold / 2), 1);
   const back = tailOut(M, M.out + M.hold + M.back / 2); assert(back > 0 && back < 1);
   assert.strictEqual(tailOut(M, M.out + M.hold + M.back + 0.01), -1);
-  assert(M.cool > M.out + M.hold + M.back, "it can only be used again after it is back in");
+  assert(M.cool < 1, "held magic: ready again almost at once");
 });
 ok("VEXAR tail pieces: mount, narrowing vertebrae, stinger; they fill the tail's length exactly", () => {
   const P = tailPieces(1620);
@@ -325,10 +325,10 @@ ok("ZORIAN (zorian-layout.json): the bolt at 75 ms; the thread lays 150-1,310 ms
   for (const f of [A.idle, A.shotArt.needle.file, ...[A.primary, A.projector].flatMap((q) => q.map((x) => x[0]))]) assert(fs.existsSync(path.join(dir, f)), f);
   for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
-ok("ZORIAN: button 2 is the spiked ball; its magic holds it still", () => {
+ok("ZORIAN: button 2 is the thread; VEXAR's tail ends in a spiked ball and holds it still", () => {
   const S = SHIPS.find((s) => s.id === "zorian");
-  assert.strictEqual(weaponsOf(S).join(), "needle,flail"); assert.strictEqual(S.magic, "anchor");
-  assert(WEAPONS.flail.dmg > WEAPONS.flail.bump && WEAPONS.flail.len > 1);
+  assert.strictEqual(weaponsOf(S).join(), "needle,thread");
+  const M = MAGIC.tail; assert(M.ball > 0 && M.hit > 0 && M.every > 0 && M.brake > 0 && M.hold === 0);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);

@@ -135,7 +135,7 @@ const SHIPS = [
   // Button 1: thorns from the two claw launchers, taking turns. Button 2: the mandibles spread, the armor covers
   // swing open and an egg is laid; it drifts to a stop, pulses, and hatches 3 hunters that chase the enemy.
   // The enemy can crush the egg by flying into it before it hatches (then no hunters).
-  // magic: the tail button (a stinger tail that trails behind and drains whoever touches it)
+  // magic: the tail button (held: a long tail with a spiked iron ball at its tip, and the ship stands still)
   { id: "vexar", name: "VEXAR", rarity: "epic", mass: 1.0, fuel: 30, refill: 15, magic: "tail",
     hull: "#3fae2a", wingC: "#10240f", trim: "#b8ff3a", flame: "#b8ff3a",
     body: [], wing: [], nozzles: [0], engineY: 0.33, cockpit: [0, -0.2, 0.05, 0.1],
@@ -285,11 +285,11 @@ const SHIPS = [
   // then arms: an enemy crossing it is hit, once. It fades 2.4 s later, and a new one can be laid.
   // Button 2 is now a spiked ball on a chain of light behind it (the thread weapon is kept in the code, unused).
   // magic: anchor (it holds still in space for as long as the button is held)
-  { id: "zorian", name: "ZORIAN", rarity: "rare", mass: 1.0, fuel: 30, refill: 15, sfx: "zorian", magic: "anchor",
+  { id: "zorian", name: "ZORIAN", rarity: "rare", mass: 1.0, fuel: 30, refill: 15, sfx: "zorian",
     sfxNames: ["needle_fire", "thread_arm", "thread_deploy", "thread_hit"],
     hull: "#1d4fd8", wingC: "#0b1a4a", trim: "#92f8ff", flame: "#48aef6",
     body: [], wing: [], nozzles: [0], engineY: 0.4, cockpit: [0, -0.2, 0.05, 0.1],
-    weapons: ["needle", "flail"],
+    weapons: ["needle", "thread"],
     // the muzzle (256,63); the thread projector (256,441)
     guns: { needle: [[0, -0.452]], thread: [[0, 0.434]] },
     anim: { dir: "zorian", size: 1.2, idle: "hull.webp",
@@ -372,7 +372,7 @@ const LOOT = ["laser", "missile", "spread"];
 const MAGIC = {
   smoke: { name: "מסך עשן", pour: 3.5, hide: 6, cool: 14, look: "gear", color: "#e0b060" },
   // the tail: grows out behind the ship over `out` seconds, stays `hold`, pulls back in over `back`.
-  //   len: its full length in ship-lengths   drain: health per second taken from a ship touching it
+  //   len: its full length in ship-lengths
   // the grinder (LYTH): works only when the enemy is within `range` ship-lengths. The beam pulls it in for `pull`
   // seconds, the ring's teeth shred it for `grind` seconds (`dps` health a second), then `release` lets it go
   grind: { name: "טבעת גורסת", range: 2.6, pull: 0.9, grind: 1.8, release: 0.35, dps: 30, cool: 12, look: "grinder", color: "#ba99ff" },
@@ -396,7 +396,12 @@ const MAGIC = {
   ink:   { name: "ענן דיו", pour: 0, hide: 4, cool: 12, look: "ink", color: "#8a7fd6", dmg: 15, stun: 20 },
   // ZORIAN's anchor: held, the ship stops (it still turns and shoots); let go, it flies on
   anchor: { name: "עוגן", look: "anchor", cool: 0, color: "#92f8ff", brake: 18 },
-  tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 9.6, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
+  // VEXAR's tail, held: while the magic button is held the tail grows out (over `out` s) and stays out, and the ship
+  //   stands still (`brake`, it still turns); let go and it pulls back in over `back` s and the ship flies on.
+  //   At its tip a spiked iron ball (`ball`: radius in ship-lengths): touching the enemy it hits for `hit`
+  //   (at most once every `every` s) and knocks it away (`knock` screens a second)
+  tail:  { name: "זנב כדור קוצים", out: 0.8, hold: 0, back: 0.7, len: 9.6, cool: 0.4, look: "tail", color: "#b8ff3a",
+           brake: 18, ball: 0.22, hit: 20, every: 0.6, knock: 1.0 }
 };
 // VEXAR's tail pieces along a tail `total` art-pixels long (the art is 512 px per 1.2 ship-lengths):
 // the mount, then vertebrae narrowing from 72 to 29 px wide, then the stinger, like tail-layout.json but as many
@@ -1321,7 +1326,9 @@ function useMagic() {
     return;
   }
   if (M.look === "tail") {   // the stinger tail grows out behind the ship
-    game.magicCool = M.cool; game.tail = { t: 0, pts: null, zap: 0, touch: 0 };
+    game.magicCool = M.cool;
+    if (game.tail) { const o = Math.max(0, tailOut(M, game.tail.t)); game.tail.t = M.out * (1 - Math.sqrt(1 - o)); }   // pulling in: out again
+    else game.tail = { t: 0, pts: null, zap: 0, touch: 0, hitT: 0 };
     audio.lash(); buzz(50);
     return;
   }
@@ -1658,11 +1665,12 @@ function drawCrosses() {
 // ---------- ZORIAN: the anchor (magic) and the spiked ball ----------
 function anchoring() {
   const M = magicOf(shipById(game.ship));
-  return !!(M && M.look === "anchor" && game.magicFinger !== null && !game.dead && game.stage === "fly");
+  if (!M || game.magicFinger === null || game.dead || game.stage !== "fly") return false;
+  return M.look === "anchor" || (M.look === "tail" && !!game.tail);   // VEXAR: holding its tail out holds it still
 }
 // the anchor, while held: a ring of light under the ship and three beams fixing it in space
 function drawAnchor(x, y, size) {
-  if (!anchoring()) return;
+  if (!anchoring() || magicOf(shipById(game.ship)).look !== "anchor") return;
   ctx.save(); ctx.globalCompositeOperation = "lighter";
   ctx.strokeStyle = `rgba(146,248,255,${0.5 + 0.2 * Math.sin(time * 8)})`; ctx.lineWidth = Math.max(2, size * 0.025);
   ctx.setLineDash([size * 0.08, size * 0.06]); ctx.lineDashOffset = time * 30;
@@ -1749,6 +1757,23 @@ function updateFlail(dt) {
   else { enemy.vx += nx * kick * U; enemy.vy += ny * kick * U; enemy.spin = 5; }
   burstAt(F.x, F.y, dmg > 10 ? 26 : 10, ["#ffffff", "#92f8ff", "#e8eef6"], 0.5, 0.6, enemy.vx, enemy.vy);
   audio.sfx(S.sfx, "thread_hit"); shake(dmg > 10 ? 0.4 : 0.15); buzz(dmg > 10 ? 120 : 40);
+}
+// a spiked iron ball at screen x, y (radius r), turned by `spin`; `tip`: the spikes' tip colour, `rim`: its band
+function drawSpikeBall(x, y, r, spin, tip, rim, glow) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(spin);
+  if (glow) { const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 2.4); g.addColorStop(0, hexA(tip, 0.45)); g.addColorStop(1, hexA(tip, 0)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * 2.4, 0, TAU); ctx.fill(); }
+  for (let i = 0; i < 10; i++) {   // the spikes
+    ctx.save(); ctx.rotate(i * TAU / 10);
+    ctx.fillStyle = "#c9d6e6"; ctx.beginPath(); ctx.moveTo(-r * 0.22, -r * 0.8); ctx.lineTo(0, -r * 1.55); ctx.lineTo(r * 0.22, -r * 0.8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = tip; ctx.beginPath(); ctx.moveTo(-r * 0.08, -r * 1.3); ctx.lineTo(0, -r * 1.55); ctx.lineTo(r * 0.08, -r * 1.3); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 0, 0, 0, r);
+  g.addColorStop(0, "#ffffff"); g.addColorStop(0.5, "#b8c6d8"); g.addColorStop(1, "#4a5870");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
+  ctx.strokeStyle = rim; ctx.lineWidth = r * 0.12; ctx.beginPath(); ctx.arc(0, 0, r * 0.95, 0, TAU); ctx.stroke();
+  ctx.fillStyle = tip; ctx.beginPath(); ctx.arc(0, 0, r * 0.22, 0, TAU); ctx.fill();
+  ctx.restore();
 }
 // the chain of light and the ball: steel, with blue-tipped spikes, turning as it flies
 function drawFlail(o, S, F) {
@@ -2540,26 +2565,30 @@ function drawRange() {
 const TAIL_SEGS = 40;   // more segments for the long tail, so it bends smoothly
 const TAIL_STIFF = 0.35;  // how stiff the tail is: 0 = a loose rope, 1 = a straight stick
 function tailBase(o, S) { const size = shipSize(), p = rotatePt(0, (S.tailY || 0.4) * size, o.ang); return { x: o.x + p.x, y: o.y + p.y }; }
-// your tail: it moves with your ship, and it hurts the enemy
+// your tail: out while the button is held; the spiked ball at its tip hits the enemy
 function updateTail(dt) {
   const T = game.tail, S = shipById(game.ship), M = magicOf(S);
   if (!T) return;
   if (!M || M.look !== "tail") { game.tail = null; return; }
   T.t += dt;
+  const held = game.magicFinger !== null;
+  if (held && T.t > M.out) T.t = M.out;   // held: it stays all the way out
+  if (!held && T.t < M.out) { const o = Math.max(0, tailOut(M, T.t)); T.t = M.out + M.back * Math.sqrt(1 - o); }   // let go early: in from here
+  const tip0 = T.pts ? T.pts[TAIL_SEGS] : null;
   if (!moveTail(T, game, S, M, dt)) { game.tail = null; return; }
-  const size = shipSize();
-  // touching the enemy: it loses health while it stays on the tail
-  T.zap -= dt; T.touch = Math.max(0, T.touch - dt);
-  if (!enemy.on || enemy.warp >= 0.5) return;
-  for (let i = 3; i <= TAIL_SEGS; i++) {
-    const q = T.pts[i];
-    if (Math.hypot(wrapDelta(enemy.x - q.x, WW), wrapDelta(enemy.y - q.y, WH)) < size * (0.42 + tailWidth(i) / 2)) {
-      T.touch = 0.2;
-      if (T.zap <= 0) { T.zap = 0.12; audio.zap(); buzz(15); burstAt(q.x, q.y, 5, [M.color, "#ffffff"], 0.2, 0.5, enemy.vx, enemy.vy); }
-      harmEnemy(M.drain * dt);
-      break;
-    }
-  }
+  const size = shipSize(), b = T.pts[TAIL_SEGS];
+  const bvx = tip0 ? wrapDelta(b.x - tip0.x, WW) / dt : 0, bvy = tip0 ? wrapDelta(b.y - tip0.y, WH) / dt : 0;
+  T.touch = Math.max(0, T.touch - dt); T.hitT = Math.max(0, (T.hitT || 0) - dt);
+  if (!enemy.on || enemy.warp >= 0.5 || tailOut(M, T.t) < 0.5) return;
+  const dx = wrapDelta(enemy.x - b.x, WW), dy = wrapDelta(enemy.y - b.y, WH), d = Math.hypot(dx, dy);
+  if (d > size * (0.36 + M.ball) || T.hitT > 0) return;
+  T.hitT = M.every; T.touch = 0.3;
+  hitEnemy({ x: b.x, y: b.y, vx: bvx, vy: bvy }, { dmg: M.hit, color: M.color });
+  const nx = dx / (d || 1), ny = dy / (d || 1);
+  if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + nx * M.knock, vy: enemy.vy / U + ny * M.knock });
+  else { enemy.vx += nx * M.knock * U; enemy.vy += ny * M.knock * U; enemy.spin = 5; }
+  burstAt(b.x, b.y, 22, ["#ffffff", "#d8ff5a", "#b8c6d8"], 0.5, 0.6, enemy.vx, enemy.vy);
+  audio.zap(); shake(0.35); buzz(100);
 }
 // moves a tail along with its ship o (yours or the other player's). False once it is all the way back in
 function moveTail(T, o, S, M, dt) {
@@ -2611,7 +2640,7 @@ function drawTailArt(T, S, pts, size) {
     const s = cum[i] - cum[i - 1] || 1, u = (d - cum[i - 1]) / s;
     return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * u, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * u };
   };
-  const P = art.pieces, sp = P[P.length - 1], stingLen = (sp.end - sp.start) * k, room = L - stingLen;
+  const P = art.pieces, M2 = magicOf(S), br = M2.ball * size, room = L - br * 0.5;   // the vertebrae stop at the ball
   const piece = (im, p, d0, d1) => {
     const a = at(d0), b = at(d1), ang = Math.atan2(b.y - a.y, b.x - a.x) - Math.PI / 2, w = p.w * k;
     ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(ang);
@@ -2619,10 +2648,6 @@ function drawTailArt(T, S, pts, size) {
     ctx.restore();
   };
   ctx.save();
-  // the stinger at the tip (glowing while it touches a ship)
-  if (T.touch > 0) { ctx.shadowColor = "#b8ff3a"; ctx.shadowBlur = size * 0.2; }
-  piece(sting, sp, Math.max(0, room), L);
-  ctx.shadowBlur = 0;
   // the vertebrae that fit, from the tip back to the mount (so the ones nearer the ship lie on top)
   for (let i = P.length - 2; i >= 1; i--) {
     const p = P[i], d0 = p.start * k;
@@ -2631,6 +2656,7 @@ function drawTailArt(T, S, pts, size) {
   }
   piece(mount, P[0], 0, Math.min(P[0].end * k, Math.max(1, room)));
   ctx.restore();
+  drawTailBall(T, pts, size);
   return true;
 }
 // the tail's width at segment i, in ship-lengths: thick at the ship, thin at the stinger
@@ -2652,14 +2678,6 @@ function drawTail(T, S) {
   // the spine underneath
   ctx.strokeStyle = "#0a1a0a"; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = size * 0.06;
   ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
-  // the stinger: VEXAR's own thorn drawing, pointing out along the tail
-  const a = pts[TAIL_SEGS - 1], z = pts[TAIL_SEGS], st = artImage(framePath(S.anim ? S.anim.dir : "vexar", "thorn.webp"));
-  if (st) {
-    const d = size * 0.34;
-    ctx.save(); ctx.translate(z.x, z.y); ctx.rotate(Math.atan2(z.x - a.x, -(z.y - a.y)));
-    if (T.touch > 0) { ctx.shadowColor = "#b8ff3a"; ctx.shadowBlur = size * 0.15; }
-    ctx.drawImage(st, -d / 2, -d * 0.35, d, d); ctx.restore();
-  }
   // the plates, from the tip back to the ship (so the ones nearer the ship lie on top)
   for (let i = TAIL_SEGS; i >= 1; i--) {
     const p = pts[i - 1], q = pts[i], mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
@@ -2675,6 +2693,13 @@ function drawTail(T, S) {
     ctx.restore();
   }
   ctx.restore();
+  drawTailBall(T, pts, size);
+}
+// the spiked iron ball at the tail's tip (lime-tipped spikes; it glows when it hits). It grows in with the tail
+function drawTailBall(T, pts, size) {
+  const M = MAGIC.tail, z = pts[TAIL_SEGS], o = Math.max(0, Math.min(1, tailOut(M, T.t) * 1.5));
+  if (o <= 0) return;
+  drawSpikeBall(z.x, z.y, M.ball * size * o, time * 2.5, "#b8ff3a", "#2e7d1e", T.touch > 0);
 }
 
 // ======================================================================
@@ -4290,15 +4315,12 @@ function drawTailButton(b, M, ready, k) {
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, w, 0, TAU); ctx.fill();
     if (j === n - 1) last = { x, y }; if (j === n - 2) prev = { x, y };
   }
-  // the stinger at the tip
-  if (last && prev) {
-    const a = Math.atan2(last.y - prev.y, last.x - prev.x), L = b.r * 0.32;
-    ctx.fillStyle = ready ? "#e9ffd0" : "#8fa88a";
-    ctx.beginPath(); ctx.moveTo(last.x + Math.cos(a) * L, last.y + Math.sin(a) * L);
-    ctx.lineTo(last.x + Math.cos(a + 1.9) * L * 0.3, last.y + Math.sin(a + 1.9) * L * 0.3);
-    ctx.lineTo(last.x + Math.cos(a - 1.9) * L * 0.3, last.y + Math.sin(a - 1.9) * L * 0.3); ctx.closePath(); ctx.fill();
-  }
   ctx.restore();
+  // the spiked ball at the tip
+  if (last && prev) {
+    const a = Math.atan2(last.y - prev.y, last.x - prev.x), r = b.r * 0.13;
+    drawSpikeBall(b.x + last.x + Math.cos(a) * r * 1.2, b.y + last.y + Math.sin(a) * r * 1.2, r, time * 1.5, ready ? "#b8ff3a" : "#6f8a5a", "#2e7d1e", game.tail && game.tail.touch > 0);
+  }
 }
 
 // the thrust button: white when full, through yellow, orange, red, purple, blue... to black, then gone
@@ -4655,6 +4677,7 @@ function updateRival(dt) {
     if (!duel.tail) duel.tail = { t: n.tl, pts: null, touch: 0 };
     duel.tail.t += dt;
     if (Math.abs(duel.tail.t - (n.tl + age)) > 0.25) duel.tail.t = n.tl + age;
+    if (Math.abs(n.tl - M.out) < 0.006) duel.tail.t = M.out;   // they are holding it out
     if (!moveTail(duel.tail, enemy, E, M, dt)) duel.tail = null;
   } else duel.tail = null;
   // LYTH's ring: glide it toward where their phone says it is
