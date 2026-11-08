@@ -114,8 +114,7 @@ const SHIPS = [
   // steam: a mechanical engine that coughs, backfires, creaks, and now and then goes out (smoke only)
   // magic: the gear button (not a weapon): a smoke screen that makes the ship hard to find
   // Points from the drawings: (pixel - 256) / 512 * anim.size  (size: the 512 canvas is drawn 1.2 ship-lengths wide)
-  // two magics on a split button: the smoke screen (left), and a steam burst out of the same vents (right)
-  { id: "brass", name: "THUL", rarity: "legendary", mass: 1.4, fuel: 30, refill: 15, steam: true, magic: "smoke", magic2: "steam",
+  { id: "brass", name: "THUL", rarity: "legendary", mass: 1.4, fuel: 30, refill: 15, steam: true, magic: "smoke",
     hull: "#ff6a1a", wingC: "#3a3a40", trim: "#e0b060", flame: "#ff8c1a",
     body: [], wing: [], nozzles: [-0.166, 0.173], engineY: 0.47, cockpit: [0, -0.3, 0.05, 0.1],
     weapons: ["twin", "iris"],
@@ -353,15 +352,19 @@ const SHIPS = [
   // GLITCH, the shutter ship (art/ships/glitch/: a core and two shutter panels, put together in code, glitch-motion.js).
   // Button 1: a three-round neon burst from the left of the nose. Button 2: the shutters slide open, the cyan core
   // charges and a hack pulse leaves from the top (the reference 3.3 s clip, played twice as fast: the pulse at 950 ms).
-  // A ship it hits is hacked for 2 s: its next firing goes off a quarter turn clockwise (all of it, once). No magic yet.
-  { id: "glitch", name: "GLITCH", rarity: "rare", mass: 1.05, fuel: 30, refill: 15, sfx: null,
+  // A ship it hits is hacked for 2 s: its next firing goes off a quarter turn clockwise (all of it, once).
+  // Two magics on a split button, from the package's other two shutter motions: the V shield (the panels swing forward
+  // into a V that bats enemy shots back) and the glitch slip (the panels slide past each other and the ship jumps aside,
+  // leaving a flickering decoy the enemy goes after)
+  { id: "glitch", name: "GLITCH", rarity: "rare", mass: 1.05, fuel: 30, refill: 15, sfx: null, magic: "vshield", magic2: "slip",
     hull: "#2a2a32", wingC: "#121218", trim: "#ff3db8", flame: "#ff3db8",
     body: [], wing: [], nozzles: [-0.15, 0.15], engineY: 0.46, cockpit: [0, -0.2, 0.05, 0.1],
     weapons: ["neon", "hack"],
     // the burst at the left of the nose (-60,-138 px from the core's middle), the pulse from the top (0,-130)
     guns: { neon: [[-0.205, -0.472]], hack: [[0, -0.444]] },
     anim: { dir: "glitch", size: 1.75, idle: "core.webp", layers: { core: "core.webp", left: "left.webp", right: "right.webp" },
-      secondary: [["core.webp", 950], ["core.webp", 700, "fire"]] } },
+      secondary: [["core.webp", 950], ["core.webp", 700, "fire"]],
+      vdeploy: [["core.webp", 3100]], slide: [["core.webp", 1550]] } },   // the V at its own speed; the slide twice as fast
   // NIMBUS, the stormfront ship (art/ships/nimbus/, 512 x 512, center pivot, nose up), from nimbus-motion.js.
   // Button 1: lightning charges 360 ms on the spine, then a flickering bolt leaves the muzzle (256,95).
   // Button 2: the cloud banks swell; at 750 ms a storm is let go ahead of the ship. It drifts on by itself and grows,
@@ -380,7 +383,18 @@ const SHIPS = [
       rainbow: frames("rainbow", 33, () => 40, { 19: "rain" }),     // 1,320 ms, the rainbow at 720
       field: frames("field", 79, () => 50).map((f) => f[0]),        // the storm's own pictures, 320 px, from the release
       arc: frames("arc", 33, () => 40).map((f) => f[0]),            // the rainbow arc's pictures, 256 px, 40 ms each
-      shotArt: { lightning: { file: "bolt_01.webp", size: 0.32, frames: frames("bolt", 5, () => 50).map((f) => f[0]) } } } }
+      shotArt: { lightning: { file: "bolt_01.webp", size: 0.32, frames: frames("bolt", 5, () => 50).map((f) => f[0]) } } } },
+  // REPRISE, the modular orbital archive (art/ships/reprise/: four building modules, put together in code from
+  // reprise-motion.js). Button 1: light climbs the tall tower and an amber bolt leaves its top (180 ms). Button 2: the
+  // three other buildings fire a lighter purple shot each, in turn (130, 260, 390 ms). Magic: the buildings let go,
+  // turn and lock into the next shape (archive steps, crossbar, mirror spire) in 1.85 s, which moves where the shots
+  // leave from; and a violet echo of the ship replays its last 3 s of flying and its real shots
+  { id: "reprise", name: "REPRISE", rarity: "epic", mass: 1.2, fuel: 30, refill: 15, sfx: null, magic: "reassemble", modular: true,
+    hull: "#6a5a8a", wingC: "#2a2238", trim: "#ffb23a", flame: "#b48cff", noFlame: true,
+    body: [], wing: [], nozzles: [0], engineY: 0.3, cockpit: [0, -0.2, 0.05, 0.1],
+    weapons: ["amber", "floors"],
+    anim: { dir: "reprise", size: 1.9, idle: "building_1.webp",
+      modules: [{ file: "building_1.webp", w: 65, h: 212 }, { file: "building_2.webp", w: 74, h: 149 }, { file: "building_3.webp", w: 76, h: 110 }, { file: "building_4.webp", w: 72, h: 78 }] } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -446,6 +460,9 @@ const WEAPONS = {
   storm:   { name: "חזית סערה",   dmg: 18, speed: 0,   life: 0,   cool: 5,    ammo: 1,  refill: 5, r: 0,    color: "#b8a8ff", storm: true,
              drift: 3.4, radius: 1.6, strikeR: 0.4, wind: 2.2, field: 2.92, end: 3.88, warn: 0.34,
              strikes: [[1.23, -39, 15], [1.83, 44, -19], [2.48, -3, -41]] },
+  // REPRISE. `delays`: seconds after the press each shot leaves; `modules`: which building fires it (from its top edge)
+  amber:   { name: "בריח ענבר",  dmg: 14, speed: 2.8, life: 1.2, cool: 0.56, ammo: 14, refill: 6, r: 0.035, color: "#ffb23a", delays: [0.18], modules: [0] },
+  floors:  { name: "מטח קומות",  dmg: 5,  speed: 2.0, life: 0.92, cool: 1.15, ammo: 4, refill: 5, r: 0.03, color: "#b48cff", delays: [0.13, 0.26, 0.39], modules: [1, 2, 3] },
   // GLITCH. neon: `burst` shots `gap` s apart. hack: a ship it hits is hacked for `status` s (its next firing turns)
   neon:    { name: "פרץ ניאון",  dmg: 5,  speed: 2.8, life: 0.9, cool: 0.45, ammo: 24, refill: 6, r: 0.025, color: "#ff3db8", burst: 3, gap: 0.08 },
   hack:    { name: "פולס פריצה", dmg: 10, speed: 2.0, life: 1.3, cool: 2.5, ammo: 2, refill: 7, r: 0.05, color: "#38f6ff", hack: true, status: 2 },
@@ -491,8 +508,9 @@ const LOOT = ["laser", "missile", "spread"];
 // ---- magic (its own button, not a weapon; each ship's magic button looks like the ship's style) ----
 //   pour: seconds of smoke pouring out   hide: seconds the enemy loses track of you   cool: seconds until it can be used again
 const MAGIC = {
-  smoke: { name: "מסך עשן", pour: 3.5, hide: 6, cool: 14, look: "gear", color: "#e0b060", rate: 90 },   // rate: puffs a second from each engine
-  // THUL's second magic: the vents blast steam backward for `burst` s: a shove forward (`push` screens a second, every
+  // rate: puffs a second from each engine (three times the old 30); big: how much bigger each puff is (a real screen)
+  smoke: { name: "מסך עשן", pour: 3.5, hide: 6, cool: 14, look: "gear", color: "#e0b060", rate: 90, big: 1.5 },
+  // (unused) a steam burst: the vents blast steam backward for `burst` s: a shove forward (`push` screens a second, every
   //   second) and a trail of scalding steam that burns a ship inside it (`scald` health a second)
   steam: { name: "פרץ קיטור", look: "steam", burst: 2.5, push: 2.4, scald: 20, cool: 10, color: "#f2f2f2" },
   // the tail: grows out behind the ship over `out` seconds, stays `hold`, pulls back in over `back`.
@@ -524,6 +542,14 @@ const MAGIC = {
   // RIVET's flip: the hull turns a quarter round (clockwise; back again on the next tap) in `turn` seconds, and its
   //   other corner is the nose: two other weapons. Nothing fires while it turns
   flip:  { name: "סיבוב", look: "flip", turn: 0.44, cool: 0.5, color: "#ffb347" },
+  // GLITCH's V shield: while the V is open (more than half) enemy shots reaching its front (`arc` radians either side of
+  //   the nose, within `reach` ship-lengths) are batted back the way they came, now its own
+  vshield: { name: "מגן V", look: "vshield", cool: 9, arc: 1.0, reach: 1.0, color: "#ff3db8" },
+  // GLITCH's slip: at `at` s into the slide the ship jumps `jump` ship-lengths sideways; a decoy flickers where it was
+  //   for `ghost` s, and the enemy goes after the decoy
+  slip:    { name: "קפיצת תקלה", look: "slip", cool: 7, at: 0.4, jump: 2.6, ghost: 2.5, color: "#38f6ff" },
+  // REPRISE's reassembly: `length` s to the next shape; the echo replays the last `echo` s
+  reassemble: { name: "הרכבה והדהוד", look: "reassemble", cool: 8, length: 1.85, echo: 3, color: "#b48cff" },
   // NIMBUS's rainbow: an arc that flies out (`speed` ship-lengths a second for `life` s); touching a ship it does `dmg`
   //   once, and NIMBUS takes back `heal` health
   rainbow: { name: "קשת בענן", look: "rainbow", cool: 9, speed: 2.4, life: 1.25, dmg: 20, heal: 10, color: "#ffb3e6" },
@@ -578,6 +604,39 @@ function segDistance(a, b, c, d) {
     if (t >= 0 && t <= 1 && u >= 0 && u <= 1) return 0;
   }
   return Math.min(pd(a, c, d), pd(b, c, d), pd(c, a, b), pd(d, a, b));
+}
+// REPRISE (reprise-motion.js): the three shapes the four buildings lock into; each [x, y, degrees] from the middle (px)
+const REPRISE_PARK = [[-190, -79], [-183, 94], [178, -112], [189, 105]];
+function repriseForms(P) {
+  const [a, b, c, d] = P, t = 9, total = a.w + b.w + c.w + d.w - 3 * t;
+  let edge = -total / 2;
+  const stairs = P.map((p) => { const it = [edge + p.w / 2, 104 - p.h / 2, 0]; edge += p.w - t; return it; });
+  return [stairs,
+    [[0, 7, 90], [-a.h * 0.24, 7 - a.w / 2 - b.h / 2 + t, 0], [a.h * 0.25, 7 + a.w / 2 + c.h / 2 - t, 180], [-a.h * 0.24, 7 + a.w / 2 + d.h / 2 - t, 0]],
+    [[58, -2, 180], [58 - a.w / 2 - b.w / 2 + t, -40, 180], [58 + a.w / 2 + c.w / 2 - t, 28, 0], [58 - a.w / 2 - d.h / 2 + t, 59, 90]]];
+}
+// where each building is `sec` seconds into a reassembly from shape `from` (0 = locked in that shape)
+function reprisePose(P, from, sec) {
+  const all = repriseForms(P), to = (from + 1) % all.length, start = all[from], end = all[to], L = 1.85;
+  const e = (v) => { const u = Math.max(0, Math.min(1, v)); return u * u * (3 - 2 * u); }, lerp = (a, b, t) => a + (b - a) * t;
+  const shape = start.map(([x, y, ang], i) => {
+    const [tx, ty, ta] = end[i], [px, py] = REPRISE_PARK[i];
+    const open = e(sec / 0.57), close = e((sec - 1.16) / 0.69), turn = e((sec - 0.4) / 0.86);
+    const diff = ((ta - ang + 540) % 360) - 180, swing = diff === 0 ? (i % 2 === 0 ? 360 : -360) : diff;
+    return { x: lerp(lerp(x, px, open), tx, close), y: lerp(lerp(y, py, open), ty, close), angle: ang + swing * turn };
+  });
+  return { shape, flash: Math.max(0, 1 - Math.abs(sec - L) / 0.17) };
+}
+// GLITCH's other two clips (glitch-motion.js), ms into each: panel offsets (px) and turns, how open
+function vPose(ms) {
+  const e = (v) => { const t = Math.max(0, Math.min(1, v)); return t * t * (3 - 2 * t); };
+  const f = Math.max(0, Math.min(3100, ms)) / 50, open = e((f - 7) / 13) * (1 - e((f - 36) / 14)), a = 22 * Math.PI / 180 * open;
+  return { lx: -38 * open, ly: -58 * open, la: -a, rx: 38 * open, ry: -58 * open, ra: a, open, glow: 0 };
+}
+function slidePose(ms) {
+  const e = (v) => { const t = Math.max(0, Math.min(1, v)); return t * t * (3 - 2 * t); };
+  const f = Math.max(0, Math.min(3100, ms)) / 50, pass = e((f - 6) / 12) - 2 * e((f - 22) / 16) + e((f - 42) / 12), open = e((f - 6) / 10) * (1 - e((f - 44) / 10));
+  return { lx: -15 * open, ly: -64 * pass, la: 0, rx: 15 * open, ry: 64 * pass, ra: 0, open, glow: 0 };
 }
 // NIMBUS's storm (nimbus-motion.js stormPose), t seconds after release: how far it has drifted (0..1), how big (0..1 of
 // its radius), whether its wind blows
@@ -954,6 +1013,8 @@ const audio = {
     else if (w === "tone") this.sfx("cantor", "resonance_fire", 0, 0.8);
     else if (w === "pin") this.sfx("rivet", "pin", 0, 0.8);
     else if (w === "lightning") this.sfx("nimbus", "lightning-fire", 0, 0.9);
+    else if (w === "amber") { this.tone(780, 0.12, "triangle", 0.06, 1.8); this.tone(1560, 0.05, "sine", 0.03, 1); }
+    else if (w === "floors") { this.tone(420, 0.09, "square", 0.035, 0.6); }
     else if (w === "storm") { }   // (its release has its own sound)
     else if (w === "neon") { this.tone(2600, 0.04, "square", 0.035, 0.4); this.tone(1300, 0.06, "sawtooth", 0.025, 0.6); }
     else if (w === "hack") { this.tone(520, 0.18, "square", 0.05, 3); this.noise(0.08, 0.12, 5000); }
@@ -1250,7 +1311,7 @@ function update(dt) {
   tintStep();
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
-  updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt);
+  updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
   gift.squash = Math.max(0, gift.squash - dt * 5);
@@ -1458,7 +1519,7 @@ function smokeAt(x, y, o, S, big = 1, life = 1.6) {
   const g = 70 + Math.round(Math.random() * 50);
   parts.push({ w: true, smoke: true, x, y, vx: o.vx * 0.4 - Math.sin(a) * back, vy: o.vy * 0.4 + Math.cos(a) * back,
     life: 0, max: life * (0.7 + Math.random() * 0.6), s: shipSize() * 0.07 * big, grow: 1.6 + Math.random(),
-    c: `rgb(${g},${g},${g + 8})`, op: big > 1.5 ? 0.85 : 0.55 });
+    c: `rgb(${g},${g},${g + 8})`, op: big > 3.6 ? 0.97 : big > 1.5 ? 0.85 : 0.55 });   // (THUL's screen: nearly solid)
 }
 
 // ---------- the body in the middle (BODIES) ----------
@@ -1488,12 +1549,20 @@ function updateCosmos(dt) {
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
 function useMagic(which = 0) {
   const S = shipById(game.ship), M = magicOf(S);
-  if (which === 1) {   // the second magic (THUL's steam)
+  if (which === 1) {   // the second magic, on the right half of a split button
     if (!S.magic2 || game.magicCool2 > 0 || game.dead) return;
     const M2 = MAGIC[S.magic2];
-    game.magicCool2 = M2.cool; game.steamT = M2.burst;
-    if (S.anim && S.anim.smoke && !game.anim) game.anim = { seq: "smoke", t: 0 };   // the vent covers open
-    audio.vents(); audio.noise(1.4, 0.18, 2600); audio.tone(90, 1.2, "sawtooth", 0.05, 0.6); shake(0.3); buzz(90);
+    if (M2.look === "slip") {   // GLITCH: the panels slide past each other; the jump comes at `at` (updateGlitchMagic)
+      if (game.anim) return;
+      game.magicCool2 = M2.cool; game.anim = { seq: "slide", t: 0 }; game.slip = { t: 0, jumped: false };
+      audio.tone(220, 0.3, "square", 0.04, 3); audio.noise(0.1, 0.1, 6000); buzz(30);
+      return;
+    }
+    if (M2.look === "steam") {   // (unused) a steam burst
+      game.magicCool2 = M2.cool; game.steamT = M2.burst;
+      if (S.anim && S.anim.smoke && !game.anim) game.anim = { seq: "smoke", t: 0 };
+      audio.vents(); audio.noise(1.4, 0.18, 2600); audio.tone(90, 1.2, "sawtooth", 0.05, 0.6); shake(0.3); buzz(90);
+    }
     return;
   }
   if (!M || game.magicCool > 0 || game.dead) return;
@@ -1501,6 +1570,20 @@ function useMagic(which = 0) {
   if (M.look === "anchor") {   // ZORIAN: a tap anchors it (it stops and spins); a second tap lets it go
     if (game.anchor) { game.anchor = null; game.magicCool = M.cool; return; }
     game.anchor = { t: 0 }; audio.sfx(S.sfx, "thread_arm", 0, 0.6); buzz(30);
+    return;
+  }
+  if (M.look === "reassemble") {   // REPRISE: the buildings rebuild into the next shape, and the echo starts
+    if (repBusy()) return;
+    const R = repOf();
+    game.magicCool = M.cool; R.at = game.t;
+    R.echo = R.hist.length ? { start: game.t - M.echo, act: game.t, hist: R.hist.slice(), fired: R.fired.slice(), next: 0, ghost: null } : null;
+    audio.tone(110, 0.6, "sawtooth", 0.05, 1.8); audio.tone(660, 0.4, "triangle", 0.04, 1.5, 1.4); buzz(50);
+    return;
+  }
+  if (M.look === "vshield") {   // GLITCH: the panels swing forward into a V
+    if (game.anim) return;
+    game.magicCool = M.cool; game.anim = { seq: "vdeploy", t: 0 };
+    audio.tone(160, 0.5, "sawtooth", 0.04, 2.5); audio.tone(1200, 0.06, "square", 0.03, 0.6, 0.4); buzz(40);
     return;
   }
   if (M.look === "rainbow") {   // NIMBUS: the cloud banks lift, and the rainbow flies at their "rain" frame
@@ -1679,7 +1762,7 @@ function updateMagic(dt) {
   game.magicPour -= dt;
   // thick smoke pours from the engines and hangs in space
   game.smokeAcc = (game.smokeAcc || 0) + (M.rate || 30) * dt;
-  for (; game.smokeAcc >= 1; game.smokeAcc--) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, 2.6 + Math.random() * 1.5, M.hide - 0.5);
+  for (; game.smokeAcc >= 1; game.smokeAcc--) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, (2.6 + Math.random() * 1.5) * (M.big || 1), M.hide - 0.5);
 }
 
 // ---------- SKARN's magic: the jaw on chains ----------
@@ -2280,7 +2363,7 @@ function enemyShoot(dt) {
   if (enemy.inked > 0) return;   // blinded by ink
   const E = shipById(enemy.ship), guns = enemyGuns(E);
   enemy.cool = enemy.cool || [0, 0]; enemy.ammo = enemy.ammo || guns.map((w) => WEAPONS[w].ammo);
-  const dx = wrapDelta(game.x - enemy.x, WW), dy = wrapDelta(game.y - enemy.y, WH), d = Math.hypot(dx, dy);
+  const tg = myDecoy() || game, dx = wrapDelta(tg.x - enemy.x, WW), dy = wrapDelta(tg.y - enemy.y, WH), d = Math.hypot(dx, dy);
   const off = Math.abs(wrapAngle(Math.atan2(dx, -dy) - enemy.ang));
   guns.forEach((w, i) => {
     const Wp = WEAPONS[w];
@@ -2317,6 +2400,9 @@ function updateEnemyShots(dt) {
     if (Wp.phase) phaseTrail(s);
     if (s.life > Wp.life || Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR()) { eshots.splice(k, 1); continue; }
     if (threadBlocks(game.thread, s, dt)) { threadSpark(s); eshots.splice(k, 1); continue; }   // my thread stops it
+    if (vShieldUp(game) && inFrontV(game, s.x, s.y)) {   // GLITCH's V: batted back, now mine
+      vBat(s); eshots.splice(k, 1); shots.push({ ...s, vx: -s.vx, vy: -s.vy, life: 0 }); continue;
+    }
     // SKARN's open jaw: caught (and it powers up SKARN's shards)
     if (trapOpen() && inMouth(game, S, s, dt)) { trapGain(s.x, s.y); eshots.splice(k, 1); continue; }
     // into your ship
@@ -3083,7 +3169,7 @@ function updateEnemy(dt) {
   enemy.hurt = Math.max(0, enemy.hurt - dt);
   const E = shipById(enemy.ship);
   // hidden in your smoke: it heads for where it last saw you, searching around there
-  let prey = game;
+  let prey = myDecoy() || game;   // GLITCH's decoy fools it
   if (!enemySees(game.hidden) || game.dead) {
     if (game.dead && enemy.ghostX === undefined) { enemy.ghostX = game.x; enemy.ghostY = game.y; }
     enemy.ghostX += Math.sin(time * 0.7) * U * 0.6 * dt; enemy.ghostY += Math.cos(time * 0.5) * U * 0.6 * dt;
@@ -3147,7 +3233,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -3239,6 +3325,8 @@ function updateWeapons(dt) {
       if (Wp.magnet) burstAt(s.x, s.y, 10, [Wp.colors[(s.ix || 0) % Wp.colors.length], "#ffffff"], 0.35, 0.7);
       burstAt(s.x, s.y, 5, ["#b8a3ff", "#ffffff"], 0.2, 0.6); shots.splice(k, 1); continue;
     }
+    // into the other player's V (GLITCH): batted away, no hit
+    if (enemy.remote && enemy.on && vShieldUp(enemy) && inFrontV(enemy, s.x, s.y)) { vBat(s); shots.splice(k, 1); continue; }
     // into the other player's thread (ZORIAN): stopped
     if (enemy.remote && threadBlocks(duel.thread, s, dt)) { threadSpark(s); shots.splice(k, 1); continue; }
     // into the other player's open jaw (SKARN): caught, no hit, and their phone is told
@@ -3279,6 +3367,7 @@ function shoot(i) {
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
   if (Wp.ring) { startRing(w, S); return; }
+  if (Wp.modules) { game.repPending = { w, t: 0, next: 0 }; return; }   // REPRISE: its buildings fire in turn
   if (Wp.cued && A && A.primary && i === 0) { game.anim = { seq: "primary", t: 0, bolts: w }; if (w === "lightning") audio.sfx(S.sfx, "lightning-charge"); return; }   // DRAKON: the frames fire the bolts
   if (A && A.secondary && i === 1 && Wp.chord) { game.anim = { seq: "secondary", t: 0, chord: [], w }; return; }   // CANTOR: the chord charges
   if (A && A.secondary && i === 1) {   // the secondary waits for its wind-up
@@ -3593,6 +3682,7 @@ function updateAnim(dt) {
 function waitsForFrames(i) {
   if (game.inked > 0) return true;   // inked: its guns are clogged
   if (game.flipT >= 0 && i < 2) return true;   // RIVET turning: nothing fires until the new nose locks
+  if (i < 2 && shipById(game.ship).modular && repBusy()) return true;   // REPRISE rebuilding, or a burst still going
   // SKARN: the shards only while the jaw is shut (empty or loaded)
   if (i === 0 && game.trap && game.trap.mode !== "idle" && game.trap.mode !== "loaded") return true;
   if (i === 1 && (game.ring || game.grind)) return true;
@@ -3739,7 +3829,7 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.fillStyle = glow; ctx.fillRect(-0.7, -0.6, 1.4, 1.3);
 
   // a real drawing of the ship, once there is one
-  let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0);
+  let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep);
   // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
   // Grinding: the hull, and the ring drawn on its own, spinning, with its teeth out
   const ringAway = o.ring === "out" || o.ring === "back" || !!o.grind;
@@ -3943,6 +4033,172 @@ function drawWavesButton(b, M, ready, k) {
   ctx.restore();
 }
 
+// ---------- REPRISE: shots from the buildings, the reassembly, the echo ----------
+// game.rep: { form, at (game.t when a reassembly began, or null), hist: [{ t, x, y, ang, form, age }], fired: [shots],
+//   echo: { start, act, hist, fired, next } }. game.repPending: { w, t, next } (a press firing its shots in turn)
+function repOf() { if (!game.rep) game.rep = { form: 0, at: null, hist: [], fired: [], echo: null }; return game.rep; }
+function repView() { const R = repOf(); return { form: R.form, age: R.at == null ? 0 : game.t - R.at }; }
+function repState() { const S = shipById(game.ship); if (!S || !S.modular) return 0; const v = repView(); return [v.form, +v.age.toFixed(2)]; }
+function repBusy() { const R = repOf(); return R.at != null || !!game.repPending; }
+function updateReprise(dt) {
+  const S = shipById(game.ship);
+  if (!S || !S.modular) { game.rep = null; game.repPending = null; return; }
+  const R = repOf(), M = MAGIC.reassemble;
+  if (R.at != null && game.t - R.at >= M.length) { R.form = (R.form + 1) % 3; R.at = null; audio.tone(140, 0.12, "square", 0.06, 0.5); shake(0.25); buzz(60); }
+  if (!game.dead) R.hist.push({ t: game.t, x: game.x, y: game.y, ang: game.ang, ...repView() });
+  while (R.hist.length > 1 && R.hist[1].t < game.t - M.echo) R.hist.shift();
+  while (R.fired.length && R.fired[0].at < game.t - M.echo) R.fired.shift();
+  // a press: each shot from the top of its building, where that building is now, along the heading
+  const Pd = game.repPending;
+  if (Pd) {
+    const Wp = WEAPONS[Pd.w];
+    Pd.t += dt;
+    if (game.dead) game.repPending = null;
+    else while (Pd.next < Wp.delays.length && Pd.t >= Wp.delays[Pd.next]) {
+      const mi = Wp.modules[Pd.next++], m = S.anim.modules[mi], q = reprisePose(S.anim.modules, R.form, 0).shape[mi], an = q.angle * Math.PI / 180;
+      const nz = rotatePt(0, -m.h / 2 + 8, an), k = S.anim.size / 512;
+      spawnShots(Pd.w, [(q.x + nz.x) * k, (q.y + nz.y) * k]); audio.shot(Pd.w);
+      const s = shots[shots.length - 1];
+      if (s) { R.fired.push({ ...s, at: game.t }); burstAt(s.x, s.y, 5, [Wp.color, "#ffffff"], 0.15, 0.5, game.vx, game.vy); }
+    }
+    if (game.repPending && Pd.next >= Wp.delays.length) game.repPending = null;
+  }
+  // the echo: plays back the recorded flying and real shots, 3 s behind
+  const E = R.echo;
+  if (E) {
+    const now = Math.min(E.act, E.start + game.t - E.act);
+    while (E.next < E.fired.length && E.fired[E.next].at <= now) {
+      const f = E.fired[E.next++], s = { w: f.w, x: f.x, y: f.y, vx: f.vx, vy: f.vy, life: 0, echo: true };
+      shots.push(s); audio.shot(f.w);
+      if (duel.stage === "on") { s.id = ++shotSeq; duelSend({ t: "f", w: s.w, ...netPos(s), s: S.id, id: s.id }); }
+    }
+    if (game.t - E.act >= M.echo) R.echo = null;
+    else {
+      let i = 0; while (i + 1 < E.hist.length && E.hist[i + 1].t <= now) i++;
+      const a = E.hist[i], b = E.hist[i + 1];
+      let g = { ...a };
+      if (b && b.t > a.t && Math.hypot(b.x - a.x, b.y - a.y) < shipSize() * 2) {   // (no sliding across a wrap)
+        const u = Math.max(0, Math.min(1, (now - a.t) / (b.t - a.t)));
+        g.x += (b.x - a.x) * u; g.y += (b.y - a.y) * u; g.ang += wrapAngle(b.ang - a.ang) * u;
+      }
+      E.ghost = now >= E.hist[0].t ? g : null;
+    }
+  }
+}
+function drawRepriseGhosts() {
+  const S = shipById("reprise"), size = shipSize();
+  const g = game.rep && game.rep.echo && game.rep.echo.ghost, R = enemy.remote && duel.net && duel.net.gh;
+  for (const q of [g, R ? { x: R[0] * WW, y: R[1] * WH, ang: R[2], form: R[3], age: R[4] } : null]) {
+    if (!q) continue;
+    const p = toScreen(q.x, q.y);
+    ctx.save(); ctx.globalAlpha = 0.5;
+    const gl = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 0.8); gl.addColorStop(0, "rgba(180,140,255,0.5)"); gl.addColorStop(1, "rgba(180,140,255,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.8, 0, TAU); ctx.fill();
+    const img = reprisePicture(S, { form: q.form, age: q.age }), d = S.anim.size * size;   // see-through and violet
+    if (img) {
+      ctx.translate(p.x, p.y); ctx.rotate(q.ang);
+      ctx.globalAlpha = 0.38; ctx.drawImage(img, -d / 2, -d / 2, d, d);
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.22; ctx.filter = "sepia(1) hue-rotate(220deg) saturate(3)"; ctx.drawImage(img, -d / 2, -d / 2, d, d);
+    }
+    ctx.restore();
+  }
+}
+// REPRISE's magic button: four little blocks turning, and a loop arrow (the echo)
+function drawRepriseButton(b, M, ready, k) {
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (ready) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
+    gl.addColorStop(0, `rgba(180,140,255,${0.25 + 0.1 * Math.sin(time * 3)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#3a2e50"); bg.addColorStop(1, "#120c1c");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(180,140,255,0.18)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = M.color; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  ctx.globalAlpha = ready ? 1 : 0.45;
+  const spin = game.rep && game.rep.at != null ? (game.t - game.rep.at) * 3 : 0;
+  [[-0.2, -0.18, 0.14, 0.36], [0.05, -0.08, 0.14, 0.26], [0.27, 0.0, 0.14, 0.2], [-0.2, 0.25, 0.3, 0.1]].forEach(([x, y, w, h], i) => {
+    ctx.save(); ctx.translate(x * b.r, y * b.r); ctx.rotate(spin * (i % 2 ? 1 : -1)); ctx.fillStyle = i ? "#9a86c8" : "#ffb23a"; ctx.fillRect(-w * b.r / 2, -h * b.r / 2, w * b.r, h * b.r); ctx.restore();
+  });
+  ctx.strokeStyle = "#d8c8ff"; ctx.lineWidth = Math.max(1.5, b.r * 0.06);
+  ctx.beginPath(); ctx.arc(0, 0, b.r * 0.62, Math.PI * 0.6, Math.PI * 1.35); ctx.stroke();
+  ctx.restore();
+}
+// ---------- GLITCH's magics: the V shield and the slip ----------
+// the V is up (more than half open): my own V, or theirs (duel: their state says so)
+function vShieldUp(o) {
+  if (o === game) { const a = game.anim; return !game.dead && !!a && a.seq === "vdeploy" && vPose(a.t).open > 0.5; }
+  return !!(enemy.remote && duel.net && duel.net.vs);
+}
+// is a shot at (x, y) in front of ship o, inside its V's reach?
+function inFrontV(o, x, y) {
+  const M = MAGIC.vshield, dx = wrapDelta(x - o.x, WW), dy = wrapDelta(y - o.y, WH), d = Math.hypot(dx, dy);
+  return d < M.reach * shipSize() && Math.abs(wrapAngle(Math.atan2(dx, -dy) - o.ang)) < M.arc;
+}
+// a shot batted back by the V: a spark, and it flies back the way it came
+function vBat(s) {
+  burstAt(s.x, s.y, 10, ["#ffffff", "#ff3db8", "#38f6ff"], 0.3, 0.6); audio.tone(1900, 0.05, "square", 0.04, 0.5); buzz(25);
+}
+const decoys = [];   // { x, y, ang, t, remote }: GLITCH's flickering decoys
+function updateGlitchMagic(dt) {
+  const Sl = game.slip;
+  if (Sl) {
+    Sl.t += dt;
+    const M = MAGIC.slip;
+    if (!Sl.jumped && Sl.t >= M.at && !game.dead) {
+      Sl.jumped = true;
+      const side = Math.random() < 0.5 ? 1 : -1, j = M.jump * shipSize(), nx = Math.cos(game.ang) * side, ny = Math.sin(game.ang) * side;
+      decoys.push({ x: game.x, y: game.y, ang: game.ang, t: 0 });
+      duelSend({ t: "dc", x: +(game.x / WW).toFixed(5), y: +(game.y / WH).toFixed(5), a: +game.ang.toFixed(3) });
+      burstAt(game.x, game.y, 20, ["#38f6ff", "#ff3db8", "#ffffff"], 0.4, 0.6);
+      game.x = (((game.x + nx * j) % WW) + WW) % WW; game.y = (((game.y + ny * j) % WH) + WH) % WH;
+      burstAt(game.x, game.y, 20, ["#38f6ff", "#ff3db8", "#ffffff"], 0.4, 0.6, game.vx, game.vy);
+      audio.noise(0.15, 0.15, 7000); audio.tone(900, 0.08, "square", 0.05, 0.2); audio.tone(300, 0.08, "square", 0.05, 4, 0.06); shake(0.2); buzz(60);
+    }
+    if (Sl.t > 1.6) game.slip = null;
+  }
+  for (let i = decoys.length - 1; i >= 0; i--) { decoys[i].t += dt; if (decoys[i].t > MAGIC.slip.ghost) decoys.splice(i, 1); }
+}
+// my decoy, if there is one (the bot goes after it)
+function myDecoy() { const d = decoys.find((q) => !q.remote); return d && !game.dead ? { x: d.x, y: d.y, vx: 0, vy: 0 } : null; }
+function drawDecoys() {
+  if (!decoys.length) return;
+  const S = shipById("glitch"), size = shipSize();
+  for (const D of decoys) {
+    const p = toScreen(D.x, D.y), fade = Math.min(1, (MAGIC.slip.ghost - D.t) / 0.4);
+    ctx.save(); ctx.globalAlpha = fade * (Math.random() < 0.15 ? 0.25 : 0.75);
+    const jx = (Math.random() - 0.5) * size * 0.05;
+    drawShip(S, p.x + jx, p.y, size, { ang: D.ang, power: 0.3, bank: 0 });
+    ctx.restore();
+    drawHacked(p.x, p.y, size, 1);
+  }
+}
+// GLITCH's magic buttons: the left a V of two panels, the right two panels sliding past each other
+function drawGlitchMagicButton(b, M, ready, k) {
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (ready) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
+    gl.addColorStop(0, hexA(M.color, 0.22 + 0.1 * Math.sin(time * 3))); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#2a2a32"); bg.addColorStop(1, "#0a0a10");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = hexA(M.color, 0.18); ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = M.color; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  ctx.globalAlpha = ready ? 1 : 0.45; ctx.fillStyle = "#c0287f"; ctx.strokeStyle = "#ff3db8"; ctx.lineWidth = Math.max(1.5, b.r * 0.05);
+  const panel = (x, y, a) => { ctx.save(); ctx.translate(x * b.r, y * b.r); ctx.rotate(a); ctx.beginPath(); ctx.rect(-b.r * 0.14, -b.r * 0.3, b.r * 0.28, b.r * 0.6); ctx.fill(); ctx.stroke(); ctx.restore(); };
+  if (M.look === "vshield") { panel(-0.24, 0, -0.45); panel(0.24, 0, 0.45); ctx.fillStyle = "#38f6ff"; ctx.beginPath(); ctx.arc(0, b.r * 0.42, b.r * 0.08, 0, TAU); ctx.fill(); }
+  else {
+    const s = Math.sin(time * 3) * 0.12;
+    panel(-0.17, -0.12 - s, 0); panel(0.17, 0.12 + s, 0);
+    ctx.fillStyle = "rgba(56,246,255,0.6)"; ctx.fillRect(-b.r * 0.6, -b.r * 0.05, b.r * 0.25, b.r * 0.06); ctx.fillRect(b.r * 0.35, b.r * 0.15, b.r * 0.25, b.r * 0.06);
+  }
+  ctx.restore();
+}
 // ---------- NIMBUS: the storm and the rainbow ----------
 // storms: { w, x, y, ang, t, struck: [..], remote }. Mine: my phone decides the strikes; theirs: their wind blows on me
 const storms = [], rainbows = [];
@@ -4398,30 +4654,50 @@ function drawRibbon(S, lvl = 0) {
   for (const [w, c, a] of [[18, T.ribbon[0], 0.39], [9, T.ribbon[1], 0.84], [2.2, T.ribbon[2], 0.87]]) { ctx.strokeStyle = c; ctx.globalAlpha = a; ctx.lineWidth = w; ctx.stroke(); }
   ctx.restore();
 }
+// REPRISE put together from its four buildings, in a shape or between two (rep: { form, age })
+let repriseCanvas = null;
+function reprisePicture(S, rep) {
+  const A = S.anim, imgs = A.modules.map((m) => artImage(framePath(A.dir, m.file)));
+  if (imgs.some((i) => !i)) return null;
+  if (!repriseCanvas) { repriseCanvas = document.createElement("canvas"); repriseCanvas.width = repriseCanvas.height = 512; }
+  const c = repriseCanvas.getContext("2d"), P = reprisePose(A.modules, rep ? rep.form : 0, rep ? rep.age : 0);
+  c.clearRect(0, 0, 512, 512);
+  P.shape.forEach((q, i) => { c.save(); c.translate(256 + q.x, 256 + q.y); c.rotate(q.angle * Math.PI / 180); c.drawImage(imgs[i], -imgs[i].width / 2, -imgs[i].height / 2); c.restore(); });
+  if (P.flash > 0.01) {   // locked on: a flash
+    c.save(); c.globalCompositeOperation = "lighter";
+    const g = c.createRadialGradient(256, 256, 10, 256, 256, 200); g.addColorStop(0, `rgba(255,220,160,${P.flash * 0.7})`); g.addColorStop(1, "rgba(180,140,255,0)");
+    c.fillStyle = g; c.fillRect(0, 0, 512, 512); c.restore();
+  }
+  return repriseCanvas;
+}
 // GLITCH put together: the core in the middle of a 512 canvas, the linkage, the core's glow, the two shutters on top
 let glitchCanvas = null;
-function glitchPicture(S, ms) {
+function glitchPicture(S, a) {
+  const ms = a && a.seq === "secondary" ? a.t * 2 : 0;
+  const P = a && a.seq === "vdeploy" ? vPose(a.t) : a && a.seq === "slide" ? slidePose(a.t * 2) : { ...shutterPose(ms), ly: 0, la: 0, ry: 0, ra: 0 };
   const L = S.anim.layers, core = artImage(framePath(S.anim.dir, L.core)), left = artImage(framePath(S.anim.dir, L.left)), right = artImage(framePath(S.anim.dir, L.right));
   if (!core || !left || !right) return core;
   if (!glitchCanvas) { glitchCanvas = document.createElement("canvas"); glitchCanvas.width = glitchCanvas.height = 512; }
-  const c = glitchCanvas.getContext("2d"), P = shutterPose(ms), cy = 256 - 49;
+  const c = glitchCanvas.getContext("2d"), cy = 256 - 49;
   c.clearRect(0, 0, 512, 512);
   c.drawImage(core, 256 - core.width / 2, 256 - core.height / 2);
   if (P.open > 0.01) {
     c.strokeStyle = `rgba(56,246,255,${P.open * 0.8})`; c.lineWidth = 3;
-    c.beginPath(); c.moveTo(256 - 59, 256 - 34); c.lineTo(256 - 38.5 + P.lx, cy); c.moveTo(256 + 59, 256 - 34); c.lineTo(256 + 38.5 + P.rx, cy); c.stroke();
+    c.beginPath(); c.moveTo(256 - 59, 256 - 34); c.lineTo(256 - 38.5 + P.lx, cy + P.ly); c.moveTo(256 + 59, 256 - 34); c.lineTo(256 + 38.5 + P.rx, cy + P.ry); c.stroke();
   }
   if (P.glow > 0.01) {
     c.save(); c.globalCompositeOperation = "lighter";
     const g = c.createRadialGradient(256, cy, 4, 256, cy, 90); g.addColorStop(0, `rgba(180,255,255,${P.glow})`); g.addColorStop(0.4, `rgba(56,246,255,${P.glow * 0.6})`); g.addColorStop(1, "rgba(56,246,255,0)");
     c.fillStyle = g; c.fillRect(160, cy - 100, 192, 200); c.restore();
   }
-  c.drawImage(left, 256 - left.width + P.lx, cy - left.height / 2);
-  c.drawImage(right, 256 + P.rx, cy - right.height / 2);
+  for (const [img, x, y, an] of [[left, 256 - left.width / 2 + P.lx, cy + P.ly, P.la], [right, 256 + right.width / 2 + P.rx, cy + P.ry, P.ra]]) {
+    c.save(); c.translate(x, y); c.rotate(an); c.drawImage(img, -img.width / 2, -img.height / 2); c.restore();   // each panel turns round its own middle
+  }
   return glitchCanvas;
 }
-function shipArt(S, a, stored, tint) {
-  if (S.anim && S.anim.layers) return glitchPicture(S, a && a.seq === "secondary" ? a.t * 2 : 0);   // (the clip at twice the speed)
+function shipArt(S, a, stored, tint, rep) {
+  if (S.anim && S.anim.layers) return glitchPicture(S, a);
+  if (S.anim && S.anim.modules) return reprisePicture(S, rep);
   if (S.anim) {
     // SKARN holding caught shots: its mouth glows by how many (when no other frames are playing)
     if (stored > 0 && S.anim.loaded && !(a && S.anim[a.seq] && seqFrame(S.anim[a.seq], a.t) >= 0)) {
@@ -4447,6 +4723,7 @@ function preloadArt() {
     if (A.crossBolt) all.push(A.crossBolt);
     if (A.ribbon) all.push(A.ribbon, A.boosted, A.markGlow, A.exitWarn);
     if (A.layers) all.push(A.layers.left, A.layers.right);
+    if (A.modules) all.push(...A.modules.map((m) => m.file));
     if (A.field) all.push(...A.field, ...A.arc, ...A.rainbow.map((x) => x[0]), ...A.shotArt.lightning.frames);
     if (S.grows) for (let i = 0; i <= 5; i++) talusPicture(S, i, []);
     if (A.egg) {
@@ -4628,7 +4905,8 @@ function draw() {
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
-          talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0 });
+          talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
+          rep: shown === S ? repView() : null });
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
       if (shown === S) drawDevour(game, S, game.devour);
@@ -4650,7 +4928,7 @@ function draw() {
     drawShots(eshots);
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
-    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawReso(game.reso); drawReso(duel.reso);
+    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -4867,7 +5145,7 @@ function drawEnemy() {
     if (enemy.remote) drawTail(duel.tail, E);
     const esc = enemy.remote && enemy.talus ? enemy.talus.scale : 1;
     if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
-    drawShip(E, p.x, p.y, size * esc, { tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? enemy.hullTurn || 0 : 0),
+    drawShip(E, p.x, p.y, size * esc, { rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? enemy.hullTurn || 0 : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
@@ -5064,8 +5342,8 @@ function drawShots(list = shots) {
       ctx.restore();
       continue;
     }
-    if (s.w === "twin" || s.w === "laser" || s.w === "spread" || s.w === "neon") {
-      const len = size * (s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : s.w === "neon" ? 0.2 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
+    if (s.w === "twin" || s.w === "laser" || s.w === "spread" || s.w === "neon" || s.w === "amber" || s.w === "floors") {
+      const len = size * (s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : s.w === "neon" ? 0.2 : s.w === "amber" ? 0.22 : s.w === "floors" ? 0.14 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
       ctx.strokeStyle = hexA(Wp.color, 0.35); ctx.lineWidth = wd * 2.6;
       ctx.beginPath(); ctx.moveTo(p.x - ux * len, p.y - uy * len); ctx.lineTo(p.x, p.y); ctx.stroke();
       ctx.strokeStyle = s.w === "neon" ? "#ffd2f0" : "#ffffff"; ctx.lineWidth = wd * 0.8; ctx.stroke();
@@ -5201,6 +5479,10 @@ function weaponIcon(w, x, y, r, color) {
     for (let i = 0; i < 8; i++) { const a = i * TAU / 8; ctx.beginPath(); ctx.moveTo(r * 0.3 + Math.cos(a - 0.3) * r * 0.3, r * 0.3 + Math.sin(a - 0.3) * r * 0.3); ctx.lineTo(r * 0.3 + Math.cos(a) * r * 0.6, r * 0.3 + Math.sin(a) * r * 0.6); ctx.lineTo(r * 0.3 + Math.cos(a + 0.3) * r * 0.3, r * 0.3 + Math.sin(a + 0.3) * r * 0.3); ctx.fill(); }
   } else if (w === "needle") {   // a thin needle bolt
     ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.14, r * 0.2); ctx.lineTo(0, r * 0.85); ctx.lineTo(-r * 0.14, r * 0.2); ctx.closePath(); ctx.fill();
+  } else if (w === "amber") {   // a tall tower with a spark on top
+    ctx.fillRect(-r * 0.16, -r * 0.35, r * 0.32, r * 1.15); starShape(0, -r * 0.62, r * 0.28);
+  } else if (w === "floors") {   // three buildings, each with a dot above
+    [[-0.5, 0.35, 0.55], [0, 0.2, 0.7], [0.5, 0.45, 0.45]].forEach(([x, y, h]) => { ctx.fillRect((x - 0.15) * r, (y - h / 2 + 0.2) * r, r * 0.3, h * r); ctx.beginPath(); ctx.arc(x * r, (y - h / 2) * r, r * 0.09, 0, TAU); ctx.fill(); });
   } else if (w === "lightning") {   // a zigzag bolt
     ctx.beginPath(); ctx.moveTo(r * 0.15, -r * 0.9); ctx.lineTo(-r * 0.35, r * 0.05); ctx.lineTo(-r * 0.02, r * 0.05); ctx.lineTo(-r * 0.2, r * 0.9);
     ctx.lineTo(r * 0.38, -r * 0.12); ctx.lineTo(r * 0.04, -r * 0.12); ctx.lineTo(r * 0.3, -r * 0.9); ctx.closePath(); ctx.fill();
@@ -5382,6 +5664,8 @@ function drawMagicButton(b, M, ready, k) {
   if (M.look === "waves") drawWavesButton(b, M, ready, k);
   if (M.look === "flip") drawFlipButton(b, M, ready, k);
   if (M.look === "steam") drawSteamButton(b, M, ready, k);
+  if (M.look === "vshield" || M.look === "slip") drawGlitchMagicButton(b, M, ready, k);
+  if (M.look === "reassemble") drawRepriseButton(b, M, ready, k);
   if (M.look === "rainbow") drawRainbowButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
@@ -5831,6 +6115,8 @@ function duelLink(event, data) {
     clouds.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, ship: m.s, remote: true }); audio.sfx("xeltar", "ink_release", 0, 0.7);
   } else if (m.t === "th" && Array.isArray(m.p)) {   // their ZORIAN sealed a thread: shown here (their phone counts a crossing)
     duel.thread = { w: m.w, t: m.at, paths: m.p.map((q) => q.map(([x, y]) => ({ x: x * WW, y: y * WH }))) };
+  } else if (m.t === "dc") {   // their GLITCH slipped: its decoy flickers here
+    decoys.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, remote: true });
   } else if (m.t === "st" && WEAPONS[m.w]) {   // their NIMBUS let a storm go (its wind blows on me here)
     startStorm(m.w, m.x * WW, m.y * WH, m.a, true);
   } else if (m.t === "rb") {   // their NIMBUS's rainbow (only shown; their phone decides if it touches me)
@@ -5901,7 +6187,7 @@ function updateRival(dt) {
   } else if (!n.d && !enemy.on) { enemy.on = true; enemy.warp = 1; enemy.x = tx; enemy.y = ty; }
   if (!enemy.on) return;
   // THUL's smoke pouring out of their engines
-  if (n.mp) { duel.smokeAcc = (duel.smokeAcc || 0) + ((magicOf(E) || {}).rate || 30) * dt; for (; duel.smokeAcc >= 1; duel.smokeAcc--) for (const e of exhausts(enemy, E)) smokeAt(e.x, e.y, enemy, E, 2.6 + Math.random() * 1.5, 5.5); }
+  if (n.mp) { duel.smokeAcc = (duel.smokeAcc || 0) + ((magicOf(E) || {}).rate || 30) * dt; for (; duel.smokeAcc >= 1; duel.smokeAcc--) for (const e of exhausts(enemy, E)) smokeAt(e.x, e.y, enemy, E, (2.6 + Math.random() * 1.5) * ((magicOf(E) || {}).big || 1), 5.5); }
   if (n.stm && Math.random() < 40 * dt) for (const e of exhausts(enemy, E)) steamPuff(enemy, e, true);   // their THUL's steam (only shown)
   // VEXAR's tail: it moves with their ship here (their phone decides what it touches)
   const M = magicOf(E);
@@ -5978,6 +6264,7 @@ function updateDuel(dt) {
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;   // their VANTA drop inside the planet (the exit mark warns me)
     if (Wp.phase) phaseTrail(s);
     if (threadBlocks(game.thread, s, dt)) { threadSpark(s); duel.shots.splice(k, 1); continue; }   // my thread stops it (their phone sees my thread too)
+    if (vShieldUp(game) && inFrontV(game, s.x, s.y)) { vBat(s); duel.shots.splice(k, 1); continue; }   // my V (their phone sees it too)
     if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it)
     const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shotScale(s, Wp) * shipSize();
     const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
@@ -5993,7 +6280,8 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(),
+      gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
       ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
@@ -6061,7 +6349,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id;
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();
