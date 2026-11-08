@@ -191,6 +191,14 @@ middle (a dashed ring shows how close if you are too far). The drill turns to it
 out the same way (1.78 s; no steering, no firing, no burn meanwhile). The bomb has no timer: the next time an enemy ship
 touches the body it is shattered. One bomb at a time; it stays through BORER's death and goes when the body changes.
 In a duel the other phone is told the bomb is there (not shown to them), sees its own touch, and sends `smx` back.
+While it bores, the drill turns (24 frames, `spin_01..24.webp`): it spins up, drills, and turns back coming out.
+
+**MIRAGE**, the prism ship (`art/ships/mirage/`). Every button charges first: light runs up the prism to the nose (12 frames)
+and the shot leaves at the end. Button 1: a focused pulse, one narrow fast amber shot (280 ms charge, 15). Button 2: a
+violet seed (390 ms); 0.46 s after it leaves it splits into three shards (8 each) fanned round where it is going then.
+Magic, false star (480 ms charge, 9 s recharge): a lens opens 1.5 ship-lengths ahead for 3.1 s and pulls every shot that
+passes near it, anyone's, toward its middle: bend your shots round to the enemy, or pull theirs off you. Ships and the
+real star are not touched. In a duel it is sent to the other phone (`fs`) so their shots bend there too.
 
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.

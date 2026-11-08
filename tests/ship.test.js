@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, starMinePose, starMineCheck, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,borerDrill,lensPull,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, starMinePose, starMineCheck, borerDrill, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("twenty-nine ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 29);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 29);
+ok("thirty ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 30);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 30);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -499,5 +499,20 @@ ok("BORER: the star mine dive turns to the star, bores in, backs out the same wa
   assert.strictEqual(c.phase, "plant"); assert.ok(Math.abs(c.x - 20) < 1e-9);
   assert.strictEqual(d.phase, "done"); assert.ok(Math.abs(d.x - 90) < 1e-9); assert.ok(Math.abs(d.ang + Math.PI / 2) < 1e-9);
   assert.ok(M.windup < M.inside && M.inside < M.plant && M.plant < M.exit && M.exit < M.end);
+});
+ok("BORER: the drill turns while it bores, and shows only during the dive", () => {
+  assert.strictEqual(borerDrill(0).mix, 0); assert.strictEqual(borerDrill(800).mix, 1); assert.strictEqual(borerDrill(1780).mix, 0);
+  for (let t = 0; t <= 1780; t += 37) { const f = borerDrill(t).frame; assert.ok(f >= 0 && f < 24 && Number.isInteger(f)); }
+  assert.notStrictEqual(borerDrill(500).frame, borerDrill(530).frame);
+});
+ok("MIRAGE: charged shots, a seed that splits in three, a false star that only pulls nearby shots", () => {
+  const S = shipById("mirage"), M = MAGIC.lens, A = S.anim;
+  assert.strictEqual(S.weapons.join(), "mpulse,seed"); assert.strictEqual(S.magic, "lens");
+  assert.ok(Math.abs(cueTime(A.primary, "bolt") - 280) < 1e-6); assert.ok(Math.abs(cueTime(A.secondary, "fire") - 390) < 1e-6); assert.ok(Math.abs(cueTime(A.lens, "fire") - 480) < 1e-6);
+  assert.ok(WEAPONS.mpulse.cued); assert.ok(WEAPONS[WEAPONS.seed.shard]);
+  assert.deepStrictEqual(Object.values(lensPull(M.radius + 0.1, 0, M)), [0, 0]);
+  const near = lensPull(0.5, 0, M), far = lensPull(1.1, 0, M);
+  assert.ok(near.ax > 0 && near.ay === 0 && near.ax > far.ax && near.ax <= M.max);
+  assert.ok(lensPull(0, -0.01, M).ay < 0);
 });
 console.log(n + " checks passed");
