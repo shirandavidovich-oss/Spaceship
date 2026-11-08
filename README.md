@@ -240,6 +240,10 @@ ahead of the nose, the rock grows in four steps with a flash after each, and at 
 formed; in flight its glowing cracks cool (hot -> warm -> cool). TALUS keeps its own colored layers meanwhile (the
 package's flipbook frames are of the plain hull, so the forging is drawn in code with the package's rock and chip art).
 
+MIRAGE's false stars now stay 5 minutes (up to 10 of them; a new one takes the oldest's place), and every two of them
+are joined by a beam of light: a web. An enemy touching a beam loses 14 health a second (`MAGIC.lens.webDps`). The
+more false stars, the thicker the web.
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

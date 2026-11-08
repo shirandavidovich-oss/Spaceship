@@ -716,7 +716,11 @@ const MAGIC = {
   // MIRAGE: false star. After its 480 ms charge a lens opens `ahead` ship-lengths in front of the nose and stays `life` s.
   //   Every shot (anyone's) within `radius` ship-lengths is pulled toward its middle: `strength` / (d² + soft²), at most
   //   `max` ship-lengths a second each second, weaker toward the edge. Ships and the real star are not touched
-  lens:    { name: "כוכב מדומה", look: "lens", cool: 9, ahead: 1.5, life: 3.1, radius: 1.3, strength: 50, soft: 0.21, max: 85, color: "#c9a5fc" },
+  //   Each false star stays `life` s (5 minutes), up to `count` of yours (a new one takes the oldest's place). Every
+  //   two of yours are joined by a beam of light, a web: an enemy touching a beam (within `web` ship-lengths of it)
+  //   loses `webDps` health a second
+  lens:    { name: "כוכב מדומה", look: "lens", cool: 9, ahead: 1.5, life: 300, radius: 1.3, strength: 50, soft: 0.21, max: 85, color: "#c9a5fc",
+             count: 10, web: 0.18, webDps: 14 },
   split:   { name: "התפצלות", look: "split", cool: 0, blast: 4.5, dmg: 75, edge: 15, knock: 2.4, color: "#ff3fb0" },
   // NIMBUS's rainbow: an arc that flies out (`speed` ship-lengths a second for `life` s); touching a ship it does `dmg`
   //   once, and NIMBUS takes back `heal` health
@@ -4829,16 +4833,31 @@ function updateCinder(dt) {
   if (D.t >= M.turn) game.dash2 = null;
 }
 // ---------- MIRAGE: the false star and the seed ----------
-const lenses = [];   // { x, y, t } (anyone's: they bend every shot)
+const lenses = [];   // { x, y, t, mine } (anyone's: they bend every shot; each player's are joined into a web of light)
 function openLens() {
   const M = MAGIC.lens, n = rotatePt(0, -(0.463 + M.ahead) * shipSize(), game.ang);
   const L = { x: (((game.x + n.x) % WW) + WW) % WW, y: (((game.y + n.y) % WH) + WH) % WH, t: 0 };
-  lenses.push(L);
+  L.mine = true; lenses.push(L);
+  while (lenses.filter((q) => q.mine).length > M.count) lenses.splice(lenses.findIndex((q) => q.mine), 1);   // the oldest goes
   duelSend({ t: "fs", x: +(L.x / WW).toFixed(5), y: +(L.y / WH).toFixed(5) });
   lensSound(); buzz(60);
 }
 function lensSound() { audio.tone(180, 1.2, "sine", 0.06, 0.5); audio.tone(1240, 0.6, "sine", 0.025, 0.8, 0.05); audio.noise(0.5, 0.05, 1200); }
-function updateLenses(dt) { for (let i = lenses.length - 1; i >= 0; i--) if ((lenses[i].t += dt) > MAGIC.lens.life) lenses.splice(i, 1); }
+function updateLenses(dt) {
+  for (let i = lenses.length - 1; i >= 0; i--) if ((lenses[i].t += dt) > MAGIC.lens.life) lenses.splice(i, 1);
+  // my web: an enemy on one of its beams is burnt (my phone counts it, in a duel too)
+  const M = MAGIC.lens, mine = lenses.filter((q) => q.mine);
+  if (mine.length < 2 || !enemy.on || enemy.warp >= 0.5) { game.webAcc = 0; return; }
+  let on = false;
+  for (let i = 0; i < mine.length && !on; i++) for (let j = i + 1; j < mine.length && !on; j++) {
+    const a = mine[i], b = { x: a.x + wrapDelta(mine[j].x - a.x, WW), y: a.y + wrapDelta(mine[j].y - a.y, WH) };
+    const e = { x: a.x + wrapDelta(enemy.x - a.x, WW), y: a.y + wrapDelta(enemy.y - a.y, WH) };
+    if (segDistance(e, e, a, b) < (M.web + 0.3) * shipSize()) on = true;
+  }
+  if (!on) { game.webAcc = 0; return; }
+  game.webAcc = (game.webAcc || 0) + M.webDps * dt;
+  if (game.webAcc >= 2) { const n = Math.floor(game.webAcc); game.webAcc -= n; harmEnemy(n); burstAt(enemy.x, enemy.y, 5, ["#ffffff", "#e9d0ff", "#c9a5fc"], 0.3, 0.5, enemy.vx, enemy.vy); audio.zap(); }
+}
 // each moment, for a shot on its way: pulled by every false star; a seed due to split becomes three shards (true: it is gone)
 function shotFx(list, k, s, Wp, dt) {
   if (lenses.length && !(Wp.speed === 0)) {
@@ -4864,6 +4883,26 @@ function shotFx(list, k, s, Wp, dt) {
 // a false star: a soft violet glow, a turning dashed ring, a bright core; it opens in 0.32 s and fades in its last 0.36
 function drawLenses() {
   const M = MAGIC.lens, size = shipSize();
+  // the web: every two of one player's false stars joined by a beam of light (a wide soft glow, a bright core that
+  // shimmers, and sparks of light running along it)
+  for (const side of [true, false]) {
+    const L = lenses.filter((q) => q.mine === side);
+    for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
+      const a = toScreen(L[i].x, L[i].y), dx = wrapDelta(L[j].x - L[i].x, WW), dy = wrapDelta(L[j].y - L[i].y, WH), b = { x: a.x + dx, y: a.y + dy };
+      const k = Math.min(1, L[i].t / 0.5, L[j].t / 0.5, (M.life - L[i].t) / 1, (M.life - L[j].t) / 1), sh = 0.75 + 0.25 * Math.sin(time * 7 + i * 1.7 + j);
+      if (k <= 0) continue;
+      ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+      ctx.globalAlpha = 0.22 * k; ctx.strokeStyle = side ? "#a57cf9" : "#ff7ab8"; ctx.lineWidth = size * M.web * 1.6;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.globalAlpha = 0.85 * k * sh; ctx.strokeStyle = "#f4dfff"; ctx.lineWidth = Math.max(1.5, size * 0.025);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      for (let n = 0; n < 2; n++) {   // light running along it
+        const u = ((time * 0.6 + n * 0.5 + (i * 0.31 + j * 0.17)) % 1), px = a.x + dx * u, py = a.y + dy * u, g = ctx.createRadialGradient(px, py, 0, px, py, size * 0.08);
+        g.addColorStop(0, `rgba(255,255,255,${0.9 * k})`); g.addColorStop(1, "rgba(201,165,252,0)"); ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, size * 0.08, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
   for (const L of lenses) {
     const p = toScreen(L.x, L.y), k = Math.min(1, L.t / 0.32) * Math.min(1, (M.life - L.t) / 0.36), R = M.radius * size;
     ctx.save(); ctx.globalAlpha = Math.max(0, k);
@@ -7765,7 +7804,8 @@ function duelLink(event, data) {
   } else if (m.t === "th" && Array.isArray(m.p)) {   // their ZORIAN sealed a thread: shown here (their phone counts a crossing)
     duel.thread = { w: m.w, t: m.at, paths: m.p.map((q) => q.map(([x, y]) => ({ x: x * WW, y: y * WH }))) };
   } else if (m.t === "fs") {   // their MIRAGE's false star (it bends my shots too)
-    lenses.push({ x: m.x * WW, y: m.y * WH, t: 0 }); lensSound();
+    lenses.push({ x: m.x * WW, y: m.y * WH, t: 0, mine: false }); lensSound();
+    while (lenses.filter((q) => !q.mine).length > MAGIC.lens.count) lenses.splice(lenses.findIndex((q) => !q.mine), 1);
   } else if (m.t === "sm") {   // their BORER's bomb is in the star (on) / gone (0). Not shown: it is a trap
     duel.starMine = m.on ? true : null;
   } else if (m.t === "smx") {   // my bomb got them (their phone saw the touch)
