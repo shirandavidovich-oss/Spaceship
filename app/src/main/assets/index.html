@@ -315,7 +315,25 @@ const SHIPS = [
       primary: frames("mark", 8, (n) => [35, 40, 37, 43, 52, 58, 50, 45][n - 1], { 4: "left" }),   // 360 ms, the drop at 112
       secondary: frames("phase", 16, (n) => [60, 70, 70, 70, 70, 70, 70, 70, 70, 60, 10, 52, 70, 72, 73, 63][n - 1], { 12: "fire" }),   // 1,020 ms, fired at 690
       shotArt: { mark: { file: "drop.webp", size: 0.3 }, phase: { file: "bolt.webp", size: 0.42 } },
-      boosted: "boosted.webp", markGlow: "mark_glow.webp", exitWarn: "exit_warning.webp" } }
+      boosted: "boosted.webp", markGlow: "mark_glow.webp", exitWarn: "exit_warning.webp" } },
+  // CANTOR, the resonance ship (art/ships/cantor/, 512 x 512, center pivot, nose up), from cantor-layout.json.
+  // Five grooves along its bell, each with its own note and colour. Button 1: the middle groove sounds one note, a
+  // pulse straight ahead (at 88 ms). Button 2: a chord. While it charges, each groove in turn lights and plays its
+  // note, and remembers where the nose points then (at 120, 255, 390, 525, 660 ms). At 850 ms all five bolts leave
+  // together, each from its own groove on its own remembered line: hold still for five parallel bolts, turn while it
+  // charges to fan them out. Turning after that does not steer them. No magic yet.
+  { id: "cantor", name: "CANTOR", rarity: "epic", mass: 1.0, fuel: 30, refill: 15, sfx: "cantor",
+    sfxNames: ["note_1", "note_2", "note_3", "note_4", "note_5", "chord_fire", "resonance_fire"],
+    hull: "#6a0f1a", wingC: "#2a060b", trim: "#f0d0a0", flame: "#c070ff",
+    body: [], wing: [], nozzles: [0], engineY: 0.47, cockpit: [0, -0.2, 0.05, 0.1],
+    weapons: ["tone", "chord"],
+    // the five grooves' muzzles, left to right: (114,111) (183,82) (256,66) (329,82) (398,111)
+    guns: { tone: [[0, -0.4453]], chord: [[-0.3328, -0.3398], [-0.1711, -0.4078], [0, -0.4453], [0.1711, -0.4078], [0.3328, -0.3398]] },
+    anim: { dir: "cantor", size: 1.2, idle: "hull.webp",
+      primary: frames("pulse", 6, (n) => [42, 46, 44, 45, 46, 55][n - 1], { 3: "left" }),   // 278 ms, the pulse at 88
+      secondary: frames("chord", 18, (n) => [65, 55, 70, 65, 65, 70, 70, 65, 65, 70, 70, 70, 50, 64, 66, 70, 70, 50][n - 1], { 14: "fire" }),   // 1,170 ms, released at 850
+      shotArt: { tone: { file: "bolt_3.webp", size: 0.225 },
+        chord: { file: "bolt_3.webp", size: 0.225, files: ["bolt_1.webp", "bolt_2.webp", "bolt_3.webp", "bolt_4.webp", "bolt_5.webp"] } } } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -367,6 +385,10 @@ const WEAPONS = {
              near: 0.7, far: 5, hold: 1.6, per: 0.12 },
   // ZORIAN. thread (seconds from the press): it lays from `lay` to `seal`, warns until `arm`, hurts until `expire`
   needle:  { name: "מחט אור",   dmg: 6,  speed: 2.6, life: 1.0, cool: 0.27, ammo: 26, refill: 7,  r: 0.025, color: "#92f8ff" },
+  // CANTOR. chord: five bolts, one per groove; `notes`: ms into the charge when each groove takes the nose's heading
+  tone:    { name: "צליל תהודה", dmg: 8,  speed: 2.4, life: 1.0, cool: 0.3,  ammo: 20, refill: 6,  r: 0.03,  color: "#fff2b0" },
+  chord:   { name: "אקורד",      dmg: 9,  speed: 2.2, life: 1.1, cool: 1.4,  ammo: 3,  refill: 3,  r: 0.035, color: "#ffc38b", chord: true,
+             notes: [120, 255, 390, 525, 660], colors: ["#ff8d9f", "#ffc38b", "#fff2b0", "#e0ffb4", "#c9d7ff"] },
   // VANTA's drops swell as they fly: in `swell` seconds they become a round ball `grow` times as big (easier to hit
   //   with), but thinner: at full size `thin` of the damage is gone (and they look see-through)
   // VANTA. mark: tag = seconds the stain shows on the target. phase: dmg normally, `boost` once it has come out of
@@ -826,6 +848,8 @@ const audio = {
     else if (w === "hammer") this.sfx("kraal", "twin_fire", 0, 0.8);
     else if (w === "needle") this.sfx("zorian", "needle_fire", 0, 0.8);
     else if (w === "mark") this.sfx("vanta", "drop_launch", 0, 0.8);
+    else if (w === "tone") this.sfx("cantor", "resonance_fire", 0, 0.8);
+    else if (w === "chord") { if (time - (this.chordT || -9) > 0.2) { this.chordT = time; this.sfx("cantor", "chord_fire"); } }   // (five bolts, one sound)
     else if (w === "phase") this.sfx("vanta", "phase_launch");
     else if (w === "cross") { }   // (its launch sound plays at the release)
     else if (w === "crystal") this.sfx("xeltar", "crystal_launch");
@@ -3096,11 +3120,13 @@ function shoot(i) {
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
   if (Wp.ring) { startRing(w, S); return; }
   if (Wp.cued && A && A.primary && i === 0) { game.anim = { seq: "primary", t: 0, bolts: w }; return; }   // DRAKON: the frames fire the bolts
+  if (A && A.secondary && i === 1 && Wp.chord) { game.anim = { seq: "secondary", t: 0, chord: [], w }; return; }   // CANTOR: the chord charges
   if (A && A.secondary && i === 1) {   // the secondary waits for its wind-up
     game.anim = { seq: "secondary", t: 0, pending: w };
     if (w === "iris") audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000);
     else if (w === "cross") audio.sfx(S.sfx, "cross_charge");
     else if (w === "phase") audio.sfx(S.sfx, "phase_charge");
+    else if (w === "chord") { }   // (each groove plays its own note as it charges)
     else if (w === "crystal") audio.sfx(S.sfx, "ice_charge");
     else if (w === "solar") {   // the charge, a click at each mirror's hinge, and the mirrors folding back
       audio.sfx(S.sfx, "solar_charge");
@@ -3156,6 +3182,33 @@ function spawnShots(w, g) {
     // a puff of smoke from the iris
     for (let k = 0; k < 4; k++) smokeAt(x, y, { ang: game.ang + Math.PI, vx: game.vx, vy: game.vy }, S, 1.4, 1.2);
   }
+}
+// CANTOR's chord: the five bolts, each from its groove where it is now, each on its own remembered heading
+function chordRelease(w, notes) {
+  const Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim, art = A.shotArt[w], size = shipSize() * shipScale(), guns = gunsOf(S, w), v = Wp.speed * U;
+  for (const n of notes) {
+    const g = guns[n.i], m = rotatePt(g[0] * size, g[1] * size, game.ang);
+    const s = { w, x: game.x + m.x, y: game.y + m.y, vx: game.vx + Math.sin(n.ang) * v, vy: game.vy - Math.cos(n.ang) * v, life: 0,
+      art: { src: framePath(A.dir, art.files[n.i]), d: art.size, spin: 0 }, ix: n.i };
+    shots.push(s);
+    burstAt(s.x, s.y, 6, [Wp.colors[n.i], "#ffffff"], 0.2, 0.6, game.vx, game.vy);
+    if (duel.stage === "on") { s.id = ++shotSeq; duelSend({ t: "f", w, ...netPos(s), s: S.id, id: s.id, ix: n.i }); }
+  }
+  audio.shot(w); shake(0.3); buzz(80);
+}
+// while the chord charges: a dashed line in each groove's colour along the heading it has taken
+function drawChordGuides() {
+  const a = game.anim, S = shipById(game.ship);
+  if (!a || !a.chord || a.fired || game.dead) return;
+  const size = shipSize() * shipScale(), guns = gunsOf(S, a.w), Wp = WEAPONS[a.w];
+  ctx.save(); ctx.lineWidth = Math.max(1.5, size * 0.012); ctx.setLineDash([size * 0.03, size * 0.05]);
+  for (const n of a.chord) {
+    const g = guns[n.i], m = rotatePt(g[0] * size, g[1] * size, game.ang), o = toScreen(game.x + m.x, game.y + m.y);
+    const L = size * 2.2, fx = o.x + Math.sin(n.ang) * L, fy = o.y - Math.cos(n.ang) * L;
+    ctx.strokeStyle = hexA(Wp.colors[n.i], 0.6); ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(fx, fy); ctx.stroke();
+    ctx.fillStyle = Wp.colors[n.i]; ctx.beginPath(); ctx.arc(fx, fy, size * 0.025, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
 }
 // ---------- LYTH's ring ----------
 // unlock: the three latches open (amber). out: the ring is let go toward the nose, spinning, and the planet pulls it.
@@ -3330,6 +3383,19 @@ function updateAnim(dt) {
   if (a.bolts) {   // a shot at every "bolt" frame it passed (once each, even if a slow frame jumps over it)
     let at = 0;
     for (const f of seq) { if (f[2] === "bolt" && before < at + 0.001 && a.t >= at) { spawnShots(a.bolts, gunsOf(shipById(game.ship), a.bolts)[0]); audio.shot(a.bolts); } at += f[1]; }
+  }
+  if (a.chord) {   // CANTOR: each groove takes the heading in turn, with its note; all five leave at the "fire" frame
+    const S = shipById(game.ship), Wp = WEAPONS[a.w];
+    while (a.chord.length < Wp.notes.length && a.t >= Wp.notes[a.chord.length]) {
+      const i = a.chord.length;
+      a.chord.push({ i, ang: game.ang }); audio.sfx(S.sfx, "note_" + (i + 1)); buzz(12);
+    }
+    const cue = cueTime(seq, "fire");
+    if (!a.fired && (before <= cue && a.t >= cue || seqFrame(seq, a.t) < 0)) {
+      a.fired = true;
+      while (a.chord.length < Wp.notes.length) a.chord.push({ i: a.chord.length, ang: game.ang });
+      chordRelease(a.w, a.chord);
+    }
   }
   if (a.pending) {
     const cue = cueTime(seq, "fire");
@@ -3847,6 +3913,7 @@ function draw() {
       if (shown === S) drawBeam2(game, S, game.beam);
       if (shown === S) drawDevour(game, S, game.devour);
       if (shown === S) drawDash();
+      if (shown === S) drawChordGuides();
       if (shown === S) { drawFlail(game, S, game.flail); drawAnchor(p.x, p.y, shipSize()); }
       if (game.inked > 0) drawInkOn(p.x, p.y, shipSize(), game.inked / MAGIC.ink.stun, 0.4);
       drawRange();
@@ -4381,6 +4448,16 @@ function weaponIcon(w, x, y, r, color) {
     for (let i = 0; i < 8; i++) { const a = i * TAU / 8; ctx.beginPath(); ctx.moveTo(r * 0.3 + Math.cos(a - 0.3) * r * 0.3, r * 0.3 + Math.sin(a - 0.3) * r * 0.3); ctx.lineTo(r * 0.3 + Math.cos(a) * r * 0.6, r * 0.3 + Math.sin(a) * r * 0.6); ctx.lineTo(r * 0.3 + Math.cos(a + 0.3) * r * 0.3, r * 0.3 + Math.sin(a + 0.3) * r * 0.3); ctx.fill(); }
   } else if (w === "needle") {   // a thin needle bolt
     ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.14, r * 0.2); ctx.lineTo(0, r * 0.85); ctx.lineTo(-r * 0.14, r * 0.2); ctx.closePath(); ctx.fill();
+  } else if (w === "tone") {   // a single note
+    ctx.lineWidth = Math.max(2, r * 0.13); ctx.beginPath(); ctx.ellipse(-r * 0.2, r * 0.45, r * 0.3, r * 0.22, -0.4, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(r * 0.08, r * 0.4); ctx.lineTo(r * 0.08, -r * 0.75); ctx.quadraticCurveTo(r * 0.5, -r * 0.55, r * 0.55, -r * 0.2); ctx.stroke();
+  } else if (w === "chord") {   // five lines fanning out from five dots
+    ctx.lineWidth = Math.max(1.5, r * 0.09); ctx.lineCap = "round";
+    for (let i = 0; i < 5; i++) {
+      const x = (i - 2) * r * 0.3, y = r * 0.55 - Math.abs(i - 2) * r * 0.1, a = (i - 2) * 0.3;
+      ctx.strokeStyle = WEAPONS.chord.colors[i]; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.sin(a) * r * 0.9, y - Math.cos(a) * r * 0.9); ctx.stroke();
+      ctx.fillStyle = WEAPONS.chord.colors[i]; ctx.beginPath(); ctx.arc(x, y, r * 0.1, 0, TAU); ctx.fill();
+    }
   } else if (w === "mark") {   // a liquid drop with a few splash dots
     const drop = (x, y, k) => { ctx.beginPath(); ctx.moveTo(x, y - k); ctx.quadraticCurveTo(x + k * 0.62, y - k * 0.1, x + k * 0.45, y + k * 0.35);
       ctx.quadraticCurveTo(x, y + k * 0.85, x - k * 0.45, y + k * 0.35); ctx.quadraticCurveTo(x - k * 0.62, y - k * 0.1, x, y - k); ctx.fill(); };
@@ -4942,7 +5019,8 @@ function duelLink(event, data) {
     if (shipById(m.s)) enemy.ship = m.s;
     if (typeof m.h === "number" && m.h > 0) damageShip(m.h);   // what my ship took from their weapons
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
-    const S = shipById(m.s), art = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
+    const S = shipById(m.s), a0 = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
+    const art = a0 && a0.files && m.ix != null ? { ...a0, file: a0.files[m.ix] } : a0;   // CANTOR: each bolt its groove's colour
     duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, lvl: m.v || 0,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0 } : null });
     if (duel.shots.length < 60) audio.shot(m.w);

@@ -130,6 +130,12 @@ flames round the drop (x2.6). The next heavy drop does that much more damage and
 Both drops swell as they fly, rounding into a ball that grows (up to 2.4x / 3x) and gets thinner and see-through: easier to
 hit with, but weaker (down to 60% / 55% of the damage).
 
+**CANTOR**, the resonance ship (`art/ships/cantor/`, own recorded notes). Five grooves, each with its own note and colour.
+Button 1: the middle groove sounds one note, a pulse straight ahead (8). Button 2: a chord. While it charges, each groove
+lights in turn, plays its note and takes the heading the nose has then (a dashed line shows it); then all five bolts leave
+together (9 each), each on its own line. Hold still for five parallel bolts, turn while it charges to fan them out.
+No magic yet.
+
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.
 It is only for trying them: the choice is not saved, and in the real game each player has the one ship from the gift,

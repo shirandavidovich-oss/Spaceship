@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("twenty-one ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 21);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 21);
+ok("twenty-two ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 22);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 22);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -352,6 +352,17 @@ ok("VANTA's drop through the planet: straight through the middle, a graze, a mis
   const g = phaseChord(-10, 1.9, 1, 0, 0, 0, 2); assert(g && g.exit - g.entry < 1.3);
   assert.strictEqual(phaseChord(-10, 2.5, 1, 0, 0, 0, 2), null);
   assert.strictEqual(phaseChord(10, 0, 1, 0, 0, 0, 2), null);
+});
+ok("CANTOR (cantor-layout.json): the pulse at 88 of 278 ms; the chord's notes at 120-660, released at 850 of 1,170", () => {
+  const S = SHIPS.find((s) => s.id === "cantor"), A = S.anim, px = (v) => Math.round(v / A.size * 512 + 256);
+  assert.strictEqual(seqLength(A.primary), 278); assert.strictEqual(cueTime(A.primary, "left"), 88);
+  assert.strictEqual(seqLength(A.secondary), 1170); assert.strictEqual(cueTime(A.secondary, "fire"), 850);
+  assert.strictEqual(WEAPONS.chord.notes.join(), "120,255,390,525,660");
+  assert.strictEqual(JSON.stringify(gunsOf(S, "chord").map(([x, y]) => [px(x), px(y)])), "[[114,111],[183,82],[256,66],[329,82],[398,111]]");
+  assert.strictEqual(px(gunsOf(S, "tone")[0][1]), 66);
+  const dir = path.join(__dirname, "../app/src/main/assets/art/ships/cantor");
+  for (const f of [A.idle, ...A.shotArt.chord.files, ...[A.primary, A.secondary].flatMap((q) => q.map((x) => x[0]))]) assert(fs.existsSync(path.join(dir, f)), f);
+  for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
