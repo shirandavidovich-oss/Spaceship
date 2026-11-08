@@ -19,7 +19,8 @@ Stars, the black hole and the lava planet burn a ship that touches them; planets
 The list is `BODIES` in the game.
 
 An enemy ship flies with you: it chases you, keeps a little distance and stays off the planet,
-using the same flying rules as you. The view zooms out to keep both ships on screen.
+using the same flying rules as you. It shoots at you when its nose points your way and you are close enough, with its own
+ship's plain weapon (others use the twin cannon), slower and weaker than a player (`ENEMY_FIRE`, `ENEMY_DMG`; `ENEMY_GUNS = false` = it only flies). The view zooms out to keep both ships on screen.
 
 **Weapons (right thumb):** button 1 and button 2 are the ship's own two weapons; hold to keep firing.
 The ring around each button is its ammo, and it refills by itself. Shoot the enemy until its health bar
@@ -88,7 +89,10 @@ whole screen that shakes both ships and takes 35 health from the enemy wherever 
 Button 2 opens its jaw: for 1.5 s, enemy shots flying into its mouth are caught (side and back shots are not), up to 5;
 it slams shut when full, when time is up, or on a second tap. Loaded, the mouth glows by how many it holds (dots on the button),
 and the next tap spits them all back as a fanned salvo of hot fossils (14 each). In a duel the shooter's phone sees its shot
-fly into the open mouth and tells the other phone. The computer enemy does not shoot yet, so there is nothing to catch from it. No magic yet.
+fly into the open mouth and tells the other phone. Every shot it catches also powers up its shards (+35% damage a level, up to 5, ember dots under button 1, for 15 s after the
+last catch; the shards grow and burn). Its magic (a jaw with a chain): the jaw shoots out on chains at an enemy within 4.5
+ship-lengths, opens wide, clamps on and bites it 3 times (10 each), holding it still, then reels back in. In a duel the bitten
+ship is held on its own phone too.
 
 **DRAKON**, the rift return ship (`art/ships/drakon/`, own recorded sounds). Button 1: a double pulse, two pink bolts
 from one press. Button 2, the rift: the first press marks the spot where the ship is (a turning pink diamond that stays put

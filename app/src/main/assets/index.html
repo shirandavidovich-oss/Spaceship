@@ -28,7 +28,10 @@ const STEER      = "point"; // "point": tip the phone toward where the nose shou
 const PULL       = 0.45; // the planet's pull within one screen of it (screens per second, each second); weaker further out. Keep below 0.6
 const PLANET_R   = 0.5;  // planet radius, in screen-widths
 const UNLOCK     = 0.2;  // after the fuel runs out, the button comes back when the tank is this full again
-const ENEMY      = true; // an enemy ship flies with you (for now it only flies, no weapons yet)
+const ENEMY      = true; // an enemy ship flies with you, and shoots at you
+const ENEMY_GUNS = true; // the enemy shoots (false = it only flies)
+const ENEMY_FIRE = 0.4;  // how fast it shoots, compared with a player holding the same button (1 = as fast)
+const ENEMY_DMG  = 0.6;  // how hard its shots hit, compared with the same shots from a player
 const ENEMY_KEEP = 0.9;  // how close the enemy likes to stay to you, in screen-widths
 const ZOOM_MIN   = 0.4;  // like Star Control: the view zooms out (down to this much) to keep both ships on screen
 const TRY_SHIP   = "";     // everyone flies this ship (for testing). "" = the gift's surprise, as in the real game
@@ -207,7 +210,8 @@ const SHIPS = [
   // Button 1: bone shards from both side muzzles at 76 ms (2 a muzzle, a little spread). Button 2: the jaw opens;
   // for 1.5 s it catches enemy shots flying into its mouth (up to 5); it slams shut when full, when time is up or on
   // a second tap. Loaded, the mouth glows by how many it holds; the next tap spits them all back as a salvo.
-  { id: "skarn", name: "SKARN", rarity: "epic", mass: 1.3, fuel: 30, refill: 15, sfx: "skarn",
+  // magic: devour (its jaw flies out on chains to the enemy, opens wide and bites it)
+  { id: "skarn", name: "SKARN", rarity: "epic", mass: 1.3, fuel: 30, refill: 15, sfx: "skarn", magic: "devour",
     sfxNames: ["jaw_open", "jaw_slam", "projectile_catch", "shards_fire", "shards_prime", "spit_fire", "spit_windup"],
     hull: "#e6cfa8", wingC: "#2b2626", trim: "#ff6a3d", flame: "#ff7a3d",
     body: [], wing: [], nozzles: [-0.13, 0.13], engineY: 0.34, cockpit: [0, -0.2, 0.05, 0.1],
@@ -221,7 +225,8 @@ const SHIPS = [
       spit: frames("spit", 8, () => 45, { 4: "fire" }),                                            // 360 ms, the salvo at 135
       loaded: [1, 2, 3, 4, 5].map((n) => "loaded_" + n + ".webp"),
       // the trap: art pixels in front of the center (forward 84-180, side up to 68 + a bit more further out)
-      trap: { near: 84, far: 180, side: 68, flare: 0.28, catch: 1.5, max: 5 } } },
+      trap: { near: 84, far: 180, side: 68, flare: 0.28, catch: 1.5, max: 5 },
+      jaw: "jaw.webp" } },   // one jaw bar with its teeth (the flying mouth is two of them, one turned over)
   // DRAKON, the rift return ship (art/ships/drakon/, 512 x 512, center pivot, nose up), from drakon-layout.json.
   // Button 1: a double pulse, two bolts from one press (at 54 and 138 ms). Button 2: the rift. First press marks the
   // spot where the ship is (a pink marker that stays put for 8 s). Fly off; press again: the seam in the hull opens,
@@ -305,6 +310,9 @@ const MAGIC = {
   // Keep charging without using that speed: at 6 the button is full, and the next tap is a blast of light that shakes
   // both ships and hurts the enemy wherever it is (`dmg`). Then `cool` seconds to recharge
   soak:  { name: "קציר אור", stage: 1.6, steer: 0.2, boost: 2, dmg: 35, cool: 10, look: "sun", color: "#ffcc63" },
+  // SKARN's devour: the jaw shoots out on chains to an enemy within `range` ship-lengths (`speed` screens a second),
+  // bites `bites` times (`dmg` each, `bite` seconds a bite) holding it, then reels back in
+  devour: { name: "בליעה בשלשלאות", range: 4.5, speed: 3.2, bites: 3, bite: 0.32, dmg: 10, cool: 10, look: "chain", color: "#ff6a3d" },
   tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 9.6, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
 };
 // VEXAR's tail pieces along a tail `total` art-pixels long (the art is 512 px per 1.2 ship-lengths):
@@ -326,6 +334,13 @@ function tailPieces(total) {
 }
 // SKARN's trap: is a point (art pixels from the ship's center: side, forward) inside the open mouth?
 function inTrap(T, side, forward) { return forward >= T.near && forward <= T.far && Math.abs(side) <= T.side + (forward - T.near) * T.flare; }
+// which of a ship's weapons the computer enemy can use: plain shots only (no eggs, rings, jaws, rifts, beams).
+// Its first weapon if it can, else the twin cannon; its second only if that is plain shots too
+function enemyGuns(S) {
+  const plain = (w) => WEAPONS[w] && !WEAPONS[w].egg && !WEAPONS[w].ring && !WEAPONS[w].trap && !WEAPONS[w].rift && !WEAPONS[w].beam && WEAPONS[w].speed > 0;
+  const [a, b] = weaponsOf(S);
+  return [plain(a) ? a : "twin", ...(plain(b) ? [b] : [])];
+}
 // ORIAN's soak: charges for `held` seconds of holding (whole charges count; 6 at most)
 function soakCharges(M, held) { return Math.min(6, Math.floor(held / M.stage)); }
 // ORIAN's mirrors t ms into the beam: how open each one is, how lit by the star, and where its center is
@@ -1157,6 +1172,15 @@ function useMagic() {
   const S = shipById(game.ship), M = magicOf(S);
   if (!M || game.magicCool > 0 || game.dead) return;
   if (M.look === "shatter") { useShatter(S, M); return; }
+  if (M.look === "chain") {   // SKARN: the jaw on chains (only while its mouth is shut)
+    if (game.devour || (game.trap && game.trap.mode !== "idle" && game.trap.mode !== "loaded")) return;
+    const m = mouthOf(game, S), locked = enemy.on && enemy.warp < 0.5 &&
+      Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < M.range * shipSize();
+    game.magicCool = M.cool;
+    game.devour = { phase: "out", t: 0, x: m.x, y: m.y, open: 0, locked, ang: game.ang, bites: 0 };
+    audio.sfx(S.sfx, "spit_windup"); audio.sfx(S.sfx, "jaw_open", 0.1); buzz(40);
+    return;
+  }
   if (M.look === "sun") {   // ORIAN: full -> the light blast; else holding the button charges (updateSoak)
     if (game.soak && game.soak.held >= 6 * M.stage) novaBlast(S, M);
     return;
@@ -1204,6 +1228,163 @@ function updateMagic(dt) {
   game.magicPour -= dt;
   // thick smoke pours from the engines and hangs in space
   if (Math.random() < 30 * dt) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, 2.6 + Math.random() * 1.5, M.hide - 0.5);
+}
+
+// ---------- SKARN's magic: the jaw on chains ----------
+function mouthOf(o, S) { const m = rotatePt(0, -0.38 * shipSize(), o.ang); return { x: o.x + m.x, y: o.y + m.y }; }
+function updateDevour(dt) {
+  const D = game.devour, S = shipById(game.ship), M = magicOf(S);
+  if (!D) return;
+  if (!M || M.look !== "chain" || game.dead) { game.devour = null; return; }
+  D.t += dt;
+  const size = shipSize(), mouth = mouthOf(game, S), sp = M.speed * U;
+  if (D.phase === "out") {
+    // flying at the enemy (or straight out, if none was near): the jaw opens as it closes in
+    let tx, ty;
+    if (D.locked && enemy.on) { tx = D.x + wrapDelta(enemy.x - D.x, WW); ty = D.y + wrapDelta(enemy.y - D.y, WH); }
+    else { tx = D.x + Math.sin(D.ang) * sp; ty = D.y - Math.cos(D.ang) * sp; }
+    const dx = tx - D.x, dy = ty - D.y, d = Math.hypot(dx, dy) || 1;
+    D.ang = Math.atan2(dx, -dy);
+    D.x += dx / d * Math.min(d, sp * dt); D.y += dy / d * Math.min(d, sp * dt);
+    D.open = Math.min(1, D.open + dt * 3);
+    const reach = Math.hypot(wrapDelta(D.x - mouth.x, WW), wrapDelta(D.y - mouth.y, WH));
+    if (D.locked && enemy.on && d < size * 0.45) { D.phase = "bite"; D.t = 0; audio.sfx(S.sfx, "projectile_catch"); }
+    else if (reach > M.range * size * 1.15 || D.t > 1.5) { D.phase = "back"; D.t = 0; }
+  } else if (D.phase === "bite") {
+    // it holds on: the enemy cannot fly; the jaw chomps again and again
+    if (!enemy.on) { D.phase = "back"; D.t = 0; return; }
+    D.x = enemy.x; D.y = enemy.y;
+    if (!enemy.remote) { enemy.vx = enemy.vy = 0; }
+    const k = Math.floor(D.t / M.bite);
+    D.open = Math.abs(Math.cos(Math.PI * (D.t / M.bite)));
+    if (k > D.bites - 0.5 && D.bites < M.bites && (D.t / M.bite) % 1 >= 0.5) {   // the jaw slams shut: a bite
+      D.bites++;
+      harmEnemy(M.dmg);
+      burstAt(enemy.x, enemy.y, 18, ["#ffffff", "#ff8a5a", "#e6cfa8", shipById(enemy.ship).hull], 0.45, 0.6, enemy.vx, enemy.vy);
+      audio.sfx(S.sfx, "jaw_slam"); audio.crunch(); shake(0.35); buzz(70);
+    }
+    if (D.bites >= M.bites && D.t > M.bite * M.bites + 0.1) { D.phase = "back"; D.t = 0; }
+  } else {
+    // reeled back in to the ship's mouth
+    D.open = Math.max(0, D.open - dt * 4);
+    const dx = wrapDelta(mouth.x - D.x, WW), dy = wrapDelta(mouth.y - D.y, WH), d = Math.hypot(dx, dy) || 1;
+    D.ang = Math.atan2(-dx, dy);
+    D.x += dx / d * Math.min(d, sp * 1.3 * dt); D.y += dy / d * Math.min(d, sp * 1.3 * dt);
+    if (d < size * 0.12) { game.devour = null; audio.sfx(S.sfx, "jaw_slam", 0, 0.5); }
+  }
+}
+// the chain (links from the ship's mouth to the jaw) and the flying jaw: two jaw bars, one turned over, teeth facing out
+function drawDevour(o, S, D) {
+  if (!D || !S.anim || !S.anim.jaw) return;
+  const size = shipSize(), m = mouthOf(o, S), a = toScreen(m.x, m.y), h = { x: a.x + wrapDelta(D.x - m.x, WW), y: a.y + wrapDelta(D.y - m.y, WH) };
+  const dx = h.x - a.x, dy = h.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
+  ctx.save();
+  const n = Math.max(2, Math.floor(d / (size * 0.085)));
+  for (let i = 0; i < n; i++) {   // the links: they swing a little, turned every other one
+    const u = (i + 0.5) / n, wob = Math.sin(u * Math.PI) * Math.sin(time * 9 + i * 0.4) * size * 0.05;
+    const x = a.x + dx * u + nx * wob, y = a.y + dy * u + ny * wob;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(dy, dx));
+    ctx.strokeStyle = "#1e1b1c"; ctx.lineWidth = size * 0.03;
+    ctx.beginPath(); ctx.ellipse(0, 0, size * 0.055, i % 2 ? size * 0.012 : size * 0.03, 0, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = i % 2 ? "#8a7a68" : "#c9b08a"; ctx.lineWidth = size * 0.014;
+    ctx.beginPath(); ctx.ellipse(0, 0, size * 0.055, i % 2 ? size * 0.012 : size * 0.03, 0, 0, TAU); ctx.stroke();
+    ctx.restore();
+  }
+  // the jaw: turned to face where it flies; the bars part as it opens
+  const jaw = artImage(framePath(S.anim.dir, S.anim.jaw)), w = size * 0.75, bh = w * 96 / 408, gap = size * 0.06 + D.open * size * 0.32;
+  ctx.translate(h.x, h.y); ctx.rotate(D.ang);
+  if (D.open > 0.05) {   // a hot glow in the open mouth
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, w * 0.5);
+    g.addColorStop(0, `rgba(255,177,110,${0.5 * D.open})`); g.addColorStop(1, "rgba(255,106,61,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, w * 0.5, gap * 0.6 + bh, 0, 0, TAU); ctx.fill();
+  }
+  ctx.fillStyle = "#26222a";   // the hinge plates at the sides
+  for (const sx of [-1, 1]) ctx.fillRect(sx * w * 0.5 - (sx > 0 ? size * 0.05 : 0), -gap / 2 - bh * 0.6, size * 0.05, gap + bh * 1.2);
+  if (jaw) {
+    ctx.drawImage(jaw, -w / 2, -gap / 2 - bh, w, bh);                     // upper bar, teeth down (toward the middle)
+    ctx.save(); ctx.scale(1, -1); ctx.drawImage(jaw, -w / 2, -gap / 2 - bh, w, bh); ctx.restore();   // lower bar, turned over
+  }
+  ctx.restore();
+}
+// the magic button: a jaw with a chain coming out of it. Recharging: dim, its rim fills back in
+function drawChainButton(b, M, ready, k) {
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (ready) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
+    gl.addColorStop(0, `rgba(255,106,61,${0.25 + 0.1 * Math.sin(time * 4)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#4a3f38"); bg.addColorStop(1, "#1a1614");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(255,106,61,0.15)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = M.color; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  ctx.globalAlpha = ready ? 1 : 0.5;
+  const open = ready ? 0.5 + 0.5 * Math.sin(time * 3) : 0.2;
+  // the chain, from the lower left
+  ctx.strokeStyle = "#c9b08a"; ctx.lineWidth = b.r * 0.07;
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.ellipse(-b.r * 0.45 + i * b.r * 0.16, b.r * 0.45 - i * b.r * 0.16, b.r * 0.1, i % 2 ? b.r * 0.04 : b.r * 0.07, -0.78, 0, TAU); ctx.stroke(); }
+  // the jaw, upper right, opening and closing
+  ctx.translate(b.r * 0.12, -b.r * 0.12); ctx.rotate(-0.78 + Math.PI / 2);
+  ctx.fillStyle = "#e6cfa8";
+  for (const sy of [-1, 1]) {
+    const y = sy * (b.r * 0.06 + open * b.r * 0.14);
+    ctx.fillRect(-b.r * 0.38, y - (sy < 0 ? b.r * 0.12 : 0), b.r * 0.76, b.r * 0.12);
+    for (let i = 0; i < 4; i++) { const x = -b.r * 0.3 + i * b.r * 0.2; ctx.beginPath(); ctx.moveTo(x - b.r * 0.06, y); ctx.lineTo(x, y - sy * b.r * 0.12); ctx.lineTo(x + b.r * 0.06, y); ctx.fill(); }
+  }
+  ctx.restore();
+}
+
+// ---------- the enemy's guns ----------
+// it fires when its nose points near you and you are close enough (not while it cannot see you in the smoke)
+const eshots = [];
+function enemyShoot(dt) {
+  if (!ENEMY_GUNS || enemy.remote || !enemy.on || enemy.warp > 0.2 || game.dead || !enemySees(game.hidden) || game.stage !== "fly") return;
+  if ((game.grind && game.grind.phase !== "release") || (game.devour && game.devour.phase === "bite")) return;   // held: it cannot shoot
+  const E = shipById(enemy.ship), guns = enemyGuns(E);
+  enemy.cool = enemy.cool || [0, 0]; enemy.ammo = enemy.ammo || guns.map((w) => WEAPONS[w].ammo);
+  const dx = wrapDelta(game.x - enemy.x, WW), dy = wrapDelta(game.y - enemy.y, WH), d = Math.hypot(dx, dy);
+  const off = Math.abs(wrapAngle(Math.atan2(dx, -dy) - enemy.ang));
+  guns.forEach((w, i) => {
+    const Wp = WEAPONS[w];
+    enemy.cool[i] = Math.max(0, enemy.cool[i] - dt);
+    enemy.ammo[i] = ammoStep(enemy.ammo[i], Wp, dt);
+    const reach = Wp.speed * U * Wp.life * 0.85;
+    if (enemy.cool[i] > 0 || enemy.ammo[i] < 1 || d > reach || off > (Wp.homing ? 0.9 : 0.3)) return;
+    enemy.cool[i] = Wp.cool / ENEMY_FIRE * (0.8 + Math.random() * 0.5) * (i ? 2.5 : 1);
+    enemy.ammo[i] -= 1;
+    const gs = gunsOf(E, w), g = gs[(enemy.barrel = (enemy.barrel || 0) + 1) % gs.length], size = shipSize();
+    const art = E.anim && E.anim.shotArt && E.anim.shotArt[w];
+    for (const gg of Wp.both ? gs : [g]) {
+      const m = rotatePt(gg[0] * size, gg[1] * size, enemy.ang);
+      for (const a of pelletAngles(Wp)) {
+        const dir = enemy.ang + a + (Math.random() - 0.5) * 0.06, v = Wp.speed * U;
+        eshots.push({ w, x: enemy.x + m.x, y: enemy.y + m.y, vx: enemy.vx + Math.sin(dir) * v, vy: enemy.vy - Math.cos(dir) * v, life: 0,
+          art: art ? { src: framePath(E.anim.dir, art.file), d: art.size, spin: art.spin || 0 } : null });
+      }
+    }
+    if (d < U * 1.4) audio.shot(w);
+  });
+}
+function updateEnemyShots(dt) {
+  const size = shipSize(), S = shipById(game.ship);
+  for (let k = eshots.length - 1; k >= 0; k--) {
+    const s = eshots[k], Wp = WEAPONS[s.w];
+    s.life += dt;
+    if (Wp.homing && !game.dead && s.life > 0.12) { const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), Wp.homing * 0.6 * dt); s.vx = t.vx; s.vy = t.vy; }
+    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), body().pull); s.vx += g.ax * dt; s.vy += g.ay * dt; }
+    s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
+    if (s.life > Wp.life || Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR()) { eshots.splice(k, 1); continue; }
+    // SKARN's open jaw: caught (and it powers up SKARN's shards)
+    if (trapOpen() && inMouth(game, S, s, dt)) { trapGain(s.x, s.y); eshots.splice(k, 1); continue; }
+    // into your ship
+    if (!game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < size * 0.42 * shipScale() + Wp.r * size) {
+      burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 6, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);
+      damageShip(Math.max(1, Math.round(Wp.dmg * ENEMY_DMG)));
+      eshots.splice(k, 1);
+    }
+  }
 }
 
 // ---------- DRAKON's rift: mark a spot, jump back to it ----------
@@ -1287,6 +1468,9 @@ function drawRiftBursts() {
 }
 
 // ---------- SKARN's jaw: catching shots and spitting them back ----------
+// each shot it catches also powers up its shards (button 1): +35% damage a level, up to 5 levels, for POWER_TIME
+// seconds after the last catch. The shards grow and glow redder with it
+const POWER_TIME = 15, POWER_STEP = 0.35;
 // game.trap: { mode: idle | opening | catch | slam | loaded | spit, t: seconds in this mode, stored: shots held }
 function trapOf() { const S = shipById(game.ship); return S.anim && S.anim.trap ? (game.trap || (game.trap = { mode: "idle", t: 0, stored: 0 })) : null; }
 function trapPress() {
@@ -1305,6 +1489,7 @@ function updateTrap(dt) {
   if (!T) { game.trap = null; return; }
   const P = S.anim.trap;
   T.t += dt;
+  if (T.power > 0) { T.powerT -= dt; if (T.powerT <= 0) T.power = 0; }
   if (T.mode === "opening" && T.t >= 0.235) { T.mode = "catch"; T.t = 0; }
   if (T.mode === "catch") {
     if (!game.anim || game.anim.seq !== "open") game.anim = { seq: "open", t: 240 };
@@ -1333,6 +1518,7 @@ function trapGain(x, y) {
   const T = game.trap, S = shipById(game.ship);
   if (!T || T.mode !== "catch" || T.stored >= S.anim.trap.max) return;
   T.stored++;
+  T.power = Math.min(S.anim.trap.max, (T.power || 0) + 1); T.powerT = POWER_TIME;   // every catch powers up the shards
   audio.sfx(S.sfx, "projectile_catch"); buzz(25);
   burstAt(x, y, 10, ["#ffffff", "#ff8a5a", "#f2dcc0"], 0.25, 0.4, game.vx, game.vy);
   if (T.stored >= S.anim.trap.max) trapClose();
@@ -1924,6 +2110,7 @@ const enemy = { on: false, ship: null, x: 0, y: 0, vx: 0, vy: 0, ang: 0, spin: 0
   hp: ENEMY_HP, hurt: 0, respawn: 0 };
 function spawnEnemy() {
   if (!ENEMY) return;
+  enemy.cool = null; enemy.ammo = null;   // a new enemy comes with full guns
   setBody(nextBody(cosmos.body), cosmos.started);   // each round: a new thing in the middle
   cosmos.started = true;
   const others = SHIPS.filter((s) => s.id !== game.ship);
@@ -1959,8 +2146,9 @@ function updateEnemy(dt) {
     enemy.ghostX += Math.sin(time * 0.7) * U * 0.6 * dt; enemy.ghostY += Math.cos(time * 0.5) * U * 0.6 * dt;
     prey = { x: enemy.ghostX, y: enemy.ghostY, vx: 0, vy: 0 };
   }
-  // held by LYTH's beam: it cannot fly (the grinder moves it)
+  // held by LYTH's beam (the grinder moves it) or in SKARN's jaw: it cannot fly
   if (game.grind && game.grind.phase !== "release") return;
+  if (game.devour && game.devour.phase === "bite") return;
   const c = enemyControl(enemy, prey, shipStats(E), { ww: WW, wh: WH, u: U, planetR: planetR() });
   moveShip(enemy, E, c, dt);
   if (!game.dead) bumpShips(game, shipById(game.ship), enemy, E);
@@ -2006,7 +2194,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -2048,6 +2236,7 @@ function updateWeapons(dt) {
   if (!game.dead) updateSoak(dt);
   if (!game.dead) updateTrap(dt);
   updateRift(dt); updateRiftBursts(dt);
+  enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
     if (i === 1 && slotWeapon(1) && (WEAPONS[slotWeapon(1)].trap || WEAPONS[slotWeapon(1)].rift)) {   // SKARN's jaw, DRAKON's rift: each new press is one input
@@ -2126,10 +2315,11 @@ function spawnShots(w, g) {
   const m = rotatePt(g[0] * size, g[1] * size, game.ang);
   const x = game.x + m.x, y = game.y + m.y;
   if (Wp.egg) { layEgg(x, y, Wp, S); return; }
+  const pow = w === "spike" && game.trap ? game.trap.power || 0 : 0;   // SKARN's powered-up shards
   if (Wp.beam) { game.beam = { w, t: 0, ang: game.ang, hit: false }; duelSend({ t: "bm", a: +game.ang.toFixed(3) }); shake(0.3); buzz(90); return; }
   for (const a of pelletAngles(Wp)) {
     const dir = game.ang + a, v = Wp.speed * U;
-    shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * v, vy: game.vy - Math.cos(dir) * v, life: 0 });
+    shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * v, vy: game.vy - Math.cos(dir) * v, life: 0, pow });
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
   if (!S.anim) burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
@@ -2369,7 +2559,7 @@ function hitEnemy(s, Wp) {
   burstAt(s.x, s.y, Wp.dmg > 15 ? 22 : 6, [Wp.color, "#ffffff", E.trim], Wp.dmg > 15 ? 0.5 : 0.25, 0.7, enemy.vx, enemy.vy);
   if (Wp.dmg > 15) rings.push({ x: s.x, y: s.y, t: 0, max: 0.4, r: shipSize() * 0.6, c: Wp.color });
   audio.hit();
-  harmEnemy(Wp.dmg);
+  harmEnemy(Wp.dmg * (s.pow ? 1 + POWER_STEP * s.pow : 1));
 }
 
 function destroyEnemy() {
@@ -2769,6 +2959,7 @@ function draw() {
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0 });
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
+      if (shown === S) drawDevour(game, S, game.devour);
       drawRange();
       drawRing(game.ring, S);
       if (game.arriveT > 0) {   // coming back after blowing up: a flash
@@ -2778,6 +2969,7 @@ function draw() {
     }
     drawShots();
     drawShots(duel.shots);
+    drawShots(eshots);
     drawEggs();
     drawRiftMark(); drawRiftBursts();
     drawChips(); drawPieces();
@@ -2993,6 +3185,7 @@ function drawEnemy() {
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (enemy.remote) drawRing(duel.ring, E);
+    if (enemy.remote) drawDevour(enemy, E, duel.devour);
     if (enemy.remote) {
       const sk = duel.net && duel.net.sk;
       drawStarlight(enemy, E, enemy.anim, sk && sk[2] ? 0.5 + sk[0] : 0); drawBeam2(enemy, E, duel.beam);
@@ -3122,8 +3315,9 @@ function drawShots(list = shots) {
       ctx.fillStyle = "#ffe9ff"; ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(3, -1); ctx.lineTo(0, 15); ctx.lineTo(-3, -1); ctx.closePath(); ctx.fill();
       ctx.restore();
     } else if (s.w === "spike") {
-      // a bone shard with an ember-red tip
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(uy, ux)); const l = size * 0.1;
+      // a bone shard with an ember-red tip (powered up: bigger, wrapped in fire)
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(uy, ux)); const l = size * 0.1 * (1 + 0.15 * (s.pow || 0));
+      if (s.pow) { const g = ctx.createRadialGradient(0, 0, 0, 0, 0, l * 0.9); g.addColorStop(0, `rgba(255,140,60,${0.25 + 0.1 * s.pow})`); g.addColorStop(1, "rgba(255,80,30,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, l * 0.9, 0, TAU); ctx.fill(); }
       ctx.fillStyle = "rgba(255,106,61,0.3)"; ctx.beginPath(); ctx.ellipse(-l * 0.2, 0, l * 0.7, l * 0.2, 0, 0, TAU); ctx.fill();
       ctx.fillStyle = "#f2dcc0"; ctx.beginPath(); ctx.moveTo(l * 0.5, 0); ctx.lineTo(-l * 0.3, l * 0.1); ctx.lineTo(-l * 0.45, 0); ctx.lineTo(-l * 0.3, -l * 0.1); ctx.closePath(); ctx.fill();
       ctx.fillStyle = "#ff6a3d"; ctx.beginPath(); ctx.arc(l * 0.42, 0, l * 0.08, 0, TAU); ctx.fill();
@@ -3297,6 +3491,13 @@ function drawFire() {
     ctx.strokeStyle = "rgba(255,255,255,0.12)"; ctx.beginPath(); ctx.arc(b.x, b.y, r * 0.9, 0, TAU); ctx.stroke();
     ctx.strokeStyle = Wp.color; ctx.beginPath(); ctx.arc(b.x, b.y, r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(ammo / Wp.ammo, 0, 1)); ctx.stroke();
     weaponIcon(w, b.x, b.y, r * 0.42, ready ? "#ffffff" : "#9a9aa8");
+    // SKARN's shards powered up by catches: ember dots under the icon, fading as the power runs out
+    if (w === "spike" && game.trap && game.trap.power > 0) {
+      const n = game.trap.power;
+      ctx.globalAlpha = Math.min(1, game.trap.powerT / 3) * (0.75 + 0.25 * Math.sin(time * 6));
+      for (let j = 0; j < n; j++) { ctx.fillStyle = "#ff8a5a"; ctx.beginPath(); ctx.arc(b.x + (j - (n - 1) / 2) * r * 0.24, b.y + r * 0.68, r * 0.08, 0, TAU); ctx.fill(); }
+      ctx.globalAlpha = 1;
+    }
     // button 3 just arrived: a sparkle ring around it
     if (b.i === 2 && game.loot && game.loot.show < 1) {
       ctx.globalAlpha = 1 - game.loot.show; ctx.strokeStyle = Wp.color; ctx.lineWidth = 3;
@@ -3317,6 +3518,7 @@ function drawMagic() {
   if (M.look === "grinder") drawGrinderButton(b, M, ready, k);
   if (M.look === "shatter") drawShatterButton(b, M, ready, k);
   if (M.look === "sun") drawSunButton(b, M, ready, k);
+  if (M.look === "chain") drawChainButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
     // a magic glow when ready
@@ -3738,7 +3940,7 @@ function duelLink(event, data) {
     // the bigger random number takes the bottom side
     duel.side = duel.me > m.r ? 1 : 0;
     if (duel.side === 1 && BODIES[m.b]) setBody(m.b);   // both fight around the same body: the top player's
-    duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.outDmg = 0;
+    duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.outDmg = 0; eshots.length = 0;
     duel.shots.length = 0; duel.tail = null; duel.net = null;
     for (let k = eggs.length - 1; k >= 0; k--) eggs.splice(k, 1);
     hunters.length = 0; shots.length = 0; crate.on = false;
@@ -3829,6 +4031,13 @@ function updateRival(dt) {
     enemy.talus = { stage: st, scale: sc, ring: rg, colors: cols ? cols.split(",") : [], t: tt };
     if (st > was) spawnChips(enemy, shipSize() * sc, enemy.talus.colors[st - 1] || "#e8dcc4");
   } else enemy.talus = null;
+  // their SKARN's jaw on chains: shown here; while it bites, my ship is held in it (their phone sends the damage)
+  duel.devour = n.dv ? { phase: n.dv[0], x: n.dv[1] * WW, y: n.dv[2] * WH, open: n.dv[3], ang: n.dv[4] } : null;
+  if (duel.devour && duel.devour.phase === "bite" && !game.dead) {
+    const kk = 1 - Math.exp(-dt * 12);
+    game.x = (((game.x + wrapDelta(duel.devour.x - game.x, WW) * kk) % WW) + WW) % WW; game.y = (((game.y + wrapDelta(duel.devour.y - game.y, WH) * kk) % WH) + WH) % WH;
+    game.vx = game.vy = 0;
+  }
   // their LYTH caught me in its beam: my ship is pulled in and held against the teeth (their phone sends the damage)
   duel.grind = n.gr ? { phase: n.gr[0], spin: n.gr[1] + (n.gr[0] === "grind" ? 16 * age : 0), teeth: n.gr[2] } : null;
   if (n.gr && !game.dead) {
@@ -3880,6 +4089,7 @@ function updateDuel(dt) {
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
       ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
       kn: game.trap ? game.trap.stored : 0, kc: trapOpen() ? 1 : 0,
+      dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
       gr: game.grind ? [game.grind.phase, +game.grind.spin.toFixed(2), +game.grind.teeth.toFixed(2), +game.grind.nx.toFixed(3), +game.grind.ny.toFixed(3)] : 0 });
     duel.outDmg = 0;
@@ -3941,7 +4151,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id;
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();
