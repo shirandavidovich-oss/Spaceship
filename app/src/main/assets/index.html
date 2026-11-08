@@ -238,7 +238,9 @@ const SHIPS = [
   // Button 1: a double pulse, two bolts from one press (at 54 and 138 ms). Button 2: the rift. First press marks the
   // spot where the ship is (a pink marker that stays put for 8 s). Fly off; press again: the seam in the hull opens,
   // the marker blinks, and at 470 ms the ship jumps back to the mark, keeping its heading and speed.
-  { id: "drakon", name: "DRAKON", rarity: "epic", mass: 1.1, fuel: 30, refill: 15, sfx: "drakon",
+  // magic: split (once a life): the ship comes apart along its seam; the front piece with the crystal stays where it was
+  // as a bomb, and the ship flies on as its rear piece. The next tap (any time) blows the bomb up: a huge blast
+  { id: "drakon", name: "DRAKON", rarity: "epic", mass: 1.1, fuel: 30, refill: 15, sfx: "drakon", magic: "split",
     sfxNames: ["anchor_place", "double_pulse", "rift_charge", "rift_jump"],
     hull: "#3a3a44", wingC: "#1a1a20", trim: "#ff3fb0", flame: "#ff3fb0",
     // the two pink vents (183,448) and (272,448); the muzzle (305,54)
@@ -247,7 +249,8 @@ const SHIPS = [
     guns: { dpulse: [[0.11, -0.454]], rift: [[0, 0]] },
     anim: { dir: "drakon", size: 1.15, idle: "idle.webp",
       primary: frames("pulse", 6, (n) => [54, 41, 43, 42, 50, 40][n - 1], { 2: "bolt", 4: "bolt" }),   // 270 ms: bolts at 54 and 138
-      rift: frames("rift", 11, (n) => [90, 90, 90, 90, 110, 50, 50, 50, 70, 50, 50][n - 1], { 6: "jump" }) } },   // 790 ms, jump at 470
+      rift: frames("rift", 11, (n) => [90, 90, 90, 90, 110, 50, 50, 50, 70, 50, 50][n - 1], { 6: "jump" }),   // 790 ms, jump at 470
+      seam: [16, 0.8] } },   // its seam: y = 16 + 0.8 x (art pixels from the middle); the front piece is above it
   // XELTAR, the frozen squid (art/ships/xeltar/, 512 x 512, center pivot, nose up), from xeltar-layout.json.
   // Button 1: three small ice shards from the nose (at 78 ms). Button 2: its four arms curl round a growing ice crystal and
   // at 1,070 ms launch it BACKWARD from the stern (aim the stern at the target: turn the nose away). Magic: ink. The body
@@ -607,6 +610,9 @@ const MAGIC = {
   //   it flies backward along its last `rewind` s, in slow motion (`slow` of real speed), and its shots in the air fly
   //   back into its guns. It cannot steer or shoot meanwhile (a clock ticks). (`echo`: the old echo, unused)
   reassemble: { name: "הרכבה והחזרה בזמן", look: "reassemble", cool: 10, length: 1.85, echo: 3, rewind: 3, slow: 0.5, color: "#b48cff" },
+  // DRAKON's split: once a life. The bomb's blast reaches `blast` ship-lengths: `dmg` at its middle, down to `edge` at the
+  //   rim, and throws ships back up to `knock` screens a second. (Its own ship is not hurt)
+  split:   { name: "התפצלות", look: "split", cool: 0, blast: 4.5, dmg: 75, edge: 15, knock: 2.4, color: "#ff3fb0" },
   // NIMBUS's rainbow: an arc that flies out (`speed` ship-lengths a second for `life` s); touching a ship it does `dmg`
   //   once, and NIMBUS takes back `heal` health
   rainbow: { name: "קשת בענן", look: "rainbow", cool: 9, speed: 2.4, life: 1.25, dmg: 20, heal: 10, color: "#ffb3e6" },
@@ -1611,7 +1617,7 @@ function update(dt) {
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
-  rewindTicks(dt); updatePuff(dt); updateCinder(dt);
+  rewindTicks(dt); updatePuff(dt); updateCinder(dt); updateBombs(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
   updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
@@ -1901,6 +1907,17 @@ function useMagic(which = 0) {
     if (game.anim) return;
     game.magicCool = M.cool; game.anim = { seq: "vdeploy", t: 0 };
     audio.tone(160, 0.5, "sawtooth", 0.04, 2.5); audio.tone(1200, 0.06, "square", 0.03, 0.6, 0.4); buzz(40);
+    return;
+  }
+  if (M.look === "split") {   // DRAKON: come apart (the bomb stays), then blow the bomb up. Once a life
+    if (game.bomb) { blowBomb(); return; }
+    if (game.splitUsed) { audio.nope(); buzz(20); return; }
+    game.splitUsed = true;
+    game.bomb = { x: game.x, y: game.y, ang: game.ang, vx: game.vx * 0.3, vy: game.vy * 0.3, t: 0 };
+    duelSend({ t: "sp", x: +(game.x / WW).toFixed(5), y: +(game.y / WH).toFixed(5), a: +game.ang.toFixed(3) });
+    const n = rotatePt(-0.6, -0.75, game.ang); game.vx += n.x * U * 0.5; game.vy += n.y * U * 0.5;   // the rear piece pushes off
+    burstAt(game.x, game.y, 26, ["#ffffff", "#ff3fb0", "#ff9ad8"], 0.5, 0.7, game.vx, game.vy);
+    audio.sfx(S.sfx, "rift_charge", 0, 0.8); audio.sfx(S.sfx, "anchor_place", 0.15); shake(0.3); buzz(80);
     return;
   }
   if (M.look === "rainbow") {   // NIMBUS: the cloud banks lift, and the rainbow flies at their "rain" frame
@@ -3578,7 +3595,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null;
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -4225,11 +4242,17 @@ function drawShip(S, x, y, size, o = {}) {
   // Grinding: the hull, and the ring drawn on its own, spinning, with its teeth out
   const ringAway = o.ring === "out" || o.ring === "back" || !!o.grind;
   if (ringAway && S.anim && S.anim.hull) img = artImage(framePath(S.anim.dir, S.anim.hull)) || img;
+  const halfClip = img && o.half && S.anim && S.anim.seam;
+  if (halfClip) {   // DRAKON split: only one piece of it (cut along its seam)
+    const k = S.anim.size / 512, [c, sl] = S.anim.seam, y0 = (c + -300 * sl) * k, y1 = (c + 300 * sl) * k, far = o.half === "front" ? -2 : 2;
+    ctx.save(); ctx.beginPath(); ctx.moveTo(-300 * k, y0); ctx.lineTo(300 * k, y1); ctx.lineTo(300 * k, far); ctx.lineTo(-300 * k, far); ctx.closePath(); ctx.clip();
+  }
   if (img) {
     // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
     // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
     const k = S.anim ? S.anim.size / img.width : 1 / Math.max(img.width, img.height);
     ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
+    if (halfClip) ctx.restore();
     if (S.anim && S.anim.ribbon && img === artImage(framePath(S.anim.dir, S.anim.ribbon))) drawRibbon(S, o.tint || 0);
     // TALUS just took in new rock: a brief red glow
     if (o.talus && o.talus.t > GROW.fly && o.talus.t < GROW.glow) {
@@ -4424,6 +4447,79 @@ function drawWavesButton(b, M, ready, k) {
   ctx.restore();
 }
 
+// ---------- DRAKON: the split and the bomb ----------
+const bombs = [];   // theirs (duel), only shown: { x, y, ang, vx, vy, t }
+function updateBombs(dt) {
+  for (const B of [game.bomb, ...bombs]) {
+    if (!B) continue;
+    B.t += dt; const k = Math.exp(-dt * 0.8); B.vx *= k; B.vy *= k;
+    B.x = (((B.x + B.vx * dt) % WW) + WW) % WW; B.y = (((B.y + B.vy * dt) % WH) + WH) % WH; B.ang += dt * 0.25;
+  }
+}
+// the bomb's middle (the front piece's middle, not the ship's)
+function bombCenter(B) { const m = rotatePt(0.1 * shipSize(), -0.24 * shipSize(), B.ang); return { x: B.x + m.x, y: B.y + m.y }; }
+function blowBomb() {
+  const B = game.bomb, M = MAGIC.split;
+  if (!B) return;
+  game.bomb = null;
+  const c = bombCenter(B);
+  duelSend({ t: "bx", x: +(c.x / WW).toFixed(5), y: +(c.y / WH).toFixed(5) });
+  bigBlast(c, M);
+  if (!enemy.on || enemy.warp >= 0.5) return;
+  const size = shipSize(), dx = wrapDelta(enemy.x - c.x, WW), dy = wrapDelta(enemy.y - c.y, WH), d = Math.hypot(dx, dy), R = M.blast * size;
+  if (d > R + size * 0.4) return;
+  const f = Math.max(0, Math.min(1, 1 - (d - size * 0.4) / R)), nx = d ? dx / d : 0, ny = d ? dy / d : -1;
+  harmEnemy(Math.round(M.edge + (M.dmg - M.edge) * f)); enemy.hurt = 0.4;
+  if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + nx * M.knock * (0.4 + 0.6 * f), vy: enemy.vy / U + ny * M.knock * (0.4 + 0.6 * f) });
+  else { enemy.vx += nx * M.knock * (0.4 + 0.6 * f) * U; enemy.vy += ny * M.knock * (0.4 + 0.6 * f) * U; enemy.spin = 6; }
+}
+// the blast: a white flash, three rings racing out to its reach, a cloud of pink and white sparks, a long shake
+function bigBlast(c, M) {
+  const size = shipSize(), R = M.blast * size;
+  burstAt(c.x, c.y, 140, ["#ffffff", "#ffd2f0", "#ff3fb0", "#ff9ad8", "#7a2a6a"], 2.2, 1.6);
+  burstAt(c.x, c.y, 50, ["#ffffff", "#fff3b0"], 0.9, 2.2);
+  rings.push({ x: c.x, y: c.y, t: 0, max: 0.6, r: R, c: "#ff3fb0" }, { x: c.x, y: c.y, t: -0.08, max: 0.75, r: R * 1.1, c: "#ffffff" }, { x: c.x, y: c.y, t: -0.18, max: 0.9, r: R * 0.7, c: "#ff9ad8" });
+  game.flash = 0.35; audio.boom(); audio.boom(); audio.noise(1.2, 0.35, 600); shake(1.6); buzz(400);
+}
+// the bomb: the front piece where it was left, its crystal blinking faster as time goes on, a warning ring round it
+function drawBomb(B) {
+  if (!B) return;
+  const S = shipById("drakon"), p = toScreen(B.x, B.y), c = toScreen(...Object.values(bombCenter(B))), size = shipSize(), blink = 0.5 + 0.5 * Math.sin(time * (6 + Math.min(10, B.t)));
+  ctx.save();
+  const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, size * 0.6); g.addColorStop(0, `rgba(255,63,176,${0.35 + 0.4 * blink})`); g.addColorStop(1, "rgba(255,63,176,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.x, c.y, size * 0.6, 0, TAU); ctx.fill();
+  ctx.setLineDash([size * 0.06, size * 0.06]); ctx.lineDashOffset = -time * 30; ctx.strokeStyle = `rgba(255,63,176,${0.3 + 0.3 * blink})`; ctx.lineWidth = Math.max(1.5, size * 0.02);
+  ctx.beginPath(); ctx.arc(c.x, c.y, size * 0.75, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
+  drawShip(S, p.x, p.y, size, { ang: B.ang, power: 0, bank: 0, half: "front" });
+}
+// DRAKON's magic button: whole: the ship with a crack down it. Split: a bomb to press. Used: dark
+function drawSplitButton(b, M) {
+  const armed = !!game.bomb, used = game.splitUsed && !armed;
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (!used) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.7);
+    gl.addColorStop(0, `rgba(255,63,176,${armed ? 0.4 + 0.25 * Math.sin(time * 10) : 0.25 + 0.1 * Math.sin(time * 3)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.7, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, armed ? "#6a1048" : "#3a3a44"); bg.addColorStop(1, "#0e0e12");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.strokeStyle = used ? "rgba(120,120,130,0.4)" : M.color; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.globalAlpha = used ? 0.3 : 1;
+  if (armed) {   // a bomb: a round body, a fuse with a spark
+    ctx.fillStyle = "#1a1a20"; ctx.beginPath(); ctx.arc(-b.r * 0.06, b.r * 0.1, b.r * 0.4, 0, TAU); ctx.fill();
+    ctx.strokeStyle = "#ff3fb0"; ctx.lineWidth = b.r * 0.06; ctx.stroke();
+    ctx.strokeStyle = "#c8c8d0"; ctx.lineWidth = b.r * 0.07; ctx.beginPath(); ctx.moveTo(b.r * 0.2, -b.r * 0.22); ctx.quadraticCurveTo(b.r * 0.35, -b.r * 0.5, b.r * 0.5, -b.r * 0.45); ctx.stroke();
+    starShape(b.r * 0.52, -b.r * 0.48, b.r * (0.12 + 0.05 * Math.sin(time * 20)));
+  } else {   // two pieces of the ship apart, a spark in the gap
+    ctx.fillStyle = "#4a4a56"; ctx.strokeStyle = "#ff3fb0"; ctx.lineWidth = b.r * 0.05;
+    ctx.beginPath(); ctx.moveTo(-b.r * 0.05, -b.r * 0.6); ctx.lineTo(b.r * 0.38, -b.r * 0.15); ctx.lineTo(b.r * 0.2, b.r * 0.12); ctx.lineTo(-b.r * 0.35, -b.r * 0.32); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-b.r * 0.45, -b.r * 0.18); ctx.lineTo(b.r * 0.08, b.r * 0.26); ctx.lineTo(-b.r * 0.12, b.r * 0.55); ctx.lineTo(-b.r * 0.48, b.r * 0.4); ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (!used) { ctx.fillStyle = "#ffd2f0"; starShape(-b.r * 0.12, -b.r * 0.06, b.r * 0.1); }
+  }
+  ctx.restore();
+}
 // ---------- CINDER: the side slip and the torpedo's blast ----------
 // game.dash2: { t, dir, kicked } (dash was taken by KRAAL)
 function cinderSlip(M) {
@@ -5615,7 +5711,7 @@ function draw() {
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
-          rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
+          half: shown === S && game.splitUsed ? "rear" : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
       if (shown === S) drawDevour(game, S, game.devour);
@@ -5645,7 +5741,7 @@ function draw() {
     drawShots(eshots);
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
-    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawReso(game.reso); drawReso(duel.reso);
+    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -5663,6 +5759,7 @@ function draw() {
     drawRadar();
     drawHealth();
     drawScrambleNote(); drawHackNote();
+    if (game.flash > 0) { ctx.save(); ctx.globalAlpha = Math.min(0.7, game.flash * 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
     drawDuel();
     drawHangarButton(); drawFleetBtn(); drawScore(); drawBounty();
@@ -5863,7 +5960,7 @@ function drawEnemy() {
     if (enemy.remote) drawTail(duel.tail, E);
     const esc = enemy.remote && enemy.talus ? enemy.talus.scale : 1;
     if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
-    drawShip(E, p.x, p.y, size * esc, { cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? enemy.hullTurn || 0 : 0),
+    drawShip(E, p.x, p.y, size * esc, { half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? enemy.hullTurn || 0 : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
@@ -6400,6 +6497,7 @@ function drawMagicButton(b, M, ready, k) {
   if (M.look === "reassemble") drawRepriseButton(b, M, ready, k);
   if (M.look === "inflate") drawPuffButton(b, M, ready, k);
   if (M.look === "dash") drawDashButton(b, M, ready, k);
+  if (M.look === "split") drawSplitButton(b, M);
   if (M.look === "rainbow") drawRainbowButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
@@ -6854,6 +6952,10 @@ function duelLink(event, data) {
     clouds.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, ship: m.s, remote: true }); audio.sfx("xeltar", "ink_release", 0, 0.7);
   } else if (m.t === "th" && Array.isArray(m.p)) {   // their ZORIAN sealed a thread: shown here (their phone counts a crossing)
     duel.thread = { w: m.w, t: m.at, paths: m.p.map((q) => q.map(([x, y]) => ({ x: x * WW, y: y * WH }))) };
+  } else if (m.t === "sp") {   // their DRAKON came apart: its bomb is here
+    bombs.length = 0; bombs.push({ x: m.x * WW, y: m.y * WH, ang: m.a, vx: 0, vy: 0, t: 0 }); audio.sfx("drakon", "rift_charge", 0, 0.6);
+  } else if (m.t === "bx") {   // their bomb went off (their phone sends the damage and the shove)
+    bombs.length = 0; bigBlast({ x: m.x * WW, y: m.y * WH }, MAGIC.split);
   } else if (m.t === "rw") {   // their REPRISE sent me back in time: along my last seconds, slowly; my shots too
     const H = game.rwHist || [];
     if (H.length > 1 && !game.dead) { game.rw = { hist: H.slice(), t: 0, slow: m.s || MAGIC.reassemble.slow }; game.rwHist = []; for (const q of shots) q.rw = true; game.thrust = null; buzz(150); }
@@ -7027,7 +7129,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
@@ -7261,7 +7363,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id;
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();

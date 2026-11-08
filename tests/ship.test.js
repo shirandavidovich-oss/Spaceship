@@ -468,6 +468,10 @@ ok("SKARN: the mouth stays open 4.5 s, sucks shots in, and each catch refills; X
   const X = SHIPS.find((s) => s.id === "xeltar").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships/xeltar");
   assert.strictEqual(X.swim.length, 3); for (const f of X.swim.flat()) assert(fs.existsSync(path.join(dir, f)), f);
 });
+ok("DRAKON's magic: split once a life, then a big blast", () => {
+  const S = SHIPS.find((s) => s.id === "drakon"); assert.strictEqual(S.magic, "split"); assert(S.anim.seam);
+  const M = MAGIC.split; assert(M.blast >= 3 && M.dmg > M.edge && M.edge > 0);
+});
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
   for (const f of [A.idle, A.hull, A.ring, ...A.primary.map((x) => x[0])]) assert(fs.existsSync(path.join(dir, f)), f);
