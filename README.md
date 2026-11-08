@@ -153,7 +153,7 @@ V shield: the panels swing forward into a V; while it is open, enemy shots reach
 they came (and can hit their owner). Right, the glitch slip: the panels slide past each other and the ship jumps 2.6
 ship-lengths sideways, leaving a flickering decoy for 2.5 s that the enemy goes after.
 
-**NIMBUS**, the stormfront ship (`art/ships/nimbus/`, own recorded sounds). At rest its cloud banks billow (a 32-frame loop). Little clouds drift over its banks; during the rainbow magic they light up in rainbow colours. Button 1: lightning charges along the spine,
+**NIMBUS**, the stormfront ship (`art/ships/nimbus/`, own recorded sounds). At rest its cloud banks billow (a 32-frame loop). Wisps of mist keep rising off its banks, swelling and thinning into nothing (a soft trail of cloud as it flies); during the rainbow magic they glow in pastel rainbow colours. Button 1: lightning charges along the spine,
 then a flickering bolt (14). Button 2: the cloud banks swell and a storm is let go ahead of the ship; it drifts on by
 itself and grows, its wind swirls other ships round it, and three marked lightning strikes hit where the warnings show
 (18 each). Then it stays on as a slowly turning thundercloud for about 3 minutes: a ship that comes near gets a

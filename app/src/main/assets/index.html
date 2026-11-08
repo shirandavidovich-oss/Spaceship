@@ -4872,29 +4872,47 @@ function drawRainbows() {
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(R.ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
   }
 }
-// NIMBUS's weather: small soft clouds drifting over its banks (turning with the ship). While the rainbow magic plays
-// (and a little after its release) each one glows a rainbow colour, the colours running round them
-const NIMBUS_CLOUDS = [[-0.3, -0.05, 0.16], [-0.2, 0.18, 0.13], [0.28, -0.02, 0.15], [0.22, 0.2, 0.13], [-0.12, -0.25, 0.11], [0.12, -0.24, 0.11], [0, 0.32, 0.12]];
+// NIMBUS's weather: wisps of mist keep rising off its cloud banks, swelling, drifting back and thinning into nothing,
+// so it leaves a soft trail of cloud as it flies. During the rainbow magic the new wisps glow in rainbow colours.
+// (One list for my NIMBUS, one for the enemy's.) Tuning: WISPS = wisps a second, WISP_LIFE = seconds, WISP_ALPHA = how thick
+const WISPS = 34, WISP_LIFE = [1.3, 2.4], WISP_ALPHA = 0.32;
 const RAINBOW_COLS = ["#ff5a5a", "#ffa040", "#ffe85a", "#6dff7a", "#5ad8ff", "#6a7dff", "#c86bff"];
-function drawNimbusClouds(x, y, size, ang, a) {
+const wisps = { me: [], enemy: [] };
+function drawNimbusClouds(o, a, who) {
+  const L = wisps[who], size = shipSize(), dt = frameDt || 0.016;
   const lit = a && a.seq === "rainbow" ? Math.sin(Math.min(1, a.t / 1320) * Math.PI) : 0;
-  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
-  NIMBUS_CLOUDS.forEach(([cx, cy, r], i) => {
-    const dx = Math.sin(time * 0.6 + i * 1.7) * 0.03, dy = Math.cos(time * 0.45 + i * 2.3) * 0.025, px = (cx + dx) * size, py = (cy + dy) * size, rr = r * size * (1 + 0.06 * Math.sin(time * 1.3 + i));
-    // the cloud: three soft white lobes
-    for (const [ox, oy, k] of [[-0.45, 0.1, 0.7], [0, -0.15, 0.9], [0.45, 0.1, 0.7]]) {
-      const g = ctx.createRadialGradient(px + ox * rr, py + oy * rr, 0, px + ox * rr, py + oy * rr, rr * k);
-      g.addColorStop(0, "rgba(255,255,255,0.55)"); g.addColorStop(0.6, "rgba(235,235,250,0.3)"); g.addColorStop(1, "rgba(220,220,240,0)");
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px + ox * rr, py + oy * rr, rr * k, 0, TAU); ctx.fill();
+  // new wisps: somewhere over the two banks (either side of the spine), pushed outward and back
+  o.wispAcc = (o.wispAcc || 0) + WISPS * dt;
+  for (; o.wispAcc >= 1; o.wispAcc--) {
+    const side = Math.random() < 0.5 ? -1 : 1, lx = side * (0.12 + Math.random() * 0.3), ly = -0.25 + Math.random() * 0.55;
+    const m = rotatePt(lx * size, ly * size, o.ang), out = rotatePt(side * (0.08 + Math.random() * 0.12) * size, (0.15 + Math.random() * 0.2) * size, o.ang);
+    L.push({ x: o.x + m.x, y: o.y + m.y, vx: o.vx * 0.55 + out.x, vy: o.vy * 0.55 + out.y, t: 0, life: WISP_LIFE[0] + Math.random() * (WISP_LIFE[1] - WISP_LIFE[0]),
+      r: (0.07 + Math.random() * 0.07) * size, spin: Math.random() * TAU, c: lit > 0.05 ? RAINBOW_COLS[Math.floor(Math.random() * RAINBOW_COLS.length)] : null, glow: lit });
+  }
+  if (L.length > 160) L.splice(0, L.length - 160);
+  ctx.save();
+  for (let i = L.length - 1; i >= 0; i--) {
+    const w = L[i];
+    w.t += dt;
+    if (w.t >= w.life) { L.splice(i, 1); continue; }
+    const k = Math.exp(-dt * 1.2); w.vx *= k; w.vy *= k;
+    w.x = (((w.x + w.vx * dt) % WW) + WW) % WW; w.y = (((w.y + w.vy * dt) % WH) + WH) % WH;
+    const u = w.t / w.life, a2 = WISP_ALPHA * Math.min(1, u * 5) * Math.pow(1 - u, 1.6), r = w.r * (1 + u * 2.4), p = toScreen(w.x, w.y);
+    // a soft, lumpy puff: three overlapping lobes that spread apart as it thins
+    for (let j = 0; j < 3; j++) {
+      const ang = w.spin + j * 2.1 + u * 0.8, d = r * (0.25 + u * 0.35), cx = p.x + Math.cos(ang) * d, cy = p.y + Math.sin(ang) * d, rr = r * (0.75 - j * 0.12);
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
+      g.addColorStop(0, `rgba(250,250,255,${a2})`); g.addColorStop(0.45, `rgba(230,228,248,${a2 * 0.55})`); g.addColorStop(1, "rgba(215,210,240,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, rr, 0, TAU); ctx.fill();
     }
-    if (lit > 0.01) {   // lit from inside in a rainbow colour
-      const c = RAINBOW_COLS[(i + Math.floor(time * 6)) % RAINBOW_COLS.length], pulse = 0.6 + 0.4 * Math.sin(time * 12 + i * 1.3);
-      ctx.save(); ctx.globalCompositeOperation = "lighter";
-      const g = ctx.createRadialGradient(px, py, 0, px, py, rr * 1.4);
-      g.addColorStop(0, hexA(c, 0.8 * lit * pulse)); g.addColorStop(0.5, hexA(c, 0.35 * lit * pulse)); g.addColorStop(1, hexA(c, 0));
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, rr * 1.4, 0, TAU); ctx.fill(); ctx.restore();
+    if (w.c) {   // lit from inside in its rainbow colour (tinting the mist, not washing it white)
+      ctx.globalCompositeOperation = "screen";
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 1.1), q = a2 * 2.4 * (0.5 + 0.5 * w.glow);
+      g.addColorStop(0, hexA(w.c, Math.min(0.75, q))); g.addColorStop(0.6, hexA(w.c, Math.min(0.4, q * 0.55))); g.addColorStop(1, hexA(w.c, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.1, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
     }
-  });
+  }
   ctx.restore();
 }
 // NIMBUS's magic button: a little cloud with a rainbow over it
@@ -5543,7 +5561,7 @@ function draw() {
       if (shown === S) drawDevour(game, S, game.devour);
       if (shown === S) drawDash();
       if (shown === S) drawChordGuides();
-      if (shown === S && S.clouds) drawNimbusClouds(p.x, p.y, shipSize(), game.ang, game.anim);
+      if (shown === S && S.clouds) drawNimbusClouds(game, game.anim, "me");
       if (shown === S) { drawFlail(game, S, game.flail); drawAnchor(p.x, p.y, shipSize()); }
       if (game.inked > 0) drawInkOn(p.x, p.y, shipSize(), game.inked / MAGIC.ink.stun, 0.4);
       drawScramble(p.x, p.y, shipSize(), game.scramble);
@@ -5784,7 +5802,7 @@ function drawEnemy() {
       grind: enemy.remote ? duel.grind : null });
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
     drawRewind(p.x, p.y, size, !!enemy.rw || enemy.rwShow > 0);
-    if (E.clouds) drawNimbusClouds(p.x, p.y, size, enemy.ang, enemy.remote ? enemy.anim : null);
+    if (E.clouds) drawNimbusClouds(enemy, enemy.remote ? enemy.anim : null, "enemy");
     drawScramble(p.x, p.y, size, Math.max(enemy.scramble || 0, enemy.remote && duel.net && duel.net.sc ? 1 : 0));
     drawHacked(p.x, p.y, size, Math.max(enemy.hacked || 0, enemy.remote && duel.net && duel.net.hk ? 1 : 0));
     if (enemy.remote) drawRing(duel.ring, E);
