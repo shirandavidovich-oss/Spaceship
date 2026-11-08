@@ -431,7 +431,17 @@ const SHIPS = [
     // the blasters (+-71,-188 px from the pivot), the torpedo (0,-197); 512 px canvas = 1.45 ship-lengths
     guns: { blaster: [[-0.2011, -0.5325], [0.2011, -0.5325]], torpedo: [[0, -0.558]] },
     anim: { dir: "cinder", size: 1.45, idle: "idle.webp",
-      parts: { hull: "hull.webp", left: "engine_left.webp", right: "engine_right.webp" } } }
+      parts: { hull: "hull.webp", left: "engine_left.webp", right: "engine_right.webp" } } },
+  // BORER, the star miner (art/ships/borer/idle.webp, 512 x 512, center pivot, the drill up; 512 px = 1.07 ship-lengths).
+  // Button 1: a fan of metal shrapnel from the drill tip. Button 2: a drilling mine dropped out of the back; it waits,
+  // and when an enemy comes near it spins up and bores into it. Magic: star mine (see MAGIC.starmine)
+  { id: "borer", name: "BORER", rarity: "epic", mass: 1.3, fuel: 30, refill: 15, sfx: null, magic: "starmine",
+    hull: "#3c5a50", wingC: "#1e2a26", trim: "#4dff9a", flame: "#b46bff",
+    // the two violet engine lights (221,467) and (288,465); the drill tip (256,16)
+    body: [], wing: [], nozzles: [-0.073, 0.067], engineY: 0.441, cockpit: [0, 0.1, 0.05, 0.1],
+    weapons: ["shrapnel", "drillmine"],
+    guns: { shrapnel: [[0, -0.5]], drillmine: [[0, 0.5]] },
+    anim: { dir: "borer", size: 1.07, idle: "idle.webp" } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -520,6 +530,13 @@ const WEAPONS = {
   // RIVET's magnet balls: `pellets` balls all round, each pulled toward the planet (`magnet` screens a second, every
   //   second); they burst on it. Nail mines: `mines` nails over `fan` radians; they slow to a stop in `stop` s, arm after
   //   `arm` s and stay `stay` s (at most `max` of yours at once); an enemy touching one sets it off (`dmg`, a shove)
+  // BORER. shrapnel: `pellets` jagged metal shards over `fan` radians, short-lived. Drilling mine: one out of the back
+  //   (`back`: its speed, screens a second, backwards); it slows to a stop in `stop` s, arms after `arm` s, stays
+  //   `stay` s (at most `max` of yours). An enemy within `near` ship-lengths: it spins up and bores at it at `seek`
+  //   screens a second; touching: `dmg` and a shove
+  shrapnel: { name: "רסיסי מתכת", dmg: 5, speed: 2.6, life: 0.55, cool: 0.45, ammo: 16, refill: 6, r: 0.025, color: "#c9d1d6", pellets: 5, fan: 0.55, shard: true },
+  drillmine: { name: "מוקש מקדח", dmg: 22, speed: 0.6, life: 0, cool: 2.2, ammo: 3, refill: 8, r: 0.05, color: "#4dff9a", mines: 1, fan: 0, rear: true, drill: true,
+             stop: 0.5, arm: 0.6, stay: 20, max: 4, knock: 0.9, near: 1.6, seek: 2.4 },
   magnet:  { name: "כדורי מגנט", dmg: 7,  speed: 1.0, life: 6.0, cool: 4.5, ammo: 1, refill: 4.5, r: 0.06, color: "#ff6ad5", pellets: 8, fan: 5.5, magnet: 1.6,
              colors: ["#ff5a5a", "#ffb347", "#fff275", "#6dff8a", "#38d8ff", "#6a7dff", "#c86bff", "#ff6ad5"] },
   nails:   { name: "מסמרי מוקש", dmg: 14, speed: 2.0, life: 0, cool: 3.2, ammo: 2, refill: 6, r: 0.05, color: "#ffb347", mines: 4, fan: 0.9,
@@ -612,6 +629,12 @@ const MAGIC = {
   reassemble: { name: "הרכבה והחזרה בזמן", look: "reassemble", cool: 10, length: 1.85, echo: 3, rewind: 3, slow: 0.5, color: "#b48cff" },
   // DRAKON's split: once a life. The bomb's blast reaches `blast` ship-lengths: `dmg` at its middle, down to `edge` at the
   //   rim, and throws ships back up to `knock` screens a second. (Its own ship is not hurt)
+  // BORER: star mine. Only near the body in the middle: within `reach` ship-lengths of its surface. The ship turns its
+  //   drill to the star (to `windup` ms), bores in (to `inside`), leaves the bomb (`plant`), and backs out the same way
+  //   (`exit` to `end` ms), `out` ship-lengths clear. No steering, no firing, no burn meanwhile. The bomb waits inside
+  //   with no timer: the next time an enemy ship touches the star it is shattered. One bomb at a time; `cool` s after
+  //   the bomb is used. A new body in the middle takes the bomb away
+  starmine: { name: "מוקש כוכב", look: "starmine", cool: 3, reach: 0.55, depth: 0.4, out: 0.1, windup: 340, inside: 840, plant: 1030, exit: 1120, end: 1780, color: "#4dff9a" },
   split:   { name: "התפצלות", look: "split", cool: 0, blast: 4.5, dmg: 75, edge: 15, knock: 2.4, color: "#ff3fb0" },
   // NIMBUS's rainbow: an arc that flies out (`speed` ship-lengths a second for `life` s); touching a ship it does `dmg`
   //   once, and NIMBUS takes back `heal` health
@@ -994,6 +1017,17 @@ function killReward(secs, hp, rarity, streak) {
   const mult = Math.min(STREAK_MAX, 1 + STREAK_STEP * Math.max(0, streak - 1)), total = Math.round((KILL_PAY + speed + health + rare) * mult / 5) * 5;
   return { total, lines: [["חיסול", KILL_PAY], ["מהירות", speed], ["חיים שנשארו", health], ["נדירות", rare]], mult };
 }
+// BORER's dive: job { x, y, ang, turn, bx, by, ex, ey } (start, buried point, way out), ms since the press.
+// The drill turns to the star, goes in, waits, and backs out the same way, still facing the star
+function starMinePose(J, ms, M) {
+  const sm = (t) => { const u = Math.max(0, Math.min(1, t)); return u * u * (3 - 2 * u); };
+  const a = sm((ms - M.windup) / (M.inside - M.windup)), b = sm((ms - M.exit) / (M.end - M.exit));
+  const x = J.x + (J.bx - J.x) * a, y = J.y + (J.by - J.y) * a;
+  return { x: x + (J.ex - x) * b, y: y + (J.ey - y) * b, ang: J.ang + J.turn * sm(ms / M.windup),
+    phase: ms < M.windup ? "spin" : ms < M.inside ? "drill" : ms < M.exit ? "plant" : ms < M.end ? "exit" : "done" };
+}
+// can BORER start a dive here? gap: from its edge to the star's surface, in ship-lengths
+function starMineCheck(gap, busy, M) { return busy ? "occupied" : !(gap >= 0) || gap > M.reach ? "range" : "ok"; }
 // </logic>
 
 // ======================================================================
@@ -1617,7 +1651,7 @@ function update(dt) {
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
-  rewindTicks(dt); updatePuff(dt); updateCinder(dt); updateBombs(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
+  rewindTicks(dt); updatePuff(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
   updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
@@ -1686,6 +1720,7 @@ function flyShip(dt) {
     game.x = (((game.x + game.vx * dt) % WW) + WW) % WW; game.y = (((game.y + game.vy * dt) % WH) + WH) % WH;
     return;
   }
+  if (game.dive) return;   // BORER in its dive: it is moved by updateDive
   if (game.inked > 0) {   // covered in the other player's ink: no steering, no engine, drifting on (the planet bounces it)
     game.inked -= dt;
     const v = game.inkV || { vx: game.vx, vy: game.vy };
@@ -1770,9 +1805,10 @@ function moveShip(o, S, c, dt) {
   const d = Math.hypot(dx, dy), touch = R + size * 0.32;
   if (o === game) {
     const touching = d < touch + size * 0.08;
+    if (myStarTouch(touching)) return 0;   // a BORER's bomb was waiting in the star: shattered
     if (S.grows) talusContact(touching);
     else if (touching) touchBurn(dt);
-  }
+  } else if (o === enemy && !enemy.remote) enemyStarTouch(d < touch + size * 0.08);
   let hit = 0;
   if (d < touch) {
     const nx = dx / (d || 1), ny = dy / (d || 1), vn = o.vx * nx + o.vy * ny;
@@ -1850,6 +1886,8 @@ function body() { return BODIES[cosmos.body]; }
 function planetR() { return U * body().r; }
 function setBody(i, show = true) {
   if (i === cosmos.body && cosmos.started) return;
+  if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }   // BORER's bomb goes with the old body
+  duel.starMine = null;
   cosmos.prev = show ? cosmos.body : null; cosmos.body = i; cosmos.morph = show ? 0 : 1; cosmos.label = show ? 3 : 0;
   if (show) { audio.whoosh(); }
 }
@@ -1909,6 +1947,7 @@ function useMagic(which = 0) {
     audio.tone(160, 0.5, "sawtooth", 0.04, 2.5); audio.tone(1200, 0.06, "square", 0.03, 0.6, 0.4); buzz(40);
     return;
   }
+  if (M.look === "starmine") { startDive(S, M); return; }   // BORER
   if (M.look === "split") {   // DRAKON: come apart (the bomb stays), then blow the bomb up. Once a life
     if (game.bomb) { blowBomb(); return; }
     if (game.splitUsed) { audio.nope(); buzz(20); return; }
@@ -2089,6 +2128,7 @@ function updateMagic(dt) {
   const S = shipById(game.ship), M = magicOf(S);
   updateTail(dt);
   game.rangeT = Math.max(0, (game.rangeT || 0) - dt);
+  if (game.smFail) game.smFail.t -= dt;
   game.magicCool = Math.max(0, game.magicCool - dt); game.magicCool2 = Math.max(0, (game.magicCool2 || 0) - dt);
   game.hidden = Math.max(0, game.hidden - dt);
   game.gear += dt * (game.magicPour > 0 ? 9 : game.magicCool > 0 ? 0.25 : 1.2);   // the gear button turns
@@ -3595,7 +3635,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false;
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -3735,6 +3775,7 @@ function updateWeapons(dt) {
 //  primary (button 1): each shot jumps to the frame where that barrel flashes, then the frames settle back to idle
 //  secondary (button 2): the iris winds up first; the shot leaves at the "fire" frame (the big flash)
 function shoot(i) {
+  if (game.dive) return;   // BORER in its dive: no firing
   const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
@@ -4542,6 +4583,136 @@ function updateCinder(dt) {
   }
   if (D.t >= M.turn) game.dash2 = null;
 }
+// ---------- BORER: the star mine and the drilling mine ----------
+// game.dive: { t, J, planted } while it bores in and out. game.starMine: { x, y } the bomb, armed, in the star
+function starGap() {   // from my ship's edge to the star's surface, in ship-lengths
+  const d = Math.hypot(wrapDelta(game.x - WW / 2, WW), wrapDelta(game.y - WH / 2, WH));
+  return (d - planetR() - shipSize() * 0.32) / shipSize();
+}
+function startDive(S, M) {
+  if (game.dead) return;
+  const why = starMineCheck(starGap(), !!(game.dive || game.starMine), M);
+  if (why !== "ok") { audio.nope(); buzz(25); game.smFail = { t: 0.9, why }; return; }
+  const dx = wrapDelta(game.x - WW / 2, WW), dy = wrapDelta(game.y - WH / 2, WH), d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
+  const R = planetR(), size = shipSize(), cx = game.x - dx, cy = game.y - dy, face = Math.atan2(-ux, uy);
+  game.dive = { t: 0, planted: false, ux, uy, J: { x: game.x, y: game.y, ang: game.ang, turn: wrapAngle(face - game.ang),
+    bx: cx + ux * R * M.depth, by: cy + uy * R * M.depth, ex: cx + ux * (R + size * (0.32 + M.out)), ey: cy + uy * (R + size * (0.32 + M.out))} };
+  game.thrust = null; game.vx = game.vy = 0;
+  audio.tone(70, 1.6, "sawtooth", 0.05, 3.5); audio.noise(1.3, 0.12, 700); buzz(40);
+}
+function updateDive(dt) {
+  const D = game.dive, M = MAGIC.starmine;
+  if (!D) return;
+  if (game.dead) { game.dive = null; return; }
+  D.t += dt;
+  const ms = D.t * 1000, P = starMinePose(D.J, ms, M);
+  game.x = ((P.x % WW) + WW) % WW; game.y = ((P.y % WH) + WH) % WH; game.ang = wrapAngle(P.ang); game.vx = game.vy = 0; game.power = 0;
+  const R = planetR(), sx = WW / 2 + D.ux * R, sy = WH / 2 + D.uy * R;   // where the drill meets the surface
+  if ((P.phase === "drill" || P.phase === "exit") && Math.random() < dt * 40)
+    burstAt(sx, sy, 3, [body().color, "#ffffff", "#c9d1d6", "#4dff9a"], 0.35, 0.6, D.ux * U * 0.6, D.uy * U * 0.6);
+  if (P.phase === "drill" && Math.random() < dt * 6) shake(0.12);
+  if (!D.planted && ms >= M.plant) {   // the bomb is left inside, armed
+    D.planted = true;
+    game.starMine = { x: D.J.bx, y: D.J.by };
+    rings.push({ x: D.J.bx, y: D.J.by, t: 0, max: 0.5, r: shipSize() * 0.9, c: M.color });
+    duelSend({ t: "sm", on: 1 });
+    audio.tone(880, 0.12, "square", 0.04, 0.6); audio.tone(440, 0.3, "triangle", 0.05, 0.8, 0.1); buzz(60);
+  }
+  if (P.phase === "done") {   // out: back to flying, drifting gently away from the star
+    game.dive = null; game.vx = D.ux * U * 0.25; game.vy = D.uy * U * 0.25;
+    burstAt(sx, sy, 20, [body().color, "#ffffff", "#c9d1d6"], 0.6, 0.8, D.ux * U, D.uy * U);
+  }
+}
+// the enemy (bot) touching the star: on a fresh touch with my bomb armed, it is shattered
+function enemyStarTouch(t) {
+  const was = enemy.starTouch; enemy.starTouch = t;
+  if (!t || was || !game.starMine || !enemy.on || enemy.warp >= 0.5) return;
+  game.starMine = null; game.magicCool = MAGIC.starmine.cool;
+  shatterAt(enemy.x, enemy.y, shipById(enemy.ship));
+  enemy.hp = 0; destroyEnemy();
+}
+// my ship touching the star in a duel: their BORER's bomb gets me (my phone sees it, and tells theirs)
+function myStarTouch(t) {
+  const was = game.starTouch; game.starTouch = t;
+  if (!t || was || !duel.starMine || game.dead || game.dive) return false;
+  duel.starMine = null;
+  duelSend({ t: "smx", x: +(game.x / WW).toFixed(5), y: +(game.y / WH).toFixed(5) });
+  shatterAt(game.x, game.y, shipById(game.ship));
+  damageShip(game.hp + 1);
+  return true;
+}
+// a ship shattered by the star: a burst of the star's fire, then its hull in shards flying out
+function shatterAt(x, y, E) {
+  const dx = wrapDelta(x - WW / 2, WW), dy = wrapDelta(y - WH / 2, WH), d = Math.hypot(dx, dy) || 1, vx = dx / d * U, vy = dy / d * U;
+  burstAt(x, y, 120, ["#ffffff", body().color, "#4dff9a", E ? E.hull : "#888", E ? E.trim : "#fff"], 1.8, 1.4, vx * 0.6, vy * 0.6);
+  burstAt(x, y, 40, ["#c9d1d6", "#6a6a72", E ? E.wingC : "#333"], 1.2, 2.2, vx, vy);
+  rings.push({ x, y, t: 0, max: 0.6, r: shipSize() * 2.6, c: "#4dff9a" }, { x: WW / 2, y: WH / 2, t: -0.1, max: 0.7, r: planetR() * 1.4, c: body().color });
+  game.flash = 0.25; audio.boom(); audio.noise(0.9, 0.3, 500); shake(1.2); buzz(300);
+}
+// draw only outside the star (the next drawing is hidden where it is inside it). Ends with ctx.restore()
+function clipOutStar() {
+  const c = toScreen(WW / 2, WH / 2);
+  ctx.save(); ctx.beginPath(); ctx.rect(-W, -H, W * 3, H * 3); ctx.arc(c.x, c.y, planetR(), 0, TAU); ctx.clip("evenodd");
+}
+// the hole in the star's surface while BORER bores: a dark mouth with a glowing rim
+function drawDiveHole(D) {
+  const R = planetR(), c = toScreen(WW / 2 + D.ux * R, WH / 2 + D.uy * R), r = shipSize() * 0.3 * Math.min(1, D.t * 3, (MAGIC.starmine.end / 1000 - D.t) * 3 + 0.3);
+  ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(Math.atan2(D.uy, D.ux));
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.6); g.addColorStop(0, "rgba(10,6,4,0.95)"); g.addColorStop(0.55, "rgba(255,150,50,0.75)"); g.addColorStop(1, "rgba(255,210,90,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.7, r * 1.6, 0, 0, TAU); ctx.fill(); ctx.restore();
+}
+// my bomb inside the star (only I see it): a green beacon blinking
+function drawStarMine() {
+  const B = game.starMine;
+  if (!B) return;
+  const p = toScreen(B.x, B.y), size = shipSize(), blink = 0.5 + 0.5 * Math.sin(time * 5);
+  ctx.save();
+  const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 0.45); g.addColorStop(0, `rgba(77,255,154,${0.5 + 0.4 * blink})`); g.addColorStop(1, "rgba(77,255,154,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.45, 0, TAU); ctx.fill();
+  ctx.translate(p.x, p.y); ctx.rotate(time * 1.5);
+  ctx.fillStyle = "#1a2420"; ctx.strokeStyle = "#4dff9a"; ctx.lineWidth = Math.max(1.5, size * 0.025);
+  ctx.beginPath(); for (let i = 0; i < 8; i++) { const r = i % 2 ? size * 0.07 : size * 0.15, a = i / 8 * TAU; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = `rgba(200,255,220,${blink})`; ctx.beginPath(); ctx.arc(0, 0, size * 0.04, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+// a press that cannot start: out of reach shows the ring to fly into; already a bomb: the bomb blinks
+function drawMineReach() {
+  const F = game.smFail;
+  if (!F || F.t <= 0) return;
+  const c = toScreen(WW / 2, WH / 2), a = Math.min(1, F.t / 0.4);
+  ctx.save(); ctx.globalAlpha = a * 0.8; ctx.strokeStyle = "#4dff9a"; ctx.lineWidth = 2.5; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -time * 40;
+  if (F.why === "range") { ctx.beginPath(); ctx.arc(c.x, c.y, planetR() + shipSize() * (0.32 + MAGIC.starmine.reach), 0, TAU); ctx.stroke(); }
+  else if (game.starMine) { const p = toScreen(game.starMine.x, game.starMine.y); ctx.beginPath(); ctx.arc(p.x, p.y, shipSize() * 0.5, 0, TAU); ctx.stroke(); }
+  ctx.setLineDash([]); ctx.fillStyle = "#c8ffe0"; ctx.font = `bold ${Math.round(U * 0.05)}px sans-serif`; ctx.textAlign = "center";
+  const p = shipScreen(); ctx.fillText(F.why === "range" ? "קרוב יותר לכוכב" : "המוקש כבר בכוכב", p.x, p.y - shipSize() * 0.8);
+  ctx.restore();
+}
+// BORER's button: a drill over a star; a bomb in the star while one waits
+function drawStarMineButton(b, M, ready, k) {
+  const armed = !!game.starMine, busy = !!game.dive;
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (ready && !armed) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.7); gl.addColorStop(0, `rgba(77,255,154,${0.25 + 0.1 * Math.sin(time * 3)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.7, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r); bg.addColorStop(0, "#2c4a40"); bg.addColorStop(1, "#0b1210");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.strokeStyle = M.color; ctx.globalAlpha = ready ? 1 : 0.5;
+  ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * (ready ? 1 : k)); ctx.stroke(); ctx.globalAlpha = 1;
+  // the star (bottom)
+  const sg = ctx.createRadialGradient(0, b.r * 0.35, 0, 0, b.r * 0.35, b.r * 0.42); sg.addColorStop(0, "#fff3b0"); sg.addColorStop(1, "#ff8c1a");
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(0, b.r * 0.42, b.r * 0.36, Math.PI, TAU); ctx.fill();
+  if (armed) {   // the bomb in it, blinking
+    ctx.fillStyle = `rgba(77,255,154,${0.6 + 0.4 * Math.sin(time * 6)})`; ctx.beginPath(); ctx.arc(0, b.r * 0.3, b.r * 0.12, 0, TAU); ctx.fill();
+  }
+  // the drill (top), turning while it bores
+  ctx.save(); ctx.translate(0, busy ? -b.r * 0.05 : -b.r * 0.2);
+  ctx.fillStyle = "#9aa4aa"; ctx.beginPath(); ctx.moveTo(-b.r * 0.22, -b.r * 0.35); ctx.lineTo(b.r * 0.22, -b.r * 0.35); ctx.lineTo(0, b.r * 0.25); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#3a4448"; ctx.lineWidth = b.r * 0.04;
+  for (let i = 0; i < 3; i++) { const y = -b.r * 0.28 + ((i * 0.18 + (busy ? time * 2 : 0)) % 0.54) * b.r, w = 0.22 * (1 - (y / b.r + 0.35) / 0.6); ctx.beginPath(); ctx.moveTo(-b.r * w, y); ctx.lineTo(b.r * w, y + b.r * 0.08); ctx.stroke(); }
+  ctx.restore();
+  ctx.restore();
+}
 // a torpedo blows up at (x, y): mine hurts and throws back the enemy (by distance); theirs only shows here
 function torpedoBlast(s, Wp, mine) {
   const size = shipSize(), R = Wp.blast * size;
@@ -5168,13 +5339,14 @@ let mineSeq = 0;
 function layMines(w, x, y) {
   const Wp = WEAPONS[w], S = shipById(game.ship), made = [];
   for (let i = 0; i < Wp.mines; i++) {
-    const a = game.ang + (i / (Wp.mines - 1) - 0.5) * Wp.fan + (game.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U * (0.8 + Math.random() * 0.4);
+    const a = game.ang + (Wp.rear ? Math.PI : 0) + (Wp.mines > 1 ? (i / (Wp.mines - 1) - 0.5) * Wp.fan : 0) + (game.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U * (0.8 + Math.random() * 0.4);
     const m = { id: ++mineSeq, w, x, y, vx: game.vx + Math.sin(a) * v, vy: game.vy - Math.cos(a) * v, ang: a, t: 0 };
     mines.push(m); made.push(m);
   }
   while (mines.filter((m) => !m.remote).length > Wp.max) mines.splice(mines.findIndex((m) => !m.remote), 1);   // the oldest go
   duelSend({ t: "mn", w, p: made.map((m) => [m.id, +(m.x / WW).toFixed(5), +(m.y / WH).toFixed(5), +(m.vx / WW).toFixed(5), +(m.vy / WH).toFixed(5), +m.ang.toFixed(3)]) });
-  audio.sfx(S.sfx, "scatter"); audio.sfx(S.sfx, "pin", 0.05, 0.6); buzz(50);
+  if (Wp.drill) { audio.tone(180, 0.15, "square", 0.04, 0.6); audio.noise(0.15, 0.08, 2500); buzz(30); }
+  else { audio.sfx(S.sfx, "scatter"); audio.sfx(S.sfx, "pin", 0.05, 0.6); buzz(50); }
 }
 function updateMines(dt) {
   const size = shipSize();
@@ -5187,7 +5359,16 @@ function updateMines(dt) {
     }
     if (Math.hypot(wrapDelta(m.x - WW / 2, WW), wrapDelta(m.y - WH / 2, WH)) < planetR()) { mines.splice(i, 1); continue; }   // stuck in the planet
     if (m.t > Wp.stay) { burstAt(m.x, m.y, 5, ["#ffb347", "#555"], 0.15, 0.5); mines.splice(i, 1); continue; }
-    if (m.remote || m.t < Wp.arm || !enemy.on || enemy.warp >= 0.5) continue;
+    if (m.remote || m.t < Wp.arm || !enemy.on || enemy.warp >= 0.5) { if (m.seek) m.seek = false; continue; }
+    if (Wp.drill) {   // BORER's mine: an enemy near: it spins up and bores at it
+      const ex = wrapDelta(enemy.x - m.x, WW), ey = wrapDelta(enemy.y - m.y, WH), ed = Math.hypot(ex, ey) || 1;
+      if (ed < Wp.near * size || m.seek) {
+        if (!m.seek) { m.seek = true; audio.tone(300, 0.4, "sawtooth", 0.04, 3); }
+        m.ang = Math.atan2(ex, -ey);
+        m.x = (((m.x + ex / ed * Wp.seek * U * dt) % WW) + WW) % WW; m.y = (((m.y + ey / ed * Wp.seek * U * dt) % WH) + WH) % WH;
+        if (Math.random() < dt * 30) burstAt(m.x, m.y, 1, ["#4dff9a", "#c9d1d6"], 0.1, 0.4);
+      }
+    }
     if (Math.hypot(wrapDelta(enemy.x - m.x, WW), wrapDelta(enemy.y - m.y, WH)) > size * 0.48) continue;
     // boom
     const dx = wrapDelta(enemy.x - m.x, WW), dy = wrapDelta(enemy.y - m.y, WH), d = Math.hypot(dx, dy) || 1;
@@ -5208,6 +5389,7 @@ function drawMines() {
   const size = shipSize();
   for (const m of mines) {
     const Wp = WEAPONS[m.w], p = toScreen(m.x, m.y), L = size * 0.2, armed = m.t >= Wp.arm, fade = Math.min(1, (Wp.stay - m.t) / 0.5);
+    if (Wp.drill) { drawDrillMine(m, Wp, p, L, armed, fade); continue; }
     ctx.save(); ctx.globalAlpha = Math.max(0, fade); ctx.translate(p.x, p.y); ctx.rotate(m.ang);
     if (armed) {
       const blink = 0.5 + 0.5 * Math.sin(time * 9 + m.id);
@@ -5220,6 +5402,24 @@ function drawMines() {
     ctx.fillStyle = armed ? `rgba(255,${80 + 80 * Math.sin(time * 9 + m.id)},40,1)` : "#ffb347"; ctx.beginPath(); ctx.arc(0, L * 0.38, L * 0.07, 0, TAU); ctx.fill();
     ctx.restore();
   }
+}
+// BORER's drilling mine: a small green-lit body with a steel drill cone; the cone's thread turns (fast when it bores)
+function drawDrillMine(m, Wp, p, L, armed, fade) {
+  const spin = time * (m.seek ? 30 : armed ? 4 : 0);
+  ctx.save(); ctx.globalAlpha = Math.max(0, fade); ctx.translate(p.x, p.y); ctx.rotate(m.ang);
+  if (armed) {
+    const blink = 0.5 + 0.5 * Math.sin(time * (m.seek ? 20 : 6) + m.id);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, L * 1.3); g.addColorStop(0, `rgba(77,255,154,${0.4 * blink})`); g.addColorStop(1, "rgba(77,255,154,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, L * 1.3, 0, TAU); ctx.fill();
+  }
+  ctx.fillStyle = "#2c4a40"; ctx.strokeStyle = "#141c1a"; ctx.lineWidth = L * 0.06;
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-L * 0.3, -L * 0.05, L * 0.6, L * 0.55, L * 0.12) : ctx.rect(-L * 0.3, -L * 0.05, L * 0.6, L * 0.55); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = armed ? "#4dff9a" : "#2a6a4a"; ctx.beginPath(); ctx.arc(0, L * 0.25, L * 0.09, 0, TAU); ctx.fill();
+  const g = ctx.createLinearGradient(-L * 0.3, 0, L * 0.3, 0); g.addColorStop(0, "#5a6064"); g.addColorStop(0.45, "#e0e6ea"); g.addColorStop(1, "#4a5054");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-L * 0.28, -L * 0.05); ctx.lineTo(L * 0.28, -L * 0.05); ctx.lineTo(0, -L * 0.75); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#3a4044"; ctx.lineWidth = L * 0.05;
+  for (let i = 0; i < 3; i++) { const f = ((i / 3 + spin * 0.05) % 1 + 1) % 1, y = -L * 0.05 - f * L * 0.65, w = L * 0.28 * (1 - f); ctx.beginPath(); ctx.moveTo(-w, y); ctx.lineTo(w, y - L * 0.1); ctx.stroke(); }
+  ctx.restore();
 }
 // ---------- RIVET: the flip, the rail, the wave ----------
 // game.flipMode: 0 (the long spine is the nose) or 1 (turned a quarter: the broad arm's tip is the nose).
@@ -5707,11 +5907,14 @@ function draw() {
       if (shown === S && game.soak && game.soak.boost && game.power > 0.3 && Math.random() < 0.6)   // twice as fast: a trail of light
         for (const e of exhausts(game, S)) burstAt(e.x, e.y, 2, ["#fff8ce", "#ffcc63"], 0.12, 0.5, game.vx * 0.3, game.vy * 0.3);
       if (shown === S && S.grows) drawTalusRing(p.x, p.y, shipSize() * sc, game.talus.ring);
+      const dug = shown === S && game.dive;
+      if (dug) { drawDiveHole(game.dive); clipOutStar(); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           half: shown === S && game.splitUsed ? "rear" : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
+      if (dug) ctx.restore();
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
       if (shown === S) drawDevour(game, S, game.devour);
@@ -5741,7 +5944,7 @@ function draw() {
     drawShots(eshots);
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
-    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawReso(game.reso); drawReso(duel.reso);
+    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawStarMine(); drawMineReach(); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -5960,9 +6163,12 @@ function drawEnemy() {
     if (enemy.remote) drawTail(duel.tail, E);
     const esc = enemy.remote && enemy.talus ? enemy.talus.scale : 1;
     if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
+    const dv = enemy.remote && duel.net && duel.net.dv;
+    if (dv) clipOutStar();
     drawShip(E, p.x, p.y, size * esc, { half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? enemy.hullTurn || 0 : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
+    if (dv) ctx.restore();
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
     drawRewind(p.x, p.y, size, !!enemy.rw || enemy.rwShow > 0);
     if (E.clouds) drawNimbusClouds(enemy, enemy.remote ? enemy.anim : null, "enemy");
@@ -6498,6 +6704,7 @@ function drawMagicButton(b, M, ready, k) {
   if (M.look === "inflate") drawPuffButton(b, M, ready, k);
   if (M.look === "dash") drawDashButton(b, M, ready, k);
   if (M.look === "split") drawSplitButton(b, M);
+  if (M.look === "starmine") drawStarMineButton(b, M, ready, k);
   if (M.look === "rainbow") drawRainbowButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
@@ -6952,6 +7159,10 @@ function duelLink(event, data) {
     clouds.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, ship: m.s, remote: true }); audio.sfx("xeltar", "ink_release", 0, 0.7);
   } else if (m.t === "th" && Array.isArray(m.p)) {   // their ZORIAN sealed a thread: shown here (their phone counts a crossing)
     duel.thread = { w: m.w, t: m.at, paths: m.p.map((q) => q.map(([x, y]) => ({ x: x * WW, y: y * WH }))) };
+  } else if (m.t === "sm") {   // their BORER's bomb is in the star (on) / gone (0). Not shown: it is a trap
+    duel.starMine = m.on ? true : null;
+  } else if (m.t === "smx") {   // my bomb got them (their phone saw the touch)
+    game.starMine = null; game.magicCool = MAGIC.starmine.cool; shatterAt(m.x * WW, m.y * WH, shipById(enemy.ship));
   } else if (m.t === "sp") {   // their DRAKON came apart: its bomb is here
     bombs.length = 0; bombs.push({ x: m.x * WW, y: m.y * WH, ang: m.a, vx: 0, vy: 0, t: 0 }); audio.sfx("drakon", "rift_charge", 0, 0.6);
   } else if (m.t === "bx") {   // their bomb went off (their phone sends the damage and the shove)
@@ -7129,7 +7340,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, dv: game.dive ? 1 : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
@@ -7363,7 +7574,8 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id;
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false;
+  if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null;
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();

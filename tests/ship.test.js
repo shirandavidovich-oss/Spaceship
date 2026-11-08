@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, starMinePose, starMineCheck, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("twenty-eight ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 28);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 28);
+ok("twenty-nine ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 29);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 29);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -485,5 +485,19 @@ ok("thrust joystick: drag up/right/down/left points the nose that way; the middl
   assert.strictEqual(stickHeading(2, -3, 50), null);
   assert.strictEqual(deg(stickHeading(0, -40, 50)), 0); assert.strictEqual(deg(stickHeading(40, 0, 50)), 90);
   assert.strictEqual(Math.abs(deg(stickHeading(0, 40, 50))), 180); assert.strictEqual(deg(stickHeading(-40, 0, 50)), -90);
+});
+ok("BORER: the star mine dive turns to the star, bores in, backs out the same way", () => {
+  const M = MAGIC.starmine, S = shipById("borer");
+  assert.strictEqual(S.magic, "starmine"); assert.strictEqual(S.weapons.join(), "shrapnel,drillmine");
+  assert.strictEqual(starMineCheck(0.3, false, M), "ok"); assert.strictEqual(starMineCheck(2, false, M), "range");
+  assert.strictEqual(starMineCheck(0.3, true, M), "occupied"); assert.strictEqual(starMineCheck(-0.1, false, M), "range");
+  // ship to the right of a star at (0,0), nose up (ang 0): it must face left (-PI/2)
+  const J = { x: 100, y: 0, ang: 0, turn: -Math.PI / 2, bx: 20, by: 0, ex: 90, ey: 0 };
+  const a = starMinePose(J, 0, M), b = starMinePose(J, M.windup, M), c = starMinePose(J, M.plant, M), d = starMinePose(J, M.end, M);
+  assert.strictEqual(a.phase, "spin"); assert.strictEqual(a.x, 100);
+  assert.ok(Math.abs(b.ang + Math.PI / 2) < 1e-9); assert.strictEqual(b.x, 100);
+  assert.strictEqual(c.phase, "plant"); assert.ok(Math.abs(c.x - 20) < 1e-9);
+  assert.strictEqual(d.phase, "done"); assert.ok(Math.abs(d.x - 90) < 1e-9); assert.ok(Math.abs(d.ang + Math.PI / 2) < 1e-9);
+  assert.ok(M.windup < M.inside && M.inside < M.plant && M.plant < M.exit && M.exit < M.end);
 });
 console.log(n + " checks passed");

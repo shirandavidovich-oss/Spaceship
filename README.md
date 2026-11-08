@@ -184,6 +184,14 @@ ship or after 0.95 s, and the blast hurts (up to 22) and throws back every enemy
 (one shared recharge, 3.4 s; keyboard V and B): both engines swivel to that side and the ship is kicked sideways; it keeps
 facing the same way and keeps its speed, and it can fire all the while.
 
+**BORER**, the star miner (`art/ships/borer/idle.webp`; the weapons are drawn in code). Button 1: a fan of five metal
+shards from the drill tip (5 each). Button 2: a drilling mine out of the back; it stops, arms, and when an enemy comes
+within 1.6 ship-lengths it spins up and bores into it (22 and a shove). Magic, star mine: only close to the body in the
+middle (a dashed ring shows how close if you are too far). The drill turns to it, bores in, leaves a bomb inside and backs
+out the same way (1.78 s; no steering, no firing, no burn meanwhile). The bomb has no timer: the next time an enemy ship
+touches the body it is shattered. One bomb at a time; it stays through BORER's death and goes when the body changes.
+In a duel the other phone is told the bomb is there (not shown to them), sees its own touch, and sends `smx` back.
+
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.
 It is only for trying them: the choice is not saved, and in the real game each player has the one ship from the gift,
