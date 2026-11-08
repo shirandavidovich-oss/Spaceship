@@ -120,6 +120,12 @@ takes 25, once. It fades 2.4 s later and a new one can be laid. A jump or a wrap
 ship stops and spins in place by itself for 3.5 s (a second tap lets it go; then 6 s to recharge). Lay the thread while it
 spins and the thread is laid as a ring round the ship: a shield that stops every shot until it fades. (A spiked-ball-on-a-chain weapon is in the code, unused.)
 
+**VANTA**, the liquid-weapon ship (`art/ships/vanta/`, own recorded sounds). A ribbon of lime liquid waves in its glass
+chamber. Button 1: a marking drop (6): the ship it hits glows with a lime stain for 1.75 s, seen even through smoke and ink.
+Button 2: the ribbon squeezes together and one heavy drop leaves on a fixed line (20). Fired into the planet it slips inside,
+a pulsing mark shows where it will come out just before it does (time to dodge), and it comes out bigger and stronger (42).
+No magic yet.
+
 **Test hangar (for now):** under the duel swords there is a hangar button. It opens a screen with every ship that has
 real drawings (THUL, VEXAR, LYTH, TALUS, ORIAN, SKARN, DRAKON, XELTAR, KRAAL, ZORIAN), with its weapons and magic; tap one to fly it right away.
 It is only for trying them: the choice is not saved, and in the real game each player has the one ship from the gift,
