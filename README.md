@@ -65,7 +65,15 @@ tractor beam pulls the enemy in against the ring, the ring spins up, saw teeth s
 (30 health a second for 1.8 s), then it is thrown off. Too far: a dull sound and a dashed circle shows the reach. In a duel the
 other player's ship is really pulled in on their phone.
 
-While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"lyth"`; `"vexar"` for VEXAR, `"brass"` for THUL,
+**TALUS**, the mineral ship that builds itself (`art/ships/talus/`). It starts as a small seed. Crash into the body in the
+middle: rock chips fly off it and fuse into the hull, which grows a stage (5 at most), and each new layer takes the color
+of that body. After each growth a ring of light around it runs white → black like the thrust button; until it is gone the next
+crash adds nothing (it has to leave and come back, too). Hot bodies do not burn it. Weapons (drawn in code): button 1 stone
+shards, button 2 a heavy boulder that the body pulls. Its magic (a cracked stone with a dot per layer): it bursts into the
+pieces it has built (3 per layer), which fly off in all directions and blow up after 1-2 s, hurting a ship inside the blast.
+Then it is a seed again and has to build up from the bodies once more. It loses its layers when it blows up, too.
+
+While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"talus"`; `"lyth"` for LYTH, `"vexar"` for VEXAR, `"brass"` for THUL,
 `""` for the gift's surprise again).
 Swipe up to offer a trade with a phone nearby; the swap happens only if both players say yes.
 

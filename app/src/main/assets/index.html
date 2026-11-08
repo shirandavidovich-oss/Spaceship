@@ -31,7 +31,7 @@ const UNLOCK     = 0.2;  // after the fuel runs out, the button comes back when 
 const ENEMY      = true; // an enemy ship flies with you (for now it only flies, no weapons yet)
 const ENEMY_KEEP = 0.9;  // how close the enemy likes to stay to you, in screen-widths
 const ZOOM_MIN   = 0.4;  // like Star Control: the view zooms out (down to this much) to keep both ships on screen
-const TRY_SHIP   = "lyth"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
+const TRY_SHIP   = "talus"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
 const RAM_DAMAGE = 25;   // damage from crashing into the enemy at full speed (both ships take it)
@@ -173,7 +173,20 @@ const SHIPS = [
       // 480 ms; the shot leaves at 168 ms (frame 5)
       primary: frames("pulse", 11, (n) => [42, 42, 42, 42, 42, 42, 30, 44, 44, 50, 60][n - 1], { 5: "left" }),
       // the three docking latches (right, left, back): they glow amber while the ring unlatches and locks
-      latches: [[0.293, 0], [-0.293, 0], [0, 0.293]] } }
+      latches: [[0.293, 0], [-0.293, 0], [0, 0.293]] } },
+  // TALUS, the mineral ship that builds itself (art/ships/talus/, one master drawing, center pivot, nose up).
+  // Crash into the body in the middle: rock chips fly off it and fuse into the hull, which grows a stage (5 at most).
+  // Each new layer takes the color of the body it came from. After each growth a ring of light around the ship runs
+  // white -> black like the thrust button; until it is gone, the next crash adds nothing. Hot bodies do not burn it.
+  // Its weapons are drawn in code (the package had none): stone shards, and a heavy boulder that the planet pulls.
+  // magic: shatter (it bursts into the pieces it has built, which fly off and blow up; then it is small again)
+  { id: "talus", name: "TALUS", rarity: "epic", mass: 1.1, fuel: 30, refill: 15, magic: "shatter", grows: true,
+    hull: "#e8dcc4", wingC: "#6b5d52", trim: "#ff4d3a", flame: "#bfe9ff",
+    body: [], wing: [], nozzles: [0], engineY: 0.36, cockpit: [0, -0.2, 0.05, 0.1],
+    weapons: ["shard", "boulder"],
+    guns: { shard: [[-0.13, -0.18], [0.13, -0.18]], boulder: [[0, -0.42]] },
+    // the size at each stage (seed, then growth 1-5), from talus-layout.json; the drawing is the full-size ship
+    anim: { dir: "talus", size: 1.25, idle: "talus.webp", stages: [0.53, 0.61, 0.70, 0.79, 0.89, 1.0] } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -202,6 +215,9 @@ const WEAPONS = {
   //   speed: screens per second when let go   r: its radius in ship-lengths   dmg: per pass (out, and again on the way back)
   ring:    { name: "טבעת",      dmg: 18, speed: 1.6, life: 2.5, cool: 0.2,  ammo: 3,  refill: 9,  r: 0.42,  color: "#ba99ff",
              ring: true, unlock: 0.33, out: 0.96, back: 0.9, lock: 0.34 },
+  shard:   { name: "רסיסים",    dmg: 4,  speed: 2.6, life: 0.9, cool: 0.12, ammo: 36, refill: 8,  r: 0.02,  color: "#ffe8c8" },
+  // the boulder: heavy and slow, and the body in the middle pulls it (gravity: true)
+  boulder: { name: "סלע",       dmg: 26, speed: 1.0, life: 3.0, cool: 0.9,  ammo: 4,  refill: 10, r: 0.07,  color: "#d9c7a8", gravity: true },
   thorn:   { name: "קוצים",     dmg: 5,  speed: 2.6, life: 1.0, cool: 0.16, ammo: 30, refill: 8,  r: 0.02,  color: "#b8ff3a" },
   // hive: lays an egg (speed: how fast it is pushed out, then it drifts to a stop). dmg: per hunter
   //   swarm: hunters per egg   hunterSpeed: screens per second   hunterTurn: radians per second   hunterLife: seconds
@@ -222,6 +238,9 @@ const MAGIC = {
   // the grinder (LYTH): works only when the enemy is within `range` ship-lengths. The beam pulls it in for `pull`
   // seconds, the ring's teeth shred it for `grind` seconds (`dps` health a second), then `release` lets it go
   grind: { name: "טבעת גורסת", range: 2.6, pull: 0.9, grind: 1.8, release: 0.35, dps: 30, cool: 12, look: "grinder", color: "#ba99ff" },
+  // TALUS's shatter: per: pieces for each stage it has built   fuse: seconds until a piece blows up (from, to)
+  //   speed: how fast they fly off (screens a second, from, to)   blast: explosion radius in ship-lengths   dmg: per explosion
+  shatter: { name: "התפרקות", per: 3, fuse: [1.0, 2.0], speed: [0.5, 1.3], blast: 0.9, dmg: 12, cool: 6, look: "shatter", color: "#ff4d3a" },
   tail:  { name: "זנב עוקץ", out: 1.0, hold: 1.4, back: 0.9, len: 9.6, drain: 28, cool: 9, look: "tail", color: "#b8ff3a" }
 };
 // VEXAR's tail pieces along a tail `total` art-pixels long (the art is 512 px per 1.2 ship-lengths):
@@ -240,6 +259,14 @@ function tailPieces(total) {
   });
   out.push({ role: "stinger", w: 56, start: at, end: at + sting, ob: 10, oa: 0 });
   return out;
+}
+// TALUS: how big the ship is t seconds after it started growing from stage `from` to stage `to`
+// (rock chips fly in first; the hull grows from 0.475 s to 0.955 s)
+const GROW = { fly: 0.475, end: 0.955, glow: 1.12, ring: 8 };   // ring: seconds the light ring lasts after each growth
+function talusScale(stages, from, to, t) {
+  if (t < GROW.fly) return stages[from];
+  if (t >= GROW.end) return stages[to];
+  return stages[from] + (stages[to] - stages[from]) * smoothStep((t - GROW.fly) / (GROW.end - GROW.fly));
 }
 // the grinder at time t (seconds since it caught the enemy): "pull", "grind", "release", or null when it is over
 function grindPhase(M, t) {
@@ -611,6 +638,8 @@ const audio = {
   // LYTH's grinder: the tractor beam hums up; the teeth grind (short metal bursts, called again and again); out of range: a dull no
   beam() { this.tone(180, 0.9, "sine", 0.12, 2.2); this.tone(360, 0.9, "triangle", 0.04, 2.2); this.tone(90, 0.9, "sawtooth", 0.03, 1.5); },
   grind() { this.noise(0.09, 0.22, 5200); this.tone(70 + Math.random() * 30, 0.1, "sawtooth", 0.07, 0.8); this.tone(2400 + Math.random() * 1500, 0.04, "square", 0.025, 0.6); },
+  // TALUS: rock crunching together as it grows (and as it bursts)
+  crunch() { this.noise(0.25, 0.4, 700); for (let i = 0; i < 6; i++) this.tone(200 + Math.random() * 500, 0.05, "square", 0.04, 0.5, i * 0.04); this.tone(60, 0.5, "sine", 0.3, 0.6, 0.05); },
   nope() { this.tone(160, 0.12, "square", 0.06, 0.7); this.tone(120, 0.16, "square", 0.05, 0.7, 0.1); },
   // the tail: a whip-like lash going out; a zap while it drains someone
   lash() { this.tone(300, 0.5, "sawtooth", 0.05, 0.35); this.noise(0.4, 0.15, 2200); this.tone(1400, 0.12, "triangle", 0.04, 0.5, 0.35); },
@@ -683,6 +712,7 @@ function fillAmmo() { const S = shipById(game.ship); game.ammo = weaponsOf(S).ma
 // start: just above the planet, so its pull is felt at once
 function placeShip() {
   game.x = WW / 2; game.y = WH / 2 - U * 1.6; game.vx = game.vy = 0; game.ang = 0; game.lx = game.ly = 0;
+  game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };   // TALUS starts as a seed again
   if (game.ship) { game.fuel = shipStats(shipById(game.ship)).fuel; fillAmmo(); }
   game.hp = SHIP_HP; game.hurt = 0;
   game.locked = false;
@@ -940,7 +970,11 @@ function moveShip(o, S, c, dt) {
   // 5. bounce off the planet. Stars, black holes and lava burn a ship that touches them (yours: health; see touchBurn)
   o.hitCool = Math.max(0, (o.hitCool || 0) - dt);
   const d = Math.hypot(dx, dy), touch = R + size * 0.32;
-  if (o === game && d < touch + size * 0.08) touchBurn(dt);
+  if (o === game) {
+    const touching = d < touch + size * 0.08;
+    if (S.grows) talusContact(touching);
+    else if (touching) touchBurn(dt);
+  }
   let hit = 0;
   if (d < touch) {
     const nx = dx / (d || 1), ny = dy / (d || 1), vn = o.vx * nx + o.vy * ny;
@@ -1031,6 +1065,7 @@ function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
 function useMagic() {
   const S = shipById(game.ship), M = magicOf(S);
   if (!M || game.magicCool > 0 || game.dead) return;
+  if (M.look === "shatter") { useShatter(S, M); return; }
   if (M.look === "grinder") {   // LYTH: only if the enemy is near enough (and the ring is home)
     if (game.grind) return;
     if (!grindReach() || game.ring) { audio.nope(); buzz(25); game.rangeT = 0.8; return; }
@@ -1074,6 +1109,143 @@ function updateMagic(dt) {
   game.magicPour -= dt;
   // thick smoke pours from the engines and hangs in space
   if (Math.random() < 30 * dt) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, 2.6 + Math.random() * 1.5, M.hide - 0.5);
+}
+
+// ---------- TALUS: growing from the body in the middle, and shattering ----------
+function shipScale() {
+  const S = shipById(game.ship), T = game.talus;
+  if (!S || !S.grows || !T) return 1;
+  return talusScale(S.anim.stages, T.from, T.stage, T.t) / S.anim.stages[5];
+}
+// crashing into the body: once per contact (it has to leave and come back), and only when the light ring is gone
+function talusContact(on) {
+  const T = game.talus;
+  if (on && !T.contact && T.ring <= 0 && T.stage < 5 && !game.dead) {
+    T.from = T.stage; T.stage++; T.t = 0; T.ring = GROW.ring; T.colors.push(body().color);
+    spawnChips(game, shipSize() * shipScale(), body().color);
+    audio.crunch(); buzz(70); shake(0.3);
+  }
+  T.contact = on;
+}
+function updateTalus(dt) {
+  const T = game.talus;
+  if (!T) return;
+  T.t += dt; T.ring = Math.max(0, T.ring - dt);
+}
+// rock chips leaving the body's surface and curving into the hull (they shrink and fade as they arrive)
+const chips = [];
+function spawnChips(o, size, color) {
+  const dx = wrapDelta(o.x - WW / 2, WW), dy = wrapDelta(o.y - WH / 2, WH), d = Math.hypot(dx, dy) || 1, R = planetR();
+  for (let i = 0; i < 16; i++) {
+    const a = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.9, side = (Math.random() - 0.5) * 2;
+    chips.push({ o, sx: WW / 2 + Math.cos(a) * R, sy: WH / 2 + Math.sin(a) * R, side, t: -i * 0.012, dur: GROW.fly + Math.random() * 0.15,
+      tx: (Math.random() - 0.5) * size * 0.5, ty: (Math.random() - 0.3) * size * 0.5, s: size * (0.04 + Math.random() * 0.04),
+      spin: Math.random() * TAU, color: Math.random() < 0.6 ? color : "#e8dcc4" });
+  }
+}
+function updateChips(dt) { for (let k = chips.length - 1; k >= 0; k--) { chips[k].t += dt; if (chips[k].t > chips[k].dur) chips.splice(k, 1); } }
+function chipPath(c) {
+  const u = Math.max(0, c.t / c.dur), ex = c.sx + wrapDelta(c.o.x + c.tx - c.sx, WW), ey = c.sy + wrapDelta(c.o.y + c.ty - c.sy, WH);
+  const mx = (c.sx + ex) / 2 - (ey - c.sy) * 0.35 * c.side, my = (c.sy + ey) / 2 + (ex - c.sx) * 0.35 * c.side;   // curving in
+  return { x: (1 - u) * (1 - u) * c.sx + 2 * u * (1 - u) * mx + u * u * ex, y: (1 - u) * (1 - u) * c.sy + 2 * u * (1 - u) * my + u * u * ey, u };
+}
+function rockPath(r, seed) {   // a lumpy little stone
+  ctx.beginPath();
+  for (let i = 0; i < 7; i++) { const a = i / 7 * TAU, k = 0.7 + 0.3 * Math.abs(Math.sin(seed * 3.1 + i * 2.3)); i ? ctx.lineTo(Math.cos(a) * r * k, Math.sin(a) * r * k) : ctx.moveTo(Math.cos(a) * r * k, Math.sin(a) * r * k); }
+  ctx.closePath();
+}
+function drawChips() {
+  for (const c of chips) {
+    if (c.t < 0) continue;
+    const q = chipPath(c), p = toScreen(q.x, q.y), r = c.s * (1 - q.u * 0.8);
+    ctx.save(); ctx.globalAlpha = 1 - q.u * 0.7; ctx.translate(p.x, p.y); ctx.rotate(c.spin + c.t * 9);
+    ctx.fillStyle = c.color; rockPath(r, c.spin); ctx.fill(); ctx.strokeStyle = "rgba(60,40,30,0.7)"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+  }
+}
+// the hull with its growth layers: each layer (between one stage's outline and the next) tinted the color of the body
+// it was taken from. Made once per stage and colors, then drawn like a picture
+const talusCache = {};
+function talusPicture(S, stage, colors) {
+  const key = stage + "|" + colors.join(","), hit = talusCache[key];
+  if (hit) return hit;
+  const master = artImage(framePath(S.anim.dir, S.anim.idle));
+  if (!master) return null;
+  const N = 384, st = S.anim.stages, cv2 = document.createElement("canvas"); cv2.width = cv2.height = N;
+  const x = cv2.getContext("2d"), b = document.createElement("canvas"); b.width = b.height = N; const y = b.getContext("2d");
+  const at = (c, f) => c.drawImage(master, N * (1 - f) / 2, N * (1 - f) / 2, N * f, N * f);
+  at(x, 1);
+  for (let j = 1; j <= stage; j++) {
+    y.globalCompositeOperation = "source-over"; y.clearRect(0, 0, N, N);
+    at(y, st[j] / st[stage]);
+    y.globalCompositeOperation = "source-in"; y.fillStyle = colors[j - 1] || "#e8dcc4"; y.fillRect(0, 0, N, N);
+    y.globalCompositeOperation = "destination-out"; at(y, st[j - 1] / st[stage]);
+    x.save(); x.globalCompositeOperation = "multiply"; x.globalAlpha = 0.85; x.drawImage(b, 0, 0); x.restore();
+  }
+  // keep the drawing's own see-through edges (multiply must not paint outside the hull)
+  x.globalCompositeOperation = "destination-in"; at(x, 1);
+  talusCache[key] = cv2;
+  return cv2;
+}
+// the light ring around a TALUS after it grew: white -> yellow -> ... -> black like the thrust button, then gone
+function drawTalusRing(x, y, size, ring) {
+  if (!(ring > 0)) return;
+  const f = ring / GROW.ring, c = fuelColor(f), r = size * 0.62;
+  ctx.save(); ctx.globalAlpha = Math.min(1, ring / 0.5);
+  ctx.strokeStyle = hexA(c, 0.25); ctx.lineWidth = size * 0.12; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = c; ctx.lineWidth = Math.max(2, size * 0.03); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
+  ctx.restore();
+}
+// ---- shatter: the built pieces fly off in all directions and blow up after a moment ----
+const pieces = [];
+function useShatter(S, M) {
+  const T = game.talus;
+  if (!T || T.stage < 1) { audio.nope(); buzz(25); return; }
+  game.magicCool = M.cool;
+  const n = T.stage * M.per, size = shipSize() * shipScale(), made = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * TAU, v = (M.speed[0] + Math.random() * (M.speed[1] - M.speed[0])) * U, layer = 1 + (i % T.stage);
+    const pc = { x: game.x + Math.cos(a) * size * 0.2, y: game.y + Math.sin(a) * size * 0.2, vx: game.vx + Math.cos(a) * v, vy: game.vy + Math.sin(a) * v,
+      t: 0, fuse: M.fuse[0] + Math.random() * (M.fuse[1] - M.fuse[0]), r: shipSize() * (0.07 + 0.03 * layer / 5), spin: Math.random() * TAU,
+      color: T.colors[layer - 1] || "#e8dcc4" };
+    pieces.push(pc); made.push(pc);
+  }
+  duelSend({ t: "sh", p: made.map((q) => [+(q.x / WW).toFixed(5), +(q.y / WH).toFixed(5), q.vx / WW, q.vy / WH, +q.fuse.toFixed(2), q.color]) });
+  // the ship is a seed again
+  T.stage = 0; T.from = 0; T.t = 99; T.colors = []; T.ring = 0;
+  burstAt(game.x, game.y, 40, ["#e8dcc4", "#ff4d3a", "#ffffff"], 0.6, 0.8, game.vx, game.vy);
+  audio.crunch(); audio.boom(); shake(0.6); buzz(120);
+}
+function updatePieces(dt) {
+  const M = MAGIC.shatter;
+  for (let k = pieces.length - 1; k >= 0; k--) {
+    const q = pieces[k];
+    q.t += dt; q.vx *= Math.exp(-dt * 0.8); q.vy *= Math.exp(-dt * 0.8);
+    q.x = (((q.x + q.vx * dt) % WW) + WW) % WW; q.y = (((q.y + q.vy * dt) % WH) + WH) % WH;
+    if (q.t < q.fuse) continue;
+    // boom: it hurts the enemy if it is inside the blast (the other player's pieces only show here)
+    const R = M.blast * shipSize();
+    burstAt(q.x, q.y, 26, ["#ffffff", "#ffd166", "#ff4d3a", q.color], 0.7, 0.9);
+    rings.push({ x: q.x, y: q.y, t: 0, max: 0.45, r: R, c: "#ff4d3a" });
+    audio.pop(); audio.noise(0.3, 0.35, 900); shake(0.15);
+    if (!q.remote && enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - q.x, WW), wrapDelta(enemy.y - q.y, WH)) < R + shipSize() * 0.3)
+      hitEnemy({ x: enemy.x, y: enemy.y, vx: q.vx, vy: q.vy }, { dmg: M.dmg, color: "#ff4d3a" });
+    pieces.splice(k, 1);
+  }
+}
+function drawPieces() {
+  for (const q of pieces) {
+    const p = toScreen(q.x, q.y), hot = q.t / q.fuse;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(q.spin + q.t * 5);
+    // its fuse: a red glow that grows and flickers faster until it blows
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, q.r * 2.2);
+    g.addColorStop(0, `rgba(255,77,58,${0.2 + 0.5 * hot * (0.6 + 0.4 * Math.sin(time * (8 + hot * 30)))})`); g.addColorStop(1, "rgba(255,77,58,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, q.r * 2.2, 0, TAU); ctx.fill();
+    ctx.fillStyle = q.color; rockPath(q.r, q.spin); ctx.fill();
+    ctx.fillStyle = "rgba(232,220,196,0.55)"; rockPath(q.r * 0.7, q.spin + 1); ctx.fill();
+    ctx.strokeStyle = "#ff4d3a"; ctx.lineWidth = Math.max(1, q.r * 0.12); ctx.beginPath(); ctx.moveTo(-q.r * 0.5, -q.r * 0.2); ctx.lineTo(0, q.r * 0.1); ctx.lineTo(q.r * 0.4, -q.r * 0.3); ctx.stroke();
+    ctx.restore();
+  }
 }
 
 // ---------- the grinder (LYTH's magic) ----------
@@ -1411,6 +1583,7 @@ function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
   game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null;
+  if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
   for (let k = 0; k < 10; k++) smokeAt(game.x, game.y, game, S, 2.5, 2.5);
   rings.push({ x: game.x, y: game.y, t: 0, max: 0.8, r: shipSize() * 2.6, c: S.flame });
@@ -1445,6 +1618,7 @@ function updateWeapons(dt) {
   updateEggs(dt);
   if (!game.dead) updateRing(dt);
   updateGrind(dt);
+  updateTalus(dt); updateChips(dt); updatePieces(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
     if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && slotAmmo(i) >= 1 && !waitsForFrames(i)) shoot(i);
@@ -1463,6 +1637,7 @@ function updateWeapons(dt) {
       const t = steerShot(s.vx, s.vy, wrapDelta(enemy.x - s.x, WW), wrapDelta(enemy.y - s.y, WH), Wp.homing * dt);
       s.vx = t.vx; s.vy = t.vy;
     }
+    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), body().pull); s.vx += g.ax * dt; s.vy += g.ay * dt; }
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (s.w === "missile" && Math.random() < 0.6) burstAt(s.x, s.y, 1, ["#b8fff0", "#ffffff"], 0.05, 0.6);
     if (s.life > Wp.life) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); shots.splice(k, 1); continue; }
@@ -1487,21 +1662,21 @@ function shoot(i) {
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
   if (Wp.ring) { startRing(w, S); return; }
-  if (A && i === 1) {   // the secondary waits for its wind-up
+  if (A && A.secondary && i === 1) {   // the secondary waits for its wind-up
     game.anim = { seq: "secondary", t: 0, pending: w };
     if (w === "iris") audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000); else audio.jaws();
     return;
   }
   const guns = gunsOf(S, w), b = game.barrel[i]++ % guns.length;
   // the twin cannon's frames do not cut into the heavy cannon or the smoke hatches (its shots still fly)
-  if (A && i === 0 && !(game.anim && (game.anim.seq === "secondary" || game.anim.seq === "smoke")))
+  if (A && A.primary && i === 0 && !(game.anim && (game.anim.seq === "secondary" || game.anim.seq === "smoke")))
     game.anim = { seq: "primary", t: Math.max(0, cueTime(A.primary, b === 0 ? "left" : "right")) };
   spawnShots(w, guns[b]);
   audio.shot(w);
 }
 // the shots leave from a gun point on the ship, turned with the ship
 function spawnShots(w, g) {
-  const Wp = WEAPONS[w], S = shipById(game.ship), size = shipSize();
+  const Wp = WEAPONS[w], S = shipById(game.ship), size = shipSize() * shipScale();
   const m = rotatePt(g[0] * size, g[1] * size, game.ang);
   const x = game.x + m.x, y = game.y + m.y;
   if (Wp.egg) { layEgg(x, y, Wp, S); return; }
@@ -1851,7 +2026,7 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.fillStyle = glow; ctx.fillRect(-0.7, -0.6, 1.4, 1.3);
 
   // a real drawing of the ship, once there is one
-  let img = shipArt(S, o.anim);
+  let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim);
   // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
   // Grinding: the hull, and the ring drawn on its own, spinning, with its teeth out
   const ringAway = o.ring === "out" || o.ring === "back" || !!o.grind;
@@ -1861,6 +2036,13 @@ function drawShip(S, x, y, size, o = {}) {
     // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
     const k = S.anim ? S.anim.size / img.width : 1 / Math.max(img.width, img.height);
     ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
+    // TALUS just took in new rock: a brief red glow
+    if (o.talus && o.talus.t > GROW.fly && o.talus.t < GROW.glow) {
+      const a = Math.sin((o.talus.t - GROW.fly) / (GROW.glow - GROW.fly) * Math.PI) * 0.6;
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 0.5);
+      g.addColorStop(0, `rgba(255,77,58,${a})`); g.addColorStop(1, "rgba(255,77,58,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 0.5, 0, TAU); ctx.fill();
+    }
     if (o.grind && S.anim && S.anim.ring) drawGrinderRing(S, o.grind);
     if (S.anim && S.anim.latches) {
       // the docking latches glow amber while the ring unlatches or locks on
@@ -1944,6 +2126,7 @@ function preloadArt() {
     const all = [A.idle, ...[A.primary, A.secondary, A.smoke].filter(Boolean).flatMap((q) => q.map((x) => x[0]))];
     for (const k in A.shotArt || {}) all.push(A.shotArt[k].file);
     if (A.hull) all.push(A.hull, A.ring);
+    if (S.grows) for (let i = 0; i <= 5; i++) talusPicture(S, i, []);
     if (A.egg) {
       for (const k in A.egg.broods) all.push(...[A.egg.broods[k].pulse, A.egg.broods[k].hatch].flatMap((q) => q.map((x) => x[0])));
       for (const k in A.egg.insects) all.push(...A.egg.insects[k].flight.map((x) => x[0]));
@@ -2114,9 +2297,12 @@ function draw() {
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
-      drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize(),
+      const sc = shown === S ? shipScale() : 1;
+      if (shown === S && S.grows) drawTalusRing(p.x, p.y, shipSize() * sc, game.talus.ring);
+      drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
-          ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null });
+          ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
+          talus: shown === S && S.grows ? game.talus : null });
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       drawRange();
       drawRing(game.ring, S);
@@ -2128,6 +2314,7 @@ function draw() {
     drawShots();
     drawShots(duel.shots);
     drawEggs();
+    drawChips(); drawPieces();
     drawParts();
     drawRings();
     ctx.restore();
@@ -2330,7 +2517,9 @@ function drawEnemy() {
     ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.58, 0, TAU); ctx.stroke(); ctx.restore();
     const st = shipStats(E);
     if (enemy.remote) drawTail(duel.tail, E);
-    drawShip(E, p.x, p.y, size, { power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang,
+    const esc = enemy.remote && enemy.talus ? enemy.talus.scale : 1;
+    if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
+    drawShip(E, p.x, p.y, size * esc, { talus: enemy.remote ? enemy.talus : null, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang,
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (enemy.remote) drawRing(duel.ring, E);
@@ -2449,6 +2638,24 @@ function drawShots(list = shots) {
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, d * (s.art.spin ? 1.1 : 0.45), 0, TAU); ctx.fill();
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s.art.spin ? s.life * s.art.spin : Math.atan2(ux, -uy));
       ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+    } else if (s.w === "shard") {
+      // a stone shard: an ivory splinter with a red glowing edge, pointing where it flies
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(uy, ux)); const l = size * 0.11;
+      ctx.fillStyle = "rgba(255,77,58,0.35)"; ctx.beginPath(); ctx.ellipse(-l * 0.2, 0, l * 0.8, l * 0.22, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#efe4cf"; ctx.beginPath(); ctx.moveTo(l * 0.55, 0); ctx.lineTo(-l * 0.1, l * 0.12); ctx.lineTo(-l * 0.5, 0); ctx.lineTo(-l * 0.1, -l * 0.12); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#ff4d3a"; ctx.lineWidth = Math.max(1, l * 0.05); ctx.beginPath(); ctx.moveTo(l * 0.45, 0); ctx.lineTo(-l * 0.3, 0); ctx.stroke();
+      ctx.restore();
+    } else if (s.w === "boulder") {
+      // a tumbling boulder with glowing red fissures, leaving a little dust
+      const r = Wp.r * size * 1.4;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s.life * 3);
+      ctx.fillStyle = "#8a7a68"; rockPath(r * 1.05, 3); ctx.fill();
+      const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 0, 0, 0, r);
+      g.addColorStop(0, "#f2e8d5"); g.addColorStop(0.6, "#cdbb9e"); g.addColorStop(1, "#6b5d52");
+      ctx.fillStyle = g; rockPath(r, 3); ctx.fill();
+      ctx.strokeStyle = "#ff4d3a"; ctx.lineWidth = Math.max(1.5, r * 0.09); ctx.shadowColor = "#ff4d3a"; ctx.shadowBlur = r * 0.4;
+      ctx.beginPath(); ctx.moveTo(-r * 0.6, -r * 0.1); ctx.lineTo(-r * 0.1, r * 0.15); ctx.lineTo(r * 0.2, -r * 0.35); ctx.moveTo(-r * 0.1, r * 0.15); ctx.lineTo(r * 0.1, r * 0.6); ctx.stroke();
+      ctx.restore();
     } else if (s.w === "pulse") {
       // LYTH's pulse: a cyan glow with a bright needle, pointing where it flies (drawn in the art's pixels)
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy)); const k = size * 1.2 / 512; ctx.scale(k, k);
@@ -2510,6 +2717,11 @@ function weaponIcon(w, x, y, r, color) {
   } else if (w === "iris") {
     ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, TAU); ctx.stroke();
     for (let i = 0; i < 6; i++) { const a = i * TAU / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8); ctx.quadraticCurveTo(Math.cos(a + 0.9) * r * 0.5, Math.sin(a + 0.9) * r * 0.5, Math.cos(a + 1.6) * r * 0.2, Math.sin(a + 1.6) * r * 0.2); ctx.stroke(); }
+  } else if (w === "shard") {   // three splinters
+    for (const dx of [-0.45, 0, 0.45]) { ctx.beginPath(); ctx.moveTo(dx * r, -r * 0.9); ctx.lineTo(dx * r + r * 0.16, r * 0.1); ctx.lineTo(dx * r, r * 0.8); ctx.lineTo(dx * r - r * 0.16, r * 0.1); ctx.closePath(); ctx.fill(); }
+  } else if (w === "boulder") {   // a lumpy rock with a crack
+    rockPath(r * 0.85, 3); ctx.fill();
+    ctx.strokeStyle = "#ff4d3a"; ctx.lineWidth = Math.max(1.5, r * 0.12); ctx.beginPath(); ctx.moveTo(-r * 0.5, -r * 0.1); ctx.lineTo(0, r * 0.15); ctx.lineTo(r * 0.3, -r * 0.4); ctx.stroke();
   } else if (w === "pulse") {   // an emitter with a burst
     ctx.beginPath(); ctx.arc(0, r * 0.2, r * 0.35, 0, TAU); ctx.fill();
     for (const a of [-0.5, 0, 0.5]) { ctx.beginPath(); ctx.moveTo(Math.sin(a) * r * 0.5, r * 0.2 - Math.cos(a) * r * 0.5); ctx.lineTo(Math.sin(a) * r * 0.95, r * 0.2 - Math.cos(a) * r * 0.95); ctx.stroke(); }
@@ -2573,6 +2785,7 @@ function drawMagic() {
   const b = magicButton(), ready = game.magicCool <= 0, k = ready ? 1 : 1 - game.magicCool / M.cool;
   if (M.look === "tail") drawTailButton(b, M, ready, k);
   if (M.look === "grinder") drawGrinderButton(b, M, ready, k);
+  if (M.look === "shatter") drawShatterButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
     // a magic glow when ready
@@ -2621,6 +2834,39 @@ function drawMagic() {
   }
 }
 
+// TALUS's magic button: a cracked stone, with a dot for each piece-layer it has built (in that layer's color).
+// Nothing built yet: dim. Ready with layers: the cracks glow red and pulse
+function drawShatterButton(b, M, ready, k) {
+  const T = game.talus || { stage: 0, colors: [] }, armed = ready && T.stage > 0;
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (armed) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.7);
+    gl.addColorStop(0, `rgba(255,77,58,${0.25 + 0.1 * T.stage / 5 + 0.1 * Math.sin(time * 5)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.7, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#5a4d44"); bg.addColorStop(1, "#1d1714");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(255,77,58,0.15)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = M.color; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  // the stone, cracked
+  ctx.globalAlpha = armed ? 1 : 0.45;
+  const g = ctx.createRadialGradient(-b.r * 0.15, -b.r * 0.2, 0, 0, 0, b.r * 0.55);
+  g.addColorStop(0, "#f2e8d5"); g.addColorStop(1, "#9c8a74");
+  ctx.fillStyle = g; rockPath(b.r * 0.52, 5); ctx.fill();
+  ctx.strokeStyle = armed ? `rgba(255,77,58,${0.7 + 0.3 * Math.sin(time * 6)})` : "#6b5d52"; ctx.lineWidth = b.r * 0.06;
+  ctx.beginPath(); ctx.moveTo(-b.r * 0.35, -b.r * 0.2); ctx.lineTo(-b.r * 0.05, b.r * 0.05); ctx.lineTo(b.r * 0.25, -b.r * 0.3);
+  ctx.moveTo(-b.r * 0.05, b.r * 0.05); ctx.lineTo(b.r * 0.05, b.r * 0.38); ctx.stroke();
+  // a dot for each layer built (5 places), in its color
+  ctx.globalAlpha = 1;
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + (i - 2) * 0.42, x = Math.cos(a) * b.r * 0.72, y = Math.sin(a) * b.r * 0.72 + b.r * 1.38;
+    ctx.fillStyle = i < T.stage ? T.colors[i] : "rgba(255,255,255,0.15)";
+    ctx.beginPath(); ctx.arc(x, y - b.r * 1.38 - b.r * 0.0, b.r * 0.09, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
 // LYTH's magic button: a steel ring with saw teeth. Ready and the enemy close enough: violet glow, teeth out.
 // Ready but too far: the teeth stay in. Grinding: spins fast. Recharging: dim, its violet rim fills back in
 function drawGrinderButton(b, M, ready, k) {
@@ -2940,7 +3186,8 @@ function endDuel(tellThem) {
   setTimeout(() => link.stop(), tellThem ? 250 : 0);
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
-  duel.shots.length = 0; duel.tail = null; duel.net = null; duel.ring = null; duel.grind = null; duel.held = false;
+  duel.shots.length = 0; duel.tail = null; duel.net = null; duel.ring = null; duel.grind = null; duel.held = false; enemy.talus = null;
+  for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
   for (let k = hunters.length - 1; k >= 0; k--) if (hunters[k].remote) hunters.splice(k, 1);
   // the computer enemy comes back a little later
@@ -2982,6 +3229,10 @@ function duelLink(event, data) {
     if (duel.shots.length < 60) audio.shot(m.w);
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
+  } else if (m.t === "sh" && Array.isArray(m.p)) {   // their TALUS burst: its pieces fly here too (their phone counts the damage)
+    for (const [x, y, vx, vy, fuse, color] of m.p)
+      pieces.push({ x: x * WW, y: y * WH, vx: vx * WW, vy: vy * WH, t: 0, fuse, r: shipSize() * 0.085, spin: Math.random() * TAU, color, remote: true });
+    burstAt(enemy.x, enemy.y, 40, ["#e8dcc4", "#ff4d3a", "#ffffff"], 0.6, 0.8, enemy.vx, enemy.vy); audio.crunch();
   } else if (m.t === "bye") endDuel(false);
 }
 // the other player's ship on this phone: glide toward where it said it is (moved on by its speed since then)
@@ -3029,6 +3280,12 @@ function updateRival(dt) {
     R.phase = ph; R.ang = ra; R.lift = rl;
     if (ph === "out" || ph === "back") { R.trace.push({ x: R.x, y: R.y }); if (R.trace.length > 18) R.trace.shift(); }
   } else duel.ring = null;
+  // their TALUS: how big it is, its layers' colors, its light ring; rock chips fly in when it grows
+  if (n.ta) {
+    const [st, sc, rg, cols, tt] = n.ta, was = enemy.talus ? enemy.talus.stage : 0;
+    enemy.talus = { stage: st, scale: sc, ring: rg, colors: cols ? cols.split(",") : [], t: tt };
+    if (st > was) spawnChips(enemy, shipSize() * sc, enemy.talus.colors[st - 1] || "#e8dcc4");
+  } else enemy.talus = null;
   // their LYTH caught me in its beam: my ship is pulled in and held against the teeth (their phone sends the damage)
   duel.grind = n.gr ? { phase: n.gr[0], spin: n.gr[1] + (n.gr[0] === "grind" ? 16 * age : 0), teeth: n.gr[2] } : null;
   if (n.gr && !game.dead) {
@@ -3075,6 +3332,7 @@ function updateDuel(dt) {
       hd: game.hidden > 0 ? 1 : 0, tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
+      ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
       gr: game.grind ? [game.grind.phase, +game.grind.spin.toFixed(2), +game.grind.teeth.toFixed(2), +game.grind.nx.toFixed(3), +game.grind.ny.toFixed(3)] : 0 });
     duel.outDmg = 0;
   }

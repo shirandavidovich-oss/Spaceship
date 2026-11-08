@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("thirteen ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 13);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 13);
+ok("fourteen ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 14);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 14);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -217,6 +217,16 @@ ok("LYTH grinder: pulls, grinds, lets go, then is over; it can only be used agai
   assert.strictEqual(grindPhase(M, 0.1), "pull"); assert.strictEqual(grindPhase(M, M.pull + 0.1), "grind");
   assert.strictEqual(grindPhase(M, M.pull + M.grind + 0.1), "release"); assert.strictEqual(grindPhase(M, M.pull + M.grind + M.release + 0.01), null);
   assert(M.cool > M.pull + M.grind + M.release); assert(M.dps * M.grind < 100, "one grind does not kill a full-health ship by itself");
+});
+ok("TALUS (talus-layout.json): seed 0.53, then 0.61 / 0.70 / 0.79 / 0.89 / 1.00; grows between 475 and 955 ms", () => {
+  const S = SHIPS.find((s) => s.id === "talus"), st = S.anim.stages;
+  assert.strictEqual(st.join(), "0.53,0.61,0.7,0.79,0.89,1");
+  assert.strictEqual(talusScale(st, 0, 1, 0.3), 0.53); assert.strictEqual(talusScale(st, 0, 1, 1), 0.61);
+  const mid = talusScale(st, 2, 3, 0.715); assert(mid > 0.7 && mid < 0.79);
+  for (let i = 0; i < 5; i++) assert.strictEqual(talusScale(st, i, i + 1, 2), st[i + 1], "five separate contacts reach the listed sizes");
+  assert.strictEqual(GROW.fly, 0.475); assert.strictEqual(GROW.end, 0.955);
+  assert.strictEqual(S.magic, "shatter"); assert.strictEqual(MAGIC.shatter.per * 5, 15, "a full ship bursts into 15 pieces");
+  assert(fs.existsSync(path.join(__dirname, "../app/src/main/assets/art/ships/talus", S.anim.idle)));
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
