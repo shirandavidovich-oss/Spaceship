@@ -325,10 +325,10 @@ ok("ZORIAN (zorian-layout.json): the bolt at 75 ms; the thread lays 150-1,310 ms
   for (const f of [A.idle, A.shotArt.needle.file, ...[A.primary, A.projector].flatMap((q) => q.map((x) => x[0]))]) assert(fs.existsSync(path.join(dir, f)), f);
   for (const n of S.sfxNames) assert(fs.existsSync(path.join(dir, "sfx", n + ".wav")), n);
 });
-ok("ZORIAN: button 2 is the thread; VEXAR's tail ends in a spiked ball and holds it still", () => {
+ok("ZORIAN: button 2 is the thread, its magic (the anchor) holds it still; VEXAR's tail ends in a spiked ball", () => {
   const S = SHIPS.find((s) => s.id === "zorian");
-  assert.strictEqual(weaponsOf(S).join(), "needle,thread");
-  const M = MAGIC.tail; assert(M.ball > 0 && M.hit > 0 && M.every > 0 && M.brake > 0 && M.hold === 0);
+  assert.strictEqual(weaponsOf(S).join(), "needle,thread"); assert.strictEqual(S.magic, "anchor"); assert(MAGIC.anchor.brake > 0);
+  const M = MAGIC.tail; assert(M.ball > 0 && M.hit > 0 && M.every > 0 && M.hold === 0);
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);

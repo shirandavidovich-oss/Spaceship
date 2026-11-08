@@ -135,7 +135,7 @@ const SHIPS = [
   // Button 1: thorns from the two claw launchers, taking turns. Button 2: the mandibles spread, the armor covers
   // swing open and an egg is laid; it drifts to a stop, pulses, and hatches 3 hunters that chase the enemy.
   // The enemy can crush the egg by flying into it before it hatches (then no hunters).
-  // magic: the tail button (held: a long tail with a spiked iron ball at its tip, and the ship stands still)
+  // magic: the tail button (held: a long tail with a spiked iron ball at its tip)
   { id: "vexar", name: "VEXAR", rarity: "epic", mass: 1.0, fuel: 30, refill: 15, magic: "tail",
     hull: "#3fae2a", wingC: "#10240f", trim: "#b8ff3a", flame: "#b8ff3a",
     body: [], wing: [], nozzles: [0], engineY: 0.33, cockpit: [0, -0.2, 0.05, 0.1],
@@ -285,7 +285,7 @@ const SHIPS = [
   // then arms: an enemy crossing it is hit, once. It fades 2.4 s later, and a new one can be laid.
   // Button 2 is now a spiked ball on a chain of light behind it (the thread weapon is kept in the code, unused).
   // magic: anchor (it holds still in space for as long as the button is held)
-  { id: "zorian", name: "ZORIAN", rarity: "rare", mass: 1.0, fuel: 30, refill: 15, sfx: "zorian",
+  { id: "zorian", name: "ZORIAN", rarity: "rare", mass: 1.0, fuel: 30, refill: 15, sfx: "zorian", magic: "anchor",
     sfxNames: ["needle_fire", "thread_arm", "thread_deploy", "thread_hit"],
     hull: "#1d4fd8", wingC: "#0b1a4a", trim: "#92f8ff", flame: "#48aef6",
     body: [], wing: [], nozzles: [0], engineY: 0.4, cockpit: [0, -0.2, 0.05, 0.1],
@@ -397,11 +397,11 @@ const MAGIC = {
   // ZORIAN's anchor: held, the ship stops (it still turns and shoots); let go, it flies on
   anchor: { name: "עוגן", look: "anchor", cool: 0, color: "#92f8ff", brake: 18 },
   // VEXAR's tail, held: while the magic button is held the tail grows out (over `out` s) and stays out, and the ship
-  //   stands still (`brake`, it still turns); let go and it pulls back in over `back` s and the ship flies on.
+  //   keeps flying; let go and it pulls back in over `back` s.
   //   At its tip a spiked iron ball (`ball`: radius in ship-lengths): touching the enemy it hits for `hit`
   //   (at most once every `every` s) and knocks it away (`knock` screens a second)
   tail:  { name: "זנב כדור קוצים", out: 0.8, hold: 0, back: 0.7, len: 9.6, cool: 0.4, look: "tail", color: "#b8ff3a",
-           brake: 18, ball: 0.22, hit: 20, every: 0.6, knock: 1.0 }
+           ball: 0.22, hit: 20, every: 0.6, knock: 1.0 }
 };
 // VEXAR's tail pieces along a tail `total` art-pixels long (the art is 512 px per 1.2 ship-lengths):
 // the mount, then vertebrae narrowing from 72 to 29 px wide, then the stinger, like tail-layout.json but as many
@@ -1666,7 +1666,7 @@ function drawCrosses() {
 function anchoring() {
   const M = magicOf(shipById(game.ship));
   if (!M || game.magicFinger === null || game.dead || game.stage !== "fly") return false;
-  return M.look === "anchor" || (M.look === "tail" && !!game.tail);   // VEXAR: holding its tail out holds it still
+  return M.look === "anchor";
 }
 // the anchor, while held: a ring of light under the ship and three beams fixing it in space
 function drawAnchor(x, y, size) {
