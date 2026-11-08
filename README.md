@@ -84,7 +84,13 @@ is one charge. At 3 charges it is twice as fast (with a full tank) until the tan
 gone. Keep charging instead of using the speed: at 6 the button blazes white, and a **tap** lets out a blast of light over the
 whole screen that shakes both ships and takes 35 health from the enemy wherever it is (then 10 s to recharge).
 
-While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"orian"`; `"talus"` for TALUS, `"lyth"` for LYTH, `"vexar"` for VEXAR, `"brass"` for THUL,
+**SKARN**, the fossil intake ship (`art/ships/skarn/`, own recorded sounds). Button 1: bone shards from both side muzzles.
+Button 2 opens its jaw: for 1.5 s, enemy shots flying into its mouth are caught (side and back shots are not), up to 5;
+it slams shut when full, when time is up, or on a second tap. Loaded, the mouth glows by how many it holds (dots on the button),
+and the next tap spits them all back as a fanned salvo of hot fossils (14 each). In a duel the shooter's phone sees its shot
+fly into the open mouth and tells the other phone. The computer enemy does not shoot yet, so there is nothing to catch from it. No magic yet.
+
+While testing, everyone flies one ship: `TRY_SHIP` at the top of the game (now `"skarn"`; `"orian"` for ORIAN, `"talus"` for TALUS, `"lyth"` for LYTH, `"vexar"` for VEXAR, `"brass"` for THUL,
 `""` for the gift's surprise again).
 Swipe up to offer a trade with a phone nearby; the swap happens only if both players say yes.
 

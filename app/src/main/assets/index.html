@@ -31,7 +31,7 @@ const UNLOCK     = 0.2;  // after the fuel runs out, the button comes back when 
 const ENEMY      = true; // an enemy ship flies with you (for now it only flies, no weapons yet)
 const ENEMY_KEEP = 0.9;  // how close the enemy likes to stay to you, in screen-widths
 const ZOOM_MIN   = 0.4;  // like Star Control: the view zooms out (down to this much) to keep both ships on screen
-const TRY_SHIP   = "orian"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
+const TRY_SHIP   = "skarn"; // while testing: everyone flies this ship. Set to "" to go back to the gift's surprise
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
 const RAM_DAMAGE = 25;   // damage from crashing into the enemy at full speed (both ships take it)
@@ -201,7 +201,26 @@ const SHIPS = [
     anim: { dir: "orian", size: 1.6, idle: "idle.webp",
       primary: frames("pulse", 6, (n) => [45, 50, 45, 55, 55, 50][n - 1], { 3: "left" }),                       // 300 ms
       secondary: frames("beam", 16, (n) => [125, 125, 125, 125, 70, 120, 120, 120, 120, 50, 150, 140, 120, 120, 80, 40][n - 1], { 11: "fire" }),   // 1,750 ms
-      fan: { pivotY: 32, reach: 121, angles: [62, 31, 0, -31, -62] } } }   // the mirrors (art pixels from the center)
+      fan: { pivotY: 32, reach: 121, angles: [62, 31, 0, -31, -62] } } },   // the mirrors (art pixels from the center)
+  // SKARN, the fossil intake ship (art/ships/skarn/, 512 x 512, center pivot, nose up), from skarn-layout.json.
+  // Button 1: bone shards from both side muzzles at 76 ms (2 a muzzle, a little spread). Button 2: the jaw opens;
+  // for 1.5 s it catches enemy shots flying into its mouth (up to 5); it slams shut when full, when time is up or on
+  // a second tap. Loaded, the mouth glows by how many it holds; the next tap spits them all back as a salvo.
+  { id: "skarn", name: "SKARN", rarity: "epic", mass: 1.3, fuel: 30, refill: 15, sfx: "skarn",
+    sfxNames: ["jaw_open", "jaw_slam", "projectile_catch", "shards_fire", "shards_prime", "spit_fire", "spit_windup"],
+    hull: "#e6cfa8", wingC: "#2b2626", trim: "#ff6a3d", flame: "#ff7a3d",
+    body: [], wing: [], nozzles: [-0.13, 0.13], engineY: 0.34, cockpit: [0, -0.2, 0.05, 0.1],
+    weapons: ["spike", "trap"],
+    // muzzles (144,113) and (368,113); the mouth (spit anchor) (256,94)
+    guns: { spike: [[-0.2625, -0.335], [0.2625, -0.335]], trap: [[0, -0.38]] },
+    anim: { dir: "skarn", size: 1.2, idle: "idle.webp",
+      primary: frames("primary", 7, (n) => [40, 36, 39, 45, 50, 40, 35][n - 1], { 3: "left" }),   // 285 ms, shards at 76
+      open: frames("open", 6, (n) => [50, 50, 50, 50, 35, 50][n - 1]),                            // the jaw parts (235 ms)
+      slam: frames("slam", 6, (n) => [40, 40, 40, 50, 35, 25][n - 1]),                            // 230 ms
+      spit: frames("spit", 8, () => 45, { 4: "fire" }),                                            // 360 ms, the salvo at 135
+      loaded: [1, 2, 3, 4, 5].map((n) => "loaded_" + n + ".webp"),
+      // the trap: art pixels in front of the center (forward 84-180, side up to 68 + a bit more further out)
+      trap: { near: 84, far: 180, side: 68, flare: 0.28, catch: 1.5, max: 5 } } }
 ];
 // a numbered run of drawings: name_01.webp ... with each frame's ms, and cues on chosen frames ({ 10: "fire" })
 function frames(name, count, ms, cues = {}) {
@@ -236,6 +255,10 @@ const WEAPONS = {
   bolt:    { name: "בזק אור",   dmg: 6,  speed: 2.4, life: 1.1, cool: 0.3,  ammo: 30, refill: 7,  r: 0.025, color: "#fff1ba" },
   // the solar beam: `life` seconds long, `len` screens long, `dmg` once to a ship it touches (width `r` ship-lengths)
   solar:   { name: "קרן שמש",   dmg: 30, speed: 0,   life: 0.29, cool: 1.0,  ammo: 3,  refill: 10, r: 0.14,  color: "#ffcc63", beam: true, len: 2.6 },
+  // SKARN: both muzzles at once (both), 2 shards each. trap: the jaw (button 2); fossil: what it spits back, per shot caught
+  spike:   { name: "שברים",     dmg: 4,  speed: 2.6, life: 0.9, cool: 0.3,  ammo: 30, refill: 8,  r: 0.02,  color: "#f2dcc0", pellets: 2, fan: 0.18, both: true },
+  trap:    { name: "מלכודת",    dmg: 0,  speed: 0,   life: 0,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#ff6a3d", trap: true },
+  fossil:  { name: "יריקה",     dmg: 14, speed: 2.2, life: 1.5, cool: 0,    ammo: 0,  r: 0.05,  color: "#ff8a5a" },
   thorn:   { name: "קוצים",     dmg: 5,  speed: 2.6, life: 1.0, cool: 0.16, ammo: 30, refill: 8,  r: 0.02,  color: "#b8ff3a" },
   // hive: lays an egg (speed: how fast it is pushed out, then it drifts to a stop). dmg: per hunter
   //   swarm: hunters per egg   hunterSpeed: screens per second   hunterTurn: radians per second   hunterLife: seconds
@@ -283,6 +306,8 @@ function tailPieces(total) {
   out.push({ role: "stinger", w: 56, start: at, end: at + sting, ob: 10, oa: 0 });
   return out;
 }
+// SKARN's trap: is a point (art pixels from the ship's center: side, forward) inside the open mouth?
+function inTrap(T, side, forward) { return forward >= T.near && forward <= T.far && Math.abs(side) <= T.side + (forward - T.near) * T.flare; }
 // ORIAN's soak: charges for `held` seconds of holding (whole charges count; 6 at most)
 function soakCharges(M, held) { return Math.min(6, Math.floor(held / M.stage)); }
 // ORIAN's mirrors t ms into the beam: how open each one is, how lit by the star, and where its center is
@@ -612,6 +637,8 @@ const audio = {
     if (w === "twin") { this.tone(1900, 0.03, "square", 0.04, 0.5); this.noise(0.06, 0.14, 2600); [0.04, 0.07, 0.1].forEach((d) => this.tone(700, 0.025, "triangle", 0.02, 0.8, d)); }
     // iris: the heavy release (the gear grind and the latch come first, in windUp)
     else if (w === "iris") this.cannon();
+    else if (w === "spike") { this.sfx("skarn", "shards_prime", 0, 0.5); this.sfx("skarn", "shards_fire", 0.03); }
+    else if (w === "fossil") { }   // (the spit has its own sound)
     else if (w === "bolt") { this.sfx("orian", "pulse_prime", 0, 0.6); this.sfx("orian", "pulse_fire", 0.05); }
     else if (w === "solar") this.sfx("orian", "solar_beam");
     else if (w === "pulse") { this.sfx("lyth", "pulse_fire"); this.sfx("lyth", "shutters_close", 0.11, 0.6); }
@@ -1154,6 +1181,72 @@ function updateMagic(dt) {
   game.magicPour -= dt;
   // thick smoke pours from the engines and hangs in space
   if (Math.random() < 30 * dt) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, 2.6 + Math.random() * 1.5, M.hide - 0.5);
+}
+
+// ---------- SKARN's jaw: catching shots and spitting them back ----------
+// game.trap: { mode: idle | opening | catch | slam | loaded | spit, t: seconds in this mode, stored: shots held }
+function trapOf() { const S = shipById(game.ship); return S.anim && S.anim.trap ? (game.trap || (game.trap = { mode: "idle", t: 0, stored: 0 })) : null; }
+function trapPress() {
+  const T = trapOf(), S = shipById(game.ship);
+  if (!T || game.dead) return;
+  if (T.mode === "idle") { T.mode = "opening"; T.t = 0; game.anim = { seq: "open", t: 0 }; audio.sfx(S.sfx, "jaw_open"); buzz(20); }
+  else if (T.mode === "catch") trapClose();
+  else if (T.mode === "loaded") { T.mode = "spit"; T.t = 0; T.fired = false; game.anim = { seq: "spit", t: 0 }; audio.sfx(S.sfx, "spit_windup"); }
+}
+function trapClose() {
+  const T = game.trap, S = shipById(game.ship);
+  T.mode = "slam"; T.t = 0; game.anim = { seq: "slam", t: 0 }; audio.sfx(S.sfx, "jaw_slam"); buzz(50); shake(0.15);
+}
+function updateTrap(dt) {
+  const T = trapOf(), S = shipById(game.ship);
+  if (!T) { game.trap = null; return; }
+  const P = S.anim.trap;
+  T.t += dt;
+  if (T.mode === "opening" && T.t >= 0.235) { T.mode = "catch"; T.t = 0; }
+  if (T.mode === "catch") {
+    if (!game.anim || game.anim.seq !== "open") game.anim = { seq: "open", t: 240 };
+    game.anim.t = Math.min(game.anim.t, 240);   // held wide open
+    if (T.t >= P.catch) trapClose();
+  }
+  if (T.mode === "slam" && T.t >= 0.23) { T.mode = T.stored ? "loaded" : "idle"; T.t = 0; }
+  if (T.mode === "spit") {
+    if (!T.fired && T.t >= 0.135) { T.fired = true; spitSalvo(S, T.stored); T.stored = 0; }
+    if (T.t >= 0.36) { T.mode = "idle"; T.t = 0; }
+  }
+}
+// did a shot fly into the open mouth of ship o (S) since last frame? Checked along its path in small steps
+// (shots are fast), and a little deeper than the drawn mouth so it is caught before it would hit the hull
+function inMouth(o, S, s, dt) {
+  const T = S.anim.trap, px = shipSize() * S.anim.size / 512, c = Math.cos(o.ang), sn = Math.sin(o.ang);
+  for (let k = 0; k <= 4; k++) {
+    const u = k / 4, x = s.x - s.vx * dt * (1 - u), y = s.y - s.vy * dt * (1 - u);
+    const dx = wrapDelta(x - o.x, WW) / px, dy = wrapDelta(y - o.y, WH) / px, side = dx * c + dy * sn, forward = dx * sn - dy * c;
+    if (inTrap({ ...T, far: T.far + 60 }, side, forward)) return true;
+  }
+  return false;
+}
+// one more shot held in the jaw (it slams shut when full)
+function trapGain(x, y) {
+  const T = game.trap, S = shipById(game.ship);
+  if (!T || T.mode !== "catch" || T.stored >= S.anim.trap.max) return;
+  T.stored++;
+  audio.sfx(S.sfx, "projectile_catch"); buzz(25);
+  burstAt(x, y, 10, ["#ffffff", "#ff8a5a", "#f2dcc0"], 0.25, 0.4, game.vx, game.vy);
+  if (T.stored >= S.anim.trap.max) trapClose();
+}
+function trapOpen() { const T = game.trap; return !!T && T.mode === "catch" && T.stored < shipById(game.ship).anim.trap.max && !game.dead; }
+// the salvo: one fossil shot for each one caught, from the mouth, fanned around the heading; the ship kicks back
+function spitSalvo(S, n) {
+  if (n <= 0) return;
+  const Wp = WEAPONS.fossil, size = shipSize(), made = [];
+  for (let i = 0; i < n; i++) {
+    const k = i - (n - 1) / 2, m = rotatePt(k * 19 / 512 * S.anim.size * size, -162 / 512 * S.anim.size * size, game.ang), a = game.ang + k * 0.116;
+    const s = { w: "fossil", x: game.x + m.x, y: game.y + m.y, vx: game.vx + Math.sin(a) * Wp.speed * U, vy: game.vy - Math.cos(a) * Wp.speed * U, life: 0, id: ++shotSeq };
+    shots.push(s); made.push(s);
+  }
+  for (const s of made) duelSend({ t: "f", w: "fossil", ...netPos(s), s: S.id, id: s.id });
+  game.vx -= Math.sin(game.ang) * U * 0.05 * n; game.vy += Math.cos(game.ang) * U * 0.05 * n;
+  audio.sfx(S.sfx, "spit_fire"); shake(0.2 + n * 0.08); buzz(60 + n * 20);
 }
 
 // ---------- ORIAN's magic: soaking up starlight ----------
@@ -1810,7 +1903,7 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
-  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null;
+  game.dead = 3; game.deaths++; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -1830,6 +1923,7 @@ function respawnShip() {
 //  WEAPONS  (buttons 1 and 2: the ship's own; button 3: picked up from a destroyed enemy)
 // ======================================================================
 const shots = [];
+let shotSeq = 0;   // shot numbers (a duel: the other phone tells which one its jaw caught)
 const rings = [];   // shock waves from explosions, at a place in space
 const crate = { on: false, w: null, x: 0, y: 0, vx: 0, vy: 0, t: 0 };
 
@@ -1849,8 +1943,14 @@ function updateWeapons(dt) {
   updateGrind(dt);
   updateTalus(dt); updateChips(dt); updatePieces(dt); updateBeam(dt); updateNova(dt);
   if (!game.dead) updateSoak(dt);
+  if (!game.dead) updateTrap(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt);
+    if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].trap) {   // SKARN's jaw: each new press is one input
+      if (game.fire[1] !== null && !game.trapLatch) { game.trapLatch = true; trapPress(); }
+      if (game.fire[1] === null) game.trapLatch = false;
+      continue;
+    }
     if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && slotAmmo(i) >= 1 && !waitsForFrames(i)) shoot(i);
   }
   // button 3 grows in when picked up, and shrinks away once it is empty
@@ -1874,6 +1974,12 @@ function updateWeapons(dt) {
     // into the planet: a puff, and it is gone
     if (Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
       burstAt(s.x, s.y, 5, ["#b8a3ff", "#ffffff"], 0.2, 0.6); shots.splice(k, 1); continue;
+    }
+    // into the other player's open jaw (SKARN): caught, no hit, and their phone is told
+    if (enemy.remote && enemy.on && duel.net && duel.net.kc && shipById(enemy.ship).anim && shipById(enemy.ship).anim.trap &&
+        inMouth(enemy, shipById(enemy.ship), s, dt)) {
+      link.send({ t: "caught", x: s.x / WW, y: s.y / WH }); duel.net.kc = 0;   // (one per message; the next state says if it is still open)
+      burstAt(s.x, s.y, 8, ["#ff8a5a", "#ffffff"], 0.2, 0.4); shots.splice(k, 1); continue;
     }
     // into the enemy
     if (enemy.on && enemy.warp < 0.5) {
@@ -1902,11 +2008,11 @@ function shoot(i) {
     } else audio.jaws();
     return;
   }
-  const guns = gunsOf(S, w), b = game.barrel[i]++ % guns.length;
-  // the twin cannon's frames do not cut into the heavy cannon or the smoke hatches (its shots still fly)
-  if (A && A.primary && i === 0 && !(game.anim && (game.anim.seq === "secondary" || game.anim.seq === "smoke")))
+  const guns = gunsOf(S, w), b = Wp.both ? 0 : game.barrel[i]++ % guns.length;
+  // the firing frames do not cut into the ship's other sequences (the heavy cannon, the smoke hatches, the jaw...)
+  if (A && A.primary && i === 0 && !(game.anim && game.anim.seq !== "primary"))
     game.anim = { seq: "primary", t: Math.max(0, cueTime(A.primary, b === 0 ? "left" : "right")) };
-  spawnShots(w, guns[b]);
+  if (Wp.both) for (const g of guns) spawnShots(w, g); else spawnShots(w, guns[b]);
   audio.shot(w);
 }
 // the shots leave from a gun point on the ship, turned with the ship
@@ -1923,7 +2029,7 @@ function spawnShots(w, g) {
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
   if (!S.anim) burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
   // in a duel the other phone shows these shots too
-  if (duel.stage === "on") for (const s of shots.slice(-pelletAngles(Wp).length)) duelSend({ t: "f", w, ...netPos(s), s: S.id });
+  if (duel.stage === "on") for (const s of shots.slice(-pelletAngles(Wp).length)) { s.id = ++shotSeq; duelSend({ t: "f", w, ...netPos(s), s: S.id, id: s.id }); }
   // shots with their own drawing (THUL's cannonball, VEXAR's thorns). THUL's flash, shock ring and sparks are in its frames
   const art = S.anim && S.anim.shotArt && S.anim.shotArt[w];
   if (art) for (const s of shots.slice(-pelletAngles(Wp).length)) s.art = { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0 };
@@ -2122,6 +2228,8 @@ function updateAnim(dt) {
 }
 // button 2 waits while the heavy cannon or the smoke hatches are still playing (so a shot never cuts a sequence short)
 function waitsForFrames(i) {
+  // SKARN: the shards only while the jaw is shut (empty or loaded)
+  if (i === 0 && game.trap && game.trap.mode !== "idle" && game.trap.mode !== "loaded") return true;
   if (i === 1 && (game.ring || game.grind)) return true;
   // ORIAN: nothing else fires while the fan is open or a bolt is on its way
   if (i < 2 && shipById(game.ship).busyBlocks && game.anim) return true;   // the ring cannot fly while it grinds   // LYTH: one ring at a time, until it has locked on again
@@ -2264,7 +2372,7 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.fillStyle = glow; ctx.fillRect(-0.7, -0.6, 1.4, 1.3);
 
   // a real drawing of the ship, once there is one
-  let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim);
+  let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored);
   // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
   // Grinding: the hull, and the ring drawn on its own, spinning, with its teeth out
   const ringAway = o.ring === "out" || o.ring === "back" || !!o.grind;
@@ -2348,8 +2456,13 @@ function artImage(src) {
   if (!a) { a = artCache[src] = new Image(); a.src = src; }
   return a.complete && a.naturalWidth ? a : null;
 }
-function shipArt(S, a) {
+function shipArt(S, a, stored) {
   if (S.anim) {
+    // SKARN holding caught shots: its mouth glows by how many (when no other frames are playing)
+    if (stored > 0 && S.anim.loaded && !(a && S.anim[a.seq] && seqFrame(S.anim[a.seq], a.t) >= 0)) {
+      const l = artImage(framePath(S.anim.dir, S.anim.loaded[Math.min(stored, S.anim.loaded.length) - 1]));
+      if (l) return l;
+    }
     const idle = artImage(framePath(S.anim.dir, S.anim.idle));
     const f = artImage(framePath(S.anim.dir, shipFrame(S, a)));
     return f || idle;   // a frame still loading: show idle meanwhile
@@ -2361,7 +2474,7 @@ function preloadArt() {
   for (const S of SHIPS) {
     const A = S.anim;
     if (!A) continue;
-    const all = [A.idle, ...[A.primary, A.secondary, A.smoke].filter(Boolean).flatMap((q) => q.map((x) => x[0]))];
+    const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.open, A.slam, A.spit].filter(Boolean).flatMap((q) => q.map((x) => x[0])), ...(A.loaded || [])];
     for (const k in A.shotArt || {}) all.push(A.shotArt[k].file);
     if (A.hull) all.push(A.hull, A.ring);
     if (S.grows) for (let i = 0; i <= 5; i++) talusPicture(S, i, []);
@@ -2544,7 +2657,7 @@ function draw() {
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a, out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
-          talus: shown === S && S.grows ? game.talus : null });
+          talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0 });
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
       drawRange();
@@ -2763,7 +2876,7 @@ function drawEnemy() {
     if (enemy.remote) drawTail(duel.tail, E);
     const esc = enemy.remote && enemy.talus ? enemy.talus.scale : 1;
     if (enemy.remote && enemy.talus) drawTalusRing(p.x, p.y, size * esc, enemy.talus.ring);
-    drawShip(E, p.x, p.y, size * esc, { talus: enemy.remote ? enemy.talus : null, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang,
+    drawShip(E, p.x, p.y, size * esc, { talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang,
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (enemy.remote) drawRing(duel.ring, E);
@@ -2887,6 +3000,24 @@ function drawShots(list = shots) {
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, d * (s.art.spin ? 1.1 : 0.45), 0, TAU); ctx.fill();
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s.art.spin ? s.life * s.art.spin : Math.atan2(ux, -uy));
       ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+    } else if (s.w === "spike") {
+      // a bone shard with an ember-red tip
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(uy, ux)); const l = size * 0.1;
+      ctx.fillStyle = "rgba(255,106,61,0.3)"; ctx.beginPath(); ctx.ellipse(-l * 0.2, 0, l * 0.7, l * 0.2, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#f2dcc0"; ctx.beginPath(); ctx.moveTo(l * 0.5, 0); ctx.lineTo(-l * 0.3, l * 0.1); ctx.lineTo(-l * 0.45, 0); ctx.lineTo(-l * 0.3, -l * 0.1); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#ff6a3d"; ctx.beginPath(); ctx.arc(l * 0.42, 0, l * 0.08, 0, TAU); ctx.fill();
+      ctx.restore();
+    } else if (s.w === "fossil") {
+      // what SKARN spits back: a hot glowing fossil, spinning, trailing sparks
+      const r = Wp.r * size * 1.3;
+      if (Math.random() < 0.5) burstAt(s.x, s.y, 1, ["#ff8a5a", "#ffd166"], 0.06, 0.4);
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.4);
+      g.addColorStop(0, "rgba(255,180,120,0.6)"); g.addColorStop(1, "rgba(255,106,61,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.4, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s.life * 9);
+      ctx.fillStyle = "#e6cfa8"; rockPath(r, 2); ctx.fill();
+      ctx.strokeStyle = "#ff6a3d"; ctx.lineWidth = Math.max(1.5, r * 0.15); ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0.3, 4.5); ctx.stroke();
+      ctx.restore();
     } else if (s.w === "bolt") {
       // ORIAN's light bolt: a gold glow with a white-hot needle
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy)); const k = size * 1.6 / 512; ctx.scale(k, k);
@@ -2974,6 +3105,15 @@ function weaponIcon(w, x, y, r, color) {
   } else if (w === "iris") {
     ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, TAU); ctx.stroke();
     for (let i = 0; i < 6; i++) { const a = i * TAU / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8); ctx.quadraticCurveTo(Math.cos(a + 0.9) * r * 0.5, Math.sin(a + 0.9) * r * 0.5, Math.cos(a + 1.6) * r * 0.2, Math.sin(a + 1.6) * r * 0.2); ctx.stroke(); }
+  } else if (w === "spike") {   // two bone shards
+    for (const dx of [-0.35, 0.35]) { ctx.beginPath(); ctx.moveTo(dx * r, -r * 0.9); ctx.lineTo(dx * r + r * 0.18, r * 0.2); ctx.lineTo(dx * r, r * 0.8); ctx.lineTo(dx * r - r * 0.18, r * 0.2); ctx.closePath(); ctx.fill(); }
+  } else if (w === "trap") {   // jaws with teeth; dots for the shots held
+    ctx.lineWidth = Math.max(2, r * 0.14);
+    for (const sy of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-r * 0.85, sy * r * 0.15); ctx.lineTo(r * 0.85, sy * r * 0.15);
+      for (let i = 0; i < 4; i++) { const x = -r * 0.6 + i * r * 0.4; ctx.moveTo(x - r * 0.12, sy * r * 0.15); ctx.lineTo(x, sy * r * 0.45); ctx.lineTo(x + r * 0.12, sy * r * 0.15); }
+      ctx.stroke(); }
+    const n = game.trap ? game.trap.stored : 0;
+    for (let i = 0; i < n; i++) { ctx.fillStyle = "#ff8a5a"; ctx.beginPath(); ctx.arc((i - (n - 1) / 2) * r * 0.32, r * 0.78, r * 0.11, 0, TAU); ctx.fill(); }
   } else if (w === "bolt") {   // a spark of light
     ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.25, -r * 0.1); ctx.lineTo(0, r); ctx.lineTo(-r * 0.25, -r * 0.1); ctx.closePath(); ctx.fill();
   } else if (w === "solar") {   // a fan of mirrors under a beam
@@ -3487,11 +3627,13 @@ function duelLink(event, data) {
     if (typeof m.h === "number" && m.h > 0) damageShip(m.h);   // what my ship took from their weapons
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
     const S = shipById(m.s), art = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
-    duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0,
+    duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0 } : null });
     if (duel.shots.length < 60) audio.shot(m.w);
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
+  } else if (m.t === "caught") {   // my SKARN's jaw caught one of their shots (their phone saw it fly in)
+    trapGain(m.x * WW, m.y * WH);
   } else if (m.t === "nova") {   // their ORIAN's light blast: the flash, and my ship shaken (their phone sends the damage)
     duel.nova = { t: 0 }; shake(1.2); buzz(300); audio.boom();
     game.vx += (Math.random() - 0.5) * U * 0.8; game.vy += (Math.random() - 0.5) * U * 0.8;
@@ -3585,6 +3727,7 @@ function updateDuel(dt) {
       s.vx = t.vx; s.vy = t.vy;
     }
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
+    if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it)
     const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shipSize();
     const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
     if (near || inPlanet || s.life > Wp.life) {
@@ -3603,6 +3746,7 @@ function updateDuel(dt) {
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
       ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
+      kn: game.trap ? game.trap.stored : 0, kc: trapOpen() ? 1 : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
       gr: game.grind ? [game.grind.phase, +game.grind.spin.toFixed(2), +game.grind.teeth.toFixed(2), +game.grind.nx.toFixed(3), +game.grind.ny.toFixed(3)] : 0 });
     duel.outDmg = 0;
