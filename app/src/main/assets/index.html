@@ -345,13 +345,38 @@ function turnToward(a, target, step) { const d = wrapAngle(target - a); return a
 // space wraps around: the shortest way from one point to another along one axis
 function wrapDelta(d, size) { return d - size * Math.round(d / size); }
 // the planet's pull on a ship dx, dy away from it (pixels). u = one screen-width. r below the surface counts as the surface
-function gravityAt(dx, dy, u, surface) {
+function gravityAt(dx, dy, u, surface, pull = PULL) {
   const d = Math.hypot(dx, dy) || 1, r = Math.max(d, surface);
   // weaker with distance; inside one screen it stays the same, and always below every engine's push,
   // so a ship can always fly away from the planet
-  const a = PULL * u / Math.max(1, (r / u) * (r / u));
+  const a = pull * u / Math.max(1, (r / u) * (r / u));
   return { ax: -dx / d * a, ay: -dy / d * a };
 }
+// What is in the middle of space. A different one each round (when a new enemy arrives).
+//   r: radius in screen-widths   pull: its gravity (like PULL; every one stays below every engine's push)
+//   burn: health a second it takes from a ship touching it (none = just a bounce)
+//   color: on the map   halo: its glow (r,g,b)   grad: surface colors, light to dark
+const BODIES = [
+  { id: "gas", name: "ענק גזים", kind: "planet", r: 0.5, pull: 0.45, color: "#8f7dff", halo: "140,110,255",
+    grad: ["#a29bfe", "#6c5ce7", "#2d1b69", "#140b33"], bands: "#e0d7ff", rim: "rgba(190,170,255,0.5)" },
+  { id: "hole", name: "חור שחור", kind: "hole", r: 0.2, pull: 0.58, burn: 40, color: "#ff9f43", halo: "255,140,40" },
+  { id: "neutron", name: "כוכב נייטרונים", kind: "compact", r: 0.11, pull: 0.55, burn: 30, color: "#bfe9ff", halo: "120,190,255", field: true },
+  { id: "pulsar", name: "פולסר", kind: "compact", r: 0.12, pull: 0.5, burn: 25, color: "#7df9ff", halo: "80,240,255", beams: true },
+  { id: "dwarf", name: "ננס לבן", kind: "star", r: 0.17, pull: 0.4, burn: 20, color: "#f1f6ff", halo: "210,225,255",
+    grad: ["#ffffff", "#f4f8ff", "#c3d2ff", "#8aa0e0"] },
+  { id: "redgiant", name: "ענק אדום", kind: "star", r: 0.78, pull: 0.3, burn: 10, color: "#ff5b3a", halo: "255,80,40",
+    grad: ["#ffd2a1", "#ff7a3d", "#c4281c", "#5e0d0d"], boil: true },
+  { id: "sun", name: "שמש צהובה", kind: "star", r: 0.45, pull: 0.42, burn: 18, color: "#ffd23f", halo: "255,200,60",
+    grad: ["#fffbe0", "#ffe066", "#ffa41b", "#c45a00"], flares: "#ffb02e" },
+  { id: "bluegiant", name: "ענק כחול", kind: "star", r: 0.62, pull: 0.52, burn: 22, color: "#4cc9f0", halo: "80,170,255",
+    grad: ["#ffffff", "#a8e4ff", "#3a86ff", "#16236e"], flares: "#8fd3ff" },
+  { id: "ice", name: "כוכב קרח", kind: "planet", r: 0.4, pull: 0.3, color: "#a8f0ff", halo: "150,230,255",
+    grad: ["#ffffff", "#bdf4ff", "#4fa8c9", "#123e5c"], bands: "#ffffff", rings: "200,240,255", rim: "rgba(200,240,255,0.6)" },
+  { id: "lava", name: "כוכב לבה", kind: "planet", r: 0.38, pull: 0.38, burn: 12, color: "#ff6b1a", halo: "255,90,20",
+    grad: ["#5a4a46", "#3a2a28", "#1e1413", "#0a0606"], cracks: "#ff7b1a", rim: "rgba(255,120,40,0.6)" }
+];
+// the next body: any but the one there now
+function nextBody(now, rand = Math.random) { let i; do i = Math.floor(rand() * BODIES.length); while (i === now && BODIES.length > 1); return i; }
 // each ship's numbers (units: screens and seconds)
 function shipStats(S) {
   return {
@@ -817,6 +842,7 @@ function update(dt) {
   if (game.stage === "arrive" && game.t > 0.9) { game.stage = "fly"; game.t = 0; spawnEnemy(); }
 
   game.shakeT = Math.max(0, game.shakeT - dt * 2.5);
+  updateCosmos(dt);
   game.hurt = Math.max(0, game.hurt - dt);
   game.arriveT = Math.max(0, (game.arriveT || 0) - dt * 1.5);
   if (game.stage === "fly" && trade.stage !== "swapping") {
@@ -900,9 +926,9 @@ function moveShip(o, S, c, dt) {
   o.power = lerp(o.power, on ? 1 : 0, 1 - Math.exp(-dt * 10));
 
   // 3. the planet in the middle pulls (nearest way round, since space wraps)
-  const R = U * PLANET_R;
+  const R = planetR();
   const dx = wrapDelta(o.x - WW / 2, WW), dy = wrapDelta(o.y - WH / 2, WH);
-  const g = gravityAt(dx, dy, U, R);
+  const g = gravityAt(dx, dy, U, R, body().pull);
   o.vx += g.ax * dt; o.vy += g.ay * dt;
 
   // 4. no air in space: the ship keeps flying, up to its top speed
@@ -911,9 +937,10 @@ function moveShip(o, S, c, dt) {
   o.x += o.vx * dt; o.y += o.vy * dt;
   o.x = ((o.x % WW) + WW) % WW; o.y = ((o.y % WH) + WH) % WH;
 
-  // 5. bounce off the planet (no damage yet)
+  // 5. bounce off the planet. Stars, black holes and lava burn a ship that touches them (yours: health; see touchBurn)
   o.hitCool = Math.max(0, (o.hitCool || 0) - dt);
   const d = Math.hypot(dx, dy), touch = R + size * 0.32;
+  if (o === game && d < touch + size * 0.08) touchBurn(dt);
   let hit = 0;
   if (d < touch) {
     const nx = dx / (d || 1), ny = dy / (d || 1), vn = o.vx * nx + o.vy * ny;
@@ -974,6 +1001,29 @@ function smokeAt(x, y, o, S, big = 1, life = 1.6) {
   parts.push({ w: true, smoke: true, x, y, vx: o.vx * 0.4 - Math.sin(a) * back, vy: o.vy * 0.4 + Math.cos(a) * back,
     life: 0, max: life * (0.7 + Math.random() * 0.6), s: shipSize() * 0.07 * big, grow: 1.6 + Math.random(),
     c: `rgb(${g},${g},${g + 8})`, op: big > 1.5 ? 0.85 : 0.55 });
+}
+
+// ---------- the body in the middle (BODIES) ----------
+// touching a hot one: health goes, a little at a time (the red flash only every few points)
+function touchBurn(dt) {
+  const B = body();
+  if (!B.burn || game.dead) return;
+  cosmos.burn += B.burn * dt;
+  if (Math.random() < dt * 20) burstAt(game.x, game.y, 3, [B.color, "#ffffff"], 0.2, 0.4, game.vx, game.vy);
+  if (cosmos.burn >= 5) { damageShip(Math.floor(cosmos.burn)); cosmos.burn -= Math.floor(cosmos.burn); }
+}
+// it changes each round: the old one shrinks away and the new one grows in its place, and its name shows for a moment
+const cosmos = { body: 0, prev: null, morph: 1, label: 0, burn: 0, started: false };
+function body() { return BODIES[cosmos.body]; }
+function planetR() { return U * body().r; }
+function setBody(i, show = true) {
+  if (i === cosmos.body && cosmos.started) return;
+  cosmos.prev = show ? cosmos.body : null; cosmos.body = i; cosmos.morph = show ? 0 : 1; cosmos.label = show ? 3 : 0;
+  if (show) { audio.whoosh(); }
+}
+function updateCosmos(dt) {
+  cosmos.morph = Math.min(1, cosmos.morph + dt / 1.2);
+  cosmos.label = Math.max(0, cosmos.label - dt);
 }
 
 // ---------- magic: the gear button ----------
@@ -1278,6 +1328,8 @@ const enemy = { on: false, ship: null, x: 0, y: 0, vx: 0, vy: 0, ang: 0, spin: 0
   hp: ENEMY_HP, hurt: 0, respawn: 0 };
 function spawnEnemy() {
   if (!ENEMY) return;
+  setBody(nextBody(cosmos.body), cosmos.started);   // each round: a new thing in the middle
+  cosmos.started = true;
   const others = SHIPS.filter((s) => s.id !== game.ship);
   enemy.ship = others[Math.floor(Math.random() * others.length)].id;
   if (!game.kills) { enemy.x = WW / 2 + U * 0.3; enemy.y = WH / 2 + U * 2.2; }   // the first one: on the far side of the planet
@@ -1286,7 +1338,7 @@ function spawnEnemy() {
     let a = Math.random() * TAU;
     for (let i = 0; i < 12; i++, a += TAU / 12) {
       enemy.x = game.x + Math.sin(a) * U * 2.2; enemy.y = game.y - Math.cos(a) * U * 2.2;
-      if (Math.hypot(wrapDelta(enemy.x - WW / 2, WW), wrapDelta(enemy.y - WH / 2, WH)) > U * PLANET_R * 3) break;
+      if (Math.hypot(wrapDelta(enemy.x - WW / 2, WW), wrapDelta(enemy.y - WH / 2, WH)) > planetR() * 3) break;
     }
     enemy.x = ((enemy.x % WW) + WW) % WW; enemy.y = ((enemy.y % WH) + WH) % WH;
   }
@@ -1313,7 +1365,7 @@ function updateEnemy(dt) {
   }
   // held by LYTH's beam: it cannot fly (the grinder moves it)
   if (game.grind && game.grind.phase !== "release") return;
-  const c = enemyControl(enemy, prey, shipStats(E), { ww: WW, wh: WH, u: U, planetR: U * PLANET_R });
+  const c = enemyControl(enemy, prey, shipStats(E), { ww: WW, wh: WH, u: U, planetR: planetR() });
   moveShip(enemy, E, c, dt);
   if (!game.dead) bumpShips(game, shipById(game.ship), enemy, E);
 }
@@ -1403,7 +1455,7 @@ function updateWeapons(dt) {
     if (game.loot.ammo < 1 && game.loot.show <= 0) { game.loot = null; game.fire[2] = null; }
   }
 
-  const size = shipSize(), R = U * PLANET_R;
+  const size = shipSize(), R = planetR();
   for (let k = shots.length - 1; k >= 0; k--) {
     const s = shots[k], Wp = WEAPONS[s.w];
     s.life += dt;
@@ -1495,7 +1547,7 @@ function updateRing(dt) {
   if (was === "back" && R.phase !== "back") { audio.sfx(S.sfx, "ring_capture"); buzz(30); }
   if (!R.phase) { audio.sfx(S.sfx, "ring_lock"); game.ring = null; return; }
   if (R.phase === "out") {
-    const g = gravityAt(wrapDelta(R.x - WW / 2, WW), wrapDelta(R.y - WH / 2, WH), U, U * PLANET_R);
+    const g = gravityAt(wrapDelta(R.x - WW / 2, WW), wrapDelta(R.y - WH / 2, WH), U, planetR(), body().pull);
     R.vx += g.ax * dt; R.vy += g.ay * dt;
     R.x = (((R.x + R.vx * dt) % WW) + WW) % WW; R.y = (((R.y + R.vy * dt) % WH) + WH) % WH;
     R.ang += 6.4 * dt;
@@ -1598,7 +1650,7 @@ function updateEggs(dt) {
     h.x = (((h.x + h.vx * dt) % WW) + WW) % WW; h.y = (((h.y + h.vy * dt) % WH) + WH) % WH;
     const gone = () => { burstAt(h.x, h.y, 6, [h.color || "#b8ff3a", "#ffffff"], 0.15, 0.5); hunters.splice(k, 1); };
     if (h.life > Wp.hunterLife) { gone(); continue; }
-    if (Math.hypot(wrapDelta(h.x - WW / 2, WW), wrapDelta(h.y - WH / 2, WH)) < U * PLANET_R) { gone(); continue; }
+    if (Math.hypot(wrapDelta(h.x - WW / 2, WW), wrapDelta(h.y - WH / 2, WH)) < planetR()) { gone(); continue; }
     if (tg && (h.remote || enemy.warp < 0.5) && Math.hypot(wrapDelta(tg.x - h.x, WW), wrapDelta(tg.y - h.y, WH)) < shipSize() * 0.45) {
       // mine hit the enemy; the other player's reaching me only vanish here (their phone sends the damage)
       if (h.remote) burstAt(h.x, h.y, 8, [h.color || Wp.color, "#ffffff"], 0.25, 0.6, game.vx, game.vy);
@@ -1707,7 +1759,7 @@ function updateCrate(dt) {
   crate.vx *= Math.exp(-dt * 0.6); crate.vy *= Math.exp(-dt * 0.6);
   crate.x = (((crate.x + crate.vx * dt) % WW) + WW) % WW; crate.y = (((crate.y + crate.vy * dt) % WH) + WH) % WH;
   // not inside the planet
-  const R = U * PLANET_R, dx = wrapDelta(crate.x - WW / 2, WW), dy = wrapDelta(crate.y - WH / 2, WH), d = Math.hypot(dx, dy) || 1;
+  const R = planetR(), dx = wrapDelta(crate.x - WW / 2, WW), dy = wrapDelta(crate.y - WH / 2, WH), d = Math.hypot(dx, dy) || 1;
   if (d < R * 1.3) { crate.x += dx / d * (R * 1.3 - d); crate.y += dy / d * (R * 1.3 - d); }
   // fly into it to take the weapon: button 3 appears
   if (crate.t > 0.6 && Math.hypot(wrapDelta(crate.x - game.x, WW), wrapDelta(crate.y - game.y, WH)) < shipSize() * 0.6) {
@@ -2086,6 +2138,7 @@ function draw() {
     drawHealth();
     if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
     drawDuel();
+    drawBodyLabel();
   } else drawParts();
 
   drawTrade();
@@ -2093,31 +2146,178 @@ function draw() {
 
 // the planet in the middle of space (Star Control's melee planet)
 function drawPlanet() {
-  const R = U * PLANET_R, p = toScreen(WW / 2, WH / 2), far = R * 3 + W / ZOOM_MIN;
+  const p = toScreen(WW / 2, WH / 2);
+  const k = ease(cosmos.morph);
+  // changing: the old one shrinks and fades as the new one grows in
+  if (cosmos.prev !== null && cosmos.morph < 1) drawBody(BODIES[cosmos.prev], p, U * BODIES[cosmos.prev].r * (1 - k), 1 - k);
+  drawBody(body(), p, planetR() * (0.2 + 0.8 * k), Math.min(1, k * 1.5));
+}
+// one body, at screen point p with radius R (alpha: fading in or out)
+function drawBody(B, p, R, alpha) {
+  if (R < 0.5 || alpha <= 0) return;
+  const far = R * 10 + W / ZOOM_MIN;
   if (p.x < -far || p.x > W + far || p.y < -far || p.y > H + far) return;
-  // a soft halo: its pull
-  const halo = ctx.createRadialGradient(p.x, p.y, R * 0.9, p.x, p.y, R * 2.6);
-  halo.addColorStop(0, "rgba(140,110,255,0.22)"); halo.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(p.x, p.y, R * 2.6, 0, TAU); ctx.fill();
-  ctx.save(); ctx.translate(p.x, p.y);
-  ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.clip();
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(p.x, p.y);
+  const glow = (r0, r1, a) => {
+    const g = ctx.createRadialGradient(0, 0, r0, 0, 0, r1);
+    g.addColorStop(0, `rgba(${B.halo},${a})`); g.addColorStop(1, `rgba(${B.halo},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r1, 0, TAU); ctx.fill();
+  };
+  if (B.kind === "planet") drawPlanetBody(B, R, glow);
+  else if (B.kind === "star") drawStarBody(B, R, glow);
+  else if (B.kind === "compact") drawCompactBody(B, R, glow);
+  else if (B.kind === "hole") drawHoleBody(B, R, glow);
+  ctx.restore();
+}
+// a planet: bands, rings, glowing lava cracks, a night side
+function drawPlanetBody(B, R, glow) {
+  glow(R * 0.9, R * 2.6, 0.22);
+  const ring = (front) => {   // a tilted ring: the back half behind the planet, the front half over it
+    if (!B.rings) return;
+    ctx.save(); ctx.rotate(-0.35);
+    for (const [w, a] of [[R * 0.22, 0.25], [R * 0.08, 0.55]]) {
+      ctx.strokeStyle = `rgba(${B.rings},${a})`; ctx.lineWidth = w;
+      ctx.beginPath(); ctx.ellipse(0, 0, R * 1.85, R * 0.42, 0, front ? 0 : Math.PI, front ? Math.PI : TAU); ctx.stroke();
+    }
+    ctx.restore();
+  };
+  ring(false);
+  ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.clip();
   const pg = ctx.createRadialGradient(-R * 0.4, -R * 0.45, R * 0.05, 0, 0, R);
-  pg.addColorStop(0, "#a29bfe"); pg.addColorStop(0.45, "#6c5ce7"); pg.addColorStop(0.85, "#2d1b69"); pg.addColorStop(1, "#140b33");
+  B.grad.forEach((c, i) => pg.addColorStop([0, 0.45, 0.85, 1][i], c));
   ctx.fillStyle = pg; ctx.fillRect(-R, -R, R * 2, R * 2);
-  // slowly turning cloud bands
-  ctx.globalAlpha = 0.18; ctx.fillStyle = "#e0d7ff";
-  for (let i = 0; i < 5; i++) {
-    const y = (i - 2) * R * 0.36, sh = ((time * 0.03 * (i % 2 ? 1 : -1.3)) % 2) * R * 2;
-    ctx.beginPath(); ctx.ellipse(sh - R, y, R * 0.9, R * 0.06, 0, 0, TAU); ctx.ellipse(sh + R, y, R * 0.9, R * 0.06, 0, 0, TAU); ctx.fill();
+  if (B.bands) {   // slowly turning cloud bands
+    const ga = ctx.globalAlpha; ctx.globalAlpha = ga * 0.18; ctx.fillStyle = B.bands;
+    for (let i = 0; i < 5; i++) {
+      const y = (i - 2) * R * 0.36, sh = ((time * 0.03 * (i % 2 ? 1 : -1.3)) % 2) * R * 2;
+      ctx.beginPath(); ctx.ellipse(sh - R, y, R * 0.9, R * 0.06, 0, 0, TAU); ctx.ellipse(sh + R, y, R * 0.9, R * 0.06, 0, 0, TAU); ctx.fill();
+    }
+    ctx.globalAlpha = ga;
   }
-  ctx.globalAlpha = 1;
-  // night side
-  const sh = ctx.createLinearGradient(-R, -R, R, R);
+  if (B.cracks) {   // a web of glowing lava cracks (made once), breathing slowly
+    if (!B.web) B.web = crackWeb();
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    for (const [w, c] of [[0.05, "rgba(255,90,10,0.25)"], [0.018, B.cracks], [0.006, "#ffe0a0"]]) {
+      ctx.strokeStyle = c;
+      B.web.forEach((line, i) => {
+        ctx.lineWidth = R * w * (0.7 + 0.3 * Math.sin(time * 1.5 + i));
+        ctx.beginPath(); line.forEach(([x, y], j) => j ? ctx.lineTo(x * R, y * R) : ctx.moveTo(x * R, y * R)); ctx.stroke();
+      });
+    }
+  }
+  const sh = ctx.createLinearGradient(-R, -R, R, R);   // the night side
   sh.addColorStop(0.45, "rgba(0,0,0,0)"); sh.addColorStop(1, "rgba(3,3,12,0.75)");
   ctx.fillStyle = sh; ctx.fillRect(-R, -R, R * 2, R * 2);
   ctx.restore();
-  ctx.strokeStyle = "rgba(190,170,255,0.5)"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = B.rim; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.stroke();
+  ring(true);
+}
+// lava cracks: wandering lines that split, made once (units of the planet's radius)
+function crackWeb() {
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const lines = [];
+  const grow = (x, y, a, steps, depth) => {
+    const line = [[x, y]];
+    for (let k = 0; k < steps; k++) {
+      a += (rnd() - 0.5) * 0.9; x += Math.cos(a) * 0.07; y += Math.sin(a) * 0.07;
+      if (x * x + y * y > 0.95) break;
+      line.push([x, y]);
+      if (depth < 2 && rnd() < 0.12) grow(x, y, a + (rnd() < 0.5 ? 1 : -1) * (0.6 + rnd() * 0.6), Math.floor(steps * 0.5), depth + 1);
+    }
+    lines.push(line);
+  };
+  for (let i = 0; i < 6; i++) { const a = rnd() * TAU, d = rnd() * 0.6; grow(Math.cos(a) * d, Math.sin(a) * d, rnd() * TAU, 14, 0); }
+  return lines;
+}
+// a star: a corona, a boiling surface, flares licking off the edge
+function drawStarBody(B, R, glow) {
+  glow(R * 0.8, R * 3.2, 0.35); glow(R * 0.95, R * 1.6, 0.5);
+  if (B.flares) {   // arcs of fire rising off the edge, turning slowly
+    ctx.strokeStyle = B.flares; ctx.lineCap = "round";
+    for (let i = 0; i < 6; i++) {
+      const a = i * TAU / 6 + time * 0.05, h = R * (0.18 + 0.12 * Math.sin(time * 1.3 + i * 2));
+      ctx.globalAlpha *= 1; ctx.lineWidth = R * 0.05;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * R, Math.sin(a) * R, h, a - 1.3, a + 1.3); ctx.stroke();
+    }
+  }
+  ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.clip();
+  const pg = ctx.createRadialGradient(0, 0, R * 0.05, 0, 0, R);
+  B.grad.forEach((c, i) => pg.addColorStop([0, 0.4, 0.8, 1][i], c));
+  ctx.fillStyle = pg; ctx.fillRect(-R, -R, R * 2, R * 2);
+  // the surface boils: soft bright cells drifting and swelling (big lazy ones on a red giant)
+  const n = B.boil ? 16 : 22;
+  for (let i = 0; i < n; i++) {
+    const a = i * 2.39996 + time * 0.05 * (i % 2 ? 1 : -1), d = R * Math.sqrt(((i * 0.618) % 1)) * 0.92;
+    const x = Math.cos(a) * d, y = Math.sin(a) * d, sz = R * (B.boil ? 0.34 : 0.17) * (0.8 + 0.3 * Math.sin(time * 1.1 + i * 1.7));
+    const g = ctx.createRadialGradient(x, y, 0, x, y, sz);
+    g.addColorStop(0, `rgba(255,255,240,${B.boil ? 0.2 : 0.16})`); g.addColorStop(1, "rgba(255,255,240,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, sz, 0, TAU); ctx.fill();
+  }
+  // edges darker (limb darkening), a soft glow line at the rim
+  const lim = ctx.createRadialGradient(0, 0, R * 0.55, 0, 0, R);
+  lim.addColorStop(0, "rgba(0,0,0,0)"); lim.addColorStop(1, "rgba(60,0,0,0.35)");
+  ctx.fillStyle = lim; ctx.fillRect(-R, -R, R * 2, R * 2);
+  ctx.restore();
+}
+// a neutron star or pulsar: tiny, blinding, with magnetic field loops or two sweeping beams of light
+function drawCompactBody(B, R, glow) {
+  glow(R * 0.5, R * 9, 0.28); glow(R * 0.5, R * 3.5, 0.6);
+  if (B.beams) {   // the lighthouse beams
+    ctx.save(); ctx.rotate(time * 2.2); ctx.globalCompositeOperation = "lighter";
+    for (const s of [1, -1]) {
+      const g = ctx.createLinearGradient(0, 0, 0, s * R * 16);
+      g.addColorStop(0, `rgba(${B.halo},0.55)`); g.addColorStop(1, `rgba(${B.halo},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-R * 0.3, 0); ctx.lineTo(-R * 2.2, s * R * 16); ctx.lineTo(R * 2.2, s * R * 16); ctx.lineTo(R * 0.3, 0); ctx.fill();
+    }
+    ctx.restore();
+  }
+  if (B.field) {   // magnetic field loops, shimmering
+    ctx.strokeStyle = `rgba(${B.halo},0.35)`; ctx.lineWidth = Math.max(1, R * 0.06);
+    for (let i = 0; i < 4; i++) {
+      ctx.save(); ctx.rotate(i * Math.PI / 4 + time * 0.3);
+      ctx.beginPath(); ctx.ellipse(0, 0, R * (4 + Math.sin(time * 2 + i)), R * 1.3, 0, 0, TAU); ctx.stroke(); ctx.restore();
+    }
+  }
+  const c = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+  c.addColorStop(0, "#ffffff"); c.addColorStop(0.6, "#f0fbff"); c.addColorStop(1, B.color);
+  ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, 0, R * (1 + 0.05 * Math.sin(time * 30)), 0, TAU); ctx.fill();
+}
+// a black hole: a glowing disk of matter swirling round, bent over the top by its gravity, and a black hole in the middle
+function drawHoleBody(B, R, glow) {
+  glow(R, R * 4, 0.18);
+  const disk = (from, to) => {
+    for (let i = 0; i < 4; i++) {
+      const rx = R * (1.5 + i * 0.35), w = R * 0.22;
+      ctx.strokeStyle = ["rgba(255,245,220,0.9)", "rgba(255,190,90,0.75)", "rgba(255,120,40,0.55)", "rgba(200,60,20,0.35)"][i];
+      ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(0, 0, rx, rx * 0.26, 0, from, to); ctx.stroke();
+    }
+    // bright streaks swirling round
+    ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = R * 0.05;
+    for (let i = 0; i < 6; i++) {
+      const a = (time * (1.6 - i * 0.15) + i * 1.1) % TAU, rx = R * (1.5 + (i % 4) * 0.35);
+      if ((a > from && a < to) || (a + TAU > from && a + TAU < to)) { ctx.beginPath(); ctx.ellipse(0, 0, rx, rx * 0.26, 0, a, a + 0.5); ctx.stroke(); }
+    }
+  };
+  disk(Math.PI, TAU);   // the far half of the disk, behind
+  // the far side of the disk, bent up over the hole (its light curves around)
+  ctx.strokeStyle = "rgba(255,170,80,0.55)"; ctx.lineWidth = R * 0.18;
+  ctx.beginPath(); ctx.ellipse(0, -R * 0.05, R * 1.35, R * 1.2, 0, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+  ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "rgba(255,230,180,0.95)"; ctx.lineWidth = Math.max(1.5, R * 0.05);   // the photon ring
+  ctx.beginPath(); ctx.arc(0, 0, R * 1.04, 0, TAU); ctx.stroke();
+  disk(0, Math.PI);   // the near half, in front
+}
+// the body's name for a moment when it changes, and how hard it pulls
+function drawBodyLabel() {
+  if (!(cosmos.label > 0)) return;
+  const B = body(), a = Math.min(1, cosmos.label / 0.6, (3 - cosmos.label) / 0.4), f = Math.round(U * 0.05);
+  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+  ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.fillStyle = B.color; ctx.shadowColor = "#000"; ctx.shadowBlur = 6;
+  ctx.fillText(B.name, W / 2, H * 0.17);
+  // gravity: 5 dots, filled by how hard it pulls
+  const n = Math.round(B.pull / 0.6 * 5);
+  for (let i = 0; i < 5; i++) { ctx.fillStyle = i < n ? B.color : "rgba(255,255,255,0.2)"; ctx.beginPath(); ctx.arc(W / 2 + (i - 2) * f * 0.6, H * 0.17 + f * 0.9, f * 0.17, 0, TAU); ctx.fill(); }
+  ctx.restore();
 }
 
 // the enemy: drawn like any ship, with a red ring under it; off screen, a red arrow at the edge points to it
@@ -2173,7 +2373,7 @@ function drawRadar() {
   ctx.fillStyle = "rgba(10,12,32,0.6)"; ctx.strokeStyle = "rgba(124,140,255,0.45)"; ctx.lineWidth = 1.5;
   roundRect(x0, y0, rw, rh, 6); ctx.fill(); ctx.stroke();
   ctx.beginPath(); ctx.rect(x0, y0, rw, rh); ctx.clip();
-  ctx.fillStyle = "#8f7dff"; ctx.beginPath(); ctx.arc(x0 + rw / 2, y0 + rh / 2, Math.max(3, U * PLANET_R * k * 1.6), 0, TAU); ctx.fill();
+  ctx.fillStyle = body().color; ctx.beginPath(); ctx.arc(x0 + rw / 2, y0 + rh / 2, Math.max(3, planetR() * k * 1.6), 0, TAU); ctx.fill();
   const sx = x0 + game.x * k, sy = y0 + game.y * k;
   ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1;
   const vw = W / game.zoom, vh = H / game.zoom;
@@ -2752,13 +2952,14 @@ function duelPlace() {
   game.ang = duel.side ? Math.PI : 0; game.vx = game.vy = 0; game.lx = game.ly = 0;
 }
 function duelLink(event, data) {
-  if (event === "connected") { link.send({ t: "hi", s: game.ship, r: duel.me }); return; }
+  if (event === "connected") { link.send({ t: "hi", s: game.ship, r: duel.me, b: cosmos.body }); return; }
   if (event === "lost" || event === "error" || event === "denied") { if (duel.stage !== "over") endDuel(false); return; }
   if (event !== "message") return;
   let m = null; try { m = JSON.parse(data); } catch (e) { return; }
   if (m.t === "hi" && duel.stage === "looking" && shipById(m.s)) {
     // the bigger random number takes the bottom side
     duel.side = duel.me > m.r ? 1 : 0;
+    if (duel.side === 1 && BODIES[m.b]) setBody(m.b);   // both fight around the same body: the top player's
     duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.outDmg = 0;
     duel.shots.length = 0; duel.tail = null; duel.net = null;
     for (let k = eggs.length - 1; k >= 0; k--) eggs.splice(k, 1);
@@ -2858,7 +3059,7 @@ function updateDuel(dt) {
     }
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shipSize();
-    const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < U * PLANET_R;
+    const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
     if (near || inPlanet || s.life > Wp.life) {
       if (near) burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 5, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);
       duel.shots.splice(k, 1);

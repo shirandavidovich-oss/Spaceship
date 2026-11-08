@@ -11,6 +11,13 @@ ship's `fuel` seconds (30 for now): the button goes white → yellow → orange 
 black, and then disappears. It fills back up by itself (`refill` seconds per ship, 15 for now)
 and the button returns once the tank is 20% full.
 
+**What is in the middle changes every round** (each time a new enemy arrives): one of 10 bodies, each with its own size,
+gravity and look: a purple gas giant, a black hole (strongest pull, swirling disk), a neutron star (magnetic loops), a pulsar
+(sweeping beams), a white dwarf, a red giant (huge, weak pull), a yellow sun (flares), a blue giant, a ringed ice planet and a
+lava planet. The old one shrinks away as the new one grows, and its name shows with 5 dots for how hard it pulls.
+Stars, the black hole and the lava planet burn a ship that touches them; planets just bounce it. In a duel both phones share one.
+The list is `BODIES` in the game.
+
 An enemy ship flies with you: it chases you, keeps a little distance and stays off the planet,
 using the same flying rules as you. The view zooms out to keep both ships on screen.
 
