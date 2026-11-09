@@ -39,7 +39,10 @@ A new enemy arrives a few seconds later.
 
 **Your health:** the bar with the heart at the top left. Crashing into the enemy hurts both ships (harder
 crash = more damage). The screen edges flash red when you are hit, and the bar pulses under a quarter.
-At zero your ship blows up and comes back 3 seconds later with full health (lives are unlimited).
+Beside the bar are 5 spare tanks (`TANKS`): when health reaches zero, a tank empties (it flashes) and fills the
+bar again, so a ship lasts six bars. The enemy's tanks are the dots under its bar.
+At zero with all the tanks empty your ship blows up and comes back 3 seconds later with full health and full tanks
+(lives are unlimited).
 The cannonball (button 2) fires with a deep boom and an echo, kicks the ship back, and shakes the screen.
 On THUL it is the heavy cannon: the brass iris winds open with a rising crank, the chamber glows, and at 0.72 s
 the flash and shock ring fire and a real cannonball drawing flies out; the hull kicks sideways and settles (1.56 s in all).

@@ -44,6 +44,8 @@ const HUD_KIT    = true;   // the battle buttons and magic effects from the Orbi
 const HANGAR     = true;   // for now: a hangar button (under the duel swords) to try every drawn ship. false = the real game only
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
+const TANKS      = 5;    // spare health tanks beside the bar: when health runs out, one empties and fills it again;
+                         // the ship blows up only when the bar runs out with all the tanks empty
 const RAM_DAMAGE = 25;   // damage from crashing into the enemy at full speed (both ships take it)
 const STICK      = 0.25; // the thrust button is also a joystick: drag past this much of its size to point the nose
 const SHAKE      = 1;    // how hard the screen shakes (cannon, hits, explosions). 0 = never
@@ -1770,6 +1772,7 @@ const game = {
   gear: 0,          // how far the gear button has turned
   magicFinger: null,
   hp: SHIP_HP,      // your ship's health
+  tanks: TANKS,     // spare health tanks left
   hurt: 0,          // seconds of the red "hit" flash
   dead: 0,          // seconds until your ship comes back after blowing up (0 = flying)
   shakeT: 0,        // how hard the screen is shaking right now
@@ -1784,7 +1787,7 @@ function placeShip() {
   game.x = WW / 2; game.y = WH / 2 - U * 1.6; game.vx = game.vy = 0; game.ang = 0; game.lx = game.ly = 0;
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };   // TALUS starts as a seed again
   if (game.ship) { game.fuel = shipStats(shipById(game.ship)).fuel; fillAmmo(); }
-  game.hp = SHIP_HP; game.hurt = 0;
+  game.hp = SHIP_HP; game.hurt = 0; game.tanks = TANKS; game.tankT = 0;
   game.locked = false;
 }
 const gift = { taps: 0, wob: 0, squash: 0, hint: 0 };
@@ -2024,7 +2027,7 @@ function update(dt) {
 
   game.shakeT = Math.max(0, game.shakeT - dt * 2.5);
   updateCosmos(dt);
-  game.hurt = Math.max(0, game.hurt - dt);
+  game.hurt = Math.max(0, game.hurt - dt); game.tankT = Math.max(0, (game.tankT || 0) - dt * 1.5);
   game.arriveT = Math.max(0, (game.arriveT || 0) - dt * 1.5);
   if (BOT) botThink(dt); else campTick(dt);
   if (game.stage === "fly" && trade.stage !== "swapping") {
@@ -4048,6 +4051,11 @@ function damageShip(n) {
   if (game.dead || game.stage !== "fly" || n <= 0) return;
   game.hp = Math.max(0, game.hp - n); game.hurt = 0.35;
   shake(0.25 + n / 40); audio.hurt(); buzz(60 + n * 3);
+  if (game.hp <= 0 && game.tanks > 0) {   // a spare tank empties and fills the bar again
+    game.tanks--; game.hp = SHIP_HP; game.tankT = 1;
+    audio.tone(330, 0.35, "sine", 0.06, 2.2); buzz(120);
+    return;
+  }
   if (game.hp <= 0) blowUpShip();
 }
 // health gone: the ship blows up, and comes back near where it started a few seconds later
@@ -4616,7 +4624,7 @@ function scoreKill(player) {
 // the meter under the health bar: kills and money
 function drawScore() {
   if (!profile) return;
-  const hb = Math.max(12, U * 0.032), x = U * 0.04 + Math.min(W * 0.42, U * 0.5) + U * 0.025, y = U * 0.05 + hb / 2, f = Math.round(U * 0.03);   // right of the health bar
+  const hb = Math.max(12, U * 0.032), x = tankBox().end + U * 0.025, y = U * 0.05 + hb / 2, f = Math.round(U * 0.03);   // right of the health bar
   ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = "ltr";
   const txt = `💀 ${profile.kills || 0}    🪙 ${(profile.money || 0).toLocaleString("en-US")}`, w = ctx.measureText(txt).width + f * 1.2;
   ctx.fillStyle = "rgba(10,12,32,0.65)"; roundRect(x, y - f * 0.75, w, f * 1.5, f * 0.5); ctx.fill();
@@ -7701,6 +7709,13 @@ function drawEnemy() {
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.55)"; roundRect(bx - 2, by - 2, bw + 4, bh + 4, 3); ctx.fill();
     ctx.fillStyle = `hsl(${Math.round(k * 120)},85%,55%)`; roundRect(bx, by, Math.max(1, bw * k), bh, 2); ctx.fill();
+    if (enemy.tanks != null) {   // its spare tanks: a dot each, under the bar
+      const r = bh * 0.55, step = r * 3;
+      for (let i = 0; i < TANKS; i++) {
+        ctx.fillStyle = i < enemy.tanks ? "#7dffad" : "rgba(255,255,255,0.18)";
+        ctx.beginPath(); ctx.arc(p.x + (i - (TANKS - 1) / 2) * step, by + bh + r * 2.2, r, 0, TAU); ctx.fill();
+      }
+    }
     ctx.restore();
   }
 }
@@ -7754,8 +7769,10 @@ function rattle(S) {
 }
 // your ship's health: a big bar at the top left. Green when healthy, through yellow, to red;
 // it flashes when hit, and the screen edges glow red. Under a quarter it pulses
+// the health bar's length: shorter on a narrow screen, to leave room for the tanks and labels beside it
+function hpBarW() { return Math.min(W * 0.32, U * 0.5); }
 function drawHealth() {
-  const k = clamp(game.hp / SHIP_HP, 0, 1), w = Math.min(W * 0.42, U * 0.5), h = Math.max(12, U * 0.032);
+  const k = clamp(game.hp / SHIP_HP, 0, 1), w = hpBarW(), h = Math.max(12, U * 0.032);
   const x = U * 0.04, y = U * 0.05;
   ctx.save();
   if (game.hurt > 0) {   // red glow around the edges
@@ -7778,6 +7795,33 @@ function drawHealth() {
   ctx.bezierCurveTo(hx - hr * 1.2, hy - hr * 0.1, hx - hr * 0.5, hy - hr * 0.9, hx, hy - hr * 0.3);
   ctx.bezierCurveTo(hx + hr * 0.5, hy - hr * 0.9, hx + hr * 1.2, hy - hr * 0.1, hx, hy + hr * 0.7);
   ctx.fill(); ctx.stroke();
+  drawTanks(y + h / 2, h, game.tanks, game.tankT);
+  ctx.restore();
+}
+// the spare health tanks: small capsules, full ones glowing green, empty ones dark; the one that just emptied flashes
+// where they sit: just right of the health bar (the labels right of the bar go after them)
+function tankBox() {
+  const h = Math.max(12, U * 0.032), x0 = U * 0.04 + hpBarW() + h * 0.6, gap = Math.max(2, h * 0.25);
+  const tw = Math.max(5, Math.min(h * 0.75, (W * 0.18) / TANKS - gap));
+  return { x0, gap, tw, th: Math.max(h * 1.5, tw * 1.6), end: x0 + TANKS * (tw + gap) - gap };
+}
+function drawTanks(cy, h, left, flash) {
+  if (left == null) return;
+  const { x0, gap, tw, th } = tankBox();
+  ctx.save();
+  for (let i = 0; i < TANKS; i++) {
+    const x = x0 + i * (tw + gap), y = cy - th / 2, full = i < left, just = !full && i === left && flash > 0;
+    ctx.fillStyle = "rgba(10,12,32,0.7)"; ctx.strokeStyle = full ? "rgba(140,255,170,0.85)" : "rgba(124,140,255,0.4)"; ctx.lineWidth = 1.5;
+    roundRect(x, y, tw, th, tw * 0.35); ctx.fill(); ctx.stroke();
+    if (full || just) {
+      ctx.globalAlpha = just ? flash : 1;
+      const g = ctx.createLinearGradient(x, y, x + tw, y);
+      g.addColorStop(0, "#2fd47a"); g.addColorStop(0.45, "#9dffc0"); g.addColorStop(1, "#22a862");
+      ctx.fillStyle = just ? "#ffffff" : g; roundRect(x + 2, y + 2, tw - 4, th - 4, (tw - 4) * 0.35); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(x + tw * 0.3, y - Math.max(1.5, th * 0.08), tw * 0.4, Math.max(1.5, th * 0.08));   // the cap
+  }
   ctx.restore();
 }
 
@@ -8725,7 +8769,7 @@ function duelLink(event, data) {
     duel.shots.length = 0; duel.tail = null; duel.net = null; duel.gate = null;
     for (let k = eggs.length - 1; k >= 0; k--) eggs.splice(k, 1);
     hunters.length = 0; shots.length = 0; crate.on = false;
-    game.hp = SHIP_HP; game.dead = 0; game.tail = null; game.anim = null; fillAmmo(); duelPlace();
+    game.hp = SHIP_HP; game.tanks = TANKS; game.dead = 0; game.tail = null; game.anim = null; fillAmmo(); duelPlace();
     Object.assign(enemy, { remote: true, on: true, ship: m.s, hp: SHIP_HP, warp: 1, hurt: 0, anim: null, hidden: false,
       x: WW / 2, y: WH / 2 + (duel.side ? -1 : 1) * U * 1.6, vx: 0, vy: 0, ang: duel.side ? 0 : Math.PI, power: 0 });
     audio.reveal(2); buzz(60);
@@ -8834,7 +8878,7 @@ function updateRival(dt) {
   const k = 1 - Math.exp(-dt * 10);
   enemy.x = ((enemy.x + enemy.vx * dt + ex * k) % WW + WW) % WW; enemy.y = ((enemy.y + enemy.vy * dt + ey * k) % WH + WH) % WH;
   enemy.ang += wrapAngle(n.a - enemy.ang) * (1 - Math.exp(-dt * 14));
-  enemy.power = n.p || 0; enemy.out = !!n.o; enemy.hp = n.hp; enemy.hidden = !!n.hd;
+  enemy.power = n.p || 0; enemy.out = !!n.o; enemy.hp = n.hp; enemy.tanks = n.tk; enemy.hidden = !!n.hd;
   enemy.anim = n.an ? { seq: n.an[0], t: n.an[1] + age * 1000 } : null;
   const E = shipById(enemy.ship);
   // their ship blew up / came back
@@ -8950,7 +8994,7 @@ function updateDuel(dt) {
     duel.sendT = 1 / (rt.active ? ONLINE_RATE : DUEL_RATE);
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
-      hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
+      hp: Math.round(game.hp), tk: game.tanks, d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
       hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +(duel.outDmg * (BOT ? botLevel().dmg : 1)).toFixed(1),
       ga: game.pushAng != null ? +game.pushAng.toFixed(3) : 0,
@@ -9216,7 +9260,7 @@ function drawFleetRow() {
 // the level, and how many of the computer's ships are left: to the right of the health bar. A banner when a level is won
 function drawLevel() {
   if (BOT || realDuel() || !camp.mine.length) return;
-  const hb = Math.max(12, U * 0.032), x = U * 0.04 + Math.min(W * 0.42, U * 0.5) + U * 0.025, y = U * 0.05 + hb / 2, f = Math.round(U * 0.032);
+  const hb = Math.max(12, U * 0.032), x = tankBox().end + U * 0.025, y = U * 0.05 + hb / 2, f = Math.round(U * 0.032);
   const txt = tr("levelHud", camp.lvl, camp.left.length, camp.theirs.length);
   ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = textDir();
   const w = ctx.measureText(txt).width + f * 1.2;
@@ -9481,7 +9525,7 @@ function tryShip(id) {
   game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
-  game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();
+  game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; game.tanks = TANKS; game.tankT = 0; fillAmmo();
   game.card = 3; game.arriveT = 1; audio.whoosh(); buzz(30);
 }
 function hangarTap(x, y) {
