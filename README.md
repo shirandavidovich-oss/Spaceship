@@ -282,8 +282,10 @@ meanwhile, nothing). In a duel the wall is sent to the other phone (`pw`), which
 the owner (`pwh`) to put out a lamp.
 
 **GIMBAL**, the gyroscope fighter (`art/ships/gimbal/`, the pack's `gimbal.js` rules and `gyro-clockwork.js` layers).
-Drawn in moving layers: a brass cage, three toothed rings (brass, titanium, ivory) spinning in turn one way and the other,
-four pinions, and the cockpit spine through the middle, which points where the nose points. Button 1, rim blades: two
+Drawn in moving layers: a brass cage (it keeps still), three toothed rings (brass, titanium, ivory) spinning in turn one
+way and the other, four pinions, and the cockpit spine through the middle. GIMBAL does not steer: its hull turns by itself
+all the time like a clock, a 30° tick every 410 ms (`gimbalTurn`, a full turn in 4.9 s). Pressing thrust pushes it the way
+the nose pointed at that moment, and keeps pushing that way while held, even as the nose turns on (the plume shows it). Button 1, rim blades: two
 curved blades from both sides of the bow, 8.3° out to each side (8 each). Button 2, quarter gate: 0.31 s after the press a
 disk is set ahead of the ship; for 3.2 s it turns enemy shots that cross it a quarter round clockwise (the same speed,
 marked with a gold ring), three times at most (three bright ring segments, one per use left). It stays where it was set;

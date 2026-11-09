@@ -513,7 +513,7 @@ const SHIPS = [
     body: [], wing: [], nozzles: [-0.026, 0.026], engineY: 0.45, cockpit: [0, -0.3, 0.05, 0.1],
     weapons: ["blade", "gate"],
     guns: { blade: [[-0.098, -0.226], [0.098, -0.226]], gate: [[0, -0.5]] },
-    clockwork: true,
+    clockwork: true, noFlame: true,   // (its plume is drawn the way it pushes, not from the turning spine)
     anim: { dir: "gimbal", size: 1.2, idle: "idle.webp" } }
 ];
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1279,6 +1279,13 @@ function gateSweep(px, py, dx, dy, r) {
   if (!a || disc < 0) return null;
   const t = c <= 0 ? 0 : (-b - Math.sqrt(disc)) / a;
   return t < 0 || t > 1 ? null : t;
+}
+// GIMBAL's clockwork: the hull turns by itself all the time, a 30° tick every 410 ms (it moves for 167 ms, eased, with a
+// small settle, then holds), a full turn in 4.92 s. Returns how far it has turned (radians, clockwise) after `ms`
+function gimbalTurn(ms) {
+  const tick = 410, i = Math.floor(ms / tick), p = Math.max(0, Math.min(1, (ms - i * tick - 60) / 167));
+  const eased = p * p * (3 - 2 * p), settle = p > 0.78 && p < 1 ? Math.sin((p - 0.78) / 0.22 * Math.PI) * 0.041 : 0;
+  return Math.PI / 6 * (i + eased + settle);
 }
 // a quarter turn clockwise on the screen (y down): right becomes down, down becomes left. Same speed
 function quarterTurn(vx, vy) { return { vx: -vy, vy: vx }; }
@@ -2087,19 +2094,30 @@ function moveShip(o, S, c, dt) {
   if (o === game && game.soak && game.soak.boost) { const M = magicOf(S); st.push *= M.boost; st.top *= M.boost; }   // ORIAN charged: twice as fast
   // 1. turning, at the ship's own speed
   const before = o.ang;
-  if (c.target === null || c.target === undefined) o.ang += c.turn * st.turn * dt;
-  else o.ang = turnToward(o.ang, c.target, st.turn * dt * c.turn);
-  o.ang = wrapAngle(o.ang);
-  o.spin = lerp(o.spin, wrapAngle(o.ang - before) / Math.max(dt, 0.001), 1 - Math.exp(-dt * 10));
+  if (S.clockwork) {   // GIMBAL: no steering; the hull ticks round by itself like a clock
+    o.clockT = (o.clockT || 0) + dt * 1000;
+    const turned = gimbalTurn(o.clockT);
+    o.ang = wrapAngle(o.ang + turned - (o.clockLast || 0)); o.clockLast = turned;
+    if (o.clockT > 4920 * 50) { o.clockT -= 4920 * 50; o.clockLast = gimbalTurn(o.clockT); }   // (keeps the numbers small)
+    o.spin = 0;   // (no banking: it does not steer)
+  } else {
+    if (c.target === null || c.target === undefined) o.ang += c.turn * st.turn * dt;
+    else o.ang = turnToward(o.ang, c.target, st.turn * dt * c.turn);
+    o.ang = wrapAngle(o.ang);
+    o.spin = lerp(o.spin, wrapAngle(o.ang - before) / Math.max(dt, 0.001), 1 - Math.exp(-dt * 10));
+  }
 
   // 2. engine and fuel (fuel fills back up by itself while the engine rests)
   //    a steam engine sometimes goes out for a moment: no push, only smoke
   const dead = S.steam && steamEngine(o, S, c.thrust && !o.locked && o.fuel > 0, dt);
   const f = fuelStep(o.fuel, o.locked, c.thrust && !dead, st, dt);
   const on = c.thrust && !dead && !o.locked && o.fuel > 0;
+  // GIMBAL: the push goes the way the nose pointed when the thrust was pressed, for as long as it is held
+  if (S.clockwork) { if (c.thrust && !o.pushHeld) o.pushAng = o.ang; o.pushHeld = !!c.thrust; }
+  const pa = S.clockwork && o.pushAng != null ? o.pushAng : o.ang;
   if (on) {
-    o.vx += Math.sin(o.ang) * st.push * U * dt;
-    o.vy -= Math.cos(o.ang) * st.push * U * dt;
+    o.vx += Math.sin(pa) * st.push * U * dt;
+    o.vy -= Math.cos(pa) * st.push * U * dt;
   }
   o.fuel = f.fuel; o.locked = f.locked;
   o.power = lerp(o.power, on ? 1 : 0, 1 - Math.exp(-dt * 10));
@@ -4720,15 +4738,19 @@ function gimPreload() {
 }
 // inside drawShip (already turned to the heading, 1 = a ship-length): the cage, the three rings spinning in turn
 // one way and the other, the pinions, then the spine. False while a layer is still loading (the plain drawing is used)
-function drawClockwork(S) {
+function drawClockwork(S, ang = 0) {
   const L = {}; for (const n of ["outer-cage", "outer-brass", "inner-titanium", "ivory-escapement", "pinion", "hull-spine"]) { L[n] = gimImg(n); if (!L[n]) return false; }
   const k = S.anim.size / 512, t = time * 1000 / 4920 * TAU, pulse = Math.sin(t * 12) * 0.026;
   const layer = (n, a, x = 0, y = 0, w = 512) => { ctx.save(); ctx.translate(x * k, y * k); ctx.rotate(a); ctx.drawImage(L[n], -w * k / 2, -w * k / 2, w * k, w * k); ctx.restore(); };
+  // the cage, its rings and pinions keep still in space (drawShip has turned everything to the heading: turn back);
+  // the spine with the cockpit is drawn after, turned with the heading
+  ctx.save(); ctx.rotate(-ang);
   layer("outer-cage", 0);
   layer("outer-brass", t + pulse);
   layer("inner-titanium", -t * 2 - pulse * 1.8);
   layer("ivory-escapement", t * 3 + pulse * 2.5);
   GIM.pinions.forEach(([x, y], i) => layer("pinion", -t * 4 - pulse * 3.7 + i * 0.11, x, y, 64));
+  ctx.restore();
   layer("hull-spine", 0);
   return true;
 }
@@ -4748,8 +4770,20 @@ function drawGate(G, mine) {
   }
   ctx.restore();
 }
+// GIMBAL's plume: out of the cage's back, the opposite way to where it pushes (the nose may have turned on since)
+function drawGimbalPlume(o, power, pa) {
+  if (power < 0.05 || pa == null) return;
+  const p = toScreen(o.x, o.y), size = shipSize(), len = size * (0.35 + 0.45 * power) * (0.9 + 0.1 * Math.sin(time * 40));
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(pa + Math.PI);
+  const g = ctx.createLinearGradient(0, -size * 0.38, 0, -size * 0.38 - len);
+  g.addColorStop(0, "rgba(255,255,255,0.95)"); g.addColorStop(0.3, "rgba(111,233,255,0.85)"); g.addColorStop(1, "rgba(111,233,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-size * 0.07, -size * 0.36); ctx.quadraticCurveTo(0, -size * 0.38 - len * 1.4, size * 0.07, -size * 0.36); ctx.fill();
+  ctx.restore();
+}
 function drawGimbal() {
   gimPreload();
+  if (game.ship === "gimbal" && !game.dead) drawGimbalPlume(game, game.power, game.pushAng);
+  if (enemy.on && enemy.ship === "gimbal") drawGimbalPlume(enemy, enemy.power, enemy.pushAng);
   drawGate(game.gate, true); drawGate(duel.gate, false);
   for (const F of gimFx) {   // the flip: two colours spreading round the ship's middle, not turned with it
     const o = F.who === "me" ? game : enemy; if (F.who === "them" && !enemy.on) continue;
@@ -4946,7 +4980,7 @@ function drawShip(S, x, y, size, o = {}) {
     const k = S.anim.size / 512, [c, sl] = S.anim.seam, y0 = (c + -300 * sl) * k, y1 = (c + 300 * sl) * k, far = o.half === "front" ? -2 : 2;
     ctx.save(); ctx.beginPath(); ctx.moveTo(-300 * k, y0); ctx.lineTo(300 * k, y1); ctx.lineTo(300 * k, far); ctx.lineTo(-300 * k, far); ctx.closePath(); ctx.clip();
   }
-  if (S.clockwork && drawClockwork(S)) { ctx.restore(); return; }   // GIMBAL: drawn in its moving layers
+  if (S.clockwork && drawClockwork(S, ang)) { ctx.restore(); return; }   // GIMBAL: drawn in its moving layers
   if (img) {
     // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
     // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
@@ -8546,6 +8580,7 @@ function updateRival(dt) {
     if (st > was) spawnChips(enemy, shipSize() * sc, enemy.talus.colors[st - 1] || "#e8dcc4");
   } else enemy.talus = null;
   enemy.inked = n.ik || 0;   // their ship covered in my ink (to draw it)
+  enemy.pushAng = n.ga;   // their GIMBAL's push direction (for its plume)
   duel.gate = n.gt ? { id: n.gt[0], x: n.gt[1] * WW, y: n.gt[2] * WH, left: n.gt[3], t: n.gt[4] + age } : null;   // their GIMBAL's gate
   enemy.vtint = n.vt || 0;   // their VANTA's liquid colour
   enemy.hullTurn = n.fm || 0;   // their RIVET's hull turn
@@ -8621,6 +8656,7 @@ function updateDuel(dt) {
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
       hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +(duel.outDmg * (BOT ? botLevel().dmg : 1)).toFixed(1),
+      ga: game.pushAng != null ? +game.pushAng.toFixed(3) : 0,
       gt: gateAlive(game.gate) ? [game.gate.id, +(game.gate.x / WW).toFixed(5), +(game.gate.y / WH).toFixed(5), game.gate.left, +game.gate.t.toFixed(2)] : 0,
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
