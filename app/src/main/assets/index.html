@@ -5219,7 +5219,9 @@ const PAD_SIZE = 0.8, PAD_IN = 2, ARC = 2.35;
 function pad() {
   const r = Math.min(U * 0.12, 72) * PAD_SIZE;
   // 3 mm nearer the corner than before, but never closer to the edge than PAD_IN
-  return { r, mx: Math.max(U * 0.09 - 3 * MM, PAD_IN * MM), my: Math.max(U * 0.1 - 3 * MM, PAD_IN * MM) };
+  // a tall phone (not the open Fold): the buttons 1 cm higher, they were too low for the thumbs
+  const tall = H / W > 1.6 ? 10 * MM : 0;
+  return { r, mx: Math.max(U * 0.09 - 3 * MM, PAD_IN * MM), my: Math.max(U * 0.1 - 3 * MM, PAD_IN * MM) + tall };
 }
 function fireButtons() {
   const P = pad(), r = P.r, x1 = W - r - P.mx, y1 = H - r - P.my, d = r * ARC / Math.SQRT2;
@@ -5978,7 +5980,12 @@ function playClip(path, onMusic) {
 function preloadSounds() { for (const p of ["audio/result/you-win.ogg", "audio/result/game-over.ogg", "audio/result/gas-launch.ogg", "audio/music/title.ogg", "audio/music/hangar.ogg"]) soundBuf(p); }
 
 // ---- the right-hand column under the map: CONNECT (join another player), and the two dials under it ----
-function mapBox() { const k = U * 0.26 / Math.max(WW, WH); return { x: W - U * 0.04 - WW * k, y: U * 0.04, w: WW * k, h: WH * k }; }
+// the map at the top right: a square as high as the health bar and the first row of my fleet together
+// (the whole of space squeezed into it, so the fleet row and its buttons reach further to the right)
+function mapBox() {
+  const hb = Math.max(12, U * 0.032), top = U * 0.04, side = Math.max(U * 0.14, U * 0.05 + hb + U * 0.02 + FLEET_ICON * MM - top);
+  return { x: W - U * 0.04 - side, y: top, w: side, h: side };
+}
 function connectBox() { return fleetRowLayout().connect; }   // (in the top row, beside my fleet)
 // the dials: the pink one (effects) and the mint one (music), side by side under CONNECT
 function dialBoxes() {
@@ -8648,19 +8655,18 @@ function edgeArrow(wx, wy, color) {
 
 // a small map of all of space in the corner: the planet, what the screen sees, and the ship
 function drawRadar() {
-  const k = U * 0.26 / Math.max(WW, WH), rw = WW * k, rh = WH * k;
-  const x0 = W - rw - U * 0.04, y0 = U * 0.04;
+  const M = mapBox(), kx = M.w / WW, ky = M.h / WH, k = Math.min(kx, ky), rw = M.w, rh = M.h, x0 = M.x, y0 = M.y;
   ctx.save();
   ctx.fillStyle = "rgba(10,12,32,0.6)"; ctx.strokeStyle = "rgba(124,140,255,0.45)"; ctx.lineWidth = 1.5;
   roundRect(x0, y0, rw, rh, 6); ctx.fill(); ctx.stroke();
   ctx.beginPath(); ctx.rect(x0, y0, rw, rh); ctx.clip();
   ctx.fillStyle = body().color; ctx.beginPath(); ctx.arc(x0 + rw / 2, y0 + rh / 2, Math.max(3, planetR() * k * 1.6), 0, TAU); ctx.fill();
-  const sx = x0 + game.x * k, sy = y0 + game.y * k;
+  const sx = x0 + game.x * kx, sy = y0 + game.y * ky;
   ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1;
   const vw = W / game.zoom, vh = H / game.zoom;
-  ctx.strokeRect(x0 + (game.x + game.lx - vw / 2) * k, y0 + (game.y + game.ly - vh / 2) * k, vw * k, vh * k);
-  if (enemyShown()) { ctx.fillStyle = "#ff4d6d"; ctx.beginPath(); ctx.arc(x0 + enemy.x * k, y0 + enemy.y * k, 3, 0, TAU); ctx.fill(); }
-  if (crate.on) { ctx.fillStyle = WEAPONS[crate.w].color; ctx.fillRect(x0 + crate.x * k - 2.5, y0 + crate.y * k - 2.5, 5, 5); }
+  ctx.strokeRect(x0 + (game.x + game.lx - vw / 2) * kx, y0 + (game.y + game.ly - vh / 2) * ky, vw * kx, vh * ky);
+  if (enemyShown()) { ctx.fillStyle = "#ff4d6d"; ctx.beginPath(); ctx.arc(x0 + enemy.x * kx, y0 + enemy.y * ky, 3, 0, TAU); ctx.fill(); }
+  if (crate.on) { ctx.fillStyle = WEAPONS[crate.w].color; ctx.fillRect(x0 + crate.x * kx - 2.5, y0 + crate.y * ky - 2.5, 5, 5); }
   ctx.translate(sx, sy); ctx.rotate(game.ang);
   ctx.fillStyle = shipById(game.ship).hull;
   ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 4); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
@@ -10199,18 +10205,20 @@ const FLEET_ICON = 7;   // the fleet row's icons, in millimetres (smaller when t
 function fleetRowLayout() {
   const hb = Math.max(12, U * 0.032), x0 = U * 0.04, y0 = U * 0.05 + hb + U * 0.02;
   const gap = Math.max(3, MM * 0.8), icon = FLEET_ICON * MM, m = mapBox();
-  const right = m.x - gap * 1.5;   // (the map's left edge)
+  const right = m.x - gap * 0.6;   // (right up to the map's left edge)
   const cw = icon * 900 / 264, ctl = cw + gap + (icon + gap) * 2;
   const cx = Math.max(x0, right - ctl);
   const connect = { x: cx, y: y0, w: cw, h: icon };
   const dials = [{ ch: "effects", x: cx + cw + gap, y: y0, d: icon, art: "sfx" }, { ch: "music", x: cx + cw + gap * 2 + icon, y: y0, d: icon, art: "music" }];
   const n = BOT ? 0 : myFleet().length, pos = [];
-  let x = x0, y = y0, lineEnd = cx - gap;
+  // all in one line if they can be at least 60% of the usual size there; else lines of the usual size
+  const one = n ? (cx - gap - x0 - gap * (n - 1)) / n : 0, sz = one >= icon * 0.6 ? Math.min(icon, one) : icon;
+  let x = x0, y = y0 + (icon - sz) / 2, lineEnd = cx - gap;
   for (let i = 0; i < n; i++) {
-    if (x + icon > lineEnd + 0.5) { x = x0; y += icon + gap; lineEnd = right; }   // next line (under the buttons, the full width)
-    pos.push({ x, y }); x += icon + gap;
+    if (x + sz > lineEnd + 0.5) { x = x0; y += sz + gap; lineEnd = right; }   // next line (under the buttons, up to the map)
+    pos.push({ x, y }); x += sz + gap;
   }
-  return { x0, y0, gap, n, pos, sz: icon, connect, dials };
+  return { x0, y0, gap, n, pos, sz, connect, dials };
 }
 // my fleet in a row under the health bar: the ship I fly in gold, lost ships dark and crossed out
 function drawFleetRow() {
