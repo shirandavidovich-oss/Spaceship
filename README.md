@@ -7,9 +7,9 @@ own 3 ships are switched off for now (`THREE_SHIPS = false`: no sign-up, no "my 
 computer the hangar's ships are split into two random fleets, as before.
 
 - **Music** (`audio/music/`, from the Orbit Break audio pack): one loop per screen, crossfaded: the title, the hangar and
-  the ship picker, and in the arena one per body in the middle (`BODY_MUSIC`). **Two dials** under CONNECT (on the title:
-  at the bottom): pink = effects, mint = music. Drag right for louder (160 px = the whole way); kept on the phone.
-- **CONNECT** (`art/ui/connect*.webp`), under the map: joins another player (the old duel button); pressed while
+  the ship picker, and in the arena one per body in the middle (`BODY_MUSIC`). **Two dials** in the top row after CONNECT (on the title:
+  at the bottom; the % shows while one is turned): pink = effects, mint = music. Drag right for louder (160 px = the whole way); kept on the phone.
+- **CONNECT** (`art/ui/connect*.webp`), in the top row at the end of my fleet's icons (the hangar button is under the map): joins another player (the old duel button); pressed while
   looking and while connected.
 - **YOU WIN / GAME OVER** (`RESULT_ART`, `art/ui/result/`): YOU WIN when the computer's whole fleet is beaten, GAME OVER
   when yours is. The letters float and tilt, W / V open in two; each new press of the gas kicks one letter up and round

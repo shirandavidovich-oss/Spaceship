@@ -5969,16 +5969,11 @@ function preloadSounds() { for (const p of ["audio/result/you-win.ogg", "audio/r
 
 // ---- the right-hand column under the map: CONNECT (join another player), and the two dials under it ----
 function mapBox() { const k = U * 0.26 / Math.max(WW, WH); return { x: W - U * 0.04 - WW * k, y: U * 0.04, w: WW * k, h: WH * k }; }
-function connectBox() {
-  const m = mapBox(), w = Math.max(m.w, U * 0.32), h = w * 264 / 900;
-  return { x: W - U * 0.04 - w, y: m.y + m.h + U * 0.03, w, h };
-}
+function connectBox() { return fleetRowLayout().connect; }   // (in the top row, beside my fleet)
 // the dials: the pink one (effects) and the mint one (music), side by side under CONNECT
 function dialBoxes() {
   if (game.stage === "title") { const d = U * 0.16, y = H - d * 1.9; return [{ ch: "effects", x: W / 2 - d * 1.25, y, d, art: "sfx" }, { ch: "music", x: W / 2 + d * 0.25, y, d, art: "music" }]; }   // (on the title: at the bottom)
-  const c = connectBox(), d = Math.min(c.w * 0.46, U * 0.14), gap = c.w - d * 2;
-  const y = c.y + c.h + U * 0.025;
-  return [{ ch: "effects", x: c.x, y, d, art: "sfx" }, { ch: "music", x: c.x + d + gap, y, d, art: "music" }];
+  return fleetRowLayout().dials;   // (in the top row, after CONNECT)
 }
 const dial = { drag: null };
 function dialsShown() { return !BOT && (game.stage === "fly" || game.stage === "title") && !hangar.open && !picker.open && !fleet.open && !result.mode && !trade.stage; }
@@ -6011,7 +6006,9 @@ function drawDials() {
     ctx.translate(cx, cy); ctx.rotate((-135 + 270 * v) * Math.PI / 180);   // at 0 the notch points lower left, at 100 lower right
     if (rotor) ctx.drawImage(rotor, -D.d / 2, -D.d / 2, D.d, D.d);
     ctx.restore();
-    ctx.save(); ctx.font = `800 ${Math.round(D.d * 0.2)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.direction = "ltr";
+    if (game.stage !== "title" && !(dial.drag && dial.drag.ch === D.ch)) continue;   // (the % shows while it is turned; on the title always)
+    ctx.save(); ctx.font = `800 ${Math.round(Math.max(11, D.d * 0.24))}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.direction = "ltr";
+    ctx.fillStyle = "rgba(10,12,32,0.75)"; roundRect(cx - D.d * 0.75, D.y + D.d + 1, D.d * 1.5, Math.max(14, D.d * 0.34), 6); ctx.fill();
     ctx.fillStyle = D.ch === "effects" ? "#ff9ad8" : "#8ff5d8";
     ctx.fillText((D.ch === "effects" ? "FX " : "♪ ") + Math.round(v * 100) + "%", cx, D.y + D.d + 2);
     ctx.restore();
@@ -10207,26 +10204,32 @@ function pickerTap(x, y) {
 // about how many screen pixels make a millimetre (a phone's CSS pixel is 1/160 inch; a computer's 1/96)
 const MM = (native || /Android/i.test(navigator.userAgent)) ? 160 / 25.4 : 96 / 25.4;
 const FLEET_ICON = 7;   // the fleet row's icons, in millimetres (smaller when they do not fit)
-// the top row, under the health bar: my fleet's icons, then the duel button and the hangar button.
-//   bx, by, br: the duel button's middle and radius (the hangar's is one step to the right)
+// the top row, under the health bar: my fleet's icons, and at its right end (up to the map) CONNECT and the two
+// sound dials (pink: effects, mint: music), all one icon high. The icons fill what room is left on the first line and go
+// on in full lines underneath. pos: each icon's top-left; sz: their size; connect: its box; dials: the two dials
 function fleetRowLayout() {
   const hb = Math.max(12, U * 0.032), x0 = U * 0.04, y0 = U * 0.05 + hb + U * 0.02;
-  const gap = Math.max(3, MM * 0.8), icon = FLEET_ICON * MM, br = icon / 2, btns = HANGAR ? 1 : 0;
-  const n = BOT || realDuel() ? 0 : camp.mine.length;
-  const room = Math.max(U * 0.3, W - x0 - U * 0.33 - (icon + gap * 1.5) * btns);   // up to the map at the top right, leaving the buttons room
-  // one row if 7 mm icons fit, else two rows; smaller still if two rows are not enough
-  const rows = (icon + gap) * n <= room ? 1 : 2, per = Math.max(1, Math.ceil(n / rows));
-  const sz = n ? Math.min(icon, (room - gap * (per - 1)) / per) : 0;
-  const bx = x0 + (n ? Math.min(n, per) * (sz + gap) + gap * 0.5 : 0) + br;
-  return { x0, y0, gap, n, per, sz, bx, by: y0 + br, br };
+  const gap = Math.max(3, MM * 0.8), icon = FLEET_ICON * MM, m = mapBox();
+  const right = m.x - gap * 1.5;   // (the map's left edge)
+  const cw = icon * 900 / 264, ctl = cw + gap + (icon + gap) * 2;
+  const cx = Math.max(x0, right - ctl);
+  const connect = { x: cx, y: y0, w: cw, h: icon };
+  const dials = [{ ch: "effects", x: cx + cw + gap, y: y0, d: icon, art: "sfx" }, { ch: "music", x: cx + cw + gap * 2 + icon, y: y0, d: icon, art: "music" }];
+  const n = BOT || realDuel() ? 0 : camp.mine.length, pos = [];
+  let x = x0, y = y0, lineEnd = cx - gap;
+  for (let i = 0; i < n; i++) {
+    if (x + icon > lineEnd + 0.5) { x = x0; y += icon + gap; lineEnd = right; }   // next line (under the buttons, the full width)
+    pos.push({ x, y }); x += icon + gap;
+  }
+  return { x0, y0, gap, n, pos, sz: icon, connect, dials };
 }
 // my fleet in a row under the health bar: the ship I fly in gold, lost ships dark and crossed out
 function drawFleetRow() {
   if (BOT || realDuel() || !camp.mine.length) return;
-  const { x0, y0, gap, per, sz } = fleetRowLayout();
+  const { pos, sz } = fleetRowLayout();
   ctx.save();
   camp.mine.forEach((id, i) => {
-    const S = shipById(id), x = x0 + (i % per) * (sz + gap), y = y0 + Math.floor(i / per) * (sz + gap);
+    const S = shipById(id), { x, y } = pos[i];
     const lost = camp.lost.includes(id), mine = id === game.ship && !lost;
     ctx.globalAlpha = lost ? 0.35 : 1;
     ctx.fillStyle = mine ? "rgba(255,209,102,0.22)" : "rgba(10,12,32,0.7)";
@@ -10500,7 +10503,7 @@ function drawFleet() {
 // ======================================================================
 const hangar = { open: false, t: 0, cards: [] };
 function hangarShips() { return SHIPS.filter((S) => S.anim); }
-function hangarBtn() { const L = fleetRowLayout(); return { x: L.bx, y: L.by, r: L.br }; }   // in the top row, after my fleet
+function hangarBtn() { const m = mapBox(), r = FLEET_ICON * MM / 2; return { x: m.x + m.w / 2, y: m.y + m.h + U * 0.03 + r, r }; }   // under the map
 function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.4; }
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
