@@ -1836,6 +1836,12 @@ function resize() {
   makeStars();
 }
 addEventListener("resize", resize);
+// the phone can take the drawing surface away when it runs short of memory (the screen goes black while the game
+// goes on). Note it (shown in the test hangar), and when it comes back, set it up again
+const ISSUE_KEY = "orbit-break.lastIssue";
+function noteIssue(what) { try { localStorage.setItem(ISSUE_KEY, new Date().toLocaleTimeString() + " " + String(what).slice(0, 160)); } catch (e) {} }
+cv.addEventListener("contextlost", () => noteIssue("screen lost (memory)"));
+cv.addEventListener("contextrestored", () => { noteIssue("screen lost (memory), came back"); try { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); makeStars(); } catch (e) {} });
 
 // The computer opponent is this same game running a second time, hidden, inside the page (see THE COMPUTER PLAYER).
 // That copy is the "bot": it plays like a second phone, so it has every weapon and magic a player has.
@@ -5955,6 +5961,8 @@ function musicTick() {
   src.start(now);
   fadeVoice(music.on);
   music.on = { key, src, fade };
+  // keep only this loop decoded (each one is several MB): the others are fetched again when wanted
+  for (const k in music.bufs) if (k.startsWith("audio/music/") && k !== "audio/music/" + key + ".ogg") delete music.bufs[k];
 }
 // a one-off sound (the fanfares go to the music volume, the gas to the effects)
 function playClip(path, onMusic) {
@@ -10495,6 +10503,8 @@ function drawHangar() {
   ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.fillText(tr("hangar"), W / 2, U * 0.08);
   ctx.font = `500 ${Math.round(f * 0.45)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#9fb4d8";
   ctx.fillText(tr("hangarNote"), W / 2, U * 0.08 + f * 0.85);
+  { let iss = null; try { iss = localStorage.getItem(ISSUE_KEY); } catch (e) {}   // the last problem the game noted (for finding faults)
+    if (iss) { ctx.save(); ctx.font = `600 ${Math.round(f * 0.38)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ff8a8a"; ctx.direction = "ltr"; ctx.fillText("⚠ " + iss, W / 2, U * 0.08 + f * 1.25); ctx.restore(); } }
   const cr = U * 0.045, cx = W - U * 0.06 - cr, cy = U * 0.08;
   cross(cx, cy, cr * 0.45, "#ffffff"); hangar.cards.push({ close: true, x: cx - cr * 1.4, y: cy - cr * 1.4, w: cr * 2.8, h: cr * 2.8 });
   // the second row: "my ships" and the language (drawn over the hangar by the main draw: drawFleetBtn, drawLangBtn)
@@ -10543,6 +10553,7 @@ function frame(now) {
   if (bot.ready) { const bw = botWindow(); try { bw && bw.botTick && bw.botTick(dt); } catch (e) { console.error("computer player:", e && e.stack || e); } }
   try { draw(); } catch (e) {
     console.error("draw:", e && e.stack || e);
+    noteIssue("draw: " + (e && e.message || e) + " @ " + ((e && e.stack || "").split("\n")[1] || "").trim());
     try { if (ctx.reset) ctx.reset(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); } catch (e2) {}   // a drawing stopped half-way: start the next one clean
   }
 }
