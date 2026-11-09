@@ -4923,19 +4923,76 @@ function drawCable(o, hook, on) {
   const a = toScreen(o.x, o.y), s0 = larSocket(o), p0 = toScreen(s0.x, s0.y);
   let p1;
   if (hook) p1 = toScreen(hook.x, hook.y);
-  else { const q = larFromStar(o), R = planetR(); p1 = toScreen(WW / 2 + q.dx / q.d * R, WH / 2 + q.dy / q.d * R); }
+  else { const q = larFromStar(o), R = planetR() * (1 + lasso.sq * 0.5); p1 = toScreen(WW / 2 + q.dx / q.d * R, WH / 2 + q.dy / q.d * R); }
   ctx.save(); ctx.lineCap = "round";
   ctx.strokeStyle = "rgba(40,28,22,0.9)"; ctx.lineWidth = Math.max(3, shipSize() * 0.035); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
   ctx.strokeStyle = on ? "#eaa276" : "#c9a27a"; ctx.lineWidth = Math.max(1.5, shipSize() * 0.016); ctx.setLineDash([6, 4]); ctx.lineDashOffset = -time * (on ? 40 : 120);
   ctx.stroke(); ctx.setLineDash([]);
   const img = artImage("art/ships/lariat/harpoon.webp"), d = 20 * larU() * 1.6;
-  if (img) { const ang = hook ? Math.atan2(hook.vx, -hook.vy) : Math.atan2(p1.x - p0.x, -(p1.y - p0.y)); ctx.translate(p1.x, p1.y); ctx.rotate(ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); }
+  if (img && hook) { const ang = hook ? Math.atan2(hook.vx, -hook.vy) : Math.atan2(p1.x - p0.x, -(p1.y - p0.y)); ctx.translate(p1.x, p1.y); ctx.rotate(ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); }
+  ctx.restore();
+}
+// ---- the lasso: the hook does not stick in the body, the rope winds round it, 4 loops, and holds it tight ----
+// The loops lie across the pull (from the body toward the ship), cinched round its waist, one after another as the rope
+// winds on (LASSO.wind s). Seen from above each loop is a thin ellipse: the near half drawn bright over the body, the far
+// half faint (it runs under it). The body is squeezed a little into an oval: narrower across the loops, longer along the
+// pull, more when the cable is taut. lasso: the live squeeze (eased) and the pull's direction, for drawPlanet
+const LASSO = { loops: 4, wind: 0.55, squeeze: 0.07, taut: 0.05 };
+const lasso = { sq: 0, ang: 0, t: 0, on: false };
+function lassoNow() {   // whose cable is on the body now (mine first): { o, t } or null
+  if (game.ship === "lariat" && game.tether && !game.dead) return { o: game, t: game.tether.t, taut: game.tether.rest };
+  if (enemy.on && enemy.ship === "lariat" && enemy.ltether) return { o: enemy, t: enemy.ltetherT || 0 };
+  return null;
+}
+function lassoSqueezeStart() {
+  const L = lassoNow();
+  if (L) {
+    const q = larFromStar(L.o), R = planetR();
+    let taut = 0.4;
+    if (L.o === game && game.tether) taut = q.d > game.tether.rest ? 1 : 0.3;   // a taut cable squeezes harder
+    const want = (LASSO.squeeze + LASSO.taut * taut) * Math.min(1, L.t / LASSO.wind);
+    lasso.sq += (want - lasso.sq) * Math.min(1, frameDt * 8);
+    lasso.ang = Math.atan2(q.dy, q.dx); lasso.t = L.t; lasso.on = true;
+  } else { lasso.sq += (0 - lasso.sq) * Math.min(1, frameDt * 6); lasso.on = false; }
+  if (lasso.sq < 0.002) return false;
+  const c = toScreen(WW / 2, WH / 2);
+  ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(lasso.ang); ctx.scale(1 + lasso.sq * 0.5, 1 - lasso.sq); ctx.rotate(-lasso.ang); ctx.translate(-c.x, -c.y);
+  return true;
+}
+function drawLasso() {
+  if (!lasso.on) return;
+  const c = toScreen(WW / 2, WH / 2), R = planetR(), k = 1 - lasso.sq, along = 1 + lasso.sq * 0.5;
+  const w = Math.max(2.5, shipSize() * 0.03), wound = lasso.t / LASSO.wind * LASSO.loops;   // how many loops are wound on so far
+  ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(lasso.ang); ctx.lineCap = "round";
+  for (let i = 0; i < LASSO.loops; i++) {
+    const part = Math.max(0, Math.min(1, wound - i)); if (part <= 0) break;
+    // the loops sit across the waist, a little toward the ship, spaced like a coil; each a thin ellipse
+    const x = R * along * (0.02 + 0.12 * i), half = Math.sqrt(Math.max(0, R * R - (x / along) * (x / along))) * k, thin = R * (0.07 + 0.015 * i) * (1 - lasso.sq);
+    const from = -Math.PI / 2, to = from + TAU * part;
+    // the far half (under the body): faint
+    ctx.strokeStyle = "rgba(60,40,30,0.45)"; ctx.lineWidth = w * 0.8;
+    ctx.beginPath(); ctx.ellipse(x, 0, thin, half, 0, Math.max(from, Math.PI / 2), Math.max(from, Math.min(to, Math.PI * 1.5))); ctx.stroke();
+    // the near half: the rope itself, dark under, a twisted lighter strand over it
+    for (const [a0, a1] of [[from, Math.min(to, Math.PI / 2)], [Math.PI * 1.5, to]]) {
+      if (a1 <= a0) continue;
+      ctx.strokeStyle = "rgba(40,28,22,0.95)"; ctx.lineWidth = w * 1.5; ctx.beginPath(); ctx.ellipse(x, 0, thin, half, 0, a0, a1); ctx.stroke();
+      ctx.strokeStyle = "#eaa276"; ctx.lineWidth = w; ctx.setLineDash([w * 1.6, w * 1.1]); ctx.lineDashOffset = -i * w;
+      ctx.beginPath(); ctx.ellipse(x, 0, thin, half, 0, a0, a1); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+  // the rope's end, where it is winding on now (and the hook at the last loop's end when it is done)
+  const i = Math.min(LASSO.loops - 1, Math.floor(wound)), part = Math.min(1, wound - i);
+  const x = R * along * (0.02 + 0.12 * i), half = Math.sqrt(Math.max(0, R * R - (x / along) * (x / along))) * k, thin = R * (0.07 + 0.015 * i) * (1 - lasso.sq);
+  const a = -Math.PI / 2 + TAU * part, hx = x + Math.cos(a) * thin, hy = Math.sin(a) * half;
+  const img = artImage("art/ships/lariat/harpoon.webp"), d = 20 * larU() * 1.6;
+  if (img && (part < 1 || Math.cos(a) >= 0)) { ctx.translate(hx, hy); ctx.rotate(a + Math.PI); ctx.drawImage(img, -d / 2, -d / 2, d, d); }
   ctx.restore();
 }
 function drawLariat() {
   larPreload();
   if (game.ship === "lariat" && !game.dead) drawCable(game, game.hook, !!game.tether);
   if (enemy.on && enemy.ship === "lariat") drawCable(enemy, enemy.lhook, !!enemy.ltether);
+  drawLasso();
   for (const F of larFx) {   // the release: following the ship, facing the way it now flies
     const o = F.who === "me" ? game : enemy; if (F.who === "them" && !enemy.on) continue;
     const img = artImage("art/ships/lariat/release_" + String(Math.min(LAR.fxFrames - 1, Math.floor(F.t * 1000 / LAR.fxMs))).padStart(2, "0") + ".webp"); if (!img) continue;
@@ -7242,7 +7299,7 @@ function draw() {
     if (sk > 0.2) ctx.translate((Math.random() - 0.5) * sk, (Math.random() - 0.5) * sk);
     ctx.translate(W / 2, H / 2); ctx.scale(game.zoom, game.zoom); ctx.translate(-W / 2, -H / 2);
   }
-  if (game.stage !== "gift" && game.stage !== "opening") drawPlanet();
+  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); }
 
   if (flying) {
     const p = shipScreen();
@@ -8737,7 +8794,7 @@ function updateRival(dt) {
   } else enemy.talus = null;
   enemy.inked = n.ik || 0;   // their ship covered in my ink (to draw it)
   enemy.pushAng = n.ga;   // their GIMBAL's push direction (for its plume)
-  enemy.lhook = n.lh ? { x: n.lh[0] * WW, y: n.lh[1] * WH, vx: n.lh[2], vy: n.lh[3] } : null; enemy.ltether = !!n.lt;   // their LARIAT's hook and cable
+  enemy.lhook = n.lh ? { x: n.lh[0] * WW, y: n.lh[1] * WH, vx: n.lh[2], vy: n.lh[3] } : null; enemy.ltether = !!n.lt; enemy.ltetherT = n.lt ? n.lt + age : 0;   // their LARIAT's hook and cable (and how long it has held)
   duel.gate = n.gt ? { id: n.gt[0], x: n.gt[1] * WW, y: n.gt[2] * WH, left: n.gt[3], t: n.gt[4] + age } : null;   // their GIMBAL's gate
   enemy.vtint = n.vt || 0;   // their VANTA's liquid colour
   enemy.hullTurn = n.fm || 0;   // their RIVET's hull turn
@@ -8814,7 +8871,7 @@ function updateDuel(dt) {
       hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +(duel.outDmg * (BOT ? botLevel().dmg : 1)).toFixed(1),
       ga: game.pushAng != null ? +game.pushAng.toFixed(3) : 0,
-      lh: game.hook ? [+(game.hook.x / WW).toFixed(5), +(game.hook.y / WH).toFixed(5), +game.hook.vx.toFixed(1), +game.hook.vy.toFixed(1)] : 0, lt: game.tether ? 1 : 0,
+      lh: game.hook ? [+(game.hook.x / WW).toFixed(5), +(game.hook.y / WH).toFixed(5), +game.hook.vx.toFixed(1), +game.hook.vy.toFixed(1)] : 0, lt: game.tether ? Math.max(0.01, +game.tether.t.toFixed(2)) : 0,
       gt: gateAlive(game.gate) ? [game.gate.id, +(game.gate.x / WW).toFixed(5), +(game.gate.y / WH).toFixed(5), game.gate.left, +game.gate.t.toFixed(2)] : 0,
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,

@@ -299,7 +299,10 @@ points; if it reaches the body in the middle while the ship is near enough, it b
 winch reels it in (the drum on the hull turns), and a taut cable pulls it toward the body, so it swings round it. The
 cable lets go by itself after 5.2 s, or if the ship gets too far or too close. One hook or cable at a time. Magic, clutch
 release: only on a cable; 0.17 s later the cable lets go with a push along the swing (the way it was going round), its
-speed capped; the nose stays where it points. The hook only catches the body (it does not hurt ships). Our bodies are much
+speed capped; the nose stays where it points. The hook only catches the body (it does not hurt ships). It does not stick in: the rope winds round the body, four
+loops one after another (0.55 s), and holds it tight, cinched round its waist; the body is squeezed a little into an oval
+(narrower across the loops, longer along the pull, more while the cable is taut). The loops turn with the ship as it
+swings (`LASSO` in the game). Our bodies are much
 bigger than the pack's practice star, so the reach (306 units) and the slack (64) are measured from the body's surface.
 In a duel the other phone sees the hook and the cable (`lh`, `lt`, `lfx`).
 
