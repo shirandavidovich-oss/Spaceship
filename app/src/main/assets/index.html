@@ -4572,7 +4572,7 @@ function updateWeapons(dt) {
     if (game.dead) game.burstQ = null;
     else if (Q.t <= 0) { spawnShots(Q.w, Q.g, Q.rot); audio.shot(Q.w); Q.left--; Q.t = WEAPONS[Q.w].gap; if (Q.left <= 0) game.burstQ = null; }
   }
-  weaponsOf(S, game.flipMode || 0).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt); });
+  weaponsOf(S, game.flipMode || 0).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt * (game.zombie ? ZOMBIE.rate : 1)); });   // (a zombie refills at a fifth)
   updateAnim(dt);
   updateEggs(dt);
   if (!game.dead) updateRing(dt);
@@ -4586,7 +4586,7 @@ function updateWeapons(dt) {
   updateThread(dt); updateFlail(dt);
   enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt);
   for (let i = 0; i < 3; i++) {
-    game.cool[i] = Math.max(0, game.cool[i] - dt * (game.lassoed ? ELASSO.fire : 1));   // held by LARIAT's rope: half the fire rate
+    game.cool[i] = Math.max(0, game.cool[i] - dt * (game.lassoed ? ELASSO.fire : 1) * (game.zombie ? ZOMBIE.rate : 1));   // held by LARIAT's rope: half the fire rate; a zombie: a fifth
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].converge) { crossHold(dt); continue; }
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].blow) { bubbleHold(dt); continue; }   // PUFF: hold to blow, let go to fire
     // (not `hold`: NIMBUS's storm has a `hold` too, how long its cloud stays)
@@ -5842,7 +5842,7 @@ function artImage(src) {
 // A zombie (game.zombie, on the zombie's own phone; the other phone sees it in duel.net.zb): its weapons hit at
 //   ZOMBIE.dmg of their damage, it has no magic, and it is drawn with its zombie art (ZOMBIE_ART). Until it blows up.
 //   BLOOM itself never turns (it is the flower).
-const ZOMBIE = { dmg: 0.2 };
+const ZOMBIE = { dmg: 0.2, rate: 0.2 };   // dmg: how hard its shots hit. rate: how fast it fires and its ammo refills
 function pollenRadius(t, M) { return M.range * Math.min(1, t / M.grow) * shipSize(); }
 function enemyZombie() { return enemy.remote ? !!(duel.net && duel.net.zb) : !!enemy.zombie; }
 function updatePollen(dt) {
