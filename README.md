@@ -281,6 +281,16 @@ with the wall up; 0.36 s later it breaks into seven shards fanned out the way it
 meanwhile, nothing). In a duel the wall is sent to the other phone (`pw`), which stops its own shots on it and tells
 the owner (`pwh`) to put out a lamp.
 
+**GIMBAL**, the gyroscope fighter (`art/ships/gimbal/`, the pack's `gimbal.js` rules and `gyro-clockwork.js` layers).
+Drawn in moving layers: a brass cage, three toothed rings (brass, titanium, ivory) spinning in turn one way and the other,
+four pinions, and the cockpit spine through the middle, which points where the nose points. Button 1, rim blades: two
+curved blades from both sides of the bow, 8.3° out to each side (8 each). Button 2, quarter gate: 0.31 s after the press a
+disk is set ahead of the ship; for 3.2 s it turns enemy shots that cross it a quarter round clockwise (the same speed,
+marked with a gold ring), three times at most (three bright ring segments, one per use left). It stays where it was set;
+your own shots pass. One gate at a time. Magic, momentum flip: 0.24 s after the press the way the ship moves turns right
+round, at the same speed, while the nose stays where it points; it only works while moving (from rest the button is dim
+and does nothing). In a duel each phone shows the other's gate and turns its own shots on it (`gt`, `gth`, `gfx`).
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

@@ -501,7 +501,20 @@ const SHIPS = [
     body: [], wing: [], nozzles: [-0.124, 0.143], engineY: 0.446, cockpit: [0, -0.38, 0.05, 0.1],
     weapons: ["ricochet", "wall"],
     guns: { ricochet: [[0, -0.513]], wall: [[0, -0.5]] },
-    anim: { dir: "palisade", size: 1.24, idle: "idle.webp", roof: frames("roof", 36, () => 40) } }   // 1,440 ms
+    anim: { dir: "palisade", size: 1.24, idle: "idle.webp", roof: frames("roof", 36, () => 40) } },   // 1,440 ms
+  // GIMBAL, the gyroscope fighter (art/ships/gimbal/): a brass cage with three toothed rings (brass, titanium, ivory) that
+  // spin in turn one way and the other, four pinions, and the cockpit spine through the middle. Drawn in layers
+  // (clockwork: 512 x 512 each, pivot in the middle, 1.2 ship-lengths; the pack's 122 units, so one unit = 1.2 / 122).
+  // Button 1: two curved rim blades, 8.3° out to each side. Button 2: a quarter gate ahead, turning enemy shots 90°.
+  // Magic: momentum flip, the way it is moving turned right round (its nose stays where it points).
+  // Engine lights at the spine's tail (245,450) and (267,450); nose tip (256,19)
+  { id: "gimbal", name: "GIMBAL", rarity: "legendary", mass: 1.1, fuel: 30, refill: 15, sfx: null, magic: "momentum",
+    hull: "#b8873e", wingC: "#2a2f38", trim: "#6fe9ff", flame: "#6fe9ff",
+    body: [], wing: [], nozzles: [-0.026, 0.026], engineY: 0.45, cockpit: [0, -0.3, 0.05, 0.1],
+    weapons: ["blade", "gate"],
+    guns: { blade: [[-0.098, -0.226], [0.098, -0.226]], gate: [[0, -0.5]] },
+    clockwork: true,
+    anim: { dir: "gimbal", size: 1.2, idle: "idle.webp" } }
 ];
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
 function mechFrames(name, ms, deg) {
@@ -622,6 +635,9 @@ const WEAPONS = {
   prism:   { name: "רסיס פריזמה", dmg: 8, speed: 2.6, life: 0.6, cool: 1,    ammo: 1,  r: 0.025, color: "#d8b4ff" },
   // PALISADE. ricochet: banks once off its own wall (the face it strikes). wall: deploys the wall (palWall: no shot).
   //   pshard: the seven ceramic shards of the magic
+  // GIMBAL. blade: from both sides of the bow at once, each `splay` radians out from the nose. gate: no shot (the gate)
+  blade:   { name: "להבי טבעת", dmg: 8, speed: 2.6, life: 1.2, cool: 0.43, ammo: 16, refill: 7, r: 0.03, color: "#6fe9ff", both: true, splay: 0.145 },
+  gate:    { name: "שער רבע סיבוב", dmg: 0, speed: 0, life: 0, cool: 5.7, ammo: 2, refill: 11, r: 0, color: "#e9b66a", gate: true },
   ricochet: { name: "קליע ניתור", dmg: 9, speed: 3.0, life: 0.9, cool: 0.38, ammo: 16, refill: 6, r: 0.022, color: "#dfff83" },
   wall:    { name: "הצבת קיר",   dmg: 0, speed: 0, life: 0, cool: 4.6, ammo: 2, refill: 8, r: 0, color: "#e8e4f0", palWall: true },
   pshard:  { name: "שבר קרמי",   dmg: 6, speed: 2.4, life: 0.6, cool: 1, ammo: 1, r: 0.025, color: "#f2eee6" },
@@ -741,6 +757,9 @@ const MAGIC = {
              count: 10, web: 0.18, webDps: 14 },
   // PALISADE: ceramic shatter. Only with its wall up; at `at` s the wall breaks into `shards` shards fanned `fan`
   //   radians apart, straight out the way it was set facing. If the wall is gone by then, nothing (the cost is kept)
+  // GIMBAL's momentum flip: at `cue` s the way it moves turns right round (same speed; the nose stays). Only when it is
+  // moving at least `min` pack units a second (from rest it does nothing and costs nothing)
+  momentum: { name: "היפוך תנופה", look: "momentum", cool: 9, cue: 0.24, min: 24, color: "#6fe9ff" },
   ceramic: { name: "מטח שברים", look: "ceramic", cool: 8.5, at: 0.36, end: 0.58, shards: 7, fan: 0.18, color: "#dfff83" },
   split:   { name: "התפצלות", look: "split", cool: 0, blast: 4.5, dmg: 75, edge: 15, knock: 2.4, color: "#ff3fb0" },
   // NIMBUS's rainbow: an arc that flies out (`speed` ship-lengths a second for `life` s); touching a ship it does `dmg`
@@ -1252,6 +1271,17 @@ function levelStats(lvl) {
   return { dmg: Math.min(1.8, 0.65 + 0.12 * n), armor: Math.min(2.2, 1 + 0.12 * n), aim: Math.max(0.05, 0.3 - 0.03 * n),
     react: Math.max(0.1, 0.45 - 0.04 * n), special: Math.max(1.2, 4.5 - 0.4 * n), magic: Math.max(2.5, 10 - 0.9 * n) };
 }
+// ---- GIMBAL's quarter gate: a disk that turns an enemy shot a quarter round, clockwise ----
+// px, py: where the shot was, from the gate's middle; dx, dy: how far it moved this step; r: the gate's radius.
+// Returns how far along the step it touched the disk (0..1), or null. Swept, so a fast shot cannot jump over it
+function gateSweep(px, py, dx, dy, r) {
+  const a = dx * dx + dy * dy, b = px * dx + py * dy, c = px * px + py * py - r * r, disc = b * b - a * c;
+  if (!a || disc < 0) return null;
+  const t = c <= 0 ? 0 : (-b - Math.sqrt(disc)) / a;
+  return t < 0 || t > 1 ? null : t;
+}
+// a quarter turn clockwise on the screen (y down): right becomes down, down becomes left. Same speed
+function quarterTurn(vx, vy) { return { vx: -vy, vy: vx }; }
 // </logic>
 
 // ======================================================================
@@ -1929,7 +1959,7 @@ function update(dt) {
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
-  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
+  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateGimbal(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
   updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
@@ -2312,6 +2342,7 @@ function useMagicNow(which = 0) {
     audio.sfx(S.sfx, "phase_exit", 0, 0.6); buzz(40);
     return;
   }
+  if (M.look === "momentum") { gimFlip(M); return; }   // GIMBAL: the way it moves turns right round (only while moving)
   if (M.look === "hammer") {   // KRAAL: a dash the way the nose points (no aiming for you), and the hammer-head hits what is in the way
     if (game.dash) return;
     game.magicCool = M.cool;
@@ -3974,7 +4005,7 @@ function blowUpShip() {
     game.pick = true;
   }
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -4072,6 +4103,7 @@ function updateWeapons(dt) {
       if (Wp.magnet) burstAt(s.x, s.y, 10, [Wp.colors[(s.ix || 0) % Wp.colors.length], "#ffffff"], 0.35, 0.7);
       burstAt(s.x, s.y, 5, ["#b8a3ff", "#ffffff"], 0.2, 0.6); shots.splice(k, 1); continue;
     }
+    gimMyShot(s, dt);   // GIMBAL's gate turns it a quarter round
     // into the other player's V (GLITCH): batted away, no hit
     if (enemy.remote && enemy.on && vShieldUp(enemy) && inFrontV(enemy, s.x, s.y)) { vBat(s); shots.splice(k, 1); continue; }
     // into the other player's thread (ZORIAN): stopped
@@ -4121,10 +4153,12 @@ function shoot(i) {
   if (game.dive) return;   // BORER in its dive: no firing
   if (game.puff && game.puff.st === "full") { if (game.puff.armed) puffBurst(); return; }   // PUFF: this press lets the spines go
   const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
+  if (Wp.gate && (gateAlive(game.gate) || game.gateWait != null)) return;   // GIMBAL: one gate at a time
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
   if (Wp.ring) { startRing(w, S); return; }
   if (Wp.palWall) { startWall(S); return; }   // PALISADE: the arms carry a wall out
+  if (Wp.gate) { gateStart(); return; }   // GIMBAL: the quarter gate (set 0.31 s later)
   if (Wp.forge && S.grows) { game.forge = { t: 0, w, thumps: 0 }; audio.tone(70, 1.4, "sawtooth", 0.05, 1.6); audio.noise(1.2, 0.08, 500); buzz(30); return; }   // TALUS forges it first
   if (Wp.modules) { game.repPending = { w, t: 0, next: 0 }; return; }   // REPRISE: its buildings fire in turn
   if (Wp.cued && A && A.primary && i === 0) { game.anim = { seq: "primary", t: 0, bolts: w }; if (w === "lightning") audio.sfx(S.sfx, "lightning-charge"); if (w === "mpulse") audio.tone(440, 0.28, "sine", 0.03, 2.5); return; }   // DRAKON: the frames fire the bolts
@@ -4175,9 +4209,9 @@ function spawnShots(w, g, rot) {
   const pow = w === "spike" && game.trap ? game.trap.power || 0 : 0;   // SKARN's powered-up shards
   if (Wp.beam) { game.beam = { w, t: 0, ang: game.ang, hit: false }; duelSend({ t: "bm", a: +game.ang.toFixed(3) }); shake(0.3); buzz(90); return; }
   for (const a of pelletAngles(Wp)) {
-    const dir = game.ang + a + hk + (Wp.rear ? Math.PI : 0) + (game.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;   // (XELTAR's crystal: out of the stern; scrambled: the wrong way)
+    const dir = game.ang + a + hk + (Wp.rear ? Math.PI : 0) + (Wp.splay && g ? Math.sign(g[0]) * Wp.splay : 0) + (game.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;   // (XELTAR's crystal: out of the stern; scrambled: the wrong way)
     const sv = Wp.magnet ? v * (0.55 + Math.random() * 0.9) : v;   // RIVET's magnets scatter unevenly
-    shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * sv, vy: game.vy - Math.cos(dir) * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined });
+    shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * sv, vy: game.vy - Math.cos(dir) * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined });
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
   if (!S.anim) burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
@@ -4614,6 +4648,118 @@ function whichMagic(x) { return shipById(game.ship).magic2 && x > magicButton().
 function hitMagic(x, y) { const b = magicButton(); return !!magicOf(shipById(game.ship)) && Math.hypot(x - b.x, y - b.y) < b.r * 1.25; }
 
 // ======================================================================
+//  GIMBAL: the quarter gate (button 2), the momentum flip (magic), its layered clockwork drawing
+//  Sizes and times are the pack's (gimbal.js, gyro-clockwork.js); a pack unit is 1.2 / 122 ship-lengths.
+//  game.gate: my gate { id, x, y, left, t }. duel.gate: the other player's (from their state messages).
+//  Like PALISADE's wall: my phone turns MY shots that reach THEIR gate and tells them ("gth": a use is gone); on my
+//  phone their shots that reach my gate are turned too (only shown). A shot is turned by one gate only once.
+// ======================================================================
+const GIM = { gateAt: 0.31, gateDist: 86, gateR: 29, gateUses: 3, gateLife: 3.2, flipMs: 30, flipFrames: 16, flipSize: 166,
+  pinions: [-Math.PI / 4, Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4].map((a) => [123 * Math.cos(a), 123 * Math.sin(a)]) };
+const gimFx = [];   // the momentum flip's frames: { who: "me" | "them", t }
+let gateSeq = 0;
+function gimU() { return shipSize() * 1.2 / 122; }
+function gateAlive(G) { return !!G && G.left > 0 && G.t < GIM.gateLife; }
+// a shot that moved (vx, vy) * dt: if it crossed gate G (and was not turned by it before), turn it a quarter round
+// from where it touched, the rest of the step on its new way. True if it was turned
+function gateTurn(G, s, dt) {
+  if (!gateAlive(G) || s.gid === G.id) return false;
+  const dx = s.vx * dt, dy = s.vy * dt, px = wrapDelta(s.x - dx - G.x, WW), py = wrapDelta(s.y - dy - G.y, WH);
+  const t = gateSweep(px, py, dx, dy, GIM.gateR * gimU());
+  if (t == null) return false;
+  const cx = s.x - dx + dx * t, cy = s.y - dy + dy * t, v = quarterTurn(s.vx, s.vy), rest = (1 - t) * dt;
+  s.vx = v.vx; s.vy = v.vy; s.gid = G.id; s.gold = true;
+  s.x = (((cx + s.vx * rest) % WW) + WW) % WW; s.y = (((cy + s.vy * rest) % WH) + WH) % WH;
+  burstAt(cx, cy, 10, ["#e9b66a", "#6fe9ff", "#ffffff"], 0.25, 0.5); audio.tone(880, 0.08, "triangle", 0.04, 1.6);
+  return true;
+}
+// my shots against their gate (my phone decides, and tells them); their shots against mine (only shown here)
+function gimMyShot(s, dt) { if (enemy.remote && gateTurn(duel.gate, s, dt)) { link.send({ t: "gth" }); duel.gate.left--; } }
+function gimTheirShot(s, dt) { gateTurn(game.gate, s, dt); }
+// their shot went through my gate on their phone: a use is gone
+function gateUsed() { const G = game.gate; if (!gateAlive(G)) return; G.left--; if (G.left <= 0) { burstAt(G.x, G.y, 20, ["#e9b66a", "#6fe9ff"], 0.4, 0.7); game.gate = null; } }
+function updateGimbal(dt) {
+  if (game.gate) { game.gate.t += dt; if (!gateAlive(game.gate)) game.gate = null; }
+  if (duel.gate) duel.gate.t += dt;
+  if (game.gateWait != null) {   // button 2 pressed: the gate is set 0.31 s later, ahead of where the ship is then
+    game.gateWait += dt;
+    if (game.gateWait >= GIM.gateAt) {
+      game.gateWait = null;
+      if (!game.dead) {
+        const d = GIM.gateDist * gimU();
+        game.gate = { id: "g" + (++gateSeq) + Math.random().toString(36).slice(2, 6), x: (((game.x + Math.sin(game.ang) * d) % WW) + WW) % WW,
+          y: (((game.y - Math.cos(game.ang) * d) % WH) + WH) % WH, left: GIM.gateUses, t: 0 };
+        audio.tone(520, 0.2, "triangle", 0.04, 1.5); audio.tone(1040, 0.12, "sine", 0.03, 1.2, 0.06); buzz(25);
+      }
+    }
+  }
+  if (game.gflip != null) {   // the magic: at its cue the way it moves turns right round
+    game.gflip += dt;
+    if (game.gflip >= MAGIC.momentum.cue) {
+      game.gflip = null;
+      if (!game.dead) { game.vx = -game.vx; game.vy = -game.vy; gimFx.push({ who: "me", t: 0 }); duelSend({ t: "gfx" }); audio.whoosh(); shake(0.3); buzz(70); }
+    }
+  }
+  for (let i = gimFx.length - 1; i >= 0; i--) { gimFx[i].t += dt; if (gimFx[i].t * 1000 >= GIM.flipMs * GIM.flipFrames) gimFx.splice(i, 1); }
+}
+// button 2 (from shoot): one gate at a time
+function gateStart() { game.gateWait = 0; audio.tone(300, 0.3, "sawtooth", 0.025, 2.2); }
+// the magic: only while moving
+function gimFlip(M) {
+  if (game.gflip != null || Math.hypot(game.vx, game.vy) < M.min * gimU()) return;
+  game.magicCool = M.cool; game.gflip = 0; audio.tone(700, 0.24, "sine", 0.04, 0.5);
+}
+// ---- drawing ----
+function gimImg(name) { return artImage("art/ships/gimbal/" + name + ".webp"); }
+let gimLoaded = false;
+function gimPreload() {
+  if (gimLoaded || BOT || (game.ship !== "gimbal" && enemy.ship !== "gimbal")) return;
+  gimLoaded = true;
+  for (const n of ["outer-cage", "outer-brass", "inner-titanium", "ivory-escapement", "pinion", "hull-spine"]) gimImg(n);
+  for (let i = 0; i < GIM.flipFrames; i++) gimImg("flip_" + String(i).padStart(2, "0"));
+}
+// inside drawShip (already turned to the heading, 1 = a ship-length): the cage, the three rings spinning in turn
+// one way and the other, the pinions, then the spine. False while a layer is still loading (the plain drawing is used)
+function drawClockwork(S) {
+  const L = {}; for (const n of ["outer-cage", "outer-brass", "inner-titanium", "ivory-escapement", "pinion", "hull-spine"]) { L[n] = gimImg(n); if (!L[n]) return false; }
+  const k = S.anim.size / 512, t = time * 1000 / 4920 * TAU, pulse = Math.sin(t * 12) * 0.026;
+  const layer = (n, a, x = 0, y = 0, w = 512) => { ctx.save(); ctx.translate(x * k, y * k); ctx.rotate(a); ctx.drawImage(L[n], -w * k / 2, -w * k / 2, w * k, w * k); ctx.restore(); };
+  layer("outer-cage", 0);
+  layer("outer-brass", t + pulse);
+  layer("inner-titanium", -t * 2 - pulse * 1.8);
+  layer("ivory-escapement", t * 3 + pulse * 2.5);
+  GIM.pinions.forEach(([x, y], i) => layer("pinion", -t * 4 - pulse * 3.7 + i * 0.11, x, y, 64));
+  layer("hull-spine", 0);
+  return true;
+}
+function drawGate(G, mine) {
+  if (!gateAlive(G)) return;
+  const p = toScreen(G.x, G.y), r = GIM.gateR * gimU(), left = GIM.gateLife - G.t, a = left < 0.6 ? left / 0.6 : Math.min(1, G.t / 0.15);
+  ctx.save(); ctx.translate(p.x, p.y); ctx.globalAlpha = a;
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.4); g.addColorStop(0, "rgba(111,233,255,0.18)"); g.addColorStop(1, "rgba(111,233,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * 1.4, 0, TAU); ctx.fill();
+  ctx.rotate(time * 2.2);   // three ring segments, one per use left (the used ones dark)
+  ctx.lineCap = "round";
+  for (let i = 0; i < GIM.gateUses; i++) {
+    const on = i < G.left, a0 = i * TAU / 3 + 0.18, a1 = (i + 1) * TAU / 3 - 0.18;
+    ctx.lineWidth = Math.max(2, r * 0.16); ctx.strokeStyle = on ? "#e9b66a" : "rgba(120,110,90,0.35)"; ctx.shadowColor = "#6fe9ff"; ctx.shadowBlur = on ? 8 : 0;
+    ctx.beginPath(); ctx.arc(0, 0, r, a0, a1); ctx.stroke();
+    if (on) { ctx.lineWidth = Math.max(1, r * 0.05); ctx.strokeStyle = "#6fe9ff"; ctx.beginPath(); ctx.arc(0, 0, r * 0.78, a0 + 0.1, a1 - 0.1); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+function drawGimbal() {
+  gimPreload();
+  drawGate(game.gate, true); drawGate(duel.gate, false);
+  for (const F of gimFx) {   // the flip: two colours spreading round the ship's middle, not turned with it
+    const o = F.who === "me" ? game : enemy; if (F.who === "them" && !enemy.on) continue;
+    const img = gimImg("flip_" + String(Math.min(GIM.flipFrames - 1, Math.floor(F.t * 1000 / GIM.flipMs))).padStart(2, "0")); if (!img) continue;
+    const p = toScreen(o.x, o.y), d = GIM.flipSize * gimU();
+    ctx.drawImage(img, p.x - d / 2, p.y - d / 2, d, d);
+  }
+}
+
+// ======================================================================
 //  THE BATTLE BUTTONS (Orbit Break kit, art/hud/<ship>/)
 //  Each ship has its own five buttons: a metal octagon plate and a glowing icon for thrust, button 1 ("primary"),
 //  button 2 ("secondary"), button 3 ("pickup", the weapon from a crate) and the magic. RIVET has a second pair of
@@ -4630,7 +4776,8 @@ const KIT = {
   rivet: { a: "#ffc473", b: "#6edcff" }, glitch: { a: "#d280ff", b: "#67f4ed" }, nimbus: { a: "#eaf7ff", b: "#a3d7f2", fx: "world" },
   reprise: { a: "#efbf83", b: "#bc9df1" }, puff: { a: "#c9edff", b: "#f4bcf1" }, cinder: { a: "#ffc27a", b: "#ff8861" },
   borer: { a: "#72e6a1", b: "#f9d586", fx: "world" }, mirage: { a: "#ffcc83", b: "#c9a5ff", fx: "world" },
-  palisade: { a: "#dfff83", b: "#b5a0ff", fx: "none" }   // (its magic plays the wall's own shatter, at the wall)
+  palisade: { a: "#dfff83", b: "#b5a0ff", fx: "none" },   // (its magic plays the wall's own shatter, at the wall)
+  gimbal: { a: "#6fe9ff", b: "#e9b66a", fx: "none", face: true }   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
 function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
@@ -4642,7 +4789,7 @@ function kitSlot(slot) { return (slot === "primary" || slot === "secondary") && 
 //   o.ring: the ring's colour   o.iconAng: turn the icon (the thrust's points where the nose points)   o.draw: draw this instead of the kit icon
 //   o.badge: a little number or mark in the corner
 function drawKitButton(id, slot, b, o) {
-  const K = KIT[id], plate = kitImg(id, kitSlot(slot) + "-plate"), icon = o.draw ? null : kitImg(id, kitSlot(slot) + "-icon");
+  const K = KIT[id], plate = kitImg(id, kitSlot(slot) + "-plate"), icon = o.draw || K.face ? null : kitImg(id, kitSlot(slot) + "-icon");   // (face: plate and icon in one picture)
   if (!plate) return false;   // not loaded yet: the caller draws the old button this frame
   const accent = slot === "secondary" || slot === "magic" ? K.b : K.a;
   const press = o.pressed && o.ready, r = b.r * (press ? 0.92 : 1), d = r * 2.5;   // the octagon fills about 80% of the picture
@@ -4799,6 +4946,7 @@ function drawShip(S, x, y, size, o = {}) {
     const k = S.anim.size / 512, [c, sl] = S.anim.seam, y0 = (c + -300 * sl) * k, y1 = (c + 300 * sl) * k, far = o.half === "front" ? -2 : 2;
     ctx.save(); ctx.beginPath(); ctx.moveTo(-300 * k, y0); ctx.lineTo(300 * k, y1); ctx.lineTo(300 * k, far); ctx.lineTo(-300 * k, far); ctx.closePath(); ctx.clip();
   }
+  if (S.clockwork && drawClockwork(S)) { ctx.restore(); return; }   // GIMBAL: drawn in its moving layers
   if (img) {
     // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
     // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
@@ -6967,7 +7115,7 @@ function draw() {
     drawShots(eshots);
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
-    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawReso(game.reso); drawReso(duel.reso);
+    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -7386,6 +7534,17 @@ function drawShots(list = shots) {
     if (s.w === "bubble") { drawBubble(s); continue; }
     if (s.w === "torpedo") { drawTorpedo(s); continue; }   // VANTA's drop inside the planet: only the exit mark, at the end
     const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
+    if (s.gold) {   // turned by GIMBAL's gate: a gold ring round it
+      ctx.save(); ctx.strokeStyle = "rgba(233,182,106,0.85)"; ctx.lineWidth = 2; ctx.shadowColor = "#e9b66a"; ctx.shadowBlur = 6;
+      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(5, size * 0.07), 0, TAU); ctx.stroke(); ctx.restore();
+    }
+    if (s.w === "blade") {   // GIMBAL's rim blade: a curved cyan crescent, bowed outward to its side
+      const k = size * 0.11, side = Math.sign(s.side || 1);
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy));
+      ctx.shadowColor = "#6fe9ff"; ctx.shadowBlur = 10; ctx.fillStyle = "rgba(200,250,255,0.95)"; ctx.strokeStyle = "#6fe9ff"; ctx.lineWidth = Math.max(1, k * 0.08);
+      ctx.beginPath(); ctx.moveTo(-side * k * 0.55, k * 0.35); ctx.quadraticCurveTo(side * k * 0.25, -k * 0.2, -side * k * 0.3, -k * 0.75);
+      ctx.quadraticCurveTo(side * k * 0.6, -k * 0.15, -side * k * 0.55, k * 0.35); ctx.fill(); ctx.stroke(); ctx.restore(); continue;
+    }
     if (s.w === "hack") {   // GLITCH's pulse: a cyan diamond in a jittering square, with magenta ghosts
       const r = size * 0.11, j = () => (Math.random() - 0.5) * r * 0.25;
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy) + Math.PI / 4);
@@ -7770,7 +7929,8 @@ function drawMagicButton(b, M, ready, k) {
   // the kit's magic button: plate, icon, the recharge as a ring and a dark sweep; a corner mark for ships that count something
   const S = shipById(game.ship);
   if (kitOf(S)) {
-    const used = S.id === "drakon" && game.splitUsed && !game.bomb;   // DRAKON's magic is once a life
+    const used = (S.id === "drakon" && game.splitUsed && !game.bomb) ||   // DRAKON's magic is once a life
+      (S.id === "gimbal" && Math.hypot(game.vx, game.vy) < MAGIC.momentum.min * gimU());   // GIMBAL's only works while moving
     const B = magicBadge(S) || {};
     if (drawKitButton(game.ship, "magic", b, { pressed: game.magicFinger != null, ready: ready && !used, fill: used ? 0 : k, glow: true, badge: B.t, badgeColor: B.c })) return;
   }
@@ -8212,7 +8372,7 @@ function endDuel(tellThem) {
   if (!viaPipe) setTimeout(() => link.stop(), tellThem ? 250 : 0); else link.stop();
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
-  duel.shots.length = 0; duel.tail = null; duel.net = null; duel.ring = null; duel.grind = null; duel.held = false; enemy.talus = null;
+  duel.shots.length = 0; duel.tail = null; duel.net = null; duel.ring = null; duel.gate = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
   for (let k = hunters.length - 1; k >= 0; k--) if (hunters[k].remote) hunters.splice(k, 1);
@@ -8234,7 +8394,7 @@ function duelLink(event, data) {
     duel.side = duel.me > m.r ? 1 : 0;
     if (duel.side === 1 && BODIES[m.b]) setBody(m.b);   // both fight around the same body: the top player's
     duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.outDmg = 0; eshots.length = 0; duel.roundStart = game.t + 3;
-    duel.shots.length = 0; duel.tail = null; duel.net = null;
+    duel.shots.length = 0; duel.tail = null; duel.net = null; duel.gate = null;
     for (let k = eggs.length - 1; k >= 0; k--) eggs.splice(k, 1);
     hunters.length = 0; shots.length = 0; crate.on = false;
     game.hp = SHIP_HP; game.dead = 0; game.tail = null; game.anim = null; fillAmmo(); duelPlace();
@@ -8326,7 +8486,9 @@ function duelLink(event, data) {
     for (const [x, y, vx, vy, fuse, color] of m.p)
       pieces.push({ x: x * WW, y: y * WH, vx: vx * WW, vy: vy * WH, t: 0, fuse, r: shipSize() * 0.085, spin: Math.random() * TAU, color, remote: true });
     burstAt(enemy.x, enemy.y, 40, ["#e8dcc4", "#ff4d3a", "#ffffff"], 0.6, 0.8, enemy.vx, enemy.vy); audio.crunch();
-  } else if (m.t === "mfx") kitFxStart("them");   // their magic went off: its effect over their ship
+  } else if (m.t === "gth") gateUsed();   // one of their shots went through my gate
+  else if (m.t === "gfx") gimFx.push({ who: "them", t: 0 });   // their GIMBAL flipped its momentum
+  else if (m.t === "mfx") kitFxStart("them");   // their magic went off: its effect over their ship
   else if (m.t === "bye") endDuel(false);
 }
 // the other player's ship on this phone: glide toward where it said it is (moved on by its speed since then)
@@ -8384,6 +8546,7 @@ function updateRival(dt) {
     if (st > was) spawnChips(enemy, shipSize() * sc, enemy.talus.colors[st - 1] || "#e8dcc4");
   } else enemy.talus = null;
   enemy.inked = n.ik || 0;   // their ship covered in my ink (to draw it)
+  duel.gate = n.gt ? { id: n.gt[0], x: n.gt[1] * WW, y: n.gt[2] * WH, left: n.gt[3], t: n.gt[4] + age } : null;   // their GIMBAL's gate
   enemy.vtint = n.vt || 0;   // their VANTA's liquid colour
   enemy.hullTurn = n.fm || 0;   // their RIVET's hull turn
   if (n.rw) enemy.rwShow = Math.max(enemy.rwShow || 0, 0.3);   // they are going back in time (my REPRISE)
@@ -8436,7 +8599,8 @@ function updateDuel(dt) {
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;   // their VANTA drop inside the planet (the exit mark warns me)
     if (Wp.phase) phaseTrail(s);
-    if (threadBlocks(game.thread, s, dt)) { threadSpark(s); duel.shots.splice(k, 1); continue; }   // my thread stops it (their phone sees my thread too)
+    if (threadBlocks(game.thread, s, dt)) { threadSpark(s); duel.shots.splice(k, 1); continue; }
+    gimTheirShot(s, dt);   // my GIMBAL gate turns it (their phone does the same and tells me)   // my thread stops it (their phone sees my thread too)
     if (vShieldUp(game) && inFrontV(game, s.x, s.y)) { vBat(s); duel.shots.splice(k, 1); continue; }   // my V (their phone sees it too)
     if (trapOpen()) suckShot(game, shipById(game.ship), s, dt);   // (their phone pulls it the same way)
     if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it and tells me: "caught")
@@ -8457,6 +8621,7 @@ function updateDuel(dt) {
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
       hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +(duel.outDmg * (BOT ? botLevel().dmg : 1)).toFixed(1),
+      gt: gateAlive(game.gate) ? [game.gate.id, +(game.gate.x / WW).toFixed(5), +(game.gate.y / WH).toFixed(5), game.gate.left, +game.gate.t.toFixed(2)] : 0,
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
       ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
@@ -8979,7 +9144,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 function tryShip(id) {
   game.ship = id;
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();

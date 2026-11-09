@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,palInteract,palCarrier,PAL,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,levelStats,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,talusForge,bubbleCharge,vexarEggPose,vexarEggFlight,borerThrust,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, palInteract, palCarrier, PAL, starMinePose, starMineCheck, talusForge, bubbleCharge, vexarEggPose, vexarEggFlight, borerThrust, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, levelStats, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,palInteract,palCarrier,PAL,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,levelStats,gateSweep,quarterTurn,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,talusForge,bubbleCharge,vexarEggPose,vexarEggFlight,borerThrust,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, palInteract, palCarrier, PAL, starMinePose, starMineCheck, talusForge, bubbleCharge, vexarEggPose, vexarEggFlight, borerThrust, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, levelStats, gateSweep, quarterTurn, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("thirty-one ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 31);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 31);
+ok("thirty-two ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 32);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 32);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -576,5 +576,15 @@ ok("PALISADE: the wall stops a shot's path through it, and a straight bolt banks
   const E = palInteract(0, { x: -2, y: 0 }, { x: 4, y: 0 }, 0.65, 0.065); assert.ok(Math.abs(Math.abs(E.normal.x) - 1) < 1e-9);   // its end face
   assert.strictEqual(palCarrier(100), null); assert.ok(Math.abs(palCarrier(1040).distance - 100) < 1e-9);   // the arms set it 100 units out
   assert.ok(Math.abs(PAL.dist - 100 * PAL.u) < 1e-9);
+});
+ok("GIMBAL's gate: a shot through it is caught where it first touches; one passing beside it is not", () => {
+  assert(Math.abs(gateSweep(-100, 0, 200, 0, 29) - 71 / 200) < 1e-9);
+  assert.strictEqual(gateSweep(-100, 40, 200, 0, 29), null);
+  assert.strictEqual(gateSweep(-100, 0, 50, 0, 29), null);   // stops short of it
+});
+ok("GIMBAL's gate: one long step right over it is still caught (no jumping through)", () => { const t = gateSweep(0, -900, 0, 1800, 29); assert(t > 0.48 && t < 0.5); });
+ok("GIMBAL's gate turns a shot a quarter round clockwise, same speed", () => {
+  const r = quarterTurn(1, 0); assert.strictEqual(r.vx, -0); assert.strictEqual(r.vy, 1);   // right -> down
+  const d = quarterTurn(0, 1); assert.strictEqual(d.vx, -1); assert.strictEqual(d.vy, 0);   // down -> left
 });
 console.log(n + " checks passed");
