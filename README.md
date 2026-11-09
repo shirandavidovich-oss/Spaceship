@@ -293,6 +293,16 @@ your own shots pass. One gate at a time. Magic, momentum flip: 0.24 s after the 
 round, at the same speed, while the nose stays where it points; it only works while moving (from rest the button is dim
 and does nothing). In a duel each phone shows the other's gate and turns its own shots on it (`gt`, `gth`, `gfx`).
 
+**LARIAT**, the orbital salvage tug (`art/ships/lariat/`, the pack's `lariat.js` rules and `winch.js`). Button 1: an ion
+rivet from the right mount (9). Button 2, star harpoon: 0.16 s after the press a hook flies from the boom the way the nose
+points; if it reaches the body in the middle while the ship is near enough, it bites in and the ship is on a cable: the
+winch reels it in (the drum on the hull turns), and a taut cable pulls it toward the body, so it swings round it. The
+cable lets go by itself after 5.2 s, or if the ship gets too far or too close. One hook or cable at a time. Magic, clutch
+release: only on a cable; 0.17 s later the cable lets go with a push along the swing (the way it was going round), its
+speed capped; the nose stays where it points. The hook only catches the body (it does not hurt ships). Our bodies are much
+bigger than the pack's practice star, so the reach (306 units) and the slack (64) are measured from the body's surface.
+In a duel the other phone sees the hook and the cable (`lh`, `lt`, `lfx`).
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

@@ -514,7 +514,19 @@ const SHIPS = [
     weapons: ["blade", "gate"],
     guns: { blade: [[-0.098, -0.226], [0.098, -0.226]], gate: [[0, -0.5]] },
     clockwork: true, noFlame: true,   // (its plume is drawn the way it pushes, not from the turning spine)
-    anim: { dir: "gimbal", size: 1.2, idle: "idle.webp" } }
+    anim: { dir: "gimbal", size: 1.2, idle: "idle.webp" } },
+  // LARIAT, the orbital salvage tug (art/ships/lariat/): an orange boom with a claw on the left, a cable winch in the
+  // middle, a teal engine pod on the right. 512 px drawn 1.2 ship-lengths (the pack's 106 units: one unit = 1.2 / 106).
+  // Button 1: an ion rivet from the right mount. Button 2: a star harpoon from the boom: it hooks the body in the middle,
+  // and the winch reels the ship in on a cable, swinging round it. Magic: clutch release, a push along the swing.
+  // Engines (215,451) and (305,423); the rivet mount 25 units ahead and 13 right; the boom's socket 43 ahead and 17 left
+  { id: "lariat", name: "LARIAT", rarity: "rare", mass: 1.25, fuel: 30, refill: 15, sfx: null, magic: "clutch",
+    hull: "#b8452a", wingC: "#2c4a4c", trim: "#7ce9dc", flame: "#7ce9dc",
+    body: [], wing: [], nozzles: [-0.096, 0.115], engineY: 0.45, engineYs: [0.457, 0.39], cockpit: [0, -0.3, 0.05, 0.1],
+    weapons: ["ionrivet", "harpoon"],
+    guns: { ionrivet: [[0.147, -0.283]], harpoon: [[-0.192, -0.487]] },
+    winch: { x: 231, y: 247, w: 50, h: 64 },   // the winch drum on the hull (512 px), drawn turning while the cable runs
+    anim: { dir: "lariat", size: 1.2, idle: "idle.webp" } }
 ];
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
 function mechFrames(name, ms, deg) {
@@ -635,6 +647,9 @@ const WEAPONS = {
   prism:   { name: "רסיס פריזמה", dmg: 8, speed: 2.6, life: 0.6, cool: 1,    ammo: 1,  r: 0.025, color: "#d8b4ff" },
   // PALISADE. ricochet: banks once off its own wall (the face it strikes). wall: deploys the wall (palWall: no shot).
   //   pshard: the seven ceramic shards of the magic
+  // LARIAT. ionrivet: a plain fast bolt. harpoon: no shot (the hook, see LARIAT)
+  ionrivet: { name: "מסמרת יונים", dmg: 9, speed: 2.6, life: 1.15, cool: 0.35, ammo: 18, refill: 7, r: 0.02, color: "#7ce9dc" },
+  harpoon:  { name: "צלצל כוכב", dmg: 0, speed: 0, life: 0, cool: 2.4, ammo: 3, refill: 7, r: 0, color: "#eaa276", harpoon: true },
   // GIMBAL. blade: from both sides of the bow at once, each `splay` radians out from the nose. gate: no shot (the gate)
   blade:   { name: "להבי טבעת", dmg: 8, speed: 2.6, life: 1.2, cool: 0.43, ammo: 16, refill: 7, r: 0.03, color: "#6fe9ff", both: true, splay: 0.145 },
   gate:    { name: "שער רבע סיבוב", dmg: 0, speed: 0, life: 0, cool: 5.7, ammo: 2, refill: 11, r: 0, color: "#e9b66a", gate: true },
@@ -757,6 +772,8 @@ const MAGIC = {
              count: 10, web: 0.18, webDps: 14 },
   // PALISADE: ceramic shatter. Only with its wall up; at `at` s the wall breaks into `shards` shards fanned `fan`
   //   radians apart, straight out the way it was set facing. If the wall is gone by then, nothing (the cost is kept)
+  // LARIAT's clutch release: only on a cable; at `cue` s the cable lets go with a push along the swing
+  clutch:  { name: "שחרור תנופה", look: "clutch", cool: 4.7, cue: 0.17, color: "#7ce9dc" },
   // GIMBAL's momentum flip: at `cue` s the way it moves turns right round (same speed; the nose stays). Only when it is
   // moving at least `min` pack units a second (from rest it does nothing and costs nothing)
   momentum: { name: "היפוך תנופה", look: "momentum", cool: 9, cue: 0.24, min: 24, color: "#6fe9ff" },
@@ -1289,6 +1306,21 @@ function gimbalTurn(ms) {
 }
 // a quarter turn clockwise on the screen (y down): right becomes down, down becomes left. Same speed
 function quarterTurn(vx, vy) { return { vx: -vy, vy: vx }; }
+// ---- LARIAT's cable (lariat.js): the pull of a taut cable, and the release ----
+// d: the ship's distance from the star's middle, rest: the cable's length, radial: the ship's speed toward the star.
+// Only a taut cable pulls (d > rest): a spring, damped, up to maxPull. Returns the pull toward the star (>= 0)
+function cablePull(d, rest, radial, spring, damping, maxPull) { return d <= rest ? 0 : Math.max(0, Math.min(maxPull, (d - rest) * spring - radial * damping)); }
+// the release: a push of `boost` along the circle round the star, the way the ship is already going round (from rest:
+// the way its nose leans), the rest of its speed kept, then all of it capped at `cap`.
+// dx, dy: the ship from the star's middle; fx, fy: the nose's direction
+function cableRelease(dx, dy, vx, vy, fx, fy, boost, cap) {
+  const d = Math.hypot(dx, dy); if (!d) return { vx, vy };
+  const tx = -dy / d, ty = dx / d, along = vx * tx + vy * ty;
+  const sign = Math.sign(Math.abs(along) > boost * 0.067 ? along : fx * tx + fy * ty) || 1;   // (0.067 = the pack's 8 of 120)
+  let nx = vx + tx * sign * boost, ny = vy + ty * sign * boost; const sp = Math.hypot(nx, ny);
+  if (sp > cap) { nx *= cap / sp; ny *= cap / sp; }
+  return { vx: nx, vy: ny };
+}
 // </logic>
 
 // ======================================================================
@@ -1966,7 +1998,7 @@ function update(dt) {
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
-  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateGimbal(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
+  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateGimbal(dt); updateLariat(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
   updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
@@ -2122,6 +2154,7 @@ function moveShip(o, S, c, dt) {
   o.fuel = f.fuel; o.locked = f.locked;
   o.power = lerp(o.power, on ? 1 : 0, 1 - Math.exp(-dt * 10));
 
+  if (o === game && game.tether && S.id === "lariat") larPull(o, dt);   // LARIAT on its cable
   // 3. the planet in the middle pulls (nearest way round, since space wraps)
   const R = planetR();
   const dx = wrapDelta(o.x - WW / 2, WW), dy = wrapDelta(o.y - WH / 2, WH);
@@ -2360,7 +2393,8 @@ function useMagicNow(which = 0) {
     audio.sfx(S.sfx, "phase_exit", 0, 0.6); buzz(40);
     return;
   }
-  if (M.look === "momentum") { gimFlip(M); return; }   // GIMBAL: the way it moves turns right round (only while moving)
+  if (M.look === "momentum") { gimFlip(M); return; }
+  if (M.look === "clutch") { larClutch(M); return; }   // LARIAT: let the cable go with a push (only on a cable)   // GIMBAL: the way it moves turns right round (only while moving)
   if (M.look === "hammer") {   // KRAAL: a dash the way the nose points (no aiming for you), and the hammer-head hits what is in the way
     if (game.dash) return;
     game.magicCool = M.cool;
@@ -4023,7 +4057,7 @@ function blowUpShip() {
     game.pick = true;
   }
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -4172,11 +4206,13 @@ function shoot(i) {
   if (game.puff && game.puff.st === "full") { if (game.puff.armed) puffBurst(); return; }   // PUFF: this press lets the spines go
   const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
   if (Wp.gate && (gateAlive(game.gate) || game.gateWait != null)) return;   // GIMBAL: one gate at a time
+  if (Wp.harpoon && (game.hook || game.tether || game.hookWait != null)) return;   // LARIAT: one hook or cable at a time
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
   if (Wp.ring) { startRing(w, S); return; }
   if (Wp.palWall) { startWall(S); return; }   // PALISADE: the arms carry a wall out
   if (Wp.gate) { gateStart(); return; }   // GIMBAL: the quarter gate (set 0.31 s later)
+  if (Wp.harpoon) { game.hookWait = 0; audio.tone(180, 0.16, "square", 0.03, 1.6); return; }   // LARIAT: the hook leaves 0.16 s later
   if (Wp.forge && S.grows) { game.forge = { t: 0, w, thumps: 0 }; audio.tone(70, 1.4, "sawtooth", 0.05, 1.6); audio.noise(1.2, 0.08, 500); buzz(30); return; }   // TALUS forges it first
   if (Wp.modules) { game.repPending = { w, t: 0, next: 0 }; return; }   // REPRISE: its buildings fire in turn
   if (Wp.cued && A && A.primary && i === 0) { game.anim = { seq: "primary", t: 0, bolts: w }; if (w === "lightning") audio.sfx(S.sfx, "lightning-charge"); if (w === "mpulse") audio.tone(440, 0.28, "sine", 0.03, 2.5); return; }   // DRAKON: the frames fire the bolts
@@ -4794,6 +4830,121 @@ function drawGimbal() {
 }
 
 // ======================================================================
+//  LARIAT: the star harpoon and the cable (button 2), the clutch release (magic), the winch
+//  The pack's numbers (lariat.js), in its units (one = 1.2 / 106 ship-lengths). One change: our bodies in the middle are
+//  much bigger than the pack's practice star, so the reach and the slack are measured from the body's SURFACE.
+//  game.hook: { x, y, vx, vy, t, ox, oy } while it flies; game.tether: { rest, t } while hooked on.
+//  The cable only pulls my own ship; the other phone is told where my hook is (lh) and whether I am on a cable (lt).
+// ======================================================================
+const LAR = { reach: 306, slack: 64, reel: 28, spring: 4.7, damping: 2.2, maxPull: 470, life: 5.2, hookAt: 0.16, hookSpeed: 410,
+  hookLife: 1.05, boost: 120, cap: 335, fxMs: 32, fxFrames: 16, fxSize: 188, socket: [-17, -43] };
+const larFx = [];   // the release: { who, t, ang } (ang: the new way it flies)
+function larU() { return shipSize() * 1.2 / 106; }
+function larSocket(o) { const u = larU(), q = rotatePt(LAR.socket[0] * u, LAR.socket[1] * u, o.ang); return { x: o.x + q.x, y: o.y + q.y }; }
+function larFromStar(o) { const dx = wrapDelta(o.x - WW / 2, WW), dy = wrapDelta(o.y - WH / 2, WH); return { dx, dy, d: Math.hypot(dx, dy) }; }
+function larEnd(why) { if (game.tether) { audio.tone(why === "snap" ? 900 : 300, 0.12, "triangle", 0.04, 0.6); } game.tether = null; }
+// moveShip, before the ship moves: the winch reels in, and a taut cable pulls toward the body's middle
+function larPull(o, dt) {
+  const T = game.tether, u = larU(), R = planetR(), q = larFromStar(o);
+  if (!q.d || q.d < R || q.d > R + LAR.reach * u) { larEnd("snap"); return; }
+  T.rest = Math.max(R + LAR.slack * u, T.rest - LAR.reel * u * dt);
+  const ix = -q.dx / q.d, iy = -q.dy / q.d, radial = o.vx * ix + o.vy * iy;
+  const f = cablePull(q.d, T.rest, radial, LAR.spring, LAR.damping, LAR.maxPull * u);
+  o.vx += ix * f * dt; o.vy += iy * f * dt;
+}
+function updateLariat(dt) {
+  const u = larU();
+  if (game.dead) { game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; }
+  if (game.hookWait != null) {   // button 2 pressed: the hook leaves 0.16 s later, from the boom, the way the nose points
+    game.hookWait += dt;
+    if (game.hookWait >= LAR.hookAt) {
+      game.hookWait = null;
+      const p = larSocket(game), v = LAR.hookSpeed * u;
+      game.hook = { x: p.x, y: p.y, vx: Math.sin(game.ang) * v, vy: -Math.cos(game.ang) * v, t: 0, ox: p.x, oy: p.y };
+      audio.tone(220, 0.25, "sawtooth", 0.03, 2.4); audio.noise(0.15, 0.08, 3000);
+    }
+  }
+  const H = game.hook;
+  if (H) {
+    H.t += dt;
+    const dx = H.vx * dt, dy = H.vy * dt, R = planetR(), px = wrapDelta(H.x - WW / 2, WW), py = wrapDelta(H.y - WH / 2, WH);
+    const hit = gateSweep(px, py, dx, dy, R), q = larFromStar(game);
+    if (hit != null && q.d <= R + LAR.reach * u) {   // it bites into the body: on the cable
+      game.hook = null;
+      game.tether = { rest: R + Math.max(LAR.slack * u, (q.d - R) * 0.84), t: 0 };
+      audio.tone(140, 0.2, "square", 0.05, 0.5); audio.noise(0.1, 0.2, 2500); shake(0.25); buzz(60);
+    } else if (H.t > LAR.hookLife || Math.hypot(wrapDelta(H.x - H.ox, WW), wrapDelta(H.y - H.oy, WH)) > LAR.reach * u * 1.4 || hit != null) {
+      game.hook = null; audio.tone(500, 0.1, "triangle", 0.03, 0.5);   // missed (or the ship was too far from the body)
+    } else { H.x = (((H.x + dx) % WW) + WW) % WW; H.y = (((H.y + dy) % WH) + WH) % WH; }
+  }
+  if (game.tether) { game.tether.t += dt; if (game.tether.t >= LAR.life) larEnd("time"); }
+  if (game.clutch) {   // the magic: at its cue the cable lets go with a push along the swing (if it is still on)
+    game.clutch.t += dt;
+    if (game.clutch.t >= MAGIC.clutch.cue) {
+      const C = game.clutch; game.clutch = null;
+      if (C.tether === game.tether && game.tether) {
+        const q = larFromStar(game), u2 = larU();
+        const v = cableRelease(q.dx, q.dy, game.vx, game.vy, Math.sin(game.ang), -Math.cos(game.ang), LAR.boost * u2, LAR.cap * u2);
+        game.vx = v.vx; game.vy = v.vy; game.tether = null;
+        const ang = Math.atan2(v.vx, -v.vy);
+        larFx.push({ who: "me", t: 0, ang }); duelSend({ t: "lfx", a: +ang.toFixed(3) });
+        audio.whoosh(); audio.tone(1200, 0.15, "square", 0.04, 0.5); shake(0.3); buzz(80);
+      } else audio.tone(160, 0.25, "sawtooth", 0.04, 0.5);   // the cable was gone first: it fizzles
+    }
+  }
+  for (let i = larFx.length - 1; i >= 0; i--) { larFx[i].t += dt; if (larFx[i].t * 1000 >= LAR.fxMs * LAR.fxFrames) larFx.splice(i, 1); }
+}
+function larClutch(M) {
+  if (!game.tether || game.clutch) return;
+  game.magicCool = M.cool; game.clutch = { t: 0, tether: game.tether };
+  audio.tone(400, 0.17, "square", 0.03, 1.8);
+}
+// the winch on the hull (inside drawShip: turned to the heading, 1 = a ship-length): the drum turns, "out" while the
+// hook flies, "in" while the cable reels in
+function drawWinch(S, mode) {
+  const img = artImage("art/ships/lariat/winch-drum.webp"); if (!img || !mode) return;
+  const W0 = S.winch, k = S.anim.size / 512, x = (W0.x - 256) * k, y = (W0.y - 256) * k, w = W0.w * k, h = W0.h * k;
+  const off = (((mode === "out" ? -1 : 1) * time * 1000 * (mode === "out" ? 0.105 : 0.052)) % W0.h + W0.h) % W0.h;
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.drawImage(img, x, y + off * k, w, h); ctx.drawImage(img, x, y + (off - W0.h) * k, w, h);
+  ctx.fillStyle = mode === "out" ? "rgba(132,255,223,0.14)" : "rgba(255,200,140,0.16)"; ctx.fillRect(x, y, w, h);
+  ctx.restore();
+}
+function larWinchMode(o, who) { return who === "me" ? (game.hook ? "out" : game.tether ? "in" : null) : (enemy.lhook ? "out" : enemy.ltether ? "in" : null); }
+let larLoaded = false;
+function larPreload() {
+  if (larLoaded || BOT || (game.ship !== "lariat" && enemy.ship !== "lariat")) return;
+  larLoaded = true; artImage("art/ships/lariat/winch-drum.webp"); artImage("art/ships/lariat/harpoon.webp");
+  for (let i = 0; i < LAR.fxFrames; i++) artImage("art/ships/lariat/release_" + String(i).padStart(2, "0") + ".webp");
+}
+// the cable: from the boom's socket to the flying hook, or to the body's rim (sliding round it as the ship swings)
+function drawCable(o, hook, on) {
+  if (!hook && !on) return;
+  const a = toScreen(o.x, o.y), s0 = larSocket(o), p0 = toScreen(s0.x, s0.y);
+  let p1;
+  if (hook) p1 = toScreen(hook.x, hook.y);
+  else { const q = larFromStar(o), R = planetR(); p1 = toScreen(WW / 2 + q.dx / q.d * R, WH / 2 + q.dy / q.d * R); }
+  ctx.save(); ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(40,28,22,0.9)"; ctx.lineWidth = Math.max(3, shipSize() * 0.035); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+  ctx.strokeStyle = on ? "#eaa276" : "#c9a27a"; ctx.lineWidth = Math.max(1.5, shipSize() * 0.016); ctx.setLineDash([6, 4]); ctx.lineDashOffset = -time * (on ? 40 : 120);
+  ctx.stroke(); ctx.setLineDash([]);
+  const img = artImage("art/ships/lariat/harpoon.webp"), d = 20 * larU() * 1.6;
+  if (img) { const ang = hook ? Math.atan2(hook.vx, -hook.vy) : Math.atan2(p1.x - p0.x, -(p1.y - p0.y)); ctx.translate(p1.x, p1.y); ctx.rotate(ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); }
+  ctx.restore();
+}
+function drawLariat() {
+  larPreload();
+  if (game.ship === "lariat" && !game.dead) drawCable(game, game.hook, !!game.tether);
+  if (enemy.on && enemy.ship === "lariat") drawCable(enemy, enemy.lhook, !!enemy.ltether);
+  for (const F of larFx) {   // the release: following the ship, facing the way it now flies
+    const o = F.who === "me" ? game : enemy; if (F.who === "them" && !enemy.on) continue;
+    const img = artImage("art/ships/lariat/release_" + String(Math.min(LAR.fxFrames - 1, Math.floor(F.t * 1000 / LAR.fxMs))).padStart(2, "0") + ".webp"); if (!img) continue;
+    const p = toScreen(o.x, o.y), d = LAR.fxSize * larU();
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(F.ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+  }
+}
+
+// ======================================================================
 //  THE BATTLE BUTTONS (Orbit Break kit, art/hud/<ship>/)
 //  Each ship has its own five buttons: a metal octagon plate and a glowing icon for thrust, button 1 ("primary"),
 //  button 2 ("secondary"), button 3 ("pickup", the weapon from a crate) and the magic. RIVET has a second pair of
@@ -4811,7 +4962,8 @@ const KIT = {
   reprise: { a: "#efbf83", b: "#bc9df1" }, puff: { a: "#c9edff", b: "#f4bcf1" }, cinder: { a: "#ffc27a", b: "#ff8861" },
   borer: { a: "#72e6a1", b: "#f9d586", fx: "world" }, mirage: { a: "#ffcc83", b: "#c9a5ff", fx: "world" },
   palisade: { a: "#dfff83", b: "#b5a0ff", fx: "none" },   // (its magic plays the wall's own shatter, at the wall)
-  gimbal: { a: "#6fe9ff", b: "#e9b66a", fx: "none", face: true }   // (whole faces; its flip is drawn by GIMBAL's own code)
+  gimbal: { a: "#6fe9ff", b: "#e9b66a", fx: "none", face: true },
+  lariat: { a: "#7ce9dc", b: "#eaa276", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
 function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
@@ -4992,6 +5144,7 @@ function drawShip(S, x, y, size, o = {}) {
     }
     ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
     if (halfClip) ctx.restore();
+    if (S.winch && o.winch) drawWinch(S, o.winch);   // LARIAT's winch turning
     if (S.anim && S.anim.ribbon && img === artImage(framePath(S.anim.dir, S.anim.ribbon))) drawRibbon(S, o.tint || 0);
     // TALUS just took in new rock: a brief red glow
     if (o.talus && o.talus.t > GROW.fly && o.talus.t < GROW.glow) {
@@ -7115,6 +7268,7 @@ function draw() {
         { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
+          winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
           half: shown === S && game.splitUsed ? "rear" : null, glow: shown === S && S.grows ? talusGlow(game.talus.ring) : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
       if (dug) ctx.restore();
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
@@ -7149,7 +7303,7 @@ function draw() {
     drawShots(eshots);
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
-    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawReso(game.reso); drawReso(duel.reso);
+    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -7374,7 +7528,7 @@ function drawEnemy() {
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (enemy.remote && duel.net && duel.net.bb) drawHeldBubble(enemy, duel.net.bb);
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
+    drawShip(E, p.x, p.y, size * esc, { winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
@@ -7964,7 +8118,8 @@ function drawMagicButton(b, M, ready, k) {
   const S = shipById(game.ship);
   if (kitOf(S)) {
     const used = (S.id === "drakon" && game.splitUsed && !game.bomb) ||   // DRAKON's magic is once a life
-      (S.id === "gimbal" && Math.hypot(game.vx, game.vy) < MAGIC.momentum.min * gimU());   // GIMBAL's only works while moving
+      (S.id === "gimbal" && Math.hypot(game.vx, game.vy) < MAGIC.momentum.min * gimU()) ||   // GIMBAL's only works while moving
+      (S.id === "lariat" && !game.tether);   // LARIAT's only on its cable
     const B = magicBadge(S) || {};
     if (drawKitButton(game.ship, "magic", b, { pressed: game.magicFinger != null, ready: ready && !used, fill: used ? 0 : k, glow: true, badge: B.t, badgeColor: B.c })) return;
   }
@@ -8521,7 +8676,8 @@ function duelLink(event, data) {
       pieces.push({ x: x * WW, y: y * WH, vx: vx * WW, vy: vy * WH, t: 0, fuse, r: shipSize() * 0.085, spin: Math.random() * TAU, color, remote: true });
     burstAt(enemy.x, enemy.y, 40, ["#e8dcc4", "#ff4d3a", "#ffffff"], 0.6, 0.8, enemy.vx, enemy.vy); audio.crunch();
   } else if (m.t === "gth") gateUsed();   // one of their shots went through my gate
-  else if (m.t === "gfx") gimFx.push({ who: "them", t: 0 });   // their GIMBAL flipped its momentum
+  else if (m.t === "gfx") gimFx.push({ who: "them", t: 0 });
+  else if (m.t === "lfx") larFx.push({ who: "them", t: 0, ang: m.a || 0 });   // their LARIAT let its cable go   // their GIMBAL flipped its momentum
   else if (m.t === "mfx") kitFxStart("them");   // their magic went off: its effect over their ship
   else if (m.t === "bye") endDuel(false);
 }
@@ -8581,6 +8737,7 @@ function updateRival(dt) {
   } else enemy.talus = null;
   enemy.inked = n.ik || 0;   // their ship covered in my ink (to draw it)
   enemy.pushAng = n.ga;   // their GIMBAL's push direction (for its plume)
+  enemy.lhook = n.lh ? { x: n.lh[0] * WW, y: n.lh[1] * WH, vx: n.lh[2], vy: n.lh[3] } : null; enemy.ltether = !!n.lt;   // their LARIAT's hook and cable
   duel.gate = n.gt ? { id: n.gt[0], x: n.gt[1] * WW, y: n.gt[2] * WH, left: n.gt[3], t: n.gt[4] + age } : null;   // their GIMBAL's gate
   enemy.vtint = n.vt || 0;   // their VANTA's liquid colour
   enemy.hullTurn = n.fm || 0;   // their RIVET's hull turn
@@ -8657,6 +8814,7 @@ function updateDuel(dt) {
       hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +(duel.outDmg * (BOT ? botLevel().dmg : 1)).toFixed(1),
       ga: game.pushAng != null ? +game.pushAng.toFixed(3) : 0,
+      lh: game.hook ? [+(game.hook.x / WW).toFixed(5), +(game.hook.y / WH).toFixed(5), +game.hook.vx.toFixed(1), +game.hook.vy.toFixed(1)] : 0, lt: game.tether ? 1 : 0,
       gt: gateAlive(game.gate) ? [game.gate.id, +(game.gate.x / WW).toFixed(5), +(game.gate.y / WH).toFixed(5), game.gate.left, +game.gate.t.toFixed(2)] : 0,
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
@@ -8809,7 +8967,7 @@ function botThink(dt) {
   if (botAI.t2 <= 0 && seen && d < U * 2.4 && off < 0.7) { botTap("x", 0.15 + Math.random() * 1.6); botAI.t2 = L.special * (0.6 + Math.random() * 0.8); }
   // the magic (and a split button's second magic), now and then when near; sometimes held, sometimes tapped twice
   botAI.tM -= dt;
-  if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S)) {
+  if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S) && (S.id !== "lariat" || game.tether)) {
     botTap("v", Math.random() < 0.5 ? 0.1 : 0.4 + Math.random() * 2.4); botAI.tM = L.magic * (0.6 + Math.random() * 0.8);
   }
   botAI.tB -= dt;
@@ -9180,7 +9338,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 function tryShip(id) {
   game.ship = id;
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();
@@ -9269,7 +9427,7 @@ if (BOT) {
   try { parent.botReady(); } catch (e) {}
 } else requestAnimationFrame(frame);
 // test hooks (used by the screenshot checks on a computer)
-window.__ship = { SHIPS, langBox: () => langBtn(), damageShip, kitFx, tryShipTest: (id) => tryShip(id), camp, picker, bot, pickerTap, botAI, realDuel, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic, duel, duelButton, eggs, hunters };
+window.__ship = { SHIPS, planetR: () => planetR(), langBox: () => langBtn(), damageShip, kitFx, tryShipTest: (id) => tryShip(id), camp, picker, bot, pickerTap, botAI, realDuel, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic, duel, duelButton, eggs, hunters };
 </script>
 </body>
 </html>
