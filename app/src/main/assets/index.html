@@ -465,6 +465,9 @@ const STEER      = "point"; // "point": tip the phone toward where the nose shou
 const PULL       = 0.45; // the planet's pull within one screen of it (screens per second, each second); weaker further out. Keep below 0.6
 const PLANET_R   = 0.5;  // planet radius, in screen-widths
 const UNLOCK     = 0.2;  // after the fuel runs out, the button comes back when the tank is this full again
+const POWER_LOW  = 0.4;  // the engine's push with an almost empty tank, compared with a full one (white button = strongest)
+const SPEED_LOW  = 0.55; // the top speed with an almost empty tank, compared with a full one. (Both fall with the fuel)
+const PUSH_FLOOR = 0.62; // ...but the push never falls below this, so every ship can still get away from a black hole
 const ENEMY      = true; // an enemy ship flies with you, and shoots at you
 const ENEMY_GUNS = true; // the enemy shoots (false = it only flies)
 const ENEMY_FIRE = 0.4;  // how fast it shoots, compared with a player holding the same button (1 = as fast)
@@ -2616,6 +2619,10 @@ function moveShip(o, S, c, dt) {
   const st = shipStats(S), size = shipSize();
   if (o === game && game.soak && game.soak.boost) { const M = magicOf(S); st.push *= M.boost; st.top *= M.boost; }   // ORIAN charged: twice as fast
   if (o === game && game.lassoed) st.turn *= ELASSO.turn;   // held by LARIAT's rope: turning takes twice as long
+  // the fuller the tank, the stronger the engine and the faster the ship: worth waiting for a full (white) button
+  const tank = clamp((o.fuel == null ? st.fuel : o.fuel) / st.fuel, 0, 1);
+  st.push = Math.max(Math.min(st.push, PUSH_FLOOR), st.push * (POWER_LOW + (1 - POWER_LOW) * tank));
+  st.top *= SPEED_LOW + (1 - SPEED_LOW) * tank;
   // 1. turning, at the ship's own speed
   const before = o.ang;
   if (S.clockwork) {   // GIMBAL: no steering; the hull ticks round by itself like a clock

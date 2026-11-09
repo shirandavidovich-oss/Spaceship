@@ -84,6 +84,10 @@ test hangar's 💥 button (its second header row) plays it on the enemy, or ahea
 **The top row:** under the health bar, my fleet's icons, then the duel button (crossed swords) and the hangar button
 beside them (`fleetRowLayout`). "My ships" (the 3 ships page) and the language pill are inside the test hangar.
 
+**The engine follows the fuel:** with a full tank (the white button) the push and the top speed are the highest; as
+the tank runs down they fall with it (to `POWER_LOW` of the push and `SPEED_LOW` of the speed), so it pays to wait for
+a full tank. The push never drops below `PUSH_FLOOR`, so every ship can still get away from a black hole.
+
 **Every ship flies its own way** (`HANDLING`, next to `SHIPS`): multipliers for its size (drawn and as a target),
 top speed, engine push and turning. Small ones are quick (ZORIAN is 40% smaller and the fastest; PUFF, VANTA and
 ORIAN 20% smaller and faster), heavy ones slow (PALISADE, THUL, REPRISE, TALUS). Every engine still beats the black
