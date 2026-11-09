@@ -39,6 +39,7 @@ const TRY_SHIP   = "";     // everyone flies this ship (for testing). "" = the g
 const SERVER_URL = "https://tzzrdrfolzxuptmgtpfh.supabase.co";
 const SERVER_KEY = "sb_publishable_zzf2ysxbet8Qx0lW2dwWrA_OxS7CwZX";   // the public key (it is meant to be in the app)
 const ONLINE_RATE = 12;   // messages a second about your ship in an online duel (fewer than nearby: the server counts them)
+const COINS      = false;  // coins for beating a player (off for now: the fleet row is shown instead)
 const HANGAR     = true;   // for now: a hangar button (under the duel swords) to try every drawn ship. false = the real game only
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
@@ -969,12 +970,14 @@ function steerShot(vx, vy, tx, ty, turn) {
   return { vx: Math.cos(b) * sp, vy: Math.sin(b) * sp };
 }
 
-// The gift's surprise: rarity by its odds, then one ship of that rarity.
+// The gift's surprise: rarity by its odds, then one ship of that rarity. Only ships with real drawings
+// (the hangar's), so only the rarities they have (their odds keep the same proportions)
 function chooseShip(rand = Math.random) {
-  const total = Object.values(RARITY).reduce((a, r) => a + r.odds, 0);
-  let k = rand() * total, pick = "common";
-  for (const [name, r] of Object.entries(RARITY)) { if (k < r.odds) { pick = name; break; } k -= r.odds; }
-  const pool = SHIPS.filter((s) => s.rarity === pick);
+  const drawn = SHIPS.filter((s) => s.anim), have = Object.entries(RARITY).filter(([name]) => drawn.some((s) => s.rarity === name));
+  const total = have.reduce((a, [, r]) => a + r.odds, 0);
+  let k = rand() * total, pick = have[0][0];
+  for (const [name, r] of have) { if (k < r.odds) { pick = name; break; } k -= r.odds; }
+  const pool = drawn.filter((s) => s.rarity === pick);
   return pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))].id;
 }
 
@@ -1196,6 +1199,15 @@ function talusForge(ms) {
 }
 // can BORER start a dive here? gap: from its edge to the star's surface, in ship-lengths
 function starMineCheck(gap, busy, M) { return busy ? "occupied" : !(gap >= 0) || gap > M.reach ? "range" : "ok"; }
+// ---- playing the computer ----
+// ---- the levels: what gets better each level (lvl 1 = the first) ----
+//   dmg: its damage (x)   armor: your damage to it is divided by this   aim: how far off its aim can be (radians)
+//   react: seconds between new aiming decisions   special: seconds between heavy-weapon uses   magic: seconds between magics
+function levelStats(lvl) {
+  const n = Math.max(0, lvl - 1);
+  return { dmg: Math.min(1.8, 0.65 + 0.12 * n), armor: Math.min(2.2, 1 + 0.12 * n), aim: Math.max(0.05, 0.3 - 0.03 * n),
+    react: Math.max(0.1, 0.45 - 0.04 * n), special: Math.max(1.2, 4.5 - 0.4 * n), magic: Math.max(2.5, 10 - 0.9 * n) };
+}
 // </logic>
 
 // ======================================================================
@@ -1217,8 +1229,13 @@ function resize() {
 }
 addEventListener("resize", resize);
 
-const native = window.ShipNative || null;
-const params = new URLSearchParams(location.search);
+// The computer opponent is this same game running a second time, hidden, inside the page (see THE COMPUTER PLAYER).
+// That copy is the "bot": it plays like a second phone, so it has every weapon and magic a player has.
+const BOT = window.name === "shipbot";
+const native = BOT ? null : window.ShipNative || null;
+const params = new URLSearchParams(BOT ? "" : location.search);
+// saved data: the bot keeps nothing (it must not touch the player's saved game)
+const LS = BOT ? (() => { const m = {}; return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; } }; })() : localStorage;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, k) => a + (b - a) * k;
 const ease = (k) => 1 - Math.pow(1 - clamp(k, 0, 1), 3);
@@ -1226,36 +1243,36 @@ function buzz(ms) { try { native && native.vibrate(ms); } catch (e) {} }
 
 // ---------- saved game ----------
 const SAVE_KEY = "spaceship.save";
-if (params.has("reset")) { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
-function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && shipById(s.ship)) return s; } catch (e) {} return null; }
-function saveShip(id, from) { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, ship: id, from, at: Date.now() })); } catch (e) {} }
+if (params.has("reset")) { try { LS.removeItem(SAVE_KEY); } catch (e) {} }
+function loadSave() { try { const s = JSON.parse(LS.getItem(SAVE_KEY)); if (s && shipById(s.ship)) return s; } catch (e) {} return null; }
+function saveShip(id, from) { try { LS.setItem(SAVE_KEY, JSON.stringify({ v: 1, ship: id, from, at: Date.now() })); } catch (e) {} }
 
 // ---------- the player's profile: the email, the 3 ships, kills and money ----------
 // The 3 ships are drawn from the email (the same email always draws the same 3, even after reinstalling).
 // After trades they are kept here (and on the server, once there is one)
 const PROFILE_KEY = "spaceship.profile";
-if (params.has("reset")) { try { localStorage.removeItem(PROFILE_KEY); } catch (e) {} }
+if (params.has("reset")) { try { LS.removeItem(PROFILE_KEY); } catch (e) {} }
 function loadProfile() {
-  try { const p = JSON.parse(localStorage.getItem(PROFILE_KEY)); if (p && p.email && Array.isArray(p.fleet) && p.fleet.every((id) => shipById(id))) return p; } catch (e) {}
+  try { const p = JSON.parse(LS.getItem(PROFILE_KEY)); if (p && p.email && Array.isArray(p.fleet) && p.fleet.every((id) => shipById(id))) return p; } catch (e) {}
   return null;
 }
-function saveProfile() { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) {} server.save(profile); }
+function saveProfile() { try { LS.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) {} server.save(profile); }
 let profile = loadProfile();
 // ---------- the server (Supabase) ----------
 // Sign-in: the player's email gets a 6-digit code (Supabase's email); the code proves the email is theirs.
 // The session (tokens) is kept on the phone and refreshed. The profile row (ships, kills, coins) can only be read and
 // changed by its owner (the table's rules, server/supabase.sql). ?server=... points a test at another server
 const SESSION_KEY = "spaceship.session";
-if (params.has("reset")) { try { localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+if (params.has("reset")) { try { LS.removeItem(SESSION_KEY); } catch (e) {} }
 const server = {
   url: params.get("server") || SERVER_URL, key: SERVER_KEY,
-  session: (() => { try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (e) { return null; } })(),
+  session: (() => { try { return JSON.parse(LS.getItem(SESSION_KEY)); } catch (e) { return null; } })(),
   get on() { return !!(this.url && this.key); },
   get signedIn() { return this.on && !!(this.session && this.session.access_token); },
   setSession(j) {
     if (!j || !j.access_token) return;
     this.session = { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, email: (j.user && j.user.email) || (this.session && this.session.email) };
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify(this.session)); } catch (e) {}
+    try { LS.setItem(SESSION_KEY, JSON.stringify(this.session)); } catch (e) {}
   },
   headers() { const h = { apikey: this.key, "Content-Type": "application/json" }; if (this.session && this.session.access_token) h.Authorization = "Bearer " + this.session.access_token; return h; },
   async call(path, method = "GET", body = null, extra = {}) {
@@ -1271,7 +1288,7 @@ const server = {
     if (Date.now() < this.session.expires_at - 60000) return true;
     const r = await this.call("/auth/v1/token?grant_type=refresh_token", "POST", { refresh_token: this.session.refresh_token });
     if (r.ok && r.j && r.j.access_token) { this.setSession(r.j); return true; }
-    if (r.status >= 400 && r.status < 500) { this.session = null; try { localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+    if (r.status >= 400 && r.status < 500) { this.session = null; try { LS.removeItem(SESSION_KEY); } catch (e) {} }
     return false;
   },
   async sendCode(email) { const r = await this.call("/auth/v1/otp", "POST", { email: email.trim().toLowerCase(), create_user: true }); return r; },
@@ -1304,7 +1321,7 @@ const server = {
       profile.fleet = row.fleet; profile.kills = row.kills || 0; profile.money = row.money || 0;
       if (row.active && row.fleet.includes(row.active)) profile.active = row.active;
       if (!profile.fleet.includes(profile.active)) profile.active = profile.fleet[0];
-      try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) {}
+      try { LS.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) {}
       if (game.stage === "fly" && game.ship !== profile.active && !TRY_SHIP) tryShip(profile.active); else if (game.stage !== "fly") game.ship = profile.active;
     }
   }
@@ -1561,6 +1578,7 @@ const audio = {
     this.humFilter.frequency.setTargetAtTime(160 + power * 700, t, 0.1);
   }
 };
+if (BOT) for (const k of Object.keys(audio)) if (typeof audio[k] === "function") audio[k] = () => {};   // the bot is silent
 window.shipPause = () => { try { audio.ctx && audio.ctx.suspend(); } catch (e) {} };
 window.shipResume = () => { audio.wake(); };
 audio.wake();
@@ -1570,7 +1588,7 @@ audio.wake();
 // ======================================================================
 const save = loadSave();
 const game = {
-  stage: profile ? "arrive" : "signup",   // signup -> fleet (pick one of the 3) -> arrive -> fly. (The old gift is not used)
+  stage: BOT ? "botwait" : profile ? "arrive" : "signup",   // signup -> fleet (pick one of the 3) -> arrive -> fly. (The old gift is not used)
   t: 0,
   ship: profile ? (TRY_SHIP || profile.active || profile.fleet[0]) : null,
   x: 0, y: 0, vx: 0, vy: 0, power: 0, fwd: 0, side: 0,   // x, y: place in space (pixels)
@@ -1652,11 +1670,12 @@ let swipe = null;
 cv.addEventListener("pointerdown", (e) => {
   audio.wake();
   if (trade.stage && tradeTap(e.clientX, e.clientY)) return;
+  if (picker.open || camp.over) { pickerTap(e.clientX, e.clientY); return; }   // choosing a ship / the fleet is gone
   if (fleet.open) { fleetDown(e); return; }
   if (hangar.open) { hangarTap(e.clientX, e.clientY); return; }
-  if (game.stage === "fly" && !trade.stage && !duel.stage && profile && hitFleetBtn(e.clientX, e.clientY)) { fleetOpen(false); audio.pop(); return; }
+  if (game.stage === "fly" && !trade.stage && !realDuel() && profile && hitFleetBtn(e.clientX, e.clientY)) { fleetOpen(false); audio.pop(); return; }
   if (game.stage === "fly" && !trade.stage && hitDuel(e.clientX, e.clientY)) { duelButton(); return; }
-  if (game.stage === "fly" && !trade.stage && !duel.stage && hitHangar(e.clientX, e.clientY)) { hangar.open = true; hangar.t = 0; audio.pop(); return; }
+  if (game.stage === "fly" && !trade.stage && !realDuel() && hitHangar(e.clientX, e.clientY)) { hangar.open = true; hangar.t = 0; audio.pop(); return; }
   // the left thumb on the thrust button (another finger can still swipe at the same time)
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
     game.thrust = e.pointerId; buzz(12);
@@ -1818,6 +1837,7 @@ function shipSize() { return U * 0.26; }
 
 function update(dt) {
   time += dt; game.t += dt;
+  pipeDrain();
   tintStep();
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
@@ -1849,8 +1869,15 @@ function update(dt) {
   updateCosmos(dt);
   game.hurt = Math.max(0, game.hurt - dt);
   game.arriveT = Math.max(0, (game.arriveT || 0) - dt * 1.5);
+  if (BOT) botThink(dt); else campTick(dt);
   if (game.stage === "fly" && trade.stage !== "swapping") {
-    if (game.dead) { game.dead -= dt; game.thrust = null; game.stick = null; game.fire = [null, null, null]; if (game.dead <= 0) respawnShip(); }
+    if (game.dead) {
+      game.dead -= dt; game.thrust = null; game.stick = null; game.fire = [null, null, null];
+      if (game.dead <= 0) {
+        if (game.pick && !BOT) { game.dead = 0.01; if (!picker.open && !camp.over) openPicker("lost"); }   // choose the next ship first
+        else respawnShip();
+      }
+    }
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
   }
@@ -1878,7 +1905,8 @@ function flyShip(dt) {
   if (STEER === "turn") turn = game.side;
   else { target = headingTarget(game); turn = Math.min(1, Math.hypot(game.side, game.fwd) * 2); }
   // the joystick wins over the tilt while the thumb is dragged out of the middle
-  const sh = game.stick ? stickHeading(game.stick.dx, game.stick.dy, thrustButton().r) : null;
+  let sh = game.stick ? stickHeading(game.stick.dx, game.stick.dy, thrustButton().r) : null;
+  if (BOT && botAI.head != null) sh = botAI.head;   // the computer player steers like a thumb on the joystick
   if (sh !== null) { target = sh; turn = 1; }
   if (game.scramble > 0) { if (target !== null) target = wrapAngle(target + Math.PI); turn = STEER === "turn" ? -turn : turn; }   // scrambled: reversed
   const wasEmpty = game.locked;
@@ -3747,12 +3775,12 @@ function drawTailBall(T, pts, size) {
 const enemy = { on: false, ship: null, x: 0, y: 0, vx: 0, vy: 0, ang: 0, spin: 0, fuel: 0, locked: false, power: 0, hitCool: 0, warp: 0,
   hp: ENEMY_HP, hurt: 0, respawn: 0 };
 function spawnEnemy() {
-  if (!ENEMY) return;
+  if (!ENEMY || BOT || !camp.off) return;   // the computer player (THE COMPUTER PLAYER) has taken the old enemy's place
   enemy.inked = 0;
   enemy.cool = null; enemy.ammo = null;   // a new enemy comes with full guns
   setBody(nextBody(cosmos.body), cosmos.started);   // each round: a new thing in the middle
   cosmos.started = true;
-  const others = SHIPS.filter((s) => s.id !== game.ship);
+  const others = SHIPS.filter((s) => s.id !== game.ship && s.anim);
   enemy.ship = others[Math.floor(Math.random() * others.length)].id;
   if (!game.kills) { enemy.x = WW / 2 + U * 0.3; enemy.y = WH / 2 + U * 2.2; }   // the first one: on the far side of the planet
   else {
@@ -3844,6 +3872,12 @@ function damageShip(n) {
 function blowUpShip() {
   const S = shipById(game.ship);
   if (duel.stage === "on") duel.lost++;
+  if (BOT) botLost();   // the computer lost this ship
+  else if (duel.stage === "on" || duel.stage === "count") {
+    // in a match: this ship is out (against the computer it is gone for good), and the player picks the next one
+    if (duel.bot && camp.mine.includes(game.ship) && !camp.lost.includes(game.ship)) camp.lost.push(game.ship);
+    game.pick = true;
+  }
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
   game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null;
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
@@ -3855,6 +3889,7 @@ function blowUpShip() {
   enemy.ghostX = game.x; enemy.ghostY = game.y;
 }
 function respawnShip() {
+  if (BOT) botNextShip();   // the computer player: its next ship from its fleet
   game.dead = 0; placeShip(); game.zoom = 1;
   if (duel.stage === "on" || duel.stage === "count") duelPlace();
   game.arriveT = 1;   // a flash as it comes back
@@ -4381,7 +4416,7 @@ const bounty = { t: 0, r: null };
 function scoreKill(player) {
   if (!profile) return;
   profile.kills = (profile.kills || 0) + 1; game.streak = (game.streak || 0) + 1;
-  if (player) {
+  if (player && COINS) {
     const E = shipById(enemy.ship), r = killReward(game.t - (duel.roundStart || game.t), game.hp, E ? E.rarity : "common", game.streak);
     profile.money = (profile.money || 0) + r.total; bounty.r = r; bounty.t = 3.2;
     audio.coins && audio.coins(); for (let i = 0; i < 6; i++) audio.tone(1200 + i * 180, 0.06, "triangle", 0.05, 1, i * 0.06);
@@ -4440,11 +4475,22 @@ function updateCrate(dt) {
   }
 }
 
-// the fire buttons, for the right thumb: 1 big in the corner, 2 beside it, 3 above it (only while you have it)
+// ---------- where the thumb buttons are ----------
+// The thrust button (left) and fire button 1 (right) sit in the two bottom corners, mirror images of each other.
+// The others sit on an arc around them: the magic diagonally up-right of thrust, the heavy weapon (button 2)
+// diagonally up-left of button 1 (mirror images), and button 3 (the weapon from a crate) straight above button 1.
+//   PAD_SIZE: the corner buttons' size (1 = the old size)   PAD_IN: how far in from the corner (mm, at least)   ARC: the arc's radius (x button size)
+const PAD_SIZE = 0.8, PAD_IN = 2, ARC = 2.35;
+function pad() {
+  const r = Math.min(U * 0.12, 72) * PAD_SIZE;
+  // 3 mm nearer the corner than before, but never closer to the edge than PAD_IN
+  return { r, mx: Math.max(U * 0.09 - 3 * MM, PAD_IN * MM), my: Math.max(U * 0.1 - 3 * MM, PAD_IN * MM) };
+}
 function fireButtons() {
-  const r = Math.min(U * 0.12, 72), x1 = W - r - U * 0.09, y1 = H - r - U * 0.1;
-  const list = [{ i: 0, x: x1, y: y1, r }, { i: 1, x: x1 - r * 2.15, y: y1 + r * 0.2, r: r * 0.85 }];
-  if (game.loot) list.push({ i: 2, x: x1 - r * 0.45, y: y1 - r * 2.15, r: r * 0.85 * ease(game.loot.show) });
+  const P = pad(), r = P.r, x1 = W - r - P.mx, y1 = H - r - P.my, d = r * ARC / Math.SQRT2;
+  const list = [{ i: 0, x: x1, y: y1, r }, { i: 1, x: x1 - d, y: y1 - d, r: r * 0.85 }];
+  // button 3: on the arc straight above button 1, against the right edge
+  if (game.loot) { const r3 = r * 0.85; list.push({ i: 2, x: Math.min(x1 + r * 0.15, W - r3 - PAD_IN * MM), y: y1 - r * ARC, r: r3 * ease(game.loot.show) }); }
   return list;
 }
 function hitFire(x, y) {
@@ -4461,10 +4507,10 @@ function shipScreen() { return toScreen(game.x, game.y); }
 function zoomed(p) { const z = game.zoom; return { x: W / 2 + (p.x - W / 2) * z, y: H / 2 + (p.y - H / 2) * z }; }
 
 // ---------- the thrust button (left thumb) ----------
-function thrustButton() { const r = Math.min(U * 0.12, 72); return { x: r + U * 0.09, y: H - r - U * 0.1, r }; }
+function thrustButton() { const P = pad(); return { x: P.r + P.mx, y: H - P.r - P.my, r: P.r }; }
 function hitThrust(x, y) { const b = thrustButton(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.45; }
 // the magic button: above the thrust button, also for the left thumb
-function magicButton() { const t = thrustButton(); return { x: t.x + t.r * 0.25, y: t.y - t.r * 2.45, r: t.r * 0.85 }; }
+function magicButton() { const t = thrustButton(), d = t.r * ARC / Math.SQRT2; return { x: t.x + d, y: t.y - d, r: t.r * 0.85 }; }   // diagonally up-right of thrust (mirror of button 2)
 // a split magic button (two magics): the left half is the first, the right half the second
 function whichMagic(x) { return shipById(game.ship).magic2 && x > magicButton().x ? 1 : 0; }
 function hitMagic(x, y) { const b = magicButton(); return !!magicOf(shipById(game.ship)) && Math.hypot(x - b.x, y - b.y) < b.r * 1.25; }
@@ -4616,6 +4662,7 @@ function drawShip(S, x, y, size, o = {}) {
 const artCache = {};
 function framePath(dir, f) { return "art/ships/" + dir + "/" + f + (f.includes(".") ? "" : ".png"); }
 function artImage(src) {
+  if (BOT) return null;   // the bot draws nothing, so it loads no pictures
   let a = artCache[src];
   if (!a) { a = artCache[src] = new Image(); a.src = src; }
   return a.complete && a.naturalWidth ? a : null;
@@ -6583,7 +6630,8 @@ function draw() {
     if (game.flash > 0) { ctx.save(); ctx.globalAlpha = Math.min(0.7, game.flash * 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
     drawDuel();
-    drawHangarButton(); drawFleetBtn(); drawScore(); drawBounty();
+    drawHangarButton(); drawFleetBtn(); drawFleetRow(); drawLevel();
+    if (COINS) { drawScore(); drawBounty(); }
     drawBodyLabel();
     drawNova();
   } else drawParts();
@@ -6591,6 +6639,7 @@ function draw() {
   drawTrade();
   drawHangar();
   drawFleet();
+  drawPicker();
 }
 
 // the planet in the middle of space (Star Control's melee planet)
@@ -7555,24 +7604,33 @@ function drawThrust() {
 const trade = { stage: null, t: 0, peer: null, myYes: false, peerYes: false, buttons: [], incoming: null };
 const fakePeer = params.has("fake");   // on a computer: ?fake pretends another phone answered
 // On a computer (no phone link): two windows of the game find each other through the browser (BroadcastChannel)
-const bc = !native && !fakePeer && typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("ship-link") : null;
+const bc = !BOT && !native && !fakePeer && typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("ship-link") : null;   // (not the computer player's copy)
+// The pipe to the computer player: the copy of this game inside the page. Messages go straight into the other
+// copy's inbox (window.__pipeIn) and are read at the start of its next update, just like messages from a phone.
+const pipe = { on: BOT, other: BOT ? window.parent : null, inbox: [] };
+window.__pipeIn = pipe.inbox;
+function pipePost(event, data) { try { const w = pipe.other; if (w && w.__pipeIn) w.__pipeIn.push([event, data]); } catch (e) {} }
+function pipeDrain() { while (pipe.inbox.length) { const [e, d] = pipe.inbox.shift(); if (pipe.on) window.shipLink(e, d); } }
 const link = {
   name: null, peer: null,
   start(name) {
+    if (pipe.on) { link.name = name; return; }   // the computer player: the parent page connects the two copies
     if (server.signedIn) { rt.start(name); return; }   // signed in: players meet on the server (anywhere)
     if (native && native.tradeStart) { try { native.tradeStart(name); } catch (e) {} return; }
     if (fakePeer) { setTimeout(() => window.shipLink("connected", ""), 1200); return; }
     if (bc) { link.name = name; link.peer = null; bc.postMessage({ k: "hi", from: name }); }
   },
   send(obj) {
+    if (pipe.on) { pipePost("message", JSON.stringify(obj)); return; }
     if (rt.active) { rt.send(obj); return; }
     if (native && native.tradeSend) { try { native.tradeSend(JSON.stringify(obj)); } catch (e) {} return; }
     if (bc && link.peer) { bc.postMessage({ k: "msg", from: link.name, to: link.peer, data: JSON.stringify(obj) }); return; }
     if (!fakePeer) return;
-    if (obj.t === "offer") setTimeout(() => window.shipLink("message", JSON.stringify({ t: "offer", s: SHIPS.filter((s) => s.id !== game.ship)[Math.floor(Math.random() * 9)].id })), 500);
+    if (obj.t === "offer") setTimeout(() => window.shipLink("message", JSON.stringify({ t: "offer", s: SHIPS.filter((s) => s.id !== game.ship && s.anim)[Math.floor(Math.random() * 9)].id })), 500);
     if (obj.t === "yes") setTimeout(() => window.shipLink("message", JSON.stringify({ t: "yes" })), 900);
   },
   stop() {
+    if (pipe.on) { link.name = null; return; }
     if (rt.active) { rt.stop(); return; }
     try { native && native.tradeStop && native.tradeStop(); } catch (e) {}
     if (bc && link.peer) bc.postMessage({ k: "bye", from: link.name, to: link.peer });
@@ -7581,7 +7639,7 @@ const link = {
 };
 if (bc) bc.onmessage = (e) => {
   const m = e.data;
-  if (!link.name || m.from === link.name) return;
+  if (pipe.on || !link.name || m.from === link.name) return;   // (playing the computer: other windows are not heard)
   if (m.k === "hi" && !link.peer) { link.peer = m.from; bc.postMessage({ k: "hi", from: link.name }); window.shipLink("connected", ""); }
   else if (m.k === "msg" && m.from === link.peer && m.to === link.name) window.shipLink("message", m.data);
   else if (m.k === "bye" && m.from === link.peer) { link.peer = null; window.shipLink("lost", ""); }
@@ -7589,7 +7647,8 @@ if (bc) bc.onmessage = (e) => {
 function setTrade(stage) { trade.stage = stage; trade.t = 0; }
 function endTrade() { link.stop(); trade.stage = null; trade.peer = null; trade.myYes = trade.peerYes = false; trade.fleet = false; }
 function openTrade() {
-  if (trade.stage || duel.stage || game.stage !== "fly") return;
+  if (trade.stage || realDuel() || game.stage !== "fly") return;
+  stopMatch();   // (a match against the computer pauses while trading)
   setTrade("ask"); audio.pop(); buzz(15);
 }
 function startLooking() {
@@ -7743,6 +7802,7 @@ function duelSend(m) { if (duel.stage === "on" || duel.stage === "count") link.s
 function enemyShown() { return enemy.on && !(enemy.remote && enemy.hidden); }
 function duelButton() {
   audio.pop(); buzz(15);
+  if (duel.bot) stopMatch();   // playing the computer: stop, and look for a real phone instead
   if (!duel.stage) {   // look for the other phone
     if (game.stage !== "fly") return;
     duel.stage = "looking"; duel.t = 0; duel.me = Math.random();
@@ -7751,7 +7811,8 @@ function duelButton() {
 }
 function endDuel(tellThem) {
   if (tellThem && (duel.stage === "on" || duel.stage === "count")) link.send({ t: "bye" });
-  setTimeout(() => link.stop(), tellThem ? 250 : 0);
+  const viaPipe = pipe.on;   // (a computer match: nothing to stop later, and a real link may start right after)
+  if (!viaPipe) setTimeout(() => link.stop(), tellThem ? 250 : 0); else link.stop();
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   duel.shots.length = 0; duel.tail = null; duel.net = null; duel.ring = null; duel.grind = null; duel.held = false; enemy.talus = null;
@@ -7789,7 +7850,7 @@ function duelLink(event, data) {
   if (m.t === "s") {   // where the other ship is now, and what it is doing
     duel.net = { ...m, at: performance.now() };
     if (shipById(m.s)) enemy.ship = m.s;
-    if (typeof m.h === "number" && m.h > 0) damageShip(m.h);   // what my ship took from their weapons
+    if (typeof m.h === "number" && m.h > 0) damageShip(BOT ? m.h / botLevel().armor : m.h);   // what my ship took from their weapons (the computer: less, by its level's armour)
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
     const S = shipById(m.s), a0 = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
     const art = a0 && a0.files && m.ix != null ? { ...a0, file: a0.files[m.ix] } : a0;   // CANTOR: each bolt its groove's colour
@@ -7992,7 +8053,7 @@ function updateDuel(dt) {
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
       hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
-      gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +duel.outDmg.toFixed(1),
+      gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +(duel.outDmg * (BOT ? botLevel().dmg : 1)).toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
       ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
@@ -8012,7 +8073,7 @@ function duelBtn() {
 function hitDuel(x, y) { const b = duelBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.4; }
 function drawDuel() {
   if (trade.stage === "swapping") return;
-  const b = duelBtn(), on = duel.stage === "on" || duel.stage === "count";
+  const b = duelBtn(), on = (duel.stage === "on" || duel.stage === "count") && !duel.bot;   // (a computer match: the swords stay ready for a real phone)
   ctx.save(); ctx.translate(b.x, b.y);
   if (duel.stage === "looking") for (let i = 0; i < 3; i++) {   // looking: rings going out
     const k = (time * 0.8 + i / 3) % 1;
@@ -8030,7 +8091,7 @@ function drawDuel() {
   }
   ctx.restore();
   // the score, under the health bar: my wins (green) : theirs (red)
-  if (on || duel.stage === "over") {
+  if (on || (duel.stage === "over" && !duel.bot)) {
     const f = Math.round(U * 0.06), x = U * 0.06, y = U * 0.05 + Math.max(12, U * 0.032) + U * 0.02 + f * 0.6;
     ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.direction = "ltr"; ctx.textAlign = "left";
     const won = String(duel.won), colon = " : ";
@@ -8047,6 +8108,274 @@ function drawDuel() {
   }
   // the other player left
   if (duel.stage === "over" && duel.t < 1.6) { ctx.save(); ctx.globalAlpha = 1 - duel.t / 1.6; cross(b.x, b.y, b.r * 0.8); ctx.restore(); }
+}
+
+// ======================================================================
+//  THE COMPUTER PLAYER
+//  Playing alone, the opponent is this same game running a second time inside the page (a hidden frame named
+//  "shipbot"). It plays a duel with you exactly as another phone would, over the pipe instead of Bluetooth, so it has
+//  every weapon and magic of its ship. An automatic player presses its buttons (the same keys as on a computer).
+//  It draws nothing, makes no sound, saves nothing; the page moves it on every frame.
+// ======================================================================
+const bot = { frame: null, ready: false };
+function botWindow() { try { return bot.frame && bot.frame.contentWindow; } catch (e) { return null; } }
+function makeBot() {
+  if (BOT || bot.frame) return;
+  const f = document.createElement("iframe");
+  f.name = "shipbot"; f.tabIndex = -1; f.setAttribute("aria-hidden", "true");
+  // as big as the screen (the game measures space by the screen), but invisible and untouchable
+  f.style.cssText = "position:fixed;left:0;top:0;width:100vw;height:100vh;border:0;opacity:0;pointer-events:none;z-index:-1";
+  f.srcdoc = "<!DOCTYPE html>" + document.documentElement.outerHTML;
+  bot.frame = f; document.body.appendChild(f);
+}
+window.botReady = () => { bot.ready = true; };
+window.botEvent = (m) => {   // the computer player tells the page
+  if (m.t === "left") camp.left = m.left.slice();
+  else if (m.t === "out") campWon();
+};
+
+
+// ---- inside the computer player's copy ----
+const botAI = { uses: {}, lvl: 1, left: [], head: null, keys: {}, hold: {}, think: 0, aimOff: 0, t2: 3, tM: 6, tB: 8 };
+function botLevel() { return levelStats(botAI.lvl); }
+function botKey(k, down) {
+  if (!!botAI.keys[k] === down) return;
+  botAI.keys[k] = down;
+  if (down) botAI.uses[k] = (botAI.uses[k] || 0) + 1;
+  dispatchEvent(new KeyboardEvent(down ? "keydown" : "keyup", { key: k }));
+}
+function botTap(k, hold) { botKey(k, true); botAI.hold[k] = hold; }   // press, and let go after `hold` seconds
+function botRelease() { for (const k in botAI.keys) botKey(k, false); botAI.hold = {}; botAI.head = null; }
+// orders from the page
+window.botCmd = (c) => {
+  if (!BOT) return;
+  if (c.t === "play") {   // a new match: its fleet, its level, its first ship; then it "looks for the other phone"
+    botAI.lvl = c.lvl; botAI.left = c.fleet.slice(); botRelease();
+    if (duel.stage) endDuel(false);
+    duel.stage = null;
+    tryShip(botAI.left[Math.floor(Math.random() * botAI.left.length)]);
+    game.stage = "fly"; game.dead = 0; game.pick = false; placeShip();
+    duelButton();
+  } else if (c.t === "level") {   // the player beat its whole fleet: it comes back stronger, with all its ships
+    botAI.lvl = c.lvl; botAI.left = c.fleet.slice();
+    if (game.dead) game.dead = 1.5;
+  }
+};
+// its ship blew up: that ship is gone. All gone: it tells the page (the player won the level)
+function botLost() {
+  botAI.left = botAI.left.filter((id) => id !== game.ship);
+  botRelease();
+  try { parent.botEvent({ t: "left", left: botAI.left }); } catch (e) {}
+  if (!botAI.left.length) { game.dead = 1e9; try { parent.botEvent({ t: "out" }); } catch (e) {} }   // stays out until the next level
+}
+function botNextShip() { if (botAI.left.length) tryShip(botAI.left[Math.floor(Math.random() * botAI.left.length)]); }
+// the automatic player: steers like a thumb on the joystick, and presses the same keys a person would on a computer
+function botThink(dt) {
+  if (game.stage !== "fly" || duel.stage !== "on" || game.dead || !enemy.on) { botRelease(); return; }
+  for (const k in botAI.hold) { botAI.hold[k] -= dt; if (botAI.hold[k] <= 0) { delete botAI.hold[k]; botKey(k, false); } }
+  const L = botLevel(), S = shipById(game.ship), st = shipStats(S), seen = !enemy.hidden;
+  // hidden in their smoke: it heads for where it last saw them
+  if (seen) { botAI.lastX = enemy.x; botAI.lastY = enemy.y; }
+  const prey = seen ? enemy : { x: botAI.lastX != null ? botAI.lastX : enemy.x, y: botAI.lastY != null ? botAI.lastY : enemy.y, vx: 0, vy: 0 };
+  const c = enemyControl(game, prey, st, { ww: WW, wh: WH, u: U, planetR: planetR() });
+  const dx = wrapDelta(prey.x - game.x, WW), dy = wrapDelta(prey.y - game.y, WH), d = Math.hypot(dx, dy) || 1;
+  // aim where they will be when the shot gets there, a little off (less each level)
+  const w1 = WEAPONS[slotWeapon(0)], v = Math.max(0.5, w1 ? w1.speed : 2) * U, tt = Math.min(1.5, d / v);
+  const ax = dx + (prey.vx - game.vx) * tt, ay = dy + (prey.vy - game.vy) * tt;
+  botAI.think -= dt;
+  if (botAI.think <= 0) { botAI.think = L.react; botAI.aimOff = (Math.random() * 2 - 1) * L.aim; }
+  const aim = Math.atan2(ax, -ay) + botAI.aimOff, off = Math.abs(wrapAngle(aim - game.ang));
+  // close to the body in the middle (where it will be in a moment): get away first, straight out from it, a little to the side.
+  // Leaving that takes more room than entering it, so it does not flip between running and fighting
+  const px = wrapDelta(game.x + game.vx * 0.8 - WW / 2, WW), py = wrapDelta(game.y + game.vy * 0.8 - WH / 2, WH), pd = Math.hypot(px, py) || 1;
+  botAI.danger = pd < planetR() + U * (botAI.danger ? 0.6 : 0.3);
+  if (botAI.danger) {
+    const away = Math.atan2(px, -py) + 0.45 * Math.sign(px * game.vy - py * game.vx || 1);
+    botAI.head = away; botKey(" ", Math.abs(wrapAngle(away - game.ang)) < 0.7 && !game.locked);
+  } else if (d < U * 1.8) {   // near: turn to aim, close in only when lined up and not too close
+    botAI.head = aim; botKey(" ", d > U * 0.75 && off < 0.4 && !game.locked);
+  } else { botAI.head = c.target; botKey(" ", c.thrust); }   // far: chase (the old enemy's way)
+  // button 1: when lined up and in reach
+  const reach1 = w1 ? Math.min(U * 2.5, w1.speed * U * (w1.life || 1) * 0.9) : U;
+  botKey("z", seen && off < 0.22 && d < reach1);
+  // button 3 (a weapon picked up from a crate): the same way
+  botKey("c", seen && !!game.loot && off < 0.25 && d < U * 2);
+  // button 2 (the heavy one) every few seconds when near, held a moment (some are held to charge)
+  botAI.t2 -= dt;
+  if (botAI.t2 <= 0 && seen && d < U * 2.4 && off < 0.7) { botTap("x", 0.15 + Math.random() * 1.6); botAI.t2 = L.special * (0.6 + Math.random() * 0.8); }
+  // the magic (and a split button's second magic), now and then when near; sometimes held, sometimes tapped twice
+  botAI.tM -= dt;
+  if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S)) {
+    botTap("v", Math.random() < 0.5 ? 0.1 : 0.4 + Math.random() * 2.4); botAI.tM = L.magic * (0.6 + Math.random() * 0.8);
+  }
+  botAI.tB -= dt;
+  if (S.magic2 && botAI.tB <= 0 && d < U * 2.6) { botTap("b", 0.1 + Math.random() * 0.5); botAI.tB = L.magic * (0.7 + Math.random() * 0.8); }
+}
+
+// ======================================================================
+//  PLAYING AGAINST THE COMPUTER: two fleets, levels
+//  All the ships with real drawings (the hangar's) are split at random: half yours, half the computer's.
+//  A ship that blows up is out; you pick the next from yours. Beat the computer's whole fleet and the next level
+//  starts: all its ships come back, stronger (levelStats). It goes on until your whole fleet is gone.
+// ======================================================================
+const camp = { off: false, lvl: 1, mine: [], theirs: [], lost: [], left: [], over: false, wait: 1.5, banner: 0 };
+function realDuel() { return !!duel.stage && !duel.bot; }
+function shuffled(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function newCampaign() {
+  const all = shuffled(hangarShips().map((S) => S.id)), half = Math.ceil(all.length / 2);
+  camp.mine = all.slice(0, half); camp.theirs = all.slice(half);
+  camp.lvl = 1; camp.lost = []; camp.left = camp.theirs.slice(); camp.over = false; camp.wait = 1.5; camp.banner = 0;
+  openPicker("start");
+}
+function startMatch() {
+  const bw = botWindow();
+  if (!bw || !bw.botCmd) return;
+  pipe.on = true; pipe.other = bw; pipe.inbox.length = 0; duel.bot = true;
+  bw.botCmd({ t: "play", lvl: camp.lvl, fleet: camp.left.length ? camp.left : camp.theirs });
+  duel.stage = "looking"; duel.t = 0; duel.me = Math.random(); link.start("duel|computer");   // like looking for another phone...
+  pipePost("connected", ""); pipe.inbox.push(["connected", ""]);   // ...and finding it at once
+}
+function stopMatch() {
+  if (!duel.bot) return;
+  if (duel.stage) endDuel(true);
+  duel.stage = null; duel.bot = false; pipe.on = false; pipe.other = null; pipe.inbox.length = 0;
+}
+function campWon() {   // the computer's whole fleet is beaten: the next level
+  camp.lvl++; camp.left = camp.theirs.slice(); camp.banner = 3.5;
+  if (!game.dead) game.hp = SHIP_HP;   // a reward: full health
+  const bw = botWindow(); if (bw && bw.botCmd) bw.botCmd({ t: "level", lvl: camp.lvl, fleet: camp.theirs });
+  audio.reveal(3); buzz(200);
+}
+function campTick(dt) {
+  if (BOT) return;
+  camp.banner = Math.max(0, camp.banner - dt);
+  if (game.stage !== "fly") return;
+  makeBot();
+  if (!camp.mine.length) newCampaign();
+  // the match runs by itself; it waits while something else is open (a real duel, a trade, the pages)
+  if (duel.stage || trade.stage || fleet.open || hangar.open || picker.open || camp.over || game.dead) { camp.wait = Math.max(camp.wait, 1.2); return; }
+  if (!bot.ready) return;
+  camp.wait -= dt;
+  if (camp.wait <= 0) startMatch();
+}
+
+// ---- the ship picker: at the start, and after losing a ship (against the computer or another phone) ----
+const picker = { open: false, why: "", t: 0, cards: [] };
+function pickerShips() {
+  if (picker.why !== "lost" || duel.bot || !duel.stage) return camp.mine;   // against the computer: my half of the fleet
+  return HANGAR ? hangarShips().map((S) => S.id) : profile ? profile.fleet : [game.ship];   // against a phone: any of them
+}
+function openPicker(why) {
+  if (BOT) return;
+  if (why === "lost" && duel.bot && camp.mine.every((id) => camp.lost.includes(id))) { campLost(); return; }
+  picker.open = true; picker.why = why; picker.t = 0; audio.pop();
+}
+function campLost() {   // the whole fleet is gone
+  camp.over = true; picker.open = false; audio.boom(); buzz(300);
+}
+function pickerTap(x, y) {
+  for (const c of picker.cards) if (x > c.x && x < c.x + c.w && y > c.y && y < c.y + c.h) {
+    if (c.again) { stopMatch(); game.pick = false; newCampaign(); return; }
+    if (c.lost) { audio.bump(); return; }
+    picker.open = false; audio.whoosh(); buzz(30);
+    tryShip(c.id);
+    if (game.pick) { game.pick = false; respawnShip(); }
+    return;
+  }
+}
+// ---- what the player sees of the match ----
+// about how many screen pixels make a millimetre (a phone's CSS pixel is 1/160 inch; a computer's 1/96)
+const MM = (native || /Android/i.test(navigator.userAgent)) ? 160 / 25.4 : 96 / 25.4;
+const FLEET_ICON = 7;   // the fleet row's icons, in millimetres (smaller when they do not fit)
+// my fleet in a row under the health bar: the ship I fly in gold, lost ships dark and crossed out
+function drawFleetRow() {
+  if (BOT || realDuel() || !camp.mine.length) return;
+  const hb = Math.max(12, U * 0.032), x0 = U * 0.04, y0 = U * 0.05 + hb + U * 0.02;
+  const n = camp.mine.length, gap = Math.max(3, MM * 0.8);
+  const room = Math.max(U * 0.4, W - x0 - U * 0.33);   // up to the map at the top right
+  // one row if 7 mm icons fit, else two rows; smaller still if two rows are not enough
+  const rows = (FLEET_ICON * MM + gap) * n <= room ? 1 : 2, per = Math.ceil(n / rows);
+  const sz = Math.min(FLEET_ICON * MM, (room - gap * (per - 1)) / per);
+  ctx.save();
+  camp.mine.forEach((id, i) => {
+    const S = shipById(id), x = x0 + (i % per) * (sz + gap), y = y0 + Math.floor(i / per) * (sz + gap);
+    const lost = camp.lost.includes(id), mine = id === game.ship && !lost;
+    ctx.globalAlpha = lost ? 0.35 : 1;
+    ctx.fillStyle = mine ? "rgba(255,209,102,0.22)" : "rgba(10,12,32,0.7)";
+    ctx.strokeStyle = mine ? "#ffd166" : "rgba(124,140,255,0.45)"; ctx.lineWidth = mine ? 2.5 : 1.5;
+    roundRect(x, y, sz, sz, sz * 0.2); ctx.fill(); ctx.stroke();
+    ctx.save(); roundRect(x, y, sz, sz, sz * 0.2); ctx.clip();
+    if (S) drawShip(S, x + sz / 2, y + sz / 2, sz * 0.78, { power: 0, ang: 0, icon: true });
+    ctx.restore();
+    if (lost) { ctx.globalAlpha = 0.9; cross(x + sz / 2, y + sz / 2, sz * 0.32); }
+  });
+  ctx.restore();
+}
+// the level, and how many of the computer's ships are left: to the right of the health bar. A banner when a level is won
+function drawLevel() {
+  if (BOT || realDuel() || !camp.mine.length) return;
+  const hb = Math.max(12, U * 0.032), x = U * 0.04 + Math.min(W * 0.42, U * 0.5) + U * 0.025, y = U * 0.05 + hb / 2, f = Math.round(U * 0.032);
+  const txt = `שלב ${camp.lvl}  ·  ☠ ${camp.left.length}/${camp.theirs.length}`;
+  ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = "rtl";
+  const w = ctx.measureText(txt).width + f * 1.2;
+  ctx.fillStyle = "rgba(10,12,32,0.65)"; roundRect(x, y - f * 0.75, w, f * 1.5, f * 0.5); ctx.fill();
+  ctx.fillStyle = "#ffd166"; ctx.textAlign = "right"; ctx.fillText(txt, x + w - f * 0.6, y);
+  ctx.restore();
+  if (camp.banner > 0) {   // a level won
+    const a = Math.min(1, camp.banner / 0.5) * Math.min(1, (3.5 - camp.banner) / 0.3), F = Math.round(U * 0.09);
+    ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+    ctx.font = `900 ${F}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.fillText("ניצחון!", W / 2, H * 0.3);
+    ctx.font = `700 ${Math.round(F * 0.45)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffffff";
+    ctx.fillText(`שלב ${camp.lvl}: צי המחשב חוזר, חזק יותר`, W / 2, H * 0.3 + F * 0.85);
+    ctx.restore();
+  }
+}
+// the ship picker (and the end, when the whole fleet is gone)
+function drawPicker() {
+  picker.cards = [];
+  if (BOT || !(picker.open || camp.over)) return;
+  if (picker.open) picker.t += frameDt;
+  ctx.save();
+  ctx.fillStyle = "rgba(5,6,18,0.86)"; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+  const f = Math.round(U * 0.06);
+  if (camp.over) {
+    ctx.font = `900 ${Math.round(f * 1.3)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ff4d6d"; ctx.fillText("כל הצי שלך הובס", W / 2, H * 0.36);
+    ctx.font = `700 ${Math.round(f * 0.7)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffffff"; ctx.fillText(`הגעת לשלב ${camp.lvl}`, W / 2, H * 0.36 + f * 1.4);
+    const bw = U * 0.5, bh = f * 1.6, bx = W / 2 - bw / 2, by = H * 0.56;
+    ctx.fillStyle = "#ffd166"; roundRect(bx, by, bw, bh, bh / 2); ctx.fill();
+    ctx.fillStyle = "#1a1030"; ctx.font = `800 ${Math.round(f * 0.7)}px Rubik, Arial, sans-serif`; ctx.fillText("משחק חדש", W / 2, by + bh / 2);
+    picker.cards.push({ again: true, x: bx, y: by, w: bw, h: bh });
+    ctx.restore(); return;
+  }
+  const list = pickerShips(), vsBot = picker.why === "start" || duel.bot || !duel.stage;
+  ctx.font = `900 ${f}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffffff";
+  ctx.fillText(picker.why === "start" ? "בחר חללית מהצי שלך" : "בחר את החללית הבאה", W / 2, U * 0.12);
+  if (vsBot) {
+    ctx.font = `600 ${Math.round(f * 0.45)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#9fb4d8";
+    ctx.fillText(`נשארו ${list.filter((id) => !camp.lost.includes(id)).length} מתוך ${list.length}  ·  שלב ${camp.lvl}`, W / 2, U * 0.12 + f * 0.95);
+  }
+  // a grid of cards: the top-down ship and its name
+  // as many columns as it takes for every card to fit on the screen (at least 3)
+  const top = U * 0.12 + f * 1.7, gap = U * 0.025, room = H - top - U * 0.04, pop = ease(Math.min(1, picker.t / 0.25));
+  let cols = 3, cw = 0, ch = 0;
+  for (; cols <= 8; cols++) { cw = (W - U * 0.08 - gap * (cols - 1)) / cols; ch = cw * 1.15; if (Math.ceil(list.length / cols) * (ch + gap) - gap <= room) break; }
+  list.forEach((id, i) => {
+    const S = shipById(id); if (!S) return;
+    const x = U * 0.04 + (i % cols) * (cw + gap), y = top + Math.floor(i / cols) * (ch + gap) + (1 - pop) * U * 0.05;
+    const lost = vsBot && camp.lost.includes(id);
+    ctx.globalAlpha = (lost ? 0.3 : 1) * pop;
+    ctx.fillStyle = "rgba(20,24,52,0.95)"; ctx.strokeStyle = lost ? "#555" : RARITY[S.rarity] ? RARITY[S.rarity].color : "#7c8cff"; ctx.lineWidth = 2;
+    roundRect(x, y, cw, ch, cw * 0.1); ctx.fill(); ctx.stroke();
+    ctx.save(); roundRect(x, y, cw, ch, cw * 0.1); ctx.clip();
+    drawShip(S, x + cw / 2, y + ch * 0.44, cw * 0.72, { power: 0.3, ang: Math.sin(time * 0.9 + i) * 0.12, icon: true });
+    ctx.restore();
+    ctx.font = `800 ${Math.round(cw * 0.13)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffffff"; ctx.direction = "ltr";
+    ctx.fillText(S.name, x + cw / 2, y + ch * 0.9); ctx.direction = "rtl";
+    if (lost) { ctx.globalAlpha = pop; cross(x + cw / 2, y + ch * 0.44, cw * 0.25); }
+    picker.cards.push({ id, lost, x, y, w: cw, h: ch });
+  });
+  ctx.restore();
 }
 
 // ======================================================================
@@ -8090,7 +8419,8 @@ function fleetUp(e) {
 }
 // put a ship up for trade: look for another phone that is also offering one
 function fleetOffer(id) {
-  if (trade.stage || duel.stage) return;
+  if (trade.stage || realDuel()) return;
+  stopMatch();   // (a match against the computer pauses while trading)
   trade.fleet = true; trade.mine = id; trade.peer = null; trade.myYes = trade.peerYes = false;
   setTrade("looking");
   link.start(id + "|" + Math.random().toString(36).slice(2, 10));
@@ -8239,7 +8569,7 @@ function hangarTap(x, y) {
   }
 }
 function drawHangarButton() {
-  if (!HANGAR || duel.stage || trade.stage) return;
+  if (!HANGAR || realDuel() || trade.stage) return;
   const b = hangarBtn();
   ctx.save(); ctx.translate(b.x, b.y);
   ctx.fillStyle = "rgba(10,12,32,0.7)"; ctx.strokeStyle = "rgba(79,195,255,0.8)"; ctx.lineWidth = 2;
@@ -8297,17 +8627,22 @@ function drawHangar() {
 // ======================================================================
 resize();
 placeShip();
-preloadArt();
-server.sync();
+if (!BOT) { preloadArt(); server.sync(); }
 let last = performance.now(), frameDt = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; frameDt = dt;
-  update(dt); draw();
+  update(dt);
+  // the computer player moves on with every frame of the page (it has no frames of its own)
+  if (bot.ready) { const bw = botWindow(); try { bw && bw.botTick && bw.botTick(dt); } catch (e) {} }
+  draw();
   requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
+if (BOT) {
+  window.botTick = (dt) => { frameDt = dt; update(dt); };
+  try { parent.botReady(); } catch (e) {}
+} else requestAnimationFrame(frame);
 // test hooks (used by the screenshot checks on a computer)
-window.__ship = { SHIPS, damageShip, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic, duel, duelButton, eggs, hunters };
+window.__ship = { SHIPS, damageShip, camp, picker, bot, pickerTap, botAI, realDuel, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic, duel, duelButton, eggs, hunters };
 </script>
 </body>
 </html>

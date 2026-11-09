@@ -18,9 +18,18 @@ lava planet. The old one shrinks away as the new one grows, and its name shows w
 Stars, the black hole and the lava planet burn a ship that touches them; planets just bounce it. In a duel both phones share one.
 The list is `BODIES` in the game.
 
-An enemy ship flies with you: it chases you, keeps a little distance and stays off the planet,
-using the same flying rules as you. It shoots at you when its nose points your way and you are close enough, with its own
-ship's plain weapon (others use the twin cannon), slower and weaker than a player (`ENEMY_FIRE`, `ENEMY_DMG`; `ENEMY_GUNS = false` = it only flies). The view zooms out to keep both ships on screen.
+**Playing alone = playing the computer, fleet against fleet.** All the ships with real drawings (the hangar's 20) are
+split at random: half yours, half the computer's. You pick one of yours to start. A ship that blows up is out for good;
+you pick the next from the ones you have left (the row of icons under the health bar: the one you fly in gold, lost ones
+crossed out). Beat the computer's whole fleet (the count next to the health bar) and the next level starts: all its
+ships come back, stronger (more damage, more armour, better aim, heavier weapons and magic more often; `levelStats`).
+It goes on until your whole fleet is gone, then "new game" splits the fleet again.
+
+The computer is this same game running a second time, hidden inside the page (THE COMPUTER PLAYER in `index.html`).
+It plays a duel with you exactly as another phone would, over an internal pipe instead of Bluetooth, so it has every
+weapon and magic of its ship; an automatic player steers it like a thumb on the joystick and presses the same keys a
+person would on a computer (space, Z, X, C, V, B). It draws nothing, makes no sound and saves nothing.
+Only ships with real drawings are used anywhere in the game (the gift too).
 
 **Weapons (right thumb):** button 1 and button 2 are the ship's own two weapons; hold to keep firing.
 The ring around each button is its ammo, and it refills by itself. Shoot the enemy until its health bar
@@ -36,7 +45,11 @@ On THUL it is the heavy cannon: the brass iris winds open with a rising crank, t
 the flash and shock ring fire and a real cannonball drawing flies out; the hull kicks sideways and settles (1.56 s in all).
 Button 2 waits for that to finish before the next shot.
 
-**Magic (left thumb, above thrust):** each ship's magic button looks like the ship's style. The brass ship's
+**The thumb buttons:** thrust (left) and fire button 1 (right) in the two bottom corners, mirror images, 20% smaller
+than before (`PAD_SIZE`); the magic diagonally up-right of thrust and the heavy weapon (button 2) diagonally up-left of
+button 1, on an arc (`ARC`); button 3 (a weapon from a crate) straight above button 1, against the right edge.
+
+**Magic (left thumb, diagonal from thrust):** each ship's magic button looks like the ship's style. The brass ship's
 is a turning brass gear: tap it and thick smoke pours from the engines; for a few seconds the enemy
 cannot see you and searches where it last saw you. Then the gear recharges (its brass fills back in).
 On THUL the two orange vent covers slide open, the vents pulse, and at 0.45 s the thick smoke starts pouring out.
@@ -260,11 +273,12 @@ It is only for trying them: the choice is not saved, and in the real game each p
 changed only by trading. To turn the hangar off: `HANGAR = false` at the top of the game. `TRY_SHIP` (a ship id) still
 makes everyone fly one ship; `""` is the gift's surprise.
 
-**Duel (two phones, one fight):** tap the crossed swords under the map on both phones (close to each other, Bluetooth on).
+**Duel (two phones, one fight):** tap the crossed swords under the map on both phones (it leaves the computer match) (close to each other, Bluetooth on).
 They find each other with no internet, count 3-2-1, and each player sees the other's own ship in the same space,
 starting on opposite sides of the planet. Everything is seen on both phones: flying, firing frames, shots, eggs and
 hunters, the tail, the smoke. Your weapons decide what they hit on your screen and send the damage to the other phone.
-The score under your health bar: your wins (green) : theirs (red). Tap the swords again to leave; the computer enemy comes back.
+The score under your health bar: your wins (green) : theirs (red). When your ship blows up you pick the next one (any
+hangar ship; the other phone sees it). Tap the swords again to leave; the computer match comes back.
 On a computer: open the game in two windows of the same browser and press the swords in both.
 
 ## My ships, kills and money
@@ -276,7 +290,7 @@ top-down drawing for a ship without one). Tap a ship to fly it. To trade: drag a
 looks for another phone that is also offering a ship, both see the two ships, and the swap happens only if both say yes.
 (Trading is no longer done by swiping up in flight.)
 
-Under the health bar: kills and coins. Every kill counts; coins only for beating another player (a duel): 100 for the
+Coins are off for now (`COINS = false`; the fleet row is shown instead). When on: under the health bar, kills and coins. Every kill counts; coins only for beating another player (a duel): 100 for the
 kill, up to 120 for doing it quickly (nothing after 90 s), up to 60 for health left, 0 / 30 / 60 / 100 by the beaten
 ship's rarity, all times a streak bonus (kills without dying: x1.2, x1.4 ... up to x2). The numbers are at the top of
 the kills-and-money part of `index.html` (`KILL_PAY` ...).
