@@ -13,6 +13,8 @@ computer the hangar's ships are split into two random fleets, as before.
 - **Music** (`audio/music/`, from the Orbit Break audio pack): one loop per screen, crossfaded: the title, the hangar and
   the ship picker, and in the arena one per body in the middle (`BODY_MUSIC`). **Two dials** in the top row after CONNECT (on the title:
   at the bottom; the % shows while one is turned): pink = effects, mint = music. Drag right for louder (160 px = the whole way); kept on the phone.
+- **Against another phone (CONNECT)** the fleets are split the same way: half each (`duelSplit`, worked out on both phones from
+  the numbers they swap on connecting), a lost ship is out, and losing them all is GAME OVER for one and YOU WIN for the other.
 - **CONNECT** (`art/ui/connect*.webp`), in the top row at the end of my fleet's icons (the hangar button is under the map): joins another player (the old duel button); pressed while
   looking and while connected.
 - **YOU WIN / GAME OVER** (`RESULT_ART`, `art/ui/result/`): YOU WIN when the computer's whole fleet is beaten, GAME OVER
