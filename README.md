@@ -74,6 +74,11 @@ On THUL the two orange vent covers slide open, the vents pulse, and at 0.45 s th
 Tapped during a cannon shot, the smoke follows right after it.
 THUL's smoke is three times as thick as before, in bigger, nearly solid puffs: a real smoke screen that hides the ship.
 
+**Every ship flies its own way** (`HANDLING`, next to `SHIPS`): multipliers for its size (drawn and as a target),
+top speed, engine push and turning. Small ones are quick (ZORIAN is 40% smaller and the fastest; PUFF, VANTA and
+ORIAN 20% smaller and faster), heavy ones slow (PALISADE, THUL, REPRISE, TALUS). Every engine still beats the black
+hole's pull (the tests check it). **A win fills one spare health tank** again (it flashes).
+
 **BLOOM**, the flower ship (`art/ships/bloom/`, `art/bloom/`): its petals flutter and its eight stamens stream back as
 it flies (the art package's `BloomMotion`). Button 1: flower shots. Button 2: a bouquet, five petals in a fan.
 Magic: a **pollen cloud** round it (moves with it, reaches 3 ship-lengths, lasts 6 s, recharges in 20 s; `MAGIC.pollen`).
@@ -82,7 +87,8 @@ An enemy that stays in the cloud for 0.9 s becomes a **zombie** until that ship 
 (`ZOMBIE_ART`: a still drawing and a moving renderer per ship from the BLOOM package; THUL has the hand in the cannon,
 VEXAR and LYTH their own growth, the rest roots and lights). So the enemy has to keep away and fight it from afar,
 and the computer player does just that. BLOOM itself never turns. In a duel BLOOM's phone decides the infection
-(message `zb`); each phone sends whether it is a zombie (`zb`) and its pollen (`pn`).
+(message `zb`); each phone sends whether it is a zombie (`zb`) and its pollen (`pn`). Its five round flower
+buttons and its magic burst are in `art/hud/bloom/` (`KIT.bloom`, `round`: the state glow is a circle).
 
 **THUL**, the orange mechanical gunship, is the first ship with real drawings (`art/ships/thul/`: an idle
 sprite and 5 twin-cannon frames, plus 23 heavy-cannon frames, 23 smoke-hatch frames and a cannonball;

@@ -978,6 +978,37 @@ const SHIPS = [
     guns: { flower: [[0, -0.52]], bouquet: [[0, -0.5]] },
     anim: { dir: "bloom", size: 1.05, idle: "idle.webp" } }
 ];
+// HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
+//   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
+//   turn: how fast it turns.  Small ships are quick; heavy ones are slow. (Every engine must still beat the black
+//   hole's pull: push above 0.58, the tests check it)
+const HANDLING = {
+  brass:    { size: 1.1,  speed: 0.8,  accel: 0.9,  turn: 0.8  },   // THUL: a heavy steam gunship
+  vexar:    { size: 1,    speed: 1.2,  accel: 1.1,  turn: 1.1  },   // a sleek scythe
+  lyth:     { size: 1,    speed: 0.95, accel: 1,    turn: 1.3  },   // a ring: turns on the spot
+  talus:    { size: 1,    speed: 0.75, accel: 0.82, turn: 0.8  },   // rock (and it grows)
+  orian:    { size: 0.8,  speed: 1.3,  accel: 1.35, turn: 1.2  },   // 20% smaller
+  skarn:    { size: 1.1,  speed: 0.85, accel: 0.82, turn: 0.85 },   // big jaws
+  drakon:   { size: 1,    speed: 1.25, accel: 1.15, turn: 1.1  },   // a dragon
+  xeltar:   { size: 1,    speed: 1.05, accel: 1.4,  turn: 1    },   // a squid: quick bursts
+  kraal:    { size: 1.1,  speed: 0.85, accel: 0.9,  turn: 0.8  },   // a hammer
+  zorian:   { size: 0.6,  speed: 1.55, accel: 1.6,  turn: 1.4  },   // 40% smaller: the fastest
+  vanta:    { size: 0.8,  speed: 1.3,  accel: 1.3,  turn: 1.2  },   // 20% smaller
+  cantor:   { size: 1,    speed: 1,    accel: 0.95, turn: 1    },
+  rivet:    { size: 1,    speed: 1,    accel: 1,    turn: 0.95 },
+  glitch:   { size: 1,    speed: 1.15, accel: 1.25, turn: 1.2  },   // jittery and quick
+  nimbus:   { size: 1,    speed: 0.9,  accel: 0.75, turn: 0.9  },   // a floating cloud
+  reprise:  { size: 1.1,  speed: 0.8,  accel: 0.9,  turn: 0.75 },   // buildings
+  puff:     { size: 0.8,  speed: 1.25, accel: 1.2,  turn: 1.1  },   // 20% smaller
+  cinder:   { size: 1,    speed: 1.35, accel: 1.3,  turn: 1    },   // a racer
+  borer:    { size: 1.05, speed: 0.85, accel: 0.85, turn: 0.85 },   // a drill
+  mirage:   { size: 1,    speed: 1.15, accel: 1.1,  turn: 1.15 },   // light
+  palisade: { size: 1.15, speed: 0.7,  accel: 0.82, turn: 0.7  },   // a fortress: the slowest
+  gimbal:   { size: 1,    speed: 1,    accel: 1,    turn: 1.5  },   // a gyroscope: spins round fastest
+  lariat:   { size: 1.05, speed: 0.9,  accel: 0.85, turn: 0.85 },   // a tug
+  bloom:    { size: 1,    speed: 1.05, accel: 0.9,  turn: 1.15 }    // a drifting flower
+};
+function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
 function mechFrames(name, ms, deg) {
   return Array.from({ length: 12 }, (_, i) => [name + "_" + String(i + 1).padStart(2, "0") + ".webp", i < 11 ? ms / 11 : 40, undefined, deg(i)]);
@@ -1557,12 +1588,13 @@ const BODIES = [
 function nextBody(now, rand = Math.random) { let i; do i = Math.floor(rand() * BODIES.length); while (i === now && BODIES.length > 1); return i; }
 // each ship's numbers (units: screens and seconds)
 function shipStats(S) {
+  const H = handling(S);   // (each ship's own handling: HANDLING)
   return {
     fuel: S.fuel || 30,
     refill: S.refill || 15,
-    turn: (S.turn || Math.round(300 / S.mass)) * Math.PI / 180,        // radians per second
-    push: (0.7 + 0.15 * S.nozzles.length) / S.mass,                      // engine push
-    top: 1.3 + 0.25 * S.nozzles.length - 0.3 * S.mass                    // top speed
+    turn: (S.turn || Math.round(300 / S.mass)) * Math.PI / 180 * H.turn,        // radians per second
+    push: (0.7 + 0.15 * S.nozzles.length) / S.mass * H.accel,                      // engine push
+    top: (1.3 + 0.25 * S.nozzles.length - 0.3 * S.mass) * H.speed                  // top speed
   };
 }
 // fuel for one moment: burns while the engine is on, fills back up while it rests.
@@ -3966,7 +3998,7 @@ function updateBeam(dt) {
   // distance from the enemy to the beam's line
   const m = muzzleOf(game, S), ux = Math.sin(B.ang), uy = -Math.cos(B.ang);
   const ex = wrapDelta(enemy.x - m.x, WW), ey = wrapDelta(enemy.y - m.y, WH), along = ex * ux + ey * uy, side = Math.abs(ex * uy - ey * ux);
-  if (along > 0 && along < Wp.len * U && side < shipSize() * (0.42 + Wp.r)) {
+  if (along > 0 && along < Wp.len * U && side < shipSize() * (0.42 * enemyScale() + Wp.r)) {
     B.hit = true;
     hitEnemy({ x: enemy.x, y: enemy.y, vx: ux * U, vy: uy * U }, Wp);
     rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.4, r: shipSize() * 0.9, c: Wp.color });
@@ -4033,10 +4065,12 @@ function hexRgb(hex) { const n = parseInt(hex.slice(1), 16); return `${n >> 16},
 
 // ---------- TALUS: growing from the body in the middle, and shattering ----------
 function shipScale() {
-  const S = shipById(game.ship), T = game.talus;
-  if (!S || !S.grows || !T) return 1;
-  return talusScale(S.anim.stages, T.from, T.stage, T.t) / S.anim.stages[5];
+  const S = shipById(game.ship), T = game.talus, k = handling(S).size;
+  if (!S || !S.grows || !T) return k;
+  return k * talusScale(S.anim.stages, T.from, T.stage, T.t) / S.anim.stages[5];
 }
+// the enemy's size the same way (its TALUS growth comes with its state)
+function enemyScale() { return enemy.remote && enemy.talus ? enemy.talus.scale : handling(shipById(enemy.ship)).size; }   // (TALUS's scale comes from shipScale, size included)
 // crashing into the body: once per contact (it has to leave and come back), and only when the light ring is gone
 function talusContact(on) {
   const T = game.talus;
@@ -4646,7 +4680,7 @@ function updateWeapons(dt) {
     // into the enemy
     if (enemy.on && enemy.warp < 0.5) {
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
-      if (Math.hypot(dx, dy) < size * 0.42 + Wp.r * shotScale(s, Wp) * size) {
+      if (Math.hypot(dx, dy) < size * 0.42 * enemyScale() + Wp.r * shotScale(s, Wp) * size) {
         if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
         const Hw = shotHit(s, Wp); hitEnemy(s, Hw); shots.splice(k, 1);
         if (Wp.tag) { enemy.markT = Wp.tag; audio.sfx("vanta", "mark_hit"); }   // VANTA's marking drop: the stain
@@ -5077,6 +5111,8 @@ function hitEnemy(s, Wp) {
 // ---------- kills and money ----------
 const bounty = { t: 0, r: null };
 function scoreKill(player) {
+  // every win fills one spare health tank again (it flashes)
+  if (game.tanks < TANKS) { game.tanks++; game.tankT = 1; audio.tone(660, 0.12, "triangle", 0.05, 1.5); audio.tone(990, 0.16, "triangle", 0.05, 1.3, 0.1); }
   if (!profile) return;
   profile.kills = (profile.kills || 0) + 1; game.streak = (game.streak || 0) + 1;
   if (player && COINS) {
@@ -5575,6 +5611,7 @@ const KIT = {
   borer: { a: "#72e6a1", b: "#f9d586", fx: "world" }, mirage: { a: "#ffcc83", b: "#c9a5ff", fx: "world" },
   palisade: { a: "#dfff83", b: "#b5a0ff", fx: "none" },   // (its magic plays the wall's own shatter, at the wall)
   gimbal: { a: "#6fe9ff", b: "#e9b66a", fx: "none", face: true },
+  bloom: { a: "#8ff5d8", b: "#ff9ad8", face: true, round: true },   // (round flower buttons: the state glow is a circle)
   lariat: { a: "#7ce9dc", b: "#eaa276", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
@@ -5612,10 +5649,11 @@ function drawKitButton(id, slot, b, o) {
     const R = r * 1.2, f = o.fill == null ? 1 : clamp(o.fill, 0, 1), col = o.ring || accent;
     ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
     ctx.lineJoin = "round"; ctx.lineCap = "round";
-    ctx.lineWidth = Math.max(1.5, r * 0.05); ctx.strokeStyle = hexA(col, 0.22); octagonPath(b.x, b.y, R, 1); ctx.stroke();
+    const edge = (part) => K.round ? (ctx.beginPath(), ctx.arc(b.x, b.y, R * 0.97, -Math.PI / 2, -Math.PI / 2 + TAU * part)) : octagonPath(b.x, b.y, R, part);
+    ctx.lineWidth = Math.max(1.5, r * 0.05); ctx.strokeStyle = hexA(col, 0.22); edge(1); ctx.stroke();
     if (f > 0) {
       ctx.shadowColor = col; ctx.shadowBlur = Math.max(4, r * (o.ready ? 0.3 : 0.12));
-      ctx.lineWidth = Math.max(2, r * 0.07); ctx.strokeStyle = o.ready ? col : hexA(col, 0.6); octagonPath(b.x, b.y, R, f); ctx.stroke();
+      ctx.lineWidth = Math.max(2, r * 0.07); ctx.strokeStyle = o.ready ? col : hexA(col, 0.6); edge(f); ctx.stroke();
       ctx.shadowBlur = 0;
     }
   }
@@ -8268,10 +8306,10 @@ function drawEnemy() {
   const z = zoomed(p), m = size * 0.6 * game.zoom;
   if (z.x > -m && z.x < W + m && z.y > -m && z.y < H + m) {
     ctx.save(); ctx.strokeStyle = `rgba(255,77,109,${0.5 + 0.2 * Math.sin(time * 4)})`; ctx.lineWidth = 3 / game.zoom;
-    ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.58, 0, TAU); ctx.stroke(); ctx.restore();
+    ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.58 * enemyScale(), 0, TAU); ctx.stroke(); ctx.restore();
     const st = shipStats(E);
     if (enemy.remote) drawTail(duel.tail, E);
-    const esc = enemy.remote && enemy.talus ? enemy.talus.scale : 1;
+    const esc = enemyScale();
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (enemy.remote && duel.net && duel.net.bb) drawHeldBubble(enemy, duel.net.bb);
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
