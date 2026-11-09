@@ -265,6 +265,15 @@ MIRAGE's false stars now stay 5 minutes (up to 10 of them; a new one takes the o
 are joined by a beam of light: a web. An enemy touching a beam loses 14 health a second (`MAGIC.lens.webDps`). The
 more false stars, the thicker the web. When either ship is destroyed, all the false stars go out.
 
+**PALISADE**, the fortress (`art/ships/palisade/`). Button 1: a ricochet bolt that banks once off its own wall (off
+the face it strikes, at the same speed, changing colour). Button 2: deploy a wall: the three roof plates slide back,
+two arms rise from the bay, grab the wall and fly it forward from where the ship was at 0.56 s (turning after that
+moves only the ship), set it down at 1.04 s and let go; the roof shuts. The wall stays 7.8 s or four enemy shots (four
+lamps), stops enemy shots, lets its own pass; ships fly through it. One wall at a time. Magic, ceramic shatter: only
+with the wall up; 0.36 s later it breaks into seven shards fanned out the way it faces (if it was knocked down
+meanwhile, nothing). In a duel the wall is sent to the other phone (`pw`), which stops its own shots on it and tells
+the owner (`pwh`) to put out a lamp.
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

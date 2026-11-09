@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,levelStats,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,talusForge,bubbleCharge,vexarEggPose,vexarEggFlight,borerThrust,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
-const { HOLD_ANGLE, SHIPS, starMinePose, starMineCheck, talusForge, bubbleCharge, vexarEggPose, vexarEggFlight, borerThrust, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, levelStats, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{HOLD_ANGLE,palInteract,palCarrier,PAL,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,levelStats,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,talusForge,bubbleCharge,vexarEggPose,vexarEggFlight,borerThrust,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
+const { HOLD_ANGLE, SHIPS, palInteract, palCarrier, PAL, starMinePose, starMineCheck, talusForge, bubbleCharge, vexarEggPose, vexarEggFlight, borerThrust, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, levelStats, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("thirty ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 30);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 30);
+ok("thirty-one ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 31);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 31);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -566,5 +566,15 @@ ok("the computer gets stronger every level, within limits", () => {
   assert(b.dmg > a.dmg && b.armor > a.armor && b.aim < a.aim && b.special < a.special && b.magic < a.magic);
   assert(a.dmg < 1, "level 1 hits softer than a player");
   assert(z.dmg <= 1.8 && z.armor <= 2.2 && z.aim >= 0.05 && z.react >= 0.1);
+});
+ok("PALISADE: the wall stops a shot's path through it, and a straight bolt banks straight back", () => {
+  const S = shipById("palisade"); assert.strictEqual(S.weapons.join(), "ricochet,wall"); assert.strictEqual(S.magic, "ceramic");
+  // a wall facing up (ang 0), 1.3 wide, 0.13 deep; a shot from below moving up through it in one long step
+  const H = palInteract(0, { x: 0.2, y: 1 }, { x: 0, y: -2 }, 0.65, 0.065);
+  assert.ok(H && Math.abs(H.entry - (1 - 0.065) / 2) < 1e-9 && Math.abs(Math.abs(H.normal.y) - 1) < 1e-9);
+  assert.strictEqual(palInteract(0, { x: 1, y: 1 }, { x: 0, y: -2 }, 0.65, 0.065), null);   // passes beside it
+  const E = palInteract(0, { x: -2, y: 0 }, { x: 4, y: 0 }, 0.65, 0.065); assert.ok(Math.abs(Math.abs(E.normal.x) - 1) < 1e-9);   // its end face
+  assert.strictEqual(palCarrier(100), null); assert.ok(Math.abs(palCarrier(1040).distance - 100) < 1e-9);   // the arms set it 100 units out
+  assert.ok(Math.abs(PAL.dist - 100 * PAL.u) < 1e-9);
 });
 console.log(n + " checks passed");

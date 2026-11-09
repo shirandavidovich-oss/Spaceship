@@ -490,7 +490,18 @@ const SHIPS = [
     anim: { dir: "mirage", size: 1.14, idle: "idle.webp",
       primary: frames("pulse", 12, (n) => n <= 11 ? 280 / 11 : 70, { 12: "bolt" }),     // 280 ms, then the shot
       secondary: frames("split", 12, (n) => n <= 11 ? 390 / 11 : 70, { 12: "fire" }),  // 390 ms
-      lens: frames("magic", 12, (n) => n <= 11 ? 480 / 11 : 70, { 12: "fire" }) } }    // 480 ms, then the false star
+      lens: frames("magic", 12, (n) => n <= 11 ? 480 / 11 : 70, { 12: "fire" }) } },   // 480 ms, then the false star
+  // PALISADE, the fortress (art/ships/palisade/, 512 x 512, center pivot, nose up; 512 px = 1.24 ship-lengths; the
+  // package's units: 1 = 0.01069 ship-lengths). Button 1: a ricochet bolt, which banks once off its own wall.
+  // Button 2: deploy a wall (the three white roof plates slide back, two arms rise out of the bay, grab the wall, fly it
+  // forward from where the ship was at 0.56 s and set it down at 1.04 s; the roof shuts). The wall stays put (7.8 s or
+  // four enemy shots, shown by four lamps), stops enemy shots, lets its own pass. Magic: ceramic shatter (see MAGIC.ceramic)
+  { id: "palisade", name: "PALISADE", rarity: "epic", mass: 1.3, fuel: 30, refill: 15, sfx: null, magic: "ceramic",
+    hull: "#6a2fb0", wingC: "#2a1640", trim: "#dfff83", flame: "#b5a0ff",
+    body: [], wing: [], nozzles: [-0.124, 0.143], engineY: 0.446, cockpit: [0, -0.38, 0.05, 0.1],
+    weapons: ["ricochet", "wall"],
+    guns: { ricochet: [[0, -0.513]], wall: [[0, -0.5]] },
+    anim: { dir: "palisade", size: 1.24, idle: "idle.webp", roof: frames("roof", 36, () => 40) } }   // 1,440 ms
 ];
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
 function mechFrames(name, ms, deg) {
@@ -609,6 +620,11 @@ const WEAPONS = {
   // PUFF's spines when they fly off (puff-burst.js: 12 at once, each straight out from where it sat)
   spine:   { name: "קוץ",        dmg: 12, speed: 3.0, life: 0.78, cool: 1, ammo: 1, r: 0.03, color: "#e8b040" },
   prism:   { name: "רסיס פריזמה", dmg: 8, speed: 2.6, life: 0.6, cool: 1,    ammo: 1,  r: 0.025, color: "#d8b4ff" },
+  // PALISADE. ricochet: banks once off its own wall (the face it strikes). wall: deploys the wall (palWall: no shot).
+  //   pshard: the seven ceramic shards of the magic
+  ricochet: { name: "קליע ניתור", dmg: 9, speed: 3.0, life: 0.9, cool: 0.38, ammo: 16, refill: 6, r: 0.022, color: "#dfff83" },
+  wall:    { name: "הצבת קיר",   dmg: 0, speed: 0, life: 0, cool: 4.6, ammo: 2, refill: 8, r: 0, color: "#e8e4f0", palWall: true },
+  pshard:  { name: "שבר קרמי",   dmg: 6, speed: 2.4, life: 0.6, cool: 1, ammo: 1, r: 0.025, color: "#f2eee6" },
   magnet:  { name: "כדורי מגנט", dmg: 7,  speed: 1.0, life: 6.0, cool: 4.5, ammo: 1, refill: 4.5, r: 0.06, color: "#ff6ad5", pellets: 8, fan: 5.5, magnet: 1.6,
              colors: ["#ff5a5a", "#ffb347", "#fff275", "#6dff8a", "#38d8ff", "#6a7dff", "#c86bff", "#ff6ad5"] },
   nails:   { name: "מסמרי מוקש", dmg: 14, speed: 2.0, life: 0, cool: 3.2, ammo: 2, refill: 6, r: 0.05, color: "#ffb347", mines: 4, fan: 0.9,
@@ -723,6 +739,9 @@ const MAGIC = {
   //   loses `webDps` health a second
   lens:    { name: "כוכב מדומה", look: "lens", cool: 9, ahead: 1.5, life: 300, radius: 1.3, strength: 50, soft: 0.21, max: 85, color: "#c9a5fc",
              count: 10, web: 0.18, webDps: 14 },
+  // PALISADE: ceramic shatter. Only with its wall up; at `at` s the wall breaks into `shards` shards fanned `fan`
+  //   radians apart, straight out the way it was set facing. If the wall is gone by then, nothing (the cost is kept)
+  ceramic: { name: "מטח שברים", look: "ceramic", cool: 8.5, at: 0.36, end: 0.58, shards: 7, fan: 0.18, color: "#dfff83" },
   split:   { name: "התפצלות", look: "split", cool: 0, blast: 4.5, dmg: 75, edge: 15, knock: 2.4, color: "#ff3fb0" },
   // NIMBUS's rainbow: an arc that flies out (`speed` ship-lengths a second for `life` s); touching a ship it does `dmg`
   //   once, and NIMBUS takes back `heal` health
@@ -1197,6 +1216,30 @@ function talusForge(ms) {
       const p = Math.max(0, Math.min(1, (ms - (115 + i * 46)) / (395 + (i % 4) * 42))), s = lift[i % 4], a = i * 2.39996 + 4.1 * p, d = (82 + (i * 13) % 51) * Math.sin(Math.PI * p), u = sm(p);
       return { x: s[0] * (1 - u) + Math.cos(a) * d, y: s[1] * (1 - u) - 256 * u + Math.sin(a) * d, alpha: sm(p / 0.14) * (1 - sm((p - 0.8) / 0.2)), size: 5 + i % 7, angle: a + i + p * 6, v: i % 3 };
     }) };
+}
+// PALISADE's wall (palisade.js), in ship-lengths: `dist` ahead of where the ship was at `launch` s, `w` x `d`, set at
+// `cue` s; the roof is shut again at `end`. It lasts `life` s or `charges` enemy shots
+const PAL = { dist: 1.069, w: 1.347, d: 0.128, charges: 4, life: 7.8, launch: 0.56, cue: 1.04, end: 1.4, u: 0.01069 };
+// a shot's path past a wall: p (from the wall's middle) moving by d this step; hw, hd: half the width and depth.
+// Null if it misses; else how far along (0..1) it strikes, and the face it strikes (its normal)
+function palInteract(ang, p, d, hw, hd) {
+  const n = { x: Math.sin(ang), y: -Math.cos(ang) }, r = { x: Math.cos(ang), y: Math.sin(ang) };
+  let entry = 0, exit = 1, normal = null;
+  for (const [pos, del, half, axis] of [[p.x * r.x + p.y * r.y, d.x * r.x + d.y * r.y, hw, r], [p.x * n.x + p.y * n.y, d.x * n.x + d.y * n.y, hd, n]]) {
+    if (Math.abs(del) < 1e-9) { if (Math.abs(pos) > half) return null; continue; }
+    const a = (-half - pos) / del, b = (half - pos) / del, near = Math.min(a, b);
+    if (near >= entry) { entry = near; normal = axis; }
+    exit = Math.min(exit, Math.max(a, b));
+    if (entry > exit) return null;
+  }
+  return { entry, normal: normal || n };
+}
+// the arms carrying the wall (roof-motion.js), ms since the press: how far ahead (package units), how wide, shown
+function palCarrier(ms) {
+  if (ms < 280 || ms >= 1400) return null;
+  const sm = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); }, b = (a, c) => sm((ms - a) / (c - a));
+  const lift = b(280, 560), fly = b(560, 1040);
+  return { distance: -6 + 48 * lift + 58 * fly, alpha: b(280, 380), clear: b(1085, 1400) };
 }
 // can BORER start a dive here? gap: from its edge to the star's surface, in ship-lengths
 function starMineCheck(gap, busy, M) { return busy ? "occupied" : !(gap >= 0) || gap > M.reach ? "range" : "ok"; }
@@ -1844,7 +1887,7 @@ function update(dt) {
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
-  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
+  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
   updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
@@ -2175,6 +2218,12 @@ function useMagicNow(which = 0) {
     return;
   }
   if (M.look === "starmine") { startDive(S, M); return; }   // BORER
+  if (M.look === "ceramic") {   // PALISADE: only with its wall up
+    if (!game.palWall || game.palDeploy || game.palMagic) { audio.nope(); return; }
+    game.magicCool = M.cool; game.palMagic = { t: 0, wall: game.palWall };
+    audio.tone(300, 0.36, "square", 0.04, 2.5); buzz(30);
+    return;
+  }
   if (M.look === "lens") {   // MIRAGE: the prism charges, and the false star opens at its "fire" frame (updateAnim)
     if (game.anim) return;
     game.magicCool = M.cool; game.anim = { seq: "lens", t: 0, lens: true };
@@ -3883,7 +3932,7 @@ function blowUpShip() {
     game.pick = true;
   }
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null;
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -4033,6 +4082,7 @@ function shoot(i) {
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
   if (Wp.ring) { startRing(w, S); return; }
+  if (Wp.palWall) { startWall(S); return; }   // PALISADE: the arms carry a wall out
   if (Wp.forge && S.grows) { game.forge = { t: 0, w, thumps: 0 }; audio.tone(70, 1.4, "sawtooth", 0.05, 1.6); audio.noise(1.2, 0.08, 500); buzz(30); return; }   // TALUS forges it first
   if (Wp.modules) { game.repPending = { w, t: 0, next: 0 }; return; }   // REPRISE: its buildings fire in turn
   if (Wp.cued && A && A.primary && i === 0) { game.anim = { seq: "primary", t: 0, bolts: w }; if (w === "lightning") audio.sfx(S.sfx, "lightning-charge"); if (w === "mpulse") audio.tone(440, 0.28, "sine", 0.03, 2.5); return; }   // DRAKON: the frames fire the bolts
@@ -4375,6 +4425,8 @@ function updateAnim(dt) {
 // button 2 waits while the heavy cannon or the smoke hatches are still playing (so a shot never cuts a sequence short)
 function waitsForFrames(i) {
   if (game.forge && i === 1) return true;   // TALUS still forging a boulder
+  if (game.palDeploy || game.palMagic) return true;   // PALISADE: one action at a time
+  if (i === 1 && game.palWall && slotWeapon(1) && WEAPONS[slotWeapon(1)].palWall) return true;   // (one wall at a time)
   if (game.inked > 0) return true;   // inked: its guns are clogged
   if (game.rw) return true;   // going back in time
   if (game.flipT >= 0 && i < 2) return true;   // RIVET turning: nothing fires until the new nose locks
@@ -4535,7 +4587,8 @@ const KIT = {
   zorian: { a: "#73afff", b: "#84e9ff" }, vanta: { a: "#d9f66a", b: "#6eefa7" }, cantor: { a: "#9af4df", b: "#df9cff" },
   rivet: { a: "#ffc473", b: "#6edcff" }, glitch: { a: "#d280ff", b: "#67f4ed" }, nimbus: { a: "#eaf7ff", b: "#a3d7f2", fx: "world" },
   reprise: { a: "#efbf83", b: "#bc9df1" }, puff: { a: "#c9edff", b: "#f4bcf1" }, cinder: { a: "#ffc27a", b: "#ff8861" },
-  borer: { a: "#72e6a1", b: "#f9d586", fx: "world" }, mirage: { a: "#ffcc83", b: "#c9a5ff", fx: "world" }
+  borer: { a: "#72e6a1", b: "#f9d586", fx: "world" }, mirage: { a: "#ffcc83", b: "#c9a5ff", fx: "world" },
+  palisade: { a: "#dfff83", b: "#b5a0ff", fx: "none" }   // (its magic plays the wall's own shatter, at the wall)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
 function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
@@ -4601,14 +4654,14 @@ function magicBadge(S) {
 const kitFx = [];   // { id: ship, who: "me" | "them", t, x, y, ang }
 function kitFxStart(who) {
   const o = who === "me" ? game : enemy, id = who === "me" ? game.ship : enemy.ship;
-  if (!KIT[id] || BOT) return;
+  if (!KIT[id] || BOT || KIT[id].fx === "none") return;
   kitFx.push({ id, who, t: 0, x: o.x, y: o.y, ang: o.ang });
   if (kitFx.length > 6) kitFx.shift();
 }
 // my magic was cast (or TALUS grew): show it here and tell the other phone
 function kitFxMine() { if (!HUD_KIT) return; kitFxStart("me"); duelSend({ t: "mfx" }); }
 function updateKitFx(dt) { for (let i = kitFx.length - 1; i >= 0; i--) { kitFx[i].t += dt; if (kitFx[i].t * 1000 >= KIT_FX.frames * KIT_FX.ms) kitFx.splice(i, 1); } }
-function kitPreloadFx(id) { if (!KIT[id] || BOT) return; for (let i = 0; i < KIT_FX.frames; i++) kitImg(id, "fx/" + String(i).padStart(2, "0")); }
+function kitPreloadFx(id) { if (!KIT[id] || BOT || KIT[id].fx === "none") return; for (let i = 0; i < KIT_FX.frames; i++) kitImg(id, "fx/" + String(i).padStart(2, "0")); }
 // layer: "behind" ones are drawn before the ships, the others after
 function drawKitFx(layer) {
   for (const F of kitFx) {
@@ -4990,6 +5043,141 @@ function updateCinder(dt) {
   }
   if (D.t >= M.turn) game.dash2 = null;
 }
+// ---------- PALISADE: the wall ----------
+// game.palDeploy: { t, launch } while the arms carry it; game.palWall: { x, y, ang, charges, t } (mine, set);
+// duel.palWall: theirs; game.palMagic: { t, wall } while the shatter charges; palFx: shatter overlays playing
+const palFx = [];
+function startWall(S) {
+  game.palDeploy = { t: 0, launch: null }; game.anim = { seq: "roof", t: 0 };
+  audio.tone(180, 0.4, "square", 0.03, 1.5); audio.tone(420, 0.25, "triangle", 0.03, 1.3, 0.3); buzz(25);   // the plates sliding, the arms
+}
+function updatePalisade(dt) {
+  const D = game.palDeploy, size = shipSize();
+  for (let i = palFx.length - 1; i >= 0; i--) if ((palFx[i].t += dt) > 0.544) palFx.splice(i, 1);
+  if (duel.palWall) duel.palWall.t += dt;
+  if (D) {
+    if (game.dead) game.palDeploy = null;
+    else {
+      const t0 = D.t; D.t += dt;
+      if (!D.launch && D.t >= PAL.launch) { D.launch = { x: game.x, y: game.y, ang: game.ang }; duelSend({ t: "pl", x: +(game.x / WW).toFixed(5), y: +(game.y / WH).toFixed(5), a: +game.ang.toFixed(3) }); }
+      if (t0 < PAL.cue && D.t >= PAL.cue) {   // set down: solid from now on
+        const L = D.launch, W = { x: (((L.x + Math.sin(L.ang) * PAL.dist * size) % WW) + WW) % WW, y: (((L.y - Math.cos(L.ang) * PAL.dist * size) % WH) + WH) % WH, ang: L.ang, charges: PAL.charges, t: 0 };
+        game.palWall = W;
+        duelSend({ t: "pw", on: 1, x: +(W.x / WW).toFixed(5), y: +(W.y / WH).toFixed(5), a: +W.ang.toFixed(3) });
+        audio.tone(90, 0.2, "square", 0.06, 0.6); audio.noise(0.12, 0.1, 1200); shake(0.2); buzz(50);
+      }
+      if (D.t >= PAL.end) game.palDeploy = null;
+    }
+  }
+  const W = game.palWall;
+  if (W && (W.t += dt) > PAL.life) palWallGone();
+  const G = game.palMagic, M = MAGIC.ceramic;
+  if (G) {
+    const t0 = G.t; G.t += dt;
+    if (t0 < M.at && G.t >= M.at) {
+      if (game.palWall && game.palWall === G.wall) palShatter(G.wall);
+      else { audio.nope(); }   // the wall went down meanwhile: nothing
+    }
+    if (G.t >= M.end || game.dead) game.palMagic = null;
+  }
+}
+function palWallGone() { if (!game.palWall) return; game.palWall = null; duelSend({ t: "pw", on: 0 }); audio.tone(200, 0.2, "triangle", 0.03, 0.5); }
+// the wall breaks into seven shards, fanned straight out the way it faces
+function palShatter(W) {
+  const M = MAGIC.ceramic, Wp = WEAPONS.pshard, size = shipSize(), v = Wp.speed * U;
+  for (let i = 0; i < M.shards; i++) {
+    const side = i - (M.shards - 1) / 2, a = W.ang + side * M.fan, o = rotatePt(side * 15 * PAL.u * size, -9 * PAL.u * size, W.ang);
+    const q = { w: "pshard", x: W.x + o.x, y: W.y + o.y, vx: Math.sin(a) * v, vy: -Math.cos(a) * v, life: 0 };
+    shots.push(q);
+    if (duel.stage === "on") { q.id = ++shotSeq; duelSend({ t: "f", w: "pshard", ...netPos(q), s: game.ship, id: q.id }); }
+  }
+  palFx.push({ x: W.x, y: W.y, ang: W.ang, t: 0 });
+  duelSend({ t: "px", x: +(W.x / WW).toFixed(5), y: +(W.y / WH).toFixed(5), a: +W.ang.toFixed(3) });
+  game.palWall = null; duelSend({ t: "pw", on: 0 });
+  audio.noise(0.3, 0.25, 3000); audio.tone(900, 0.2, "triangle", 0.04, 0.4); shake(0.5); buzz(120);
+}
+// a shot this step against the walls: its own ricochet bolt banks off its own wall (once), other own shots pass,
+// enemy shots are stopped (and use up a lamp). True: the shot is gone
+function palShot(list, k, s, Wp, dt) {
+  const size = shipSize();
+  for (const [W, mine] of [[game.palWall, true], [duel.palWall, false]]) {
+    if (!W) continue;
+    const own = mine ? list === shots : list === duel.shots;
+    if (own && !(s.w === "ricochet" && !s.bounced)) continue;
+    const p = { x: wrapDelta(s.x - W.x, WW), y: wrapDelta(s.y - W.y, WH) }, d = { x: s.vx * dt, y: s.vy * dt }, r = (Wp.r || 0) * size * shotScale(s, Wp);
+    const H = palInteract(W.ang, p, d, PAL.w / 2 * size + r, PAL.d / 2 * size + r);
+    if (!H) continue;
+    const cx = W.x + p.x + d.x * H.entry, cy = W.y + p.y + d.y * H.entry;
+    if (own) {   // banks off the face it struck, at the same speed
+      const sp = s.vx * H.normal.x + s.vy * H.normal.y;
+      s.vx -= 2 * sp * H.normal.x; s.vy -= 2 * sp * H.normal.y; s.x = cx; s.y = cy; s.bounced = true; s.bt = time;
+      burstAt(cx, cy, 6, ["#ffffff", "#dfff83"], 0.2, 0.3); audio.tone(1500, 0.05, "square", 0.03, 0.6);
+      continue;
+    }
+    burstAt(cx, cy, 10, ["#ffffff", "#e8e4f0", "#dfff83"], 0.3, 0.4);
+    if (mine && list === eshots) palHit();   // the bot's shot: one lamp less (a rival's: their phone tells me, "pwh")
+    if (!mine && list === shots) { duelSend({ t: "pwh" }); W.charges--; }   // my shot on their wall
+    audio.tone(240, 0.06, "square", 0.04, 0.5);
+    list.splice(k, 1);
+    return true;
+  }
+  return false;
+}
+function palHit() { const W = game.palWall; if (!W) return; W.charges--; W.flash = 0.25; buzz(30); if (W.charges <= 0) palWallGone(); }
+// the arms flying the wall out (o: the ship; launch: where it was at 0.56 s)
+function drawCarrier(ms, o, launch) {
+  const P = palCarrier(ms);
+  if (!P) return;
+  const S = shipById("palisade"), host = launch || o, size = shipSize(), c = toScreen(host.x + Math.sin(host.ang) * P.distance * PAL.u * size, host.y - Math.cos(host.ang) * P.distance * PAL.u * size);
+  const im = artImage(framePath(S.anim.dir, "carrier_" + String(Math.min(36, Math.floor(ms / 40) + 1)).padStart(2, "0") + ".webp")), D = 192 * PAL.u * size;
+  if (!im) return;
+  ctx.save(); ctx.globalAlpha = P.alpha; ctx.translate(c.x, c.y); ctx.rotate(host.ang); ctx.drawImage(im, -D / 2, -D / 2, D, D); ctx.restore();
+}
+// a set wall: a ceramic slab, violet-edged, with a lamp for each shot it can still stop; theirs tinted pink
+function drawPalWall(W, mine, from) {
+  if (!W) return;
+  const size = shipSize(), p = toScreen(W.x, W.y), w = PAL.w * size, d = PAL.d * size, fade = Math.min(1, (PAL.life - W.t) / 0.6, (W.t - from) / 0.15 + 1);
+  if (W.t < from) return;
+  ctx.save(); ctx.globalAlpha = Math.max(0, fade); ctx.translate(p.x, p.y); ctx.rotate(W.ang);
+  ctx.shadowColor = mine ? "rgba(181,160,255,0.8)" : "rgba(255,122,184,0.8)"; ctx.shadowBlur = size * 0.15;
+  const g = ctx.createLinearGradient(0, -d / 2, 0, d / 2); g.addColorStop(0, "#ffffff"); g.addColorStop(0.5, "#e2ddd2"); g.addColorStop(1, "#b9b2a6");
+  ctx.fillStyle = W.flash > 0 ? "#ffffff" : g; ctx.strokeStyle = mine ? "#6a2fb0" : "#b02f7a"; ctx.lineWidth = Math.max(2, d * 0.22);
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-w / 2, -d / 2, w, d, d * 0.3) : ctx.rect(-w / 2, -d / 2, w, d); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur = 0;
+  for (let i = 0; i < PAL.charges; i++) {   // the lamps
+    const x = (i - 1.5) * w * 0.2, on = i < W.charges;
+    ctx.fillStyle = on ? "#dfff83" : "#3a3a2a"; ctx.beginPath(); ctx.arc(x, 0, d * 0.28, 0, TAU); ctx.fill();
+    if (on) { ctx.fillStyle = "rgba(223,255,131,0.35)"; ctx.beginPath(); ctx.arc(x, 0, d * 0.6, 0, TAU); ctx.fill(); }
+  }
+  ctx.restore();
+  if (W.flash > 0) W.flash -= 1 / 60;
+}
+function drawPalisade() {
+  const size = shipSize();
+  // my wall shows once the arms have let go (the carrier is drawn till then); theirs when it is set
+  drawPalWall(game.palWall, true, game.palDeploy ? PAL.end - PAL.cue : 0);
+  drawPalWall(duel.palWall, false, 0);
+  if (game.palDeploy) drawCarrier(game.palDeploy.t * 1000, game, game.palDeploy.launch);
+  if (enemy.remote && duel.net && duel.net.pd) drawCarrier(duel.net.pd, enemy, duel.net.pd >= 560 ? duel.palLaunch : null);
+  for (const F of palFx) {
+    const im = artImage(framePath("palisade", "shatter_" + String(Math.min(16, Math.floor(F.t / 0.034) + 1)).padStart(2, "0") + ".webp")), p = toScreen(F.x, F.y), D = 236 * PAL.u * size;
+    if (!im) continue;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(F.ang); ctx.drawImage(im, -D / 2, -D / 2, D, D); ctx.restore();
+  }
+}
+// PALISADE's magic button: a slab cracking into a fan
+function drawCeramicButton(b, M, ready, k) {
+  const has = !!game.palWall;
+  ctx.save(); ctx.translate(b.x, b.y);
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r); bg.addColorStop(0, "#4a2a7a"); bg.addColorStop(1, "#140a24");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.strokeStyle = M.color; ctx.globalAlpha = ready && has ? 1 : 0.45;
+  ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * (ready ? 1 : k)); ctx.stroke();
+  ctx.fillStyle = "#e8e4f0"; ctx.fillRect(-b.r * 0.5, b.r * 0.15, b.r, b.r * 0.16);
+  ctx.fillStyle = "#dfff83";
+  for (let i = -3; i <= 3; i++) { ctx.save(); ctx.rotate(i * 0.22); ctx.beginPath(); ctx.moveTo(0, -b.r * 0.62); ctx.lineTo(b.r * 0.05, -b.r * 0.3); ctx.lineTo(-b.r * 0.05, -b.r * 0.3); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  ctx.restore();
+}
 // ---------- MIRAGE: the false star and the seed ----------
 const lenses = [];   // { x, y, t, mine } (anyone's: they bend every shot; each player's are joined into a web of light)
 function openLens() {
@@ -5018,6 +5206,7 @@ function updateLenses(dt) {
 }
 // each moment, for a shot on its way: pulled by every false star; a seed due to split becomes three shards (true: it is gone)
 function shotFx(list, k, s, Wp, dt) {
+  if ((game.palWall || duel.palWall) && palShot(list, k, s, Wp, dt)) return true;
   if (lenses.length && !(Wp.speed === 0)) {
     const size = shipSize();
     for (const L of lenses) {
@@ -6490,6 +6679,7 @@ function preloadArt() {
     if (A.parts) all.push(A.parts.hull, A.parts.left, A.parts.right);
     if (A.idleLoop) all.push(...A.idleLoop);
     if (A.spin) all.push(...A.spin);
+    if (A.roof) { for (let i = 1; i <= 36; i++) all.push("carrier_" + String(i).padStart(2, "0") + ".webp"); for (let i = 1; i <= 16; i++) all.push("shatter_" + String(i).padStart(2, "0") + ".webp"); all.push(...A.roof.map((x) => x[0])); }
     if (S.grows) all.push("rock_hot.webp", "rock_warm.webp", "rock_cool.webp", "chip_0.webp", "chip_1.webp", "chip_2.webp");
     if (A.thrust) for (const [k, n] of [["open", A.thrust.open], ["hold", A.thrust.hold], ["close", A.thrust.close]]) for (let i = 1; i <= n; i++) all.push("thrust_" + k + "_" + String(i).padStart(2, "0") + ".webp");
     if (A.fireAnim) for (const k of ["fireL", "fireR", "torpedo"]) all.push(...A[k].map((x) => x[0]));
@@ -6720,7 +6910,7 @@ function draw() {
     drawShots(eshots);
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
-    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawStarMine(); drawMineReach(); drawLenses(); drawReso(game.reso); drawReso(duel.reso);
+    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -7153,9 +7343,10 @@ function drawShots(list = shots) {
       const im = artImage(framePath("puff", "spine.webp")), L = size * 0.225;
       if (im) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(s.vx, -s.vy)); ctx.drawImage(im, -L * 15 / 63, -L * 58 / 63, L * 30 / 63, L); ctx.restore(); continue; }
     }
-    if (s.w === "twin" || s.w === "laser" || s.w === "spread" || s.w === "neon" || s.w === "amber" || s.w === "floors" || s.w === "needles" || s.w === "blaster" || s.w === "mpulse" || s.w === "prism" || s.w === "shrapnel") {
-      const len = size * (s.w === "mpulse" ? 0.32 : s.w === "prism" ? 0.14 : s.w === "shrapnel" ? 0.09 : s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : s.w === "neon" ? 0.2 : s.w === "amber" ? 0.22 : s.w === "floors" ? 0.14 : s.w === "needles" ? 0.13 : s.w === "blaster" ? 0.22 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
-      ctx.strokeStyle = hexA(Wp.color, 0.35); ctx.lineWidth = wd * 2.6;
+    if (s.w === "twin" || s.w === "laser" || s.w === "spread" || s.w === "neon" || s.w === "amber" || s.w === "floors" || s.w === "needles" || s.w === "blaster" || s.w === "mpulse" || s.w === "prism" || s.w === "shrapnel" || s.w === "ricochet" || s.w === "pshard") {
+      const len = size * (s.w === "ricochet" ? 0.18 : s.w === "pshard" ? 0.12 : s.w === "mpulse" ? 0.32 : s.w === "prism" ? 0.14 : s.w === "shrapnel" ? 0.09 : s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : s.w === "neon" ? 0.2 : s.w === "amber" ? 0.22 : s.w === "floors" ? 0.14 : s.w === "needles" ? 0.13 : s.w === "blaster" ? 0.22 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
+      const col = s.w === "ricochet" && s.bounced ? (time - s.bt < 0.15 ? "#ffffff" : "#b5a0ff") : Wp.color;   // banked: a change of colour
+      ctx.strokeStyle = hexA(col, 0.35); ctx.lineWidth = wd * 2.6;
       ctx.beginPath(); ctx.moveTo(p.x - ux * len, p.y - uy * len); ctx.lineTo(p.x, p.y); ctx.stroke();
       ctx.strokeStyle = s.w === "neon" ? "#ffd2f0" : "#ffffff"; ctx.lineWidth = wd * 0.8; ctx.stroke();
     } else if ((s.w === "phase" || s.w === "mark") && s.art && artImage(s.art.src)) {
@@ -7300,6 +7491,11 @@ function weaponIcon(w, x, y, r, color) {
     for (let i = 0; i < 8; i++) { const a = i * TAU / 8; ctx.beginPath(); ctx.moveTo(r * 0.3 + Math.cos(a - 0.3) * r * 0.3, r * 0.3 + Math.sin(a - 0.3) * r * 0.3); ctx.lineTo(r * 0.3 + Math.cos(a) * r * 0.6, r * 0.3 + Math.sin(a) * r * 0.6); ctx.lineTo(r * 0.3 + Math.cos(a + 0.3) * r * 0.3, r * 0.3 + Math.sin(a + 0.3) * r * 0.3); ctx.fill(); }
   } else if (w === "needle") {   // a thin needle bolt
     ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.14, r * 0.2); ctx.lineTo(0, r * 0.85); ctx.lineTo(-r * 0.14, r * 0.2); ctx.closePath(); ctx.fill();
+  } else if (w === "ricochet") {   // a bolt bending off a bar
+    ctx.fillRect(-r * 0.7, -r * 0.1, r * 1.4, r * 0.2); ctx.lineWidth = r * 0.14; ctx.strokeStyle = ctx.fillStyle;
+    ctx.beginPath(); ctx.moveTo(-r * 0.6, r * 0.8); ctx.lineTo(0, -r * 0.15); ctx.lineTo(r * 0.6, r * 0.8); ctx.stroke();
+  } else if (w === "wall") {   // a slab with four lamps
+    ctx.fillRect(-r * 0.85, -r * 0.2, r * 1.7, r * 0.4);
   } else if (w === "mpulse") {   // one long narrow bolt
     ctx.beginPath(); ctx.ellipse(0, 0, r * 0.1, r * 0.85, 0, 0, TAU); ctx.fill();
   } else if (w === "seed") {   // a gem and its three shards
@@ -7539,6 +7735,7 @@ function drawMagicButton(b, M, ready, k) {
   if (M.look === "split") drawSplitButton(b, M);
   if (M.look === "starmine") drawStarMineButton(b, M, ready, k);
   if (M.look === "lens") drawLensButton(b, M, ready, k);
+  if (M.look === "ceramic") drawCeramicButton(b, M, ready, k);
   if (M.look === "rainbow") drawRainbowButton(b, M, ready, k);
   if (M.look === "gear") {
     ctx.save(); ctx.translate(b.x, b.y);
@@ -8008,6 +8205,11 @@ function duelLink(event, data) {
     clouds.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0, ship: m.s, remote: true }); audio.sfx("xeltar", "ink_release", 0, 0.7);
   } else if (m.t === "th" && Array.isArray(m.p)) {   // their ZORIAN sealed a thread: shown here (their phone counts a crossing)
     duel.thread = { w: m.w, t: m.at, paths: m.p.map((q) => q.map(([x, y]) => ({ x: x * WW, y: y * WH }))) };
+  } else if (m.t === "pw") {   // their PALISADE's wall set (on) / gone (0)
+    duel.palWall = m.on ? { x: m.x * WW, y: m.y * WH, ang: m.a, charges: PAL.charges, t: 0 } : null;
+  } else if (m.t === "pl") { duel.palLaunch = { x: m.x * WW, y: m.y * WH, ang: m.a };
+  } else if (m.t === "pwh") { palHit();   // my wall stopped one of their shots (their phone saw it)
+  } else if (m.t === "px") { palFx.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0 });
   } else if (m.t === "fs") {   // their MIRAGE's false star (it bends my shots too)
     lenses.push({ x: m.x * WW, y: m.y * WH, t: 0, mine: false }); lensSound();
     while (lenses.filter((q) => !q.mine).length > MAGIC.lens.count) lenses.splice(lenses.findIndex((q) => !q.mine), 1);
@@ -8195,7 +8397,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +(duel.outDmg * (BOT ? botLevel().dmg : 1)).toFixed(1),
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
@@ -8699,7 +8901,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 function tryShip(id) {
   game.ship = id;
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
-  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null;
+  game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; fillAmmo();
