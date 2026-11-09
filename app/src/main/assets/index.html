@@ -1137,8 +1137,8 @@ const WEAPONS = {
   // GIMBAL. blade: from both sides of the bow at once, each `splay` radians out from the nose. gate: no shot (the gate)
   //   The rings chase the enemy and never give up (chase: no end to their life, the body in the middle does not stop
   //   them); each one hit takes `dmg` (15 hits = a whole ship, its 5 spare tanks too). At most `max` of yours at once
-  //   (the oldest goes). 4 times the fire rate it had (cool 0.43), half as fast again (speed 2.6)
-  blade:   { name: "להבי טבעת", dmg: 40, speed: 3.9, life: Infinity, cool: 0.1075, ammo: 16, refill: 7, r: 0.03, color: "#6fe9ff", both: true, splay: 0.145,
+  //   (the oldest goes). Half as fast again as before (speed 2.6)
+  blade:   { name: "להבי טבעת", dmg: 40, speed: 3.9, life: Infinity, cool: 0.43, ammo: 16, refill: 7, r: 0.03, color: "#6fe9ff", both: true, splay: 0.145,
              homing: 5, chase: true, max: 40 },
   gate:    { name: "שער רבע סיבוב", dmg: 0, speed: 0, life: 0, cool: 5.7, ammo: 2, refill: 11, r: 0, color: "#e9b66a", gate: true },
   ricochet: { name: "קליע ניתור", dmg: 9, speed: 3.0, life: 0.9, cool: 0.38, ammo: 16, refill: 6, r: 0.022, color: "#dfff83" },
@@ -5344,13 +5344,15 @@ function drawGate(G, mine) {
   ctx.restore();
 }
 // GIMBAL's plume: out of the cage's back, the opposite way to where it pushes (the nose may have turned on since)
+const GIM_FLAME = 4;   // GIMBAL's flame: 4 times as long as it was (+300%)
 function drawGimbalPlume(o, power, pa) {
   if (power < 0.05 || pa == null) return;
-  const p = toScreen(o.x, o.y), size = shipSize(), len = size * (0.35 + 0.45 * power) * (0.9 + 0.1 * Math.sin(time * 40));
+  const p = toScreen(o.x, o.y), size = shipSize(), len = size * (0.35 + 0.45 * power) * GIM_FLAME * (0.9 + 0.1 * Math.sin(time * 40));
   ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(pa + Math.PI);
   const g = ctx.createLinearGradient(0, -size * 0.38, 0, -size * 0.38 - len);
   g.addColorStop(0, "rgba(255,255,255,0.95)"); g.addColorStop(0.3, "rgba(111,233,255,0.85)"); g.addColorStop(1, "rgba(111,233,255,0)");
-  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-size * 0.07, -size * 0.36); ctx.quadraticCurveTo(0, -size * 0.38 - len * 1.4, size * 0.07, -size * 0.36); ctx.fill();
+  const fw = size * 0.07 * Math.sqrt(GIM_FLAME);   // (a little wider too, so the long flame is not a needle)
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-fw, -size * 0.36); ctx.quadraticCurveTo(0, -size * 0.38 - len * 1.4, fw, -size * 0.36); ctx.fill();
   ctx.restore();
 }
 function drawGimbal() {
