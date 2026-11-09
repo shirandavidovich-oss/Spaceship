@@ -6034,15 +6034,23 @@ function drawDials() {
   }
 }
 
-// ---- a ship's own explosion film (a trial: THUL's). When that ship blows up (mine, or the computer's), the film plays
-// over the whole screen, full length, at its own size (fitted to the screen), and the game waits until it ends or is
-// tapped. Not in a game against another phone (that one cannot wait). Loaded in the background once that ship is about;
-// not loaded yet: just the game's own explosion ----
-const FILMS = { brass: "video/thul-explode.mp4" };
-const cine = { on: false, el: null, urls: {}, loading: {} };
+// ---- the ships' explosion films (video/, 720p). ONE film a game (until GAME OVER), as a surprise: when a game
+// starts, one ship with a film is chosen at random from the two fleets (cine.pick); the first time that ship blows up
+// (mine or the computer's) its film plays over the whole screen, full length, fitted to the screen, and the game waits
+// until it ends or is tapped. Not in a game against another phone (that one cannot wait). Only the chosen film is
+// loaded (in the background); not loaded in time: just the game's own explosion ----
+const FILMS = { brass: "video/thul-explode.mp4", skarn: "video/skarn-explode.mp4", xeltar: "video/xeltar-explode.mp4",
+  orian: "video/orian-explode.mp4", cantor: "video/cantor-explode.mp4", mirage: "video/mirage-explode.mp4", lariat: "video/lariat-explode.mp4" };
+const cine = { on: false, el: null, urls: {}, loading: {}, pick: null, shown: false };
+// a new game: choose this game's film (from the ships in it), and forget the last one
+function filmNewGame(ships) {
+  for (const id in cine.urls) { try { URL.revokeObjectURL(cine.urls[id]); } catch (e) {} delete cine.urls[id]; }
+  const have = (ships || []).filter((id) => FILMS[id]);
+  cine.pick = have.length ? have[Math.floor(Math.random() * have.length)] : null; cine.shown = false;
+}
 function filmPreload() {
-  if (BOT) return;
-  for (const id of [game.ship, enemy.ship]) {
+  if (BOT || cine.shown) return;
+  for (const id of [cine.pick]) {
     const f = FILMS[id];
     if (!f || cine.urls[id] || cine.loading[id]) continue;
     cine.loading[id] = true;
@@ -6053,14 +6061,16 @@ function filmPreload() {
 }
 // a ship of `id` just blew up: its film, if it has one and it is ready. true: it plays
 function playShipFilm(id) {
-  if (BOT || cine.on || !cine.urls[id] || (duel.stage && !duel.bot)) return false;
+  if (BOT || cine.on || cine.shown || id !== cine.pick || !cine.urls[id] || (duel.stage && !duel.bot)) return false;
+  cine.shown = true;   // (once a game)
   setTimeout(() => {   // (a moment of the game's own blast first, then the film)
     if (cine.on) return;
     const v = document.createElement("video");
     v.src = cine.urls[id]; v.playsInline = true; v.setAttribute("playsinline", ""); v.preload = "auto";
     v.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;object-fit:contain;background:#000;z-index:50";
     v.volume = clamp(Math.max(VOL.effects, 0.15), 0, 1);
-    const done = () => { if (!cine.on) return; cine.on = false; try { v.pause(); } catch (e) {} v.remove(); cine.el = null; last = performance.now(); };
+    const done = () => { if (!cine.on) return; cine.on = false; try { v.pause(); } catch (e) {} v.remove(); cine.el = null; last = performance.now();
+      try { URL.revokeObjectURL(cine.urls[id]); } catch (e) {} delete cine.urls[id]; };   // (its memory back)
     v.addEventListener("ended", done); v.addEventListener("error", done);
     v.addEventListener("pointerdown", (e) => { e.preventDefault(); done(); });   // a tap skips it
     document.body.appendChild(v); cine.el = v; cine.on = true;
@@ -10170,6 +10180,7 @@ function shuffled(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { c
 function newCampaign() {
   const all = shuffled(hangarShips().map((S) => S.id)), half = Math.ceil(all.length / 2);
   camp.mine = all.slice(0, half); camp.theirs = all.slice(half);
+  filmNewGame(all);   // this game's surprise film
   camp.lvl = 1; camp.lost = []; camp.left = camp.theirs.slice(); camp.over = false; camp.wait = 1.5; camp.banner = 0;
   openPicker("start");
 }

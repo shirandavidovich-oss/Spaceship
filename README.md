@@ -97,9 +97,10 @@ On THUL the two orange vent covers slide open, the vents pulse, and at 0.45 s th
 Tapped during a cannon shot, the smoke follows right after it.
 THUL's smoke is three times as thick as before, in bigger, nearly solid puffs: a real smoke screen that hides the ship.
 
-**Explosion films (a trial: THUL's, `video/thul-explode.mp4`, `FILMS`):** when THUL blows up (yours or the
-computer's), its film plays over the whole screen at full length, at its own resolution fitted to the screen; the game
-waits until it ends (a tap skips it). Not in a game against another phone. The app serves .mp4 as video/mp4.
+**Explosion films (`video/`, 720p, `FILMS`: THUL, SKARN, XELTAR, ORIAN, CANTOR, MIRAGE, LARIAT):** one a game, as a
+surprise. A new game picks one of those ships at random (`filmNewGame`); the first time it blows up (yours or the
+computer's) its film plays full screen, full length, and the game waits (a tap skips it). Only that film is loaded.
+Not in a game against another phone. The app serves .mp4 as video/mp4.
 
 **Every ship flies its own way** (`HANDLING`, next to `SHIPS`): multipliers for its size (drawn and as a target),
 top speed, engine push and turning. Small ones are quick (ZORIAN is 40% smaller and the fastest; PUFF, VANTA and
