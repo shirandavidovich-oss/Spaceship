@@ -21,7 +21,7 @@ The list is `BODIES` in the game.
 **Playing alone = playing the computer, fleet against fleet.** All the ships with real drawings (the hangar's 20) are
 split at random: half yours, half the computer's. You pick one of yours to start. A ship that blows up is out for good;
 you pick the next from the ones you have left (the row of icons under the health bar: the one you fly in gold, lost ones
-crossed out). Beat the computer's whole fleet (the count next to the health bar) and the next level starts: all its
+crossed out). Beat the computer's whole fleet (the count next to the health bar: ☠ ships left / all of them; the level number is not shown there) and the next level starts: all its
 ships come back, stronger (more damage, more armour, better aim, heavier weapons and magic more often; `levelStats`).
 It goes on until your whole fleet is gone, then "new game" splits the fleet again.
 

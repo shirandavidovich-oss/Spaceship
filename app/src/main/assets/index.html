@@ -1855,7 +1855,7 @@ const STR = {
     closer: "קרוב יותר לכוכב", mineIn: "המוקש כבר בכוכב", rarity: (r) => "חללית " + r, victory: "ניצחון!",
     levelUp: (n) => `שלב ${n}: צי המחשב חוזר, חזק יותר`, fleetLost: "כל הצי שלך הובס", reached: (n) => `הגעת לשלב ${n}`, newGame: "משחק חדש",
     pickFirst: "בחר חללית מהצי שלך", pickNext: "בחר את החללית הבאה", leftOf: (a, b, n) => `נשארו ${a} מתוך ${b}  ·  שלב ${n}`,
-    levelHud: (n, a, b) => `שלב ${n}  ·  ☠ ${a}/${b}`, yourShips: "החלליות שלך!", myShips: "החלליות שלי",
+    levelHud: (n, a, b) => `☠ ${a}/${b}`, yourShips: "החלליות שלך!", myShips: "החלליות שלי",
     killsCoins: (k, c) => `💀 ${k} חיסולים   ·   🪙 ${c} מטבעות`, online: (e) => "● מחובר לשרת · " + e + " · החלפות וקרבות עם שחקנים בכל מקום",
     offline: "בלי חשבון: הכול נשמר רק בטלפון הזה · החלפות וקרבות עם טלפון קרוב", noMagic: "בלי קסם", inUse: "✈ בשימוש",
     tradeDrag: "החלפה: גררו לכאן חללית שתרצו להחליף", tradeBoth: "ההחלפה קורית רק אם גם השחקן השני מציע חללית ושניכם מסכימים",
@@ -1864,7 +1864,7 @@ const STR = {
     closer: "Get closer to the star", mineIn: "The mine is already in the star", rarity: (r) => r + " ship", victory: "Victory!",
     levelUp: (n) => `Level ${n}: the computer's fleet returns, stronger`, fleetLost: "Your whole fleet is down", reached: (n) => `You reached level ${n}`, newGame: "New game",
     pickFirst: "Choose a ship from your fleet", pickNext: "Choose your next ship", leftOf: (a, b, n) => `${a} of ${b} left  ·  level ${n}`,
-    levelHud: (n, a, b) => `Level ${n}  ·  ☠ ${a}/${b}`, yourShips: "Your ships!", myShips: "My ships",
+    levelHud: (n, a, b) => `☠ ${a}/${b}`, yourShips: "Your ships!", myShips: "My ships",
     killsCoins: (k, c) => `💀 ${k} kills   ·   🪙 ${c} coins`, online: (e) => "● Online · " + e + " · trades and duels with players anywhere",
     offline: "No account: everything stays on this phone · trades and duels with a phone nearby", noMagic: "No magic", inUse: "✈ In use",
     tradeDrag: "Trade: drag a ship you want to swap here", tradeBoth: "The swap happens only if the other player offers a ship too and you both agree",
@@ -9983,7 +9983,7 @@ function drawFleetRow() {
   });
   ctx.restore();
 }
-// the level, and how many of the computer's ships are left: to the right of the health bar. A banner when a level is won
+// how many of the computer's ships are left (no level number: it ran into the map): to the right of the health bar. A banner when a level is won
 function drawLevel() {
   if (BOT || realDuel() || !camp.mine.length) return;
   const hb = Math.max(12, U * 0.032), x = tankBox().end + U * 0.025, y = U * 0.05 + hb / 2, f = Math.round(U * 0.032);
