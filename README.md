@@ -52,6 +52,13 @@ white -> black as before; magic: its recharge, with a dark sweep). Button 3 show
 a corner mark: ORIAN's charges, TALUS's layers, VANTA's colour, DRAKON's "!" while its bomb is out. When a magic goes off,
 the kit's 16-frame effect (`fx/`, 50 ms a frame) plays over the ship (TALUS: when it grows), on the other phone too.
 The kit's SVGs were turned into WebP (the app serves WebP already). `HUD_KIT = false` brings back the old drawn buttons.
+The buttons show their state only as a glowing outline round the plate's octagon (bright along the charged part, clockwise
+from the top: ammo, fuel for thrust, recharge for magic), nothing over the picture.
+
+**Language (עב | EN):** the pill under the round buttons on the right (on the ship-choice screen: the top-left corner)
+switches every text the game draws between Hebrew and English, and is remembered (`orbit-break.language`, the kit's key).
+The texts are in `STR` in `index.html` (`tr(key)`); magic, body and rarity names have English lists next to it. The
+sign-up form is still Hebrew only.
 
 **The thumb buttons:** thrust (left) and fire button 1 (right) in the two bottom corners, mirror images, 20% smaller
 than before (`PAD_SIZE`); the magic diagonally up-right of thrust and the heavy weapon (button 2) diagonally up-left of

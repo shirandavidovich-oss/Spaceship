@@ -1285,6 +1285,47 @@ const lerp = (a, b, k) => a + (b - a) * k;
 const ease = (k) => 1 - Math.pow(1 - clamp(k, 0, 1), 3);
 function buzz(ms) { try { native && native.vibrate(ms); } catch (e) {} }
 
+// ---------- the language: Hebrew / English (the Orbit Break kit's language button) ----------
+// Saved under the kit's key. Every text the game draws goes through tr(key, ...values). Ship names stay in Latin letters.
+const LANG_KEY = "orbit-break.language";
+let LANG = (() => { try { const v = LS.getItem(LANG_KEY); return v === "en" || v === "he" ? v : "he"; } catch (e) { return "he"; } })();
+const STR = {
+  he: { streak: (m) => `רצף ×${m}`, hacked: "⚠ נפרצת: הירייה הבאה תסטה ⚠", scrambled: (n) => `♪ הניווט שובש · ${n} ♪`,
+    closer: "קרוב יותר לכוכב", mineIn: "המוקש כבר בכוכב", rarity: (r) => "חללית " + r, victory: "ניצחון!",
+    levelUp: (n) => `שלב ${n}: צי המחשב חוזר, חזק יותר`, fleetLost: "כל הצי שלך הובס", reached: (n) => `הגעת לשלב ${n}`, newGame: "משחק חדש",
+    pickFirst: "בחר חללית מהצי שלך", pickNext: "בחר את החללית הבאה", leftOf: (a, b, n) => `נשארו ${a} מתוך ${b}  ·  שלב ${n}`,
+    levelHud: (n, a, b) => `שלב ${n}  ·  ☠ ${a}/${b}`, yourShips: "החלליות שלך!", myShips: "החלליות שלי",
+    killsCoins: (k, c) => `💀 ${k} חיסולים   ·   🪙 ${c} מטבעות`, online: (e) => "● מחובר לשרת · " + e + " · החלפות וקרבות עם שחקנים בכל מקום",
+    offline: "בלי חשבון: הכול נשמר רק בטלפון הזה · החלפות וקרבות עם טלפון קרוב", noMagic: "בלי קסם", inUse: "✈ בשימוש",
+    tradeDrag: "החלפה: גררו לכאן חללית שתרצו להחליף", tradeBoth: "ההחלפה קורית רק אם גם השחקן השני מציע חללית ושניכם מסכימים",
+    hangar: "האנגר בדיקות", hangarNote: "לבדיקה בלבד: הבחירה לא נשמרת. במשחק כל שחקן מקבל חללית אחת", noMagicYet: "בלי קסם עדיין" },
+  en: { streak: (m) => `Streak ×${m}`, hacked: "⚠ Hacked: your next shot will veer ⚠", scrambled: (n) => `♪ Steering scrambled · ${n} ♪`,
+    closer: "Get closer to the star", mineIn: "The mine is already in the star", rarity: (r) => r + " ship", victory: "Victory!",
+    levelUp: (n) => `Level ${n}: the computer's fleet returns, stronger`, fleetLost: "Your whole fleet is down", reached: (n) => `You reached level ${n}`, newGame: "New game",
+    pickFirst: "Choose a ship from your fleet", pickNext: "Choose your next ship", leftOf: (a, b, n) => `${a} of ${b} left  ·  level ${n}`,
+    levelHud: (n, a, b) => `Level ${n}  ·  ☠ ${a}/${b}`, yourShips: "Your ships!", myShips: "My ships",
+    killsCoins: (k, c) => `💀 ${k} kills   ·   🪙 ${c} coins`, online: (e) => "● Online · " + e + " · trades and duels with players anywhere",
+    offline: "No account: everything stays on this phone · trades and duels with a phone nearby", noMagic: "No magic", inUse: "✈ In use",
+    tradeDrag: "Trade: drag a ship you want to swap here", tradeBoth: "The swap happens only if the other player offers a ship too and you both agree",
+    hangar: "Test hangar", hangarNote: "For testing only: the choice is not saved. In the game each player gets one ship", noMagicYet: "No magic yet" }
+};
+const MAGIC_EN = { smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
+  hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
+  inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail" };
+const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
+const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
+function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
+function textDir() { return LANG === "he" ? "rtl" : "ltr"; }
+function magicName(M) { if (LANG === "he") return M.name; const k = Object.keys(MAGIC).find((q) => MAGIC[q] === M); return (k && MAGIC_EN[k]) || M.name; }
+function bodyName(B) { const i = BODIES.indexOf(B); return LANG === "he" || i < 0 ? B.name : BODY_EN[i] || B.name; }
+function rarityName(R) { if (LANG === "he") return R.name; const k = Object.keys(RARITY).find((q) => RARITY[q] === R); return RARITY_EN[k] || R.name; }
+function setLang(l) {
+  LANG = l; try { LS.setItem(LANG_KEY, l); } catch (e) {}
+  try { document.documentElement.lang = l; document.documentElement.dir = textDir(); } catch (e) {}
+}
+if (!BOT) setLang(LANG);
+
 // ---------- saved game ----------
 const SAVE_KEY = "spaceship.save";
 if (params.has("reset")) { try { LS.removeItem(SAVE_KEY); } catch (e) {} }
@@ -1714,6 +1755,7 @@ let swipe = null;
 cv.addEventListener("pointerdown", (e) => {
   audio.wake();
   if (trade.stage && tradeTap(e.clientX, e.clientY)) return;
+  if ((game.stage === "fly" || picker.open) && hitLang(e.clientX, e.clientY)) { setLang(LANG === "he" ? "en" : "he"); audio.pop(); buzz(10); return; }   // עב / EN
   if (picker.open || camp.over) { pickerTap(e.clientX, e.clientY); return; }   // choosing a ship / the fleet is gone
   if (fleet.open) { fleetDown(e); return; }
   if (hangar.open) { hangarTap(e.clientX, e.clientY); return; }
@@ -4493,12 +4535,12 @@ function drawScore() {
 function drawBounty() {
   if (!(bounty.t > 0) || !bounty.r) return;
   const r = bounty.r, a = Math.min(1, bounty.t / 0.4) * Math.min(1, (3.2 - bounty.t) / 0.2), f = Math.round(U * 0.05), y = H * 0.24;
-  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
   ctx.fillStyle = "rgba(10,12,32,0.8)"; roundRect(W / 2 - U * 0.3, y - f, U * 0.6, f * 1.6 + f * 0.62 * (r.lines.length + 1), f * 0.4); ctx.fill();
-  ctx.direction = "ltr"; ctx.font = `900 ${f}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.fillText(`+${r.total.toLocaleString("en-US")} 🪙`, W / 2, y - f * 0.1 - (1 - a) * f); ctx.direction = "rtl";
+  ctx.direction = "ltr"; ctx.font = `900 ${f}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.fillText(`+${r.total.toLocaleString("en-US")} 🪙`, W / 2, y - f * 0.1 - (1 - a) * f); ctx.direction = textDir();
   ctx.font = `600 ${Math.round(f * 0.42)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#cfd8f0";
   r.lines.forEach(([what, n], i) => ctx.fillText(`${what}: ${n}`, W / 2, y + f * 0.8 + i * f * 0.62));
-  if (r.mult > 1) { ctx.fillStyle = "#ff9f1c"; ctx.fillText(`רצף ×${r.mult.toFixed(1)}`, W / 2, y + f * 0.8 + r.lines.length * f * 0.62); }
+  if (r.mult > 1) { ctx.fillStyle = "#ff9f1c"; ctx.fillText(tr("streak", r.mult.toFixed(1)), W / 2, y + f * 0.8 + r.lines.length * f * 0.62); }
   ctx.restore();
 }
 function destroyEnemy() {
@@ -4619,17 +4661,18 @@ function drawKitButton(id, slot, b, o) {
     ctx.drawImage(icon, -d / 2, -d / 2, d, d); ctx.restore();
   }
   if (o.draw) o.draw(b.x, b.y, r);
-  // not ready: a dark sweep over what is still recharging
-  if (!o.ready && o.fill != null && o.fill < 1) {
-    ctx.fillStyle = "rgba(4,6,14,0.55)"; ctx.beginPath(); ctx.moveTo(b.x, b.y);
-    ctx.arc(b.x, b.y, r * 0.95, -Math.PI / 2 + TAU * clamp(o.fill, 0, 1), -Math.PI / 2 + TAU); ctx.closePath(); ctx.fill();
-  }
-  // the ring: ammo / fuel / recharge, round the plate
-  if (o.fill != null) {
-    ctx.globalAlpha = (o.alpha == null ? 1 : o.alpha) * (o.ready ? 1 : 0.8);
-    ctx.lineWidth = Math.max(2.5, r * 0.08); ctx.lineCap = "round";
-    ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.12, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = o.ring || accent; ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.12, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(o.fill, 0, 1)); ctx.stroke();
+  // the state is only a glow round the plate's own octagon (nothing drawn over its picture): bright along the part
+  // that is charged (ammo / fuel / recharge, clockwise from the top), faint along the rest
+  if (o.fill != null || o.ring) {
+    const R = r * 1.2, f = o.fill == null ? 1 : clamp(o.fill, 0, 1), col = o.ring || accent;
+    ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ctx.lineWidth = Math.max(1.5, r * 0.05); ctx.strokeStyle = hexA(col, 0.22); octagonPath(b.x, b.y, R, 1); ctx.stroke();
+    if (f > 0) {
+      ctx.shadowColor = col; ctx.shadowBlur = Math.max(4, r * (o.ready ? 0.3 : 0.12));
+      ctx.lineWidth = Math.max(2, r * 0.07); ctx.strokeStyle = o.ready ? col : hexA(col, 0.6); octagonPath(b.x, b.y, R, f); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
   }
   if (o.badge != null && o.badge !== "") {
     const bx = b.x + r * 0.78, by = b.y - r * 0.78, br = Math.max(9, r * 0.3);
@@ -4640,6 +4683,20 @@ function drawKitButton(id, slot, b, o) {
   }
   ctx.restore();
   return true;
+}
+// the plates' octagon (flat on top): its outline from the top middle, clockwise, `part` of the way round (0..1)
+function octagonPath(x, y, R, part) {
+  const pts = [];
+  for (let i = 0; i <= 8; i++) { const a = -Math.PI / 2 - Math.PI / 8 + i * Math.PI / 4; pts.push([x + Math.cos(a) * R, y + Math.sin(a) * R]); }
+  // start in the middle of the top side
+  const start = [(pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2], path = [start, ...pts.slice(1), pts[0], start];
+  let total = 0; for (let i = 1; i < path.length; i++) total += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]);
+  let left = total * part;
+  ctx.beginPath(); ctx.moveTo(start[0], start[1]);
+  for (let i = 1; i < path.length && left > 0; i++) {
+    const [ax, ay] = path[i - 1], [bx, by] = path[i], L = Math.hypot(bx - ax, by - ay), k = Math.min(1, left / L);
+    ctx.lineTo(ax + (bx - ax) * k, ay + (by - ay) * k); left -= L;
+  }
 }
 // the magic's little corner mark, for ships whose magic counts something
 function magicBadge(S) {
@@ -4911,7 +4968,7 @@ function drawHackNote() {
   if (!(game.hacked > 0) || game.dead) return;
   ctx.save(); ctx.font = `bold ${Math.round(Math.min(W, H) * 0.035)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top";
   ctx.fillStyle = Math.sin(time * 20) > 0 ? "#38f6ff" : "#ff3db8";
-  ctx.fillText("⚠ נפרצת: הירייה הבאה תסטה ⚠", W / 2, H * 0.14);
+  ctx.fillText(tr("hacked"), W / 2, H * 0.14);
   ctx.restore();
 }
 // scrambled me: a line at the top saying so, with the seconds left
@@ -4919,7 +4976,7 @@ function drawScrambleNote() {
   if (!(game.scramble > 0) || game.dead) return;
   ctx.save(); ctx.font = `bold ${Math.round(Math.min(W, H) * 0.035)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top";
   ctx.fillStyle = `rgba(255,195,139,${0.75 + 0.25 * Math.sin(time * 6)})`;
-  ctx.fillText("♪ הניווט שובש · " + Math.ceil(game.scramble) + " ♪", W / 2, H * 0.09);
+  ctx.fillText(tr("scrambled", Math.ceil(game.scramble)), W / 2, H * 0.09);
   ctx.restore();
 }
 // CANTOR's magic button: rings of sound round a note
@@ -5531,7 +5588,7 @@ function drawMineReach() {
   if (F.why === "range") { ctx.beginPath(); ctx.arc(c.x, c.y, planetR() + shipSize() * (0.32 + MAGIC.starmine.reach), 0, TAU); ctx.stroke(); }
   else if (game.starMine) { const p = toScreen(game.starMine.x, game.starMine.y); ctx.beginPath(); ctx.arc(p.x, p.y, shipSize() * 0.5, 0, TAU); ctx.stroke(); }
   ctx.setLineDash([]); ctx.fillStyle = "#c8ffe0"; ctx.font = `bold ${Math.round(U * 0.05)}px sans-serif`; ctx.textAlign = "center";
-  const p = shipScreen(); ctx.fillText(F.why === "range" ? "קרוב יותר לכוכב" : "המוקש כבר בכוכב", p.x, p.y - shipSize() * 0.8);
+  const p = shipScreen(); ctx.fillText(tr(F.why === "range" ? "closer" : "mineIn"), p.x, p.y - shipSize() * 0.8);
   ctx.restore();
 }
 // BORER's button: a drill over a star; a bomb in the star while one waits
@@ -6771,11 +6828,11 @@ function drawCard(S, alpha) {
   ctx.save(); ctx.globalAlpha = alpha;
   ctx.fillStyle = "rgba(12,14,36,0.85)"; roundRect(x, y, w, h, h * 0.18); ctx.fill();
   ctx.strokeStyle = R.color; ctx.lineWidth = 3; ctx.stroke();
-  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
   ctx.fillStyle = "#ffffff"; ctx.font = `800 ${Math.round(h * 0.26)}px Rubik, Arial, sans-serif`;
   ctx.fillText(S.name, W / 2, y + h * 0.3);
   ctx.fillStyle = R.color; ctx.font = `600 ${Math.round(h * 0.15)}px Rubik, Arial, sans-serif`;
-  ctx.fillText("חללית " + R.name, W / 2, y + h * 0.56);
+  ctx.fillText(tr("rarity", rarityName(R)), W / 2, y + h * 0.56);
   for (let i = 0; i < 4; i++) {
     ctx.fillStyle = i < R.stars ? R.color : "rgba(255,255,255,0.15)";
     starShape(W / 2 + (i - 1.5) * h * 0.18, y + h * 0.8, h * 0.07);
@@ -6932,7 +6989,7 @@ function draw() {
     if (game.flash > 0) { ctx.save(); ctx.globalAlpha = Math.min(0.7, game.flash * 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
     drawDuel();
-    drawHangarButton(); drawFleetBtn(); drawFleetRow(); drawLevel();
+    drawHangarButton(); drawFleetBtn(); drawLangBtn(); drawFleetRow(); drawLevel();
     if (COINS) { drawScore(); drawBounty(); }
     drawBodyLabel();
     drawNova();
@@ -6942,6 +6999,7 @@ function draw() {
   drawHangar();
   drawFleet();
   drawPicker();
+  if (picker.open || camp.over) drawLangBtn();   // (switch the language while choosing a ship, too)
 }
 
 // the planet in the middle of space (Star Control's melee planet)
@@ -7111,9 +7169,9 @@ function drawHoleBody(B, R, glow) {
 function drawBodyLabel() {
   if (!(cosmos.label > 0)) return;
   const B = body(), a = Math.min(1, cosmos.label / 0.6, (3 - cosmos.label) / 0.4), f = Math.round(U * 0.05);
-  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
   ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.fillStyle = B.color; ctx.shadowColor = "#000"; ctx.shadowBlur = 6;
-  ctx.fillText(B.name, W / 2, H * 0.17);
+  ctx.fillText(bodyName(B), W / 2, H * 0.17);
   // gravity: 5 dots, filled by how hard it pulls
   const n = Math.round(B.pull / 0.6 * 5);
   for (let i = 0; i < 5; i++) { ctx.fillStyle = i < n ? B.color : "rgba(255,255,255,0.2)"; ctx.beginPath(); ctx.arc(W / 2 + (i - 2) * f * 0.6, H * 0.17 + f * 0.9, f * 0.17, 0, TAU); ctx.fill(); }
@@ -7657,7 +7715,7 @@ function drawFire() {
         if (o.after) o.after(b.x, b.y, b.r);
         if (b.i === 2 && game.loot && game.loot.show < 1) {   // just picked up: a sparkle ring
           ctx.save(); ctx.globalAlpha = 1 - game.loot.show; ctx.strokeStyle = Wp.color; ctx.lineWidth = 3;
-          ctx.beginPath(); ctx.arc(b.x, b.y, b.r * (1.1 + game.loot.show), 0, TAU); ctx.stroke(); ctx.restore();
+          octagonPath(b.x, b.y, b.r * (1.2 + game.loot.show), 1); ctx.stroke(); ctx.restore();
         }
         continue;
       }
@@ -8660,18 +8718,18 @@ function drawFleetRow() {
 function drawLevel() {
   if (BOT || realDuel() || !camp.mine.length) return;
   const hb = Math.max(12, U * 0.032), x = U * 0.04 + Math.min(W * 0.42, U * 0.5) + U * 0.025, y = U * 0.05 + hb / 2, f = Math.round(U * 0.032);
-  const txt = `שלב ${camp.lvl}  ·  ☠ ${camp.left.length}/${camp.theirs.length}`;
-  ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = "rtl";
+  const txt = tr("levelHud", camp.lvl, camp.left.length, camp.theirs.length);
+  ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = textDir();
   const w = ctx.measureText(txt).width + f * 1.2;
   ctx.fillStyle = "rgba(10,12,32,0.65)"; roundRect(x, y - f * 0.75, w, f * 1.5, f * 0.5); ctx.fill();
   ctx.fillStyle = "#ffd166"; ctx.textAlign = "right"; ctx.fillText(txt, x + w - f * 0.6, y);
   ctx.restore();
   if (camp.banner > 0) {   // a level won
     const a = Math.min(1, camp.banner / 0.5) * Math.min(1, (3.5 - camp.banner) / 0.3), F = Math.round(U * 0.09);
-    ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
-    ctx.font = `900 ${F}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.fillText("ניצחון!", W / 2, H * 0.3);
+    ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
+    ctx.font = `900 ${F}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.fillText(tr("victory"), W / 2, H * 0.3);
     ctx.font = `700 ${Math.round(F * 0.45)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffffff";
-    ctx.fillText(`שלב ${camp.lvl}: צי המחשב חוזר, חזק יותר`, W / 2, H * 0.3 + F * 0.85);
+    ctx.fillText(tr("levelUp", camp.lvl), W / 2, H * 0.3 + F * 0.85);
     ctx.restore();
   }
 }
@@ -8682,23 +8740,23 @@ function drawPicker() {
   if (picker.open) picker.t += frameDt;
   ctx.save();
   ctx.fillStyle = "rgba(5,6,18,0.86)"; ctx.fillRect(0, 0, W, H);
-  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
   const f = Math.round(U * 0.06);
   if (camp.over) {
-    ctx.font = `900 ${Math.round(f * 1.3)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ff4d6d"; ctx.fillText("כל הצי שלך הובס", W / 2, H * 0.36);
-    ctx.font = `700 ${Math.round(f * 0.7)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffffff"; ctx.fillText(`הגעת לשלב ${camp.lvl}`, W / 2, H * 0.36 + f * 1.4);
+    ctx.font = `900 ${Math.round(f * 1.3)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ff4d6d"; ctx.fillText(tr("fleetLost"), W / 2, H * 0.36);
+    ctx.font = `700 ${Math.round(f * 0.7)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffffff"; ctx.fillText(tr("reached", camp.lvl), W / 2, H * 0.36 + f * 1.4);
     const bw = U * 0.5, bh = f * 1.6, bx = W / 2 - bw / 2, by = H * 0.56;
     ctx.fillStyle = "#ffd166"; roundRect(bx, by, bw, bh, bh / 2); ctx.fill();
-    ctx.fillStyle = "#1a1030"; ctx.font = `800 ${Math.round(f * 0.7)}px Rubik, Arial, sans-serif`; ctx.fillText("משחק חדש", W / 2, by + bh / 2);
+    ctx.fillStyle = "#1a1030"; ctx.font = `800 ${Math.round(f * 0.7)}px Rubik, Arial, sans-serif`; ctx.fillText(tr("newGame"), W / 2, by + bh / 2);
     picker.cards.push({ again: true, x: bx, y: by, w: bw, h: bh });
     ctx.restore(); return;
   }
   const list = pickerShips(), vsBot = picker.why === "start" || duel.bot || !duel.stage;
   ctx.font = `900 ${f}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffffff";
-  ctx.fillText(picker.why === "start" ? "בחר חללית מהצי שלך" : "בחר את החללית הבאה", W / 2, U * 0.12);
+  ctx.fillText(tr(picker.why === "start" ? "pickFirst" : "pickNext"), W / 2, U * 0.12);
   if (vsBot) {
     ctx.font = `600 ${Math.round(f * 0.45)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#9fb4d8";
-    ctx.fillText(`נשארו ${list.filter((id) => !camp.lost.includes(id)).length} מתוך ${list.length}  ·  שלב ${camp.lvl}`, W / 2, U * 0.12 + f * 0.95);
+    ctx.fillText(tr("leftOf", list.filter((id) => !camp.lost.includes(id)).length, list.length, camp.lvl), W / 2, U * 0.12 + f * 0.95);
   }
   // a grid of cards: the top-down ship and its name
   // as many columns as it takes for every card to fit on the screen (at least 3)
@@ -8716,7 +8774,7 @@ function drawPicker() {
     drawShip(S, x + cw / 2, y + ch * 0.44, cw * 0.72, { power: 0.3, ang: Math.sin(time * 0.9 + i) * 0.12, icon: true });
     ctx.restore();
     ctx.font = `800 ${Math.round(cw * 0.13)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffffff"; ctx.direction = "ltr";
-    ctx.fillText(S.name, x + cw / 2, y + ch * 0.9); ctx.direction = "rtl";
+    ctx.fillText(S.name, x + cw / 2, y + ch * 0.9); ctx.direction = textDir();
     if (lost) { ctx.globalAlpha = pop; cross(x + cw / 2, y + ch * 0.44, cw * 0.25); }
     picker.cards.push({ id, lost, x, y, w: cw, h: ch });
   });
@@ -8731,6 +8789,26 @@ const fleet = { open: false, first: false, t: 0, cards: [], zone: null, press: n
 function fleetOpen(first) { fleet.open = true; fleet.first = !!first; fleet.t = 0; fleet.press = null; if (first) game.stage = "fleet"; }
 function fleetClose() { if (!profile || !profile.active) return; fleet.open = false; if (trade.fleet && trade.stage && trade.stage !== "swapping") { if (trade.stage === "offer" || trade.stage === "waiting") link.send({ t: "no" }); endTrade(); } }
 function fleetBtn() { const h = hangarBtn(); return HANGAR ? { x: h.x, y: h.y + h.r * 2.7, r: h.r } : h; }
+// the language button (the kit's Hebrew / English): a pill under the round buttons, the active language lit
+function langBtn() {
+  const f = fleetBtn(), r = f.r;
+  if (picker.open || camp.over) return { x: U * 0.035, y: U * 0.03, w: r * 2.5, h: r * 1.15 };   // over the ship cards: the top-left corner
+  return { x: f.x - r * 1.25, y: f.y + r * 1.9, w: r * 2.5, h: r * 1.15 };
+}
+function hitLang(x, y) { const b = langBtn(); return x > b.x - 6 && x < b.x + b.w + 6 && y > b.y - 6 && y < b.y + b.h + 6; }
+function drawLangBtn() {
+  if (BOT || trade.stage) return;
+  const b = langBtn(), f = Math.round(b.h * 0.5);
+  ctx.save(); ctx.direction = "ltr"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(10,12,32,0.75)"; ctx.strokeStyle = "rgba(124,140,255,0.6)"; ctx.lineWidth = 1.5;
+  roundRect(b.x, b.y, b.w, b.h, b.h / 2); ctx.fill(); ctx.stroke();
+  [["עב", "he"], ["EN", "en"]].forEach(([t, l], i) => {
+    const on = LANG === l, cx = b.x + b.w * (i ? 0.73 : 0.27);
+    if (on) { ctx.fillStyle = "rgba(223,255,131,0.22)"; roundRect(cx - b.w * 0.22, b.y + 3, b.w * 0.44, b.h - 6, (b.h - 6) / 2); ctx.fill(); }
+    ctx.font = `${on ? 900 : 600} ${f}px Rubik, Arial, sans-serif`; ctx.fillStyle = on ? "#dfff83" : "#8fa0c8"; ctx.fillText(t, cx, b.y + b.h / 2 + 1);
+  });
+  ctx.restore();
+}
 function hitFleetBtn(x, y) { const b = fleetBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.4; }
 // fly this one of my ships
 function pickShip(id) {
@@ -8797,7 +8875,7 @@ function drawFront(S, x, y, w, h, alpha = 1) {
 }
 function check(x, y, r, c) { ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = Math.max(3, r * 0.35); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x - r * 0.25, y + r * 0.7); ctx.lineTo(x + r, y - r * 0.7); ctx.stroke(); ctx.restore(); }
 function drawFleetBtn() {
-  if (!profile || duel.stage || trade.stage) return;
+  if (!profile || realDuel() || trade.stage) return;
   const b = fleetBtn();
   ctx.save(); ctx.translate(b.x, b.y);
   ctx.fillStyle = "rgba(10,12,32,0.7)"; ctx.strokeStyle = "rgba(255,209,102,0.85)"; ctx.lineWidth = 2;
@@ -8816,12 +8894,12 @@ function drawFleet() {
   ctx.save(); ctx.globalAlpha = pop;
   ctx.fillStyle = "rgba(5,6,18,0.93)"; ctx.fillRect(0, 0, W, H);
   const f = Math.round(U * 0.055);
-  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl"; ctx.fillStyle = "#ffffff";
-  ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.fillText(fleet.first ? "החלליות שלך!" : "החלליות שלי", W / 2, U * 0.075);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir(); ctx.fillStyle = "#ffffff";
+  ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.fillText(tr(fleet.first ? "yourShips" : "myShips"), W / 2, U * 0.075);
   ctx.font = `600 ${Math.round(f * 0.48)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166";
-  ctx.fillText(`💀 ${profile.kills || 0} חיסולים   ·   🪙 ${(profile.money || 0).toLocaleString("en-US")} מטבעות`, W / 2, U * 0.075 + f * 0.85);
+  ctx.fillText(tr("killsCoins", profile.kills || 0, (profile.money || 0).toLocaleString("en-US")), W / 2, U * 0.075 + f * 0.85);
   ctx.font = `500 ${Math.round(f * 0.34)}px Rubik, Arial, sans-serif`; ctx.fillStyle = server.signedIn ? "#6dff9a" : "#9fb4d8";
-  ctx.fillText(server.signedIn ? "● מחובר לשרת · " + profile.email + " · החלפות וקרבות עם שחקנים בכל מקום" : "בלי חשבון: הכול נשמר רק בטלפון הזה · החלפות וקרבות עם טלפון קרוב", W / 2, U * 0.075 + f * 1.45);
+  ctx.fillText(server.signedIn ? tr("online", profile.email) : tr("offline"), W / 2, U * 0.075 + f * 1.45);
   if (profile.active) { const cr = U * 0.045, cx = W - U * 0.06 - cr, cy = U * 0.075; cross(cx, cy, cr * 0.45, "#ffffff"); fleet.cards.push({ close: true, x: cx - cr * 1.4, y: cy - cr * 1.4, w: cr * 2.8, h: cr * 2.8 }); }
   // the three cards
   const top = U * 0.075 + f * 1.85, zoneH = Math.max(U * 0.2, H * 0.2), gap = U * 0.03;
@@ -8840,9 +8918,9 @@ function drawFleet() {
     for (let k = 0; k < R.stars; k++) starShape(x + cw / 2 + (k - (R.stars - 1) / 2) * cw * 0.07, y + ch * 0.765, cw * 0.025);
     const ws = weaponsOf(S), M = magicOf(S), ir = cw * 0.045;
     ws.forEach((w, j) => weaponIcon(w, x + cw / 2 + (j - 0.5) * ir * 3.2, y + ch * 0.85, ir, WEAPONS[w].color));
-    ctx.direction = "rtl"; ctx.fillStyle = M ? M.color : "#6c6c78"; ctx.font = `600 ${Math.round(cw * 0.062)}px Rubik, Arial, sans-serif`;
-    ctx.fillText(M ? M.name + (S.magic2 ? " · " + MAGIC[S.magic2].name : "") : "בלי קסם", x + cw / 2, y + ch * 0.94);
-    if (on) { ctx.fillStyle = "#4fc3ff"; ctx.font = `800 ${Math.round(cw * 0.06)}px Rubik, Arial, sans-serif`; ctx.fillText("✈ בשימוש", x + cw / 2, y + ch * 0.05 + cw * 0.04); }
+    ctx.direction = textDir(); ctx.fillStyle = M ? M.color : "#6c6c78"; ctx.font = `600 ${Math.round(cw * 0.062)}px Rubik, Arial, sans-serif`;
+    ctx.fillText(M ? magicName(M) + (S.magic2 ? " · " + magicName(MAGIC[S.magic2]) : "") : tr("noMagic"), x + cw / 2, y + ch * 0.94);
+    if (on) { ctx.fillStyle = "#4fc3ff"; ctx.font = `800 ${Math.round(cw * 0.06)}px Rubik, Arial, sans-serif`; ctx.fillText(tr("inUse"), x + cw / 2, y + ch * 0.05 + cw * 0.04); }
     ctx.restore();
     fleet.cards.push({ i, x, y, w: cw, h: ch });
   });
@@ -8852,13 +8930,13 @@ function drawFleet() {
   ctx.save(); ctx.globalAlpha = pop;
   ctx.fillStyle = inZ ? "rgba(255,209,102,0.16)" : "rgba(20,24,52,0.6)"; roundRect(Z.x, Z.y, Z.w, Z.h, Z.h * 0.18); ctx.fill();
   ctx.setLineDash(trade.fleet && trade.stage ? [] : [10, 8]); ctx.strokeStyle = drag ? "#ffd166" : "rgba(159,180,216,0.6)"; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
-  ctx.direction = "rtl"; ctx.fillStyle = "#cfd8f0"; const zf = Math.round(Math.min(Z.h * 0.2, U * 0.04));
+  ctx.direction = textDir(); ctx.fillStyle = "#cfd8f0"; const zf = Math.round(Math.min(Z.h * 0.2, U * 0.04));
   ctx.font = `700 ${zf}px Rubik, Arial, sans-serif`;
   const st = trade.fleet ? trade.stage : null, mid = Z.y + Z.h / 2;
   if (!st) {
-    ctx.fillText("החלפה: גררו לכאן חללית שתרצו להחליף", W / 2, mid - zf * 0.6);
+    ctx.fillText(tr("tradeDrag"), W / 2, mid - zf * 0.6);
     ctx.font = `500 ${Math.round(zf * 0.75)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#9fb4d8";
-    ctx.fillText("ההחלפה קורית רק אם גם השחקן השני מציע חללית ושניכם מסכימים", W / 2, mid + zf * 0.7);
+    ctx.fillText(tr("tradeBoth"), W / 2, mid + zf * 0.7);
   } else {
     // mine on the right, theirs on the left (or a search), the buttons between
     const bh = Z.h * 0.84, bw = bh * 1.25, mineS = shipById(trade.mine), theirs = trade.peer && shipById(trade.peer);
@@ -8868,7 +8946,7 @@ function drawFleet() {
       drawFront(theirs, Z.x + Z.h * 0.08, Z.y + Z.h * 0.08, bw, bh);
       ctx.fillStyle = RARITY[theirs.rarity].color; ctx.fillText(theirs.name, Z.x + Z.h * 0.08 + bw / 2, Z.y + Z.h * 0.08 + bh * 0.88);
     }
-    ctx.direction = "rtl"; ctx.fillStyle = "#ffd166"; ctx.font = `700 ${zf}px Rubik, Arial, sans-serif`;
+    ctx.direction = textDir(); ctx.fillStyle = "#ffd166"; ctx.font = `700 ${zf}px Rubik, Arial, sans-serif`;
     const say = st === "looking" ? "מחפש שחקן שמציע חללית" + ".".repeat(1 + Math.floor(time * 2) % 3) : st === "offer" ? "להחליף?" : st === "waiting" ? "מחכה שהשחקן השני יסכים…" : st === "swapping" ? "הוחלף! ✨" : st === "declined" ? "ההחלפה בוטלה" : "";
     ctx.fillText(say, W / 2, Z.y + Z.h * 0.25);
     const br = Math.min(Z.h * 0.2, U * 0.06), by = Z.y + Z.h * 0.65;
@@ -8933,10 +9011,10 @@ function drawHangar() {
   ctx.fillStyle = "rgba(5,6,18,0.88)"; ctx.fillRect(0, 0, W, H);
   // the title, and a close button
   const f = Math.round(U * 0.055);
-  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl"; ctx.fillStyle = "#ffffff";
-  ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.fillText("האנגר בדיקות", W / 2, U * 0.08);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir(); ctx.fillStyle = "#ffffff";
+  ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.fillText(tr("hangar"), W / 2, U * 0.08);
   ctx.font = `500 ${Math.round(f * 0.45)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#9fb4d8";
-  ctx.fillText("לבדיקה בלבד: הבחירה לא נשמרת. במשחק כל שחקן מקבל חללית אחת", W / 2, U * 0.08 + f * 0.85);
+  ctx.fillText(tr("hangarNote"), W / 2, U * 0.08 + f * 0.85);
   const cr = U * 0.045, cx = W - U * 0.06 - cr, cy = U * 0.08;
   cross(cx, cy, cr * 0.45, "#ffffff"); hangar.cards.push({ close: true, x: cx - cr * 1.4, y: cy - cr * 1.4, w: cr * 2.8, h: cr * 2.8 });
   // the cards: as many columns as fit
@@ -8960,8 +9038,8 @@ function drawHangar() {
     ctx.fillText(S.name, x + cw / 2, y + ch * 0.74);
     const ws = weaponsOf(S), M = magicOf(S), ir = ch * 0.045;
     ws.forEach((w, j) => weaponIcon(w, x + cw / 2 + (j - (ws.length - 1) / 2) * ir * 3, y + ch * 0.86, ir, WEAPONS[w].color));
-    ctx.direction = "rtl"; ctx.fillStyle = M ? M.color : "#6c6c78"; ctx.font = `600 ${Math.round(ch * 0.055)}px Rubik, Arial, sans-serif`;
-    ctx.fillText(M ? M.name : "בלי קסם עדיין", x + cw / 2, y + ch * 0.95);
+    ctx.direction = textDir(); ctx.fillStyle = M ? M.color : "#6c6c78"; ctx.font = `600 ${Math.round(ch * 0.055)}px Rubik, Arial, sans-serif`;
+    ctx.fillText(M ? magicName(M) : tr("noMagicYet"), x + cw / 2, y + ch * 0.95);
     hangar.cards.push({ id: S.id, x, y, w: cw, h: ch });
   });
   ctx.restore();
@@ -8990,7 +9068,7 @@ if (BOT) {
   try { parent.botReady(); } catch (e) {}
 } else requestAnimationFrame(frame);
 // test hooks (used by the screenshot checks on a computer)
-window.__ship = { SHIPS, damageShip, kitFx, tryShipTest: (id) => tryShip(id), camp, picker, bot, pickerTap, botAI, realDuel, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic, duel, duelButton, eggs, hunters };
+window.__ship = { SHIPS, langBox: () => langBtn(), damageShip, kitFx, tryShipTest: (id) => tryShip(id), camp, picker, bot, pickerTap, botAI, realDuel, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic, duel, duelButton, eggs, hunters };
 </script>
 </body>
 </html>
