@@ -1135,11 +1135,7 @@ const WEAPONS = {
   ionrivet: { name: "מסמרת יונים", dmg: 9, speed: 2.6, life: 1.15, cool: 0.35, ammo: 18, refill: 7, r: 0.02, color: "#7ce9dc" },
   harpoon:  { name: "צלצל כוכב", dmg: 0, speed: 0, life: 0, cool: 2.4, ammo: 3, refill: 7, r: 0, color: "#eaa276", harpoon: true },
   // GIMBAL. blade: from both sides of the bow at once, each `splay` radians out from the nose. gate: no shot (the gate)
-  //   The rings chase the enemy and never give up (chase: no end to their life, the body in the middle does not stop
-  //   them); each one hit takes `dmg` (15 hits = a whole ship, its 5 spare tanks too). At most `max` of yours at once
-  //   (the oldest goes). Half as fast again as before (speed 2.6)
-  blade:   { name: "להבי טבעת", dmg: 40, speed: 3.9, life: Infinity, cool: 0.43, ammo: 16, refill: 7, r: 0.03, color: "#6fe9ff", both: true, splay: 0.145,
-             homing: 5, chase: true, max: 40 },
+  blade:   { name: "להבי טבעת", dmg: 8, speed: 2.6, life: 1.2, cool: 0.43, ammo: 16, refill: 7, r: 0.03, color: "#6fe9ff", both: true, splay: 0.145 },
   gate:    { name: "שער רבע סיבוב", dmg: 0, speed: 0, life: 0, cool: 5.7, ammo: 2, refill: 11, r: 0, color: "#e9b66a", gate: true },
   ricochet: { name: "קליע ניתור", dmg: 9, speed: 3.0, life: 0.9, cool: 0.38, ammo: 16, refill: 6, r: 0.022, color: "#dfff83" },
   wall:    { name: "הצבת קיר",   dmg: 0, speed: 0, life: 0, cool: 4.6, ammo: 2, refill: 8, r: 0, color: "#e8e4f0", palWall: true },
@@ -4677,7 +4673,7 @@ function updateWeapons(dt) {
     if (Wp.phase) phaseTrail(s);
     if (s.life > Wp.life) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); if (Wp.blast) torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }
     // into the planet: a puff, and it is gone
-    if (!Wp.chase && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {   // (GIMBAL's rings fly over it)
+    if (Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
       if (Wp.magnet) burstAt(s.x, s.y, 10, [Wp.colors[(s.ix || 0) % Wp.colors.length], "#ffffff"], 0.35, 0.7);
       burstAt(s.x, s.y, 5, ["#b8a3ff", "#ffffff"], 0.2, 0.6); shots.splice(k, 1); continue;
     }
@@ -4772,13 +4768,6 @@ function shoot(i) {
   audio.shot(w);
 }
 // the shots leave from a gun point on the ship, turned with the ship
-// GIMBAL's chasing rings: at most `max` of one side's in the air; the oldest goes
-function capChasers(list, w) {
-  const Wp = WEAPONS[w];
-  if (!Wp || !Wp.max) return;
-  let n = 0; for (const q of list) if (q.w === w) n++;
-  for (let i = 0; i < list.length && n > Wp.max; i++) if (list[i].w === w) { list.splice(i, 1); i--; n--; }
-}
 function spawnShots(w, g, rot) {
   const Wp = WEAPONS[w], S = shipById(game.ship), size = shipSize() * shipScale();
   // hacked (GLITCH's pulse): this firing goes off a quarter turn clockwise, once (a burst's later rounds pass `rot` on)
@@ -4815,7 +4804,6 @@ function spawnShots(w, g, rot) {
       shake(0.45 + lvl * 0.15); buzz(110 + lvl * 30);
     }
   }
-  capChasers(shots, w);   // (GIMBAL's rings: not too many at once)
   // in a duel the other phone shows these shots too
   if (duel.stage === "on") for (const s of shots.slice(-pelletAngles(Wp).length)) { s.id = ++shotSeq; duelSend({ t: "f", w, ...netPos(s), s: S.id, id: s.id, v: s.lvl || 0, ix: s.ix }); }
   // shots with their own drawing (THUL's cannonball, VEXAR's thorns). THUL's flash, shock ring and sparks are in its frames
@@ -5344,15 +5332,13 @@ function drawGate(G, mine) {
   ctx.restore();
 }
 // GIMBAL's plume: out of the cage's back, the opposite way to where it pushes (the nose may have turned on since)
-const GIM_FLAME = 4;   // GIMBAL's flame: 4 times as long as it was (+300%)
 function drawGimbalPlume(o, power, pa) {
   if (power < 0.05 || pa == null) return;
-  const p = toScreen(o.x, o.y), size = shipSize(), len = size * (0.35 + 0.45 * power) * GIM_FLAME * (0.9 + 0.1 * Math.sin(time * 40));
+  const p = toScreen(o.x, o.y), size = shipSize(), len = size * (0.35 + 0.45 * power) * (0.9 + 0.1 * Math.sin(time * 40));
   ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(pa + Math.PI);
   const g = ctx.createLinearGradient(0, -size * 0.38, 0, -size * 0.38 - len);
   g.addColorStop(0, "rgba(255,255,255,0.95)"); g.addColorStop(0.3, "rgba(111,233,255,0.85)"); g.addColorStop(1, "rgba(111,233,255,0)");
-  const fw = size * 0.07 * Math.sqrt(GIM_FLAME);   // (a little wider too, so the long flame is not a needle)
-  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-fw, -size * 0.36); ctx.quadraticCurveTo(0, -size * 0.38 - len * 1.4, fw, -size * 0.36); ctx.fill();
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-size * 0.07, -size * 0.36); ctx.quadraticCurveTo(0, -size * 0.38 - len * 1.4, size * 0.07, -size * 0.36); ctx.fill();
   ctx.restore();
 }
 function drawGimbal() {
@@ -9514,7 +9500,6 @@ function duelLink(event, data) {
     duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
     if (duel.shots.length < 60) audio.shot(m.w);
-    capChasers(duel.shots, m.w);
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, fl: 0, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
   } else if (m.t === "cv" && shipById(m.s) && Array.isArray(m.p)) {   // their KRAAL's crossing bolts (their phone counts the blast)
@@ -9716,7 +9701,7 @@ function updateDuel(dt) {
     if (trapOpen()) suckShot(game, shipById(game.ship), s, dt);   // (their phone pulls it the same way)
     if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it and tells me: "caught")
     const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shotScale(s, Wp) * shipSize();
-    const inPlanet = !Wp.chase && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
+    const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
     if (near || inPlanet || s.life > Wp.life) {
       if (Wp.blast && !inPlanet) torpedoBlast(s, Wp, false);   // their torpedo going off (their phone counts it)
       if (near) burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 5, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);
