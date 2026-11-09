@@ -97,6 +97,10 @@ On THUL the two orange vent covers slide open, the vents pulse, and at 0.45 s th
 Tapped during a cannon shot, the smoke follows right after it.
 THUL's smoke is three times as thick as before, in bigger, nearly solid puffs: a real smoke screen that hides the ship.
 
+**Explosion films (a trial: THUL's, `video/thul-explode.mp4`, `FILMS`):** when THUL blows up (yours or the
+computer's), its film plays over the whole screen at full length, at its own resolution fitted to the screen; the game
+waits until it ends (a tap skips it). Not in a game against another phone. The app serves .mp4 as video/mp4.
+
 **Every ship flies its own way** (`HANDLING`, next to `SHIPS`): multipliers for its size (drawn and as a target),
 top speed, engine push and turning. Small ones are quick (ZORIAN is 40% smaller and the fastest; PUFF, VANTA and
 ORIAN 20% smaller and faster), heavy ones slow (PALISADE, THUL, REPRISE, TALUS). Every engine still beats the black

@@ -202,6 +202,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (p.endsWith(".webp")) return "image/webp";
         if (p.endsWith(".png")) return "image/png";
         if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return "image/jpeg";
+        if (p.endsWith(".mp4")) return "video/mp4";
         if (p.endsWith(".mp3")) return "audio/mpeg";
         if (p.endsWith(".ogg")) return "audio/ogg";
         if (p.endsWith(".wav")) return "audio/wav";

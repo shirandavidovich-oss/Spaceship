@@ -2512,6 +2512,7 @@ function shipSize() { return U * 0.26; }
 
 function update(dt) {
   musicTick();   // (the loop for this screen)
+  if (!BOT && ((game.t % 1) < dt)) filmPreload();   // (once a second: load the film of a ship that is about)
   time += dt; game.t += dt;
   pipeDrain();
   updateKitFx(dt); if (HUD_KIT && !BOT) { kitPreloadFx(game.ship); if (enemy.ship) kitPreloadFx(enemy.ship); }
@@ -4610,6 +4611,7 @@ function blowUpShip() {
   for (let k = 0; k < 10; k++) smokeAt(game.x, game.y, game, S, 2.5, 2.5);
   rings.push({ x: game.x, y: game.y, t: 0, max: 0.8, r: shipSize() * 2.6, c: S.flame });
   audio.boom(); audio.cannon(); shake(1.2); buzz(400);
+  playShipFilm(S.id);   // THUL: its explosion film
   enemy.ghostX = game.x; enemy.ghostY = game.y;
 }
 function respawnShip() {
@@ -5951,7 +5953,7 @@ function fadeVoice(v) {
 // every frame: the loop the screen wants. It changes only when the wanted one changes (and once it has loaded)
 function musicTick() {
   if (BOT) return;
-  const key = result.mode ? null : game.stage === "title" ? "title" : (hangar.open || picker.open) ? "hangar"
+  const key = result.mode || cine.on ? null : game.stage === "title" ? "title" : (hangar.open || picker.open) ? "hangar"
     : (game.stage === "fly" || game.stage === "arrive") ? (BODY_MUSIC[body().id] || "orange-sun") : "title";
   music.want = key;
   const c = audio.ctx;
@@ -6032,6 +6034,41 @@ function drawDials() {
   }
 }
 
+// ---- a ship's own explosion film (a trial: THUL's). When that ship blows up (mine, or the computer's), the film plays
+// over the whole screen, full length, at its own size (fitted to the screen), and the game waits until it ends or is
+// tapped. Not in a game against another phone (that one cannot wait). Loaded in the background once that ship is about;
+// not loaded yet: just the game's own explosion ----
+const FILMS = { brass: "video/thul-explode.mp4" };
+const cine = { on: false, el: null, urls: {}, loading: {} };
+function filmPreload() {
+  if (BOT) return;
+  for (const id of [game.ship, enemy.ship]) {
+    const f = FILMS[id];
+    if (!f || cine.urls[id] || cine.loading[id]) continue;
+    cine.loading[id] = true;
+    fetch(f).then((r) => { if (!r.ok) throw new Error(r.status); return r.blob(); })
+      .then((b) => { cine.urls[id] = URL.createObjectURL(b.type ? b : new Blob([b], { type: "video/mp4" })); })
+      .catch(() => {}).finally(() => { cine.loading[id] = false; });
+  }
+}
+// a ship of `id` just blew up: its film, if it has one and it is ready. true: it plays
+function playShipFilm(id) {
+  if (BOT || cine.on || !cine.urls[id] || (duel.stage && !duel.bot)) return false;
+  setTimeout(() => {   // (a moment of the game's own blast first, then the film)
+    if (cine.on) return;
+    const v = document.createElement("video");
+    v.src = cine.urls[id]; v.playsInline = true; v.setAttribute("playsinline", ""); v.preload = "auto";
+    v.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;object-fit:contain;background:#000;z-index:50";
+    v.volume = clamp(Math.max(VOL.effects, 0.15), 0, 1);
+    const done = () => { if (!cine.on) return; cine.on = false; try { v.pause(); } catch (e) {} v.remove(); cine.el = null; last = performance.now(); };
+    v.addEventListener("ended", done); v.addEventListener("error", done);
+    v.addEventListener("pointerdown", (e) => { e.preventDefault(); done(); });   // a tap skips it
+    document.body.appendChild(v); cine.el = v; cine.on = true;
+    game.thrust = null; game.stick = null; game.fire = [null, null, null];
+    v.play().catch(() => { v.muted = true; v.play().catch(done); });   // (sound blocked: play it silent)
+  }, 650);
+  return true;
+}
 // ---- the title screen (the main menu): the game's name, VEXAR, tap to start ----
 function drawTitle() {
   if (game.stage !== "title") return;
@@ -9847,6 +9884,7 @@ function updateRival(dt) {
     burstAt(enemy.x, enemy.y, 90, ["#ffffff", "#ffd166", E.flame, E.hull, E.trim, "#ff6b35"], 1.4, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
     rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.7, r: shipSize() * 2.2, c: "#ffd166" });
     audio.boom(); buzz(220);
+    playShipFilm(E.id);   // their THUL: its explosion film
     Object.assign(crate, { on: true, w: lootOf(E), x: enemy.x, y: enemy.y, vx: enemy.vx * 0.4, vy: enemy.vy * 0.4, t: 0 });
   } else if (!n.d && !enemy.on) { enemy.on = true; enemy.warp = 1; enemy.x = tx; enemy.y = ty; duel.roundStart = game.t; }
   if (!enemy.on) return;
@@ -10591,6 +10629,7 @@ let last = performance.now(), frameDt = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; frameDt = dt;
   requestAnimationFrame(frame);   // first: an error below must never stop the game
+  if (cine.on) { musicTick(); return; }   // a ship's film is playing over the game: everything waits
   try { update(dt); } catch (e) { console.error("update:", e && e.stack || e); }
   // the computer player moves on with every frame of the page (it has no frames of its own)
   if (bot.ready) { const bw = botWindow(); try { bw && bw.botTick && bw.botTick(dt); } catch (e) { console.error("computer player:", e && e.stack || e); } }
