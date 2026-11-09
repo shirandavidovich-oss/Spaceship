@@ -482,7 +482,7 @@ const ONLINE_RATE = 12;   // messages a second about your ship in an online duel
 const COINS      = false;  // coins for beating a player (off for now: the fleet row is shown instead)
 const HUD_KIT    = true;   // the battle buttons and magic effects from the Orbit Break kit (art/hud/). false = the old drawn buttons
 const THREE_SHIPS = false; // each player's own 3 ships (sign-up, "my ships", trading). Off for now: two random fleets, as against the computer
-const HANGAR     = true;   // for now: a hangar button (under the duel swords) to try every drawn ship. false = the real game only
+const HANGAR     = !(() => { try { return window.ShipNative && window.ShipNative.release && window.ShipNative.release(); } catch (e) { return false; } })();   // the test hangar: in the DEV app (and on a computer), not in the players' app
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
 const TANKS      = 5;    // spare health tanks beside the bar: when health runs out, one empties and fills it again;
@@ -10137,7 +10137,7 @@ function campTick(dt) {
 const picker = { open: false, why: "", t: 0, cards: [] };
 function pickerShips() {
   if (picker.why !== "lost" || duel.bot || !duel.stage) return camp.mine;   // against the computer: my half of the fleet
-  return HANGAR ? hangarShips().map((S) => S.id) : profile ? profile.fleet : [game.ship];   // against a phone: any of them
+  return HANGAR || !THREE_SHIPS ? hangarShips().map((S) => S.id) : profile ? profile.fleet : [game.ship];   // against a phone: any of them
 }
 function openPicker(why) {
   if (BOT) return;

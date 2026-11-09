@@ -14,6 +14,24 @@ android {
         versionName "0.9"
     }
 
+    // Two editions, side by side on one phone (each updates the game from GitHub the same way):
+    //   dev:  "Orbit Break DEV", the test hangar on (the id the first builds had, so it installs over them)
+    //   play: "Orbit Break", for players: no test hangar
+    flavorDimensions "edition"
+    productFlavors {
+        dev {
+            dimension "edition"
+            resValue "string", "app_name", "Orbit Break DEV"
+            resValue "bool", "release_build", "false"
+        }
+        play {
+            dimension "edition"
+            applicationId "com.shiran.orbitbreak"
+            resValue "string", "app_name", "Orbit Break"
+            resValue "bool", "release_build", "true"
+        }
+    }
+
     // One fixed key, so each new build installs over the previous one.
     signingConfigs {
         debug {

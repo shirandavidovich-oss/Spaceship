@@ -39,8 +39,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk Spaceship.apk
-          gh release create "build-${{ github.run_number }}" Spaceship.apk \
-            --title "Spaceship build ${{ github.run_number }}" \
+          cp app/build/outputs/apk/play/debug/app-play-debug.apk OrbitBreak.apk
+          cp app/build/outputs/apk/dev/debug/app-dev-debug.apk OrbitBreak-DEV.apk
+          gh release create "build-${{ github.run_number }}" OrbitBreak.apk OrbitBreak-DEV.apk \
+            --title "Orbit Break build ${{ github.run_number }}" \
             --notes "${{ github.event.head_commit.message }}" \
             --latest

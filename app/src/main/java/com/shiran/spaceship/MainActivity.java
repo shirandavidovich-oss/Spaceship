@@ -214,6 +214,10 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     /** Things the page can ask the phone to do. */
     private class Bridge {
+        /** The edition: true in the players' app (no test hangar), false in the DEV app. */
+        @JavascriptInterface
+        public boolean release() { return getResources().getBoolean(R.bool.release_build); }
+
         @JavascriptInterface
         public void vibrate(int ms) {
             Vibrator v = (Vibrator) getSystemService(VIBRATOR_SERVICE);

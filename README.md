@@ -2,6 +2,10 @@
 
 ## Orbit Break (the near-final version)
 
+**Two apps** (Android product flavors, one release has both): `OrbitBreak.apk` for players (no test hangar,
+id com.shiran.orbitbreak) and `OrbitBreak-DEV.apk` ("Orbit Break DEV", with the test hangar, the old id, installs over
+the earlier builds). Both load the same game from GitHub; the page asks the app `ShipNative.release()`.
+
 The app is called **Orbit Break** now (VEXAR is its icon). It opens on a **title screen** (tap to start); each player's
 own 3 ships are switched off for now (`THREE_SHIPS = false`: no sign-up, no "my ships", no trading): against the
 computer the hangar's ships are split into two random fleets, as before.
