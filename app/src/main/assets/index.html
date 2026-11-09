@@ -1213,7 +1213,9 @@ const MAGIC = {
   // CANTOR's resonance: rings of sound spread from where it was cast (`speed` ship-lengths a second, out to `range`).
   //   A ship they reach is scrambled for `scramble` seconds: its steering is reversed (it turns the other way) and its
   //   shots fly off the wrong way
-  resonance: { name: "הדף תהודה", look: "waves", range: 5, speed: 7, scramble: 60, cool: 30, color: "#ffc38b" },
+  //   It lasts one minute at most: rings reaching a ship already scrambled do not make it longer, and after it ends the
+  //   ship cannot be scrambled again for `immune` seconds (before, a new cast every 30 s kept it going for ever)
+  resonance: { name: "הדף תהודה", look: "waves", range: 5, speed: 7, scramble: 60, immune: 30, cool: 30, color: "#ffc38b" },
   // BLOOM's pollen: a cloud round the flower (it moves with it). It spreads out to `range` ship-lengths in `grow` seconds
   //   and lasts `last` seconds. An enemy inside it for `infect` seconds in all becomes a zombie (ZOMBIE).
   pollen: { name: "ענן אבקנים", look: "pollen", range: 3, grow: 0.8, last: 6, infect: 0.9, cool: 20, color: "#ffd27a" },
@@ -2489,6 +2491,8 @@ function update(dt) {
   pipeDrain();
   updateKitFx(dt); if (HUD_KIT && !BOT) { kitPreloadFx(game.ship); if (enemy.ship) kitPreloadFx(enemy.ship); }
   tintStep();
+  if (game.scramble > 0 && game.scramble - dt <= 0) game.scrambleSafe = MAGIC.resonance.immune;   // it just ended: a rest from it
+  game.scrambleSafe = Math.max(0, (game.scrambleSafe || 0) - (game.scramble > 0 ? 0 : dt));
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
@@ -9535,9 +9539,11 @@ function duelLink(event, data) {
   } else if (m.t === "hk") {   // their GLITCH's pulse hit me: my next firing turns a quarter
     game.hacked = m.n || WEAPONS.hack.status; shake(0.3); buzz(80);
   } else if (m.t === "scr") {   // their CANTOR's rings reached me: scrambled
-    game.scramble = m.n || MAGIC.resonance.scramble;
-    burstAt(game.x, game.y, 30, WEAPONS.chord.colors, 0.6, 0.9, game.vx, game.vy); shake(0.5); buzz(200);
-    audio.sfx("cantor", "note_5", 0, 0.8); audio.sfx("cantor", "note_1", 0.08, 0.8);
+    if (!(game.scramble > 0 || game.scrambleSafe > 0)) {   // (already scrambled: it does not get longer; just over it: a rest)
+      game.scramble = m.n || MAGIC.resonance.scramble;
+      burstAt(game.x, game.y, 30, WEAPONS.chord.colors, 0.6, 0.9, game.vx, game.vy); shake(0.5); buzz(200);
+      audio.sfx("cantor", "note_5", 0, 0.8); audio.sfx("cantor", "note_1", 0.08, 0.8);
+    }
   } else if (m.t === "rs") {   // their CANTOR cast its rings (their phone decides if they reach me)
     duel.reso = { x: m.x * WW, y: m.y * WH, t: 0 }; audio.sfx("cantor", "chord_fire", 0, 0.7);
   } else if (m.t === "rl" && Array.isArray(m.p)) {   // their RIVET's rail pieces
