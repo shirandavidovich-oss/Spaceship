@@ -2125,7 +2125,7 @@ function flyShip(dt) {
 function moveShip(o, S, c, dt) {
   const st = shipStats(S), size = shipSize();
   if (o === game && game.soak && game.soak.boost) { const M = magicOf(S); st.push *= M.boost; st.top *= M.boost; }   // ORIAN charged: twice as fast
-  if (o === game && game.lassoed) st.turn *= ELASSO.turn;   // held by LARIAT's rope: it turns at a third of its speed
+  if (o === game && game.lassoed) st.turn *= ELASSO.turn;   // held by LARIAT's rope: turning takes twice as long
   // 1. turning, at the ship's own speed
   const before = o.ang;
   if (S.clockwork) {   // GIMBAL: no steering; the hull ticks round by itself like a clock
@@ -2157,8 +2157,8 @@ function moveShip(o, S, c, dt) {
   o.power = lerp(o.power, on ? 1 : 0, 1 - Math.exp(-dt * 10));
 
   if (o === game && game.tether && S.id === "lariat") larPull(o, dt);   // LARIAT on its cable
-  if (o === game && game.elasso && enemy.on) larShipPull(o, enemy, game.elasso.rest, dt);   // my LARIAT holding their ship
-  if (o === game && game.lassoed && enemy.on) larShipPull(o, enemy, game.lassoed.rest, dt);   // my ship held by their LARIAT
+  if (o === game && game.elasso && enemy.on) larShipPull(o, enemy, game.elasso.rest, dt, ELASSO.tug);   // my LARIAT holding their ship
+  if (o === game && game.lassoed && enemy.on) larShipPull(o, enemy, game.lassoed.rest, dt, ELASSO.drag);   // my ship held by their LARIAT
   // 3. the planet in the middle pulls (nearest way round, since space wraps)
   const R = planetR();
   const dx = wrapDelta(o.x - WW / 2, WW), dy = wrapDelta(o.y - WH / 2, WH);
@@ -4114,7 +4114,7 @@ function updateWeapons(dt) {
   updateThread(dt); updateFlail(dt);
   enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt);
   for (let i = 0; i < 3; i++) {
-    game.cool[i] = Math.max(0, game.cool[i] - dt);
+    game.cool[i] = Math.max(0, game.cool[i] - dt * (game.lassoed ? ELASSO.fire : 1));   // held by LARIAT's rope: half the fire rate
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].converge) { crossHold(dt); continue; }
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].blow) { bubbleHold(dt); continue; }   // PUFF: hold to blow, let go to fire
     // (not `hold`: NIMBUS's storm has a `hold` too, how long its cloud stays)
@@ -4860,8 +4860,8 @@ function updateLariat(dt) {
   const u = larU();
   if (game.dead) { larLetGo(); game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.lassoed = null; game.ldash = null; }
   larDash(dt);
-  if (game.elasso) { game.elasso.t += dt; if (!enemy.on || game.ship !== "lariat") larLetGo(); }   // their ship is gone: let go
-  if (game.lassoed) { game.lassoed.t += dt; if (!enemy.on) game.lassoed = null; }
+  if (game.elasso) { game.elasso.t += dt; if (!enemy.on || game.ship !== "lariat" || game.elasso.t >= ELASSO.hold) larLetGo(); }   // 30 s up, or their ship is gone: let go
+  if (game.lassoed) { game.lassoed.t += dt; if (!enemy.on || game.lassoed.t >= ELASSO.hold + 1) game.lassoed = null; }   // (+1 s: in case their "let go" is lost)
   if (game.hookWait != null) {   // button 2 pressed: the hook leaves 0.16 s later, from the boom, the way the nose points
     game.hookWait += dt;
     if (game.hookWait >= LAR.hookAt) {
@@ -4936,9 +4936,11 @@ function larDash(dt) {
 
 // ---- the harpoon on an enemy ship: it winds round it and holds it ----
 // game.elasso: my LARIAT holds their ship { rest, t }. game.lassoed: my ship is held by their LARIAT { rest, t }.
-// The caught ship turns at a third of its speed. A cable longer than `rest` pulls each ship toward the other (each phone
-// pulls its own). It lets go only when the caught ship does any damage to the LARIAT, or a ship is gone.
-const ELASSO = { turn: 1 / 3, minRest: 1.2, loops: 4 };
+// For `hold` s the caught ship turns at `turn` of its speed (0.5 = takes twice as long) and its guns reload at `fire` of
+// their rate (0.5 = half as often). It is dragged along behind the tug: past `rest` the rope pulls it hard (`drag`), while
+// the tug feels only a little of it (`tug`); each phone pulls its own. It lets go after `hold` s, or when a ship is gone
+// (damage does not free it). LARIAT's own ram lets it go too.
+const ELASSO = { hold: 30, turn: 0.5, fire: 0.5, drag: 2.5, tug: 0.3, minRest: 1.2, loops: 4 };
 function larCatch() {
   const d = Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH));
   game.elasso = { rest: Math.max(shipSize() * ELASSO.minRest, d), t: 0 };
@@ -4952,10 +4954,10 @@ function larLetGo() {
   audio.tone(900, 0.12, "triangle", 0.04, 0.6);
 }
 // a ship on a cable to another ship: pulled toward it when the cable is taut (each phone its own ship)
-function larShipPull(o, toward, rest, dt) {
+function larShipPull(o, toward, rest, dt, k) {
   const dx = wrapDelta(toward.x - o.x, WW), dy = wrapDelta(toward.y - o.y, WH), d = Math.hypot(dx, dy); if (!d) return;
   const ix = dx / d, iy = dy / d, u = larU(), rel = (o.vx - toward.vx) * -ix + (o.vy - toward.vy) * -iy;
-  const f = cablePull(d, rest, -rel, LAR.spring, LAR.damping, LAR.maxPull * u * 2);
+  const f = cablePull(d, rest, -rel, LAR.spring, LAR.damping, LAR.maxPull * u * 2) * k;
   o.vx += ix * f * dt; o.vy += iy * f * dt;
 }
 // the winch on the hull (inside drawShip: turned to the heading, 1 = a ship-length): the drum turns, "out" while the
@@ -8733,7 +8735,7 @@ function duelLink(event, data) {
   if (m.t === "s") {   // where the other ship is now, and what it is doing
     duel.net = { ...m, at: performance.now() };
     if (shipById(m.s)) enemy.ship = m.s;
-    if (typeof m.h === "number" && m.h > 0) { damageShip(BOT ? m.h / botLevel().armor : m.h); larLetGo(); }   // (LARIAT: any damage from the caught ship frees it)   // what my ship took from their weapons (the computer: less, by its level's armour)
+    if (typeof m.h === "number" && m.h > 0) { damageShip(BOT ? m.h / botLevel().armor : m.h); }   // what my ship took from their weapons (the computer: less, by its level's armour)
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
     const S = shipById(m.s), a0 = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
     const art = a0 && a0.files && m.ix != null ? { ...a0, file: a0.files[m.ix] } : a0;   // CANTOR: each bolt its groove's colour

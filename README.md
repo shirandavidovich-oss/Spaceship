@@ -302,9 +302,9 @@ ram (`clutch` in `MAGIC`, every 12 s): only while the rope is round the enemy or
 without it); the rope lets go, and the tug flies fast straight into the enemy (it keeps turning
 toward it, up to 0.9 s); on contact it takes 50% of a full ship's health (no crash damage on top), knocks the enemy away
 and bounces back. If the hook hits an enemy ship first, it winds round it (four loops) and holds it on a rope (`ELASSO`):
-the caught ship turns at a third of its speed, so it is hard for it to aim at the tug, and a taut rope pulls the two
-ships together (each phone pulls its own). The rope lets go only when the caught ship does any damage to the tug, or a
-ship is gone. On the body, the hook does not stick in: the rope winds round the body, four
+for 30 s the caught ship turns at half its speed (turning takes twice as long) and its guns reload at half their rate,
+and it is dragged along behind the tug (a taut rope pulls it hard, the tug only a little; each phone pulls its own).
+Damage does not free it: the rope lets go after 30 s, when a ship is gone, or when the tug rams. On the body, the hook does not stick in: the rope winds round the body, four
 loops one after another (0.55 s), and holds it tight, cinched round its waist; the body is squeezed a little into an oval
 (narrower across the loops, longer along the pull, more while the cable is taut). The loops turn with the ship as it
 swings (`LASSO` in the game). Our bodies are much
