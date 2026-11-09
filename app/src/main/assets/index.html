@@ -2316,11 +2316,10 @@ let swipe = null;
 cv.addEventListener("pointerdown", (e) => {
   audio.wake();
   if (trade.stage && tradeTap(e.clientX, e.clientY)) return;
-  if ((game.stage === "fly" || picker.open) && hitLang(e.clientX, e.clientY)) { setLang(LANG === "he" ? "en" : "he"); audio.pop(); buzz(10); return; }   // עב / EN
+  if ((hangar.open || picker.open || camp.over) && hitLang(e.clientX, e.clientY)) { setLang(LANG === "he" ? "en" : "he"); audio.pop(); buzz(10); return; }   // עב / EN
   if (picker.open || camp.over) { pickerTap(e.clientX, e.clientY); return; }   // choosing a ship / the fleet is gone
   if (fleet.open) { fleetDown(e); return; }
   if (hangar.open) { hangarTap(e.clientX, e.clientY); return; }
-  if (game.stage === "fly" && !trade.stage && !realDuel() && profile && hitFleetBtn(e.clientX, e.clientY)) { fleetOpen(false); audio.pop(); return; }
   if (game.stage === "fly" && !trade.stage && hitDuel(e.clientX, e.clientY)) { duelButton(); return; }
   if (game.stage === "fly" && !trade.stage && !realDuel() && hitHangar(e.clientX, e.clientY)) { hangar.open = true; hangar.t = 0; audio.pop(); return; }
   // the left thumb on the thrust button (another finger can still swipe at the same time)
@@ -8160,7 +8159,7 @@ function draw() {
     if (game.flash > 0) { ctx.save(); ctx.globalAlpha = Math.min(0.7, game.flash * 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
     drawDuel();
-    drawHangarButton(); drawFleetBtn(); drawLangBtn(); drawFleetRow(); drawLevel();
+    drawHangarButton(); drawFleetRow(); drawLevel();   // ("my ships" and the language: in the hangar)
     if (COINS) { drawScore(); drawBounty(); }
     drawBodyLabel();
     drawNova();
@@ -8171,6 +8170,7 @@ function draw() {
   drawFleet();
   drawPicker();
   if (picker.open || camp.over) drawLangBtn();   // (switch the language while choosing a ship, too)
+  if (hangar.open && !picker.open && !camp.over) { drawFleetBtn(); drawLangBtn(); }   // in the hangar's second header row
 }
 
 // the planet in the middle of space (Star Control's melee planet)
@@ -9718,11 +9718,8 @@ function updateDuel(dt) {
     duel.outDmg = 0;
   }
 }
-// the duel button: crossed swords under the map
-function duelBtn() {
-  const k = U * 0.26 / Math.max(WW, WH), r = Math.max(18, U * 0.045);
-  return { x: W - U * 0.04 - WW * k / 2, y: U * 0.04 + WH * k + U * 0.03 + r, r };
-}
+// the duel button (crossed swords): in the top row, right after my fleet's icons (fleetRowLayout); the hangar beside it
+function duelBtn() { const L = fleetRowLayout(); return { x: L.bx, y: L.by, r: L.br }; }
 function hitDuel(x, y) { const b = duelBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.4; }
 function drawDuel() {
   if (trade.stage === "swapping") return;
@@ -9947,15 +9944,23 @@ function pickerTap(x, y) {
 // about how many screen pixels make a millimetre (a phone's CSS pixel is 1/160 inch; a computer's 1/96)
 const MM = (native || /Android/i.test(navigator.userAgent)) ? 160 / 25.4 : 96 / 25.4;
 const FLEET_ICON = 7;   // the fleet row's icons, in millimetres (smaller when they do not fit)
+// the top row, under the health bar: my fleet's icons, then the duel button and the hangar button.
+//   bx, by, br: the duel button's middle and radius (the hangar's is one step to the right)
+function fleetRowLayout() {
+  const hb = Math.max(12, U * 0.032), x0 = U * 0.04, y0 = U * 0.05 + hb + U * 0.02;
+  const gap = Math.max(3, MM * 0.8), icon = FLEET_ICON * MM, br = icon / 2, btns = HANGAR ? 2 : 1;
+  const n = BOT || realDuel() ? 0 : camp.mine.length;
+  const room = Math.max(U * 0.3, W - x0 - U * 0.33 - (icon + gap * 1.5) * btns);   // up to the map at the top right, leaving the buttons room
+  // one row if 7 mm icons fit, else two rows; smaller still if two rows are not enough
+  const rows = (icon + gap) * n <= room ? 1 : 2, per = Math.max(1, Math.ceil(n / rows));
+  const sz = n ? Math.min(icon, (room - gap * (per - 1)) / per) : 0;
+  const bx = x0 + (n ? Math.min(n, per) * (sz + gap) + gap * 0.5 : 0) + br;
+  return { x0, y0, gap, n, per, sz, bx, by: y0 + br, br };
+}
 // my fleet in a row under the health bar: the ship I fly in gold, lost ships dark and crossed out
 function drawFleetRow() {
   if (BOT || realDuel() || !camp.mine.length) return;
-  const hb = Math.max(12, U * 0.032), x0 = U * 0.04, y0 = U * 0.05 + hb + U * 0.02;
-  const n = camp.mine.length, gap = Math.max(3, MM * 0.8);
-  const room = Math.max(U * 0.4, W - x0 - U * 0.33);   // up to the map at the top right
-  // one row if 7 mm icons fit, else two rows; smaller still if two rows are not enough
-  const rows = (FLEET_ICON * MM + gap) * n <= room ? 1 : 2, per = Math.ceil(n / rows);
-  const sz = Math.min(FLEET_ICON * MM, (room - gap * (per - 1)) / per);
+  const { x0, y0, gap, per, sz } = fleetRowLayout();
   ctx.save();
   camp.mine.forEach((id, i) => {
     const S = shipById(id), x = x0 + (i % per) * (sz + gap), y = y0 + Math.floor(i / per) * (sz + gap);
@@ -10045,12 +10050,14 @@ function drawPicker() {
 const fleet = { open: false, first: false, t: 0, cards: [], zone: null, press: null };
 function fleetOpen(first) { fleet.open = true; fleet.first = !!first; fleet.t = 0; fleet.press = null; if (first) game.stage = "fleet"; }
 function fleetClose() { if (!profile || !profile.active) return; fleet.open = false; if (trade.fleet && trade.stage && trade.stage !== "swapping") { if (trade.stage === "offer" || trade.stage === "waiting") link.send({ t: "no" }); endTrade(); } }
-function fleetBtn() { const h = hangarBtn(); return HANGAR ? { x: h.x, y: h.y + h.r * 2.7, r: h.r } : h; }
-// the language button (the kit's Hebrew / English): a pill under the round buttons, the active language lit
+// "my ships" and the language button live in the test hangar now (its second header row: hangarRow)
+function hangarRow() { const f = Math.round(U * 0.055), r = Math.max(18, U * 0.045); return { y: U * 0.08 + f * 1.55 + r, r }; }
+function fleetBtn() { const R = hangarRow(); return { x: W / 2 - R.r * 2.2, y: R.y, r: R.r }; }
+// the language button (the kit's Hebrew / English): a pill in the hangar beside "my ships", the active language lit
 function langBtn() {
-  const f = fleetBtn(), r = f.r;
+  const R = hangarRow(), r = R.r;
   if (picker.open || camp.over) return { x: U * 0.035, y: U * 0.03, w: r * 2.5, h: r * 1.15 };   // over the ship cards: the top-left corner
-  return { x: f.x - r * 1.25, y: f.y + r * 1.9, w: r * 2.5, h: r * 1.15 };
+  return { x: W / 2 + r * 0.4, y: R.y - r * 0.575, w: r * 2.5, h: r * 1.15 };
 }
 function hitLang(x, y) { const b = langBtn(); return x > b.x - 6 && x < b.x + b.w + 6 && y > b.y - 6 && y < b.y + b.h + 6; }
 function drawLangBtn() {
@@ -10132,7 +10139,7 @@ function drawFront(S, x, y, w, h, alpha = 1) {
 }
 function check(x, y, r, c) { ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = Math.max(3, r * 0.35); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x - r * 0.25, y + r * 0.7); ctx.lineTo(x + r, y - r * 0.7); ctx.stroke(); ctx.restore(); }
 function drawFleetBtn() {
-  if (!profile || realDuel() || trade.stage) return;
+  if (!profile || trade.stage) return;
   const b = fleetBtn();
   ctx.save(); ctx.translate(b.x, b.y);
   ctx.fillStyle = "rgba(10,12,32,0.7)"; ctx.strokeStyle = "rgba(255,209,102,0.85)"; ctx.lineWidth = 2;
@@ -10230,7 +10237,7 @@ function drawFleet() {
 // ======================================================================
 const hangar = { open: false, t: 0, cards: [] };
 function hangarShips() { return SHIPS.filter((S) => S.anim); }
-function hangarBtn() { const d = duelBtn(); return { x: d.x, y: d.y + d.r * 2.7, r: d.r }; }
+function hangarBtn() { const d = duelBtn(); return { x: d.x + d.r * 2.5, y: d.y, r: d.r }; }   // beside the duel button
 function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.4; }
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
@@ -10246,6 +10253,7 @@ function hangarTap(x, y) {
   for (const c of hangar.cards) if (x > c.x && x < c.x + c.w && y > c.y && y < c.y + c.h) {
     if (c.close) { hangar.open = false; audio.pop(); return; }
     if (c.blast) { hangar.open = false; testFilmBlast(); return; }
+    if (c.fleet) { hangar.open = false; fleetOpen(false); audio.pop(); return; }
     tryShip(c.id); hangar.open = false; return;
   }
 }
@@ -10276,14 +10284,19 @@ function drawHangar() {
   const cr = U * 0.045, cx = W - U * 0.06 - cr, cy = U * 0.08;
   cross(cx, cy, cr * 0.45, "#ffffff"); hangar.cards.push({ close: true, x: cx - cr * 1.4, y: cy - cr * 1.4, w: cr * 2.8, h: cr * 2.8 });
   // a test: MIRAGE's filmed explosion, on the enemy (or ahead of the ship), without playing a round
-  const bx = U * 0.06 + cr * 1.2;
-  ctx.fillStyle = "rgba(200,107,255,0.25)"; ctx.strokeStyle = "#c86bff"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(bx, cy, cr * 1.2, 0, TAU); ctx.fill(); ctx.stroke();
-  ctx.font = `${Math.round(cr * 1.2)}px sans-serif`; ctx.fillStyle = "#ffffff"; ctx.fillText("💥", bx, cy + cr * 0.05);
-  hangar.cards.push({ blast: true, x: bx - cr * 1.4, y: cy - cr * 1.4, w: cr * 2.8, h: cr * 2.8 });
+  {   // (in the second header row, left of "my ships")
+    const R = hangarRow(), bx = W / 2 - R.r * 4.8, by = R.y, br = R.r;
+    ctx.fillStyle = "rgba(200,107,255,0.25)"; ctx.strokeStyle = "#c86bff"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(bx, by, br, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.font = `${Math.round(br)}px sans-serif`; ctx.fillStyle = "#ffffff"; ctx.fillText("💥", bx, by + br * 0.05);
+    hangar.cards.push({ blast: true, x: bx - br * 1.3, y: by - br * 1.3, w: br * 2.6, h: br * 2.6 });
+  }
+  // the second row: "my ships" and the language (drawn over the hangar by the main draw: drawFleetBtn, drawLangBtn)
+  const fb = fleetBtn();
+  if (profile && !trade.stage) hangar.cards.push({ fleet: true, x: fb.x - fb.r * 1.4, y: fb.y - fb.r * 1.4, w: fb.r * 2.8, h: fb.r * 2.8 });
   // the cards: as many columns as fit
   // as many columns as make the cards biggest on this screen (2 to 4)
-  const top = U * 0.08 + f * 1.6, gap = U * 0.025;
+  const top = hangarRow().y + hangarRow().r * 1.3, gap = U * 0.025;
   let cols = 2, best = 0;
   for (let c = 2; c <= 4; c++) {
     const r = Math.ceil(list.length / c), w = (W - gap * (c + 1)) / c, h = (H - top - gap * (r + 1)) / r, k = Math.min(w, h / 1.15);

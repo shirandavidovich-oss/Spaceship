@@ -58,7 +58,7 @@ The kit's SVGs were turned into WebP (the app serves WebP already). `HUD_KIT = f
 The buttons show their state only as a glowing outline round the plate's octagon (bright along the charged part, clockwise
 from the top: ammo, fuel for thrust, recharge for magic), nothing over the picture.
 
-**Language (עב | EN):** the pill under the round buttons on the right (on the ship-choice screen: the top-left corner)
+**Language (עב | EN):** the pill in the test hangar's second header row, beside "my ships" (on the ship-choice screen: the top-left corner)
 switches every text the game draws between Hebrew and English, and is remembered (`orbit-break.language`, the kit's key).
 The texts are in `STR` in `index.html` (`tr(key)`); magic, body and rarity names have English lists next to it. The
 sign-up form is still Hebrew only.
@@ -79,7 +79,10 @@ clip plays once where it was instead of the game's own explosion: 26 frames from
 drawn adding light and the dark pieces drawn normally so they show on a bright star (two pictures,
 `art/ships/mirage/blast-glow.webp` and `blast-shard.webp`, loaded as the page opens and tried again if a load fails;
 `FILM_BLAST`). The score counts at once and the round goes on as always; not loaded: the ordinary explosion. The
-test hangar's 💥 button (top left) plays it on the enemy, or ahead of your ship, without a round.
+test hangar's 💥 button (its second header row) plays it on the enemy, or ahead of your ship, without a round.
+
+**The top row:** under the health bar, my fleet's icons, then the duel button (crossed swords) and the hangar button
+beside them (`fleetRowLayout`). "My ships" (the 3 ships page) and the language pill are inside the test hangar.
 
 **Every ship flies its own way** (`HANDLING`, next to `SHIPS`): multipliers for its size (drawn and as a target),
 top speed, engine push and turning. Small ones are quick (ZORIAN is 40% smaller and the fastest; PUFF, VANTA and
