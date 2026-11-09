@@ -45,6 +45,14 @@ On THUL it is the heavy cannon: the brass iris winds open with a rising crank, t
 the flash and shock ring fire and a real cannonball drawing flies out; the hull kicks sideways and settles (1.56 s in all).
 Button 2 waits for that to finish before the next shot.
 
+**The battle buttons (Orbit Break kit):** each ship has its own five buttons, a metal octagon plate with a glowing icon
+in the ship's colours (`art/hud/<ship>/`: thrust, primary = button 1, secondary = button 2, pickup = button 3, magic;
+RIVET also has `-crossarm` weapon buttons for its other corner). The ring round a button is its ammo (thrust: the fuel,
+white -> black as before; magic: its recharge, with a dark sweep). Button 3 shows the weapon it carries. A few magics have
+a corner mark: ORIAN's charges, TALUS's layers, VANTA's colour, DRAKON's "!" while its bomb is out. When a magic goes off,
+the kit's 16-frame effect (`fx/`, 50 ms a frame) plays over the ship (TALUS: when it grows), on the other phone too.
+The kit's SVGs were turned into WebP (the app serves WebP already). `HUD_KIT = false` brings back the old drawn buttons.
+
 **The thumb buttons:** thrust (left) and fire button 1 (right) in the two bottom corners, mirror images, 20% smaller
 than before (`PAD_SIZE`); the magic diagonally up-right of thrust and the heavy weapon (button 2) diagonally up-left of
 button 1, on an arc (`ARC`); button 3 (a weapon from a crate) straight above button 1, against the right edge.
@@ -128,8 +136,8 @@ at the speed it had (only the planet bounces it). In a duel the inked player's o
 of the hammer. Button 2 is **held**: lines of light run out to the two muzzles, and the longer you hold the farther ahead the bolts
 will meet (0.7 to 5 ship-lengths over 1.6 s; a faint aiming mark shows it, `CROSS_GUIDE`). Let go and each muzzle sends a bolt
 to that point; they meet there together and blow up (32 damage). Only what is at that point is hit, so you learn how long to
-hold to land it on the enemy. The point is fixed when the bolts leave. Its magic (a hammer): a fast dash at an enemy within
-2.2 screens (or straight ahead), and a blow with the hammer-head (30 damage) that knocks the enemy away.
+hold to land it on the enemy. The point is fixed when the bolts leave. Its magic (a hammer): a fast dash the way the nose
+points (it does not aim for you: you aim it), and a blow with the hammer-head (30 damage) that knocks the enemy away.
 
 **ZORIAN**, the light-thread ship (`art/ships/zorian/`, own recorded sounds). Button 1: a blue needle bolt. Button 2:
 the projector at the stern draws a thread of light behind the ship as it flies (for about 1.2 s; standing still draws nothing,

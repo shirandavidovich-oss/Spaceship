@@ -40,6 +40,7 @@ const SERVER_URL = "https://tzzrdrfolzxuptmgtpfh.supabase.co";
 const SERVER_KEY = "sb_publishable_zzf2ysxbet8Qx0lW2dwWrA_OxS7CwZX";   // the public key (it is meant to be in the app)
 const ONLINE_RATE = 12;   // messages a second about your ship in an online duel (fewer than nearby: the server counts them)
 const COINS      = false;  // coins for beating a player (off for now: the fleet row is shown instead)
+const HUD_KIT    = true;   // the battle buttons and magic effects from the Orbit Break kit (art/hud/). false = the old drawn buttons
 const HANGAR     = true;   // for now: a hangar button (under the duel swords) to try every drawn ship. false = the real game only
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
@@ -672,8 +673,8 @@ const MAGIC = {
   // XELTAR's ink: like the smoke screen (hide: seconds the enemy cannot see you), but a drawn ink cloud and no pouring smoke
   //   a ship that touches the cloud is covered in black ink: it loses `dmg` health and for `stun` seconds it cannot steer,
   //   thrust or shoot; it drifts on the way it was going, at the speed it had (only the planet bounces it)
-  // KRAAL's hammer: dashes at `speed` screens a second at an enemy within `range` screens (or straight ahead), for at most
-  //   `dash` seconds; reaching it, the hammer-head hits: `dmg`, and the enemy is knocked away (`knock` screens a second)
+  // KRAAL's hammer: dashes at `speed` screens a second the way its nose points (it does not aim; `range` is unused), for at most
+  //   `dash` seconds; reaching a ship in the way, the hammer-head hits: `dmg`, and the enemy is knocked away (`knock` screens a second)
   hammer: { name: "מכת פטיש", range: 2.2, speed: 3.6, dash: 0.8, dmg: 30, knock: 1.4, cool: 9, look: "hammer", color: "#ff4a3a" },
   // CANTOR's resonance: rings of sound spread from where it was cast (`speed` ship-lengths a second, out to `range`).
   //   A ship they reach is scrambled for `scramble` seconds: its steering is reversed (it turns the other way) and its
@@ -1838,6 +1839,7 @@ function shipSize() { return U * 0.26; }
 function update(dt) {
   time += dt; game.t += dt;
   pipeDrain();
+  updateKitFx(dt); if (HUD_KIT && !BOT) { kitPreloadFx(game.ship); if (enemy.ship) kitPreloadFx(enemy.ship); }
   tintStep();
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
@@ -2118,6 +2120,12 @@ function updateCosmos(dt) {
 // ---------- magic: the gear button ----------
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
 function useMagic(which = 0) {
+  const c1 = game.magicCool || 0, c2 = game.magicCool2 || 0;
+  useMagicNow(which);
+  // it went off (its recharge started): the kit's effect over the ship (TALUS's plays when it grows instead)
+  if (((game.magicCool || 0) > c1 + 0.01 || (game.magicCool2 || 0) > c2 + 0.01) && !(KIT[game.ship] && KIT[game.ship].cue)) kitFxMine();
+}
+function useMagicNow(which = 0) {
   const S = shipById(game.ship), M = magicOf(S);
   if (which === 1) {   // the second magic, on the right half of a split button
     if (!S.magic2 || game.magicCool2 > 0 || game.dead) return;
@@ -2213,11 +2221,10 @@ function useMagic(which = 0) {
     audio.sfx(S.sfx, "phase_exit", 0, 0.6); buzz(40);
     return;
   }
-  if (M.look === "hammer") {   // KRAAL: dash at the enemy (if one is near enough) and hit it with the hammer-head
+  if (M.look === "hammer") {   // KRAAL: a dash the way the nose points (no aiming for you), and the hammer-head hits what is in the way
     if (game.dash) return;
-    const near = enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < M.range * U;
     game.magicCool = M.cool;
-    game.dash = { t: 0, locked: near, hit: false, trail: [] };
+    game.dash = { t: 0, hit: false, trail: [] };
     audio.sfx(S.sfx, "cross_charge", 0, 0.8); audio.whoosh(); buzz(50);
     return;
   }
@@ -2902,11 +2909,7 @@ function updateDash(dt) {
   if (!D) return;
   if (!M || M.look !== "hammer" || game.dead) { game.dash = null; return; }
   D.t += dt;
-  if (D.locked && enemy.on) {   // face the enemy (quickly) and fly at it
-    const want = Math.atan2(wrapDelta(enemy.x - game.x, WW), -wrapDelta(enemy.y - game.y, WH));
-    game.ang += wrapAngle(want - game.ang) * (1 - Math.exp(-dt * 18));
-  }
-  const v = M.speed * U;
+  const v = M.speed * U;   // along the nose's own heading
   game.vx = Math.sin(game.ang) * v; game.vy = -Math.cos(game.ang) * v;
   D.trail.push({ x: game.x, y: game.y, ang: game.ang }); if (D.trail.length > 8) D.trail.shift();
   if (!D.hit && enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < shipSize() * 0.75) {
@@ -3397,6 +3400,7 @@ function talusContact(on) {
     T.from = T.stage; T.stage++; T.t = 0; T.ring = GROW.ring; T.colors.push(body().color);
     spawnChips(game, shipSize() * shipScale(), body().color);
     audio.crunch(); buzz(70); shake(0.3);
+    kitFxMine();   // the kit's rock-chip effect
   }
   T.contact = on;
 }
@@ -4514,6 +4518,111 @@ function magicButton() { const t = thrustButton(), d = t.r * ARC / Math.SQRT2; r
 // a split magic button (two magics): the left half is the first, the right half the second
 function whichMagic(x) { return shipById(game.ship).magic2 && x > magicButton().x ? 1 : 0; }
 function hitMagic(x, y) { const b = magicButton(); return !!magicOf(shipById(game.ship)) && Math.hypot(x - b.x, y - b.y) < b.r * 1.25; }
+
+// ======================================================================
+//  THE BATTLE BUTTONS (Orbit Break kit, art/hud/<ship>/)
+//  Each ship has its own five buttons: a metal octagon plate and a glowing icon for thrust, button 1 ("primary"),
+//  button 2 ("secondary"), button 3 ("pickup", the weapon from a crate) and the magic. RIVET has a second pair of
+//  weapon buttons for its other corner ("-crossarm"). And a 16-frame effect (fx/00..15, 50 ms each) played over the
+//  ship when its magic is cast (TALUS: when it grows). The kit's SVGs are turned into WebP pictures here.
+//  a: the ship's colour, b: its second colour.  fx: where the effect goes ("behind" the ship, "world" = stays where it
+//  started, otherwise over the ship, turning with it).  cue: "grow" = played when TALUS grows, not on its magic
+// ======================================================================
+const KIT = {
+  brass: { a: "#ffa754", b: "#ffdf95", fx: "behind" }, vexar: { a: "#63e99b", b: "#dafa83" }, lyth: { a: "#5ae5ff", b: "#99b8ff" },
+  talus: { a: "#f5cd9c", b: "#ff725f", fx: "world", cue: "grow" }, orian: { a: "#fcd778", b: "#87cfff" }, skarn: { a: "#f1daba", b: "#ff9065" },
+  drakon: { a: "#f96fcb", b: "#a992ff" }, xeltar: { a: "#80e8ff", b: "#b8c0ff", fx: "behind" }, kraal: { a: "#ff706e", b: "#ffd084" },
+  zorian: { a: "#73afff", b: "#84e9ff" }, vanta: { a: "#d9f66a", b: "#6eefa7" }, cantor: { a: "#9af4df", b: "#df9cff" },
+  rivet: { a: "#ffc473", b: "#6edcff" }, glitch: { a: "#d280ff", b: "#67f4ed" }, nimbus: { a: "#eaf7ff", b: "#a3d7f2", fx: "world" },
+  reprise: { a: "#efbf83", b: "#bc9df1" }, puff: { a: "#c9edff", b: "#f4bcf1" }, cinder: { a: "#ffc27a", b: "#ff8861" },
+  borer: { a: "#72e6a1", b: "#f9d586", fx: "world" }, mirage: { a: "#ffcc83", b: "#c9a5ff", fx: "world" }
+};
+const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
+function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
+function kitImg(id, name) { return artImage("art/hud/" + id + "/" + name + ".webp"); }
+// which picture a button uses (RIVET's other corner has its own weapon buttons)
+function kitSlot(slot) { return (slot === "primary" || slot === "secondary") && game.ship === "rivet" && game.flipMode === 1 ? slot + "-crossarm" : slot; }
+// one button: the plate, the icon, and its state.
+//   o.pressed: held now   o.ready: can be used (else dim)   o.fill: 0..1 how full (ammo / recharge), shown as a ring
+//   o.ring: the ring's colour   o.iconAng: turn the icon (the thrust's points where the nose points)   o.draw: draw this instead of the kit icon
+//   o.badge: a little number or mark in the corner
+function drawKitButton(id, slot, b, o) {
+  const K = KIT[id], plate = kitImg(id, kitSlot(slot) + "-plate"), icon = o.draw ? null : kitImg(id, kitSlot(slot) + "-icon");
+  if (!plate) return false;   // not loaded yet: the caller draws the old button this frame
+  const accent = slot === "secondary" || slot === "magic" ? K.b : K.a;
+  const press = o.pressed && o.ready, r = b.r * (press ? 0.92 : 1), d = r * 2.5;   // the octagon fills about 80% of the picture
+  ctx.save(); ctx.globalAlpha *= o.alpha == null ? 1 : o.alpha;
+  if (press || (o.glow && o.ready)) {   // held (or a magic that is ready): a glow in the ship's colour
+    const gl = ctx.createRadialGradient(b.x, b.y, r * 0.7, b.x, b.y, r * 1.8);
+    gl.addColorStop(0, hexA(accent, press ? 0.55 : 0.18 + 0.1 * Math.sin(time * 3))); gl.addColorStop(1, hexA(accent, 0));
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.8, 0, TAU); ctx.fill();
+  }
+  if (!o.ready) ctx.globalAlpha *= 0.55;
+  ctx.drawImage(plate, b.x - d / 2, b.y - d / 2, d, d);
+  if (press) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha *= 0.35; ctx.drawImage(plate, b.x - d / 2, b.y - d / 2, d, d); ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha /= 0.35; }
+  if (icon) {
+    ctx.save(); ctx.translate(b.x, b.y); if (o.iconAng) ctx.rotate(o.iconAng);
+    if (!o.ready) ctx.globalAlpha *= 0.6;
+    ctx.drawImage(icon, -d / 2, -d / 2, d, d); ctx.restore();
+  }
+  if (o.draw) o.draw(b.x, b.y, r);
+  // not ready: a dark sweep over what is still recharging
+  if (!o.ready && o.fill != null && o.fill < 1) {
+    ctx.fillStyle = "rgba(4,6,14,0.55)"; ctx.beginPath(); ctx.moveTo(b.x, b.y);
+    ctx.arc(b.x, b.y, r * 0.95, -Math.PI / 2 + TAU * clamp(o.fill, 0, 1), -Math.PI / 2 + TAU); ctx.closePath(); ctx.fill();
+  }
+  // the ring: ammo / fuel / recharge, round the plate
+  if (o.fill != null) {
+    ctx.globalAlpha = (o.alpha == null ? 1 : o.alpha) * (o.ready ? 1 : 0.8);
+    ctx.lineWidth = Math.max(2.5, r * 0.08); ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.12, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = o.ring || accent; ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.12, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(o.fill, 0, 1)); ctx.stroke();
+  }
+  if (o.badge != null && o.badge !== "") {
+    const bx = b.x + r * 0.78, by = b.y - r * 0.78, br = Math.max(9, r * 0.3);
+    ctx.globalAlpha = 1; ctx.fillStyle = o.badgeColor || accent; ctx.strokeStyle = "#0a0c18"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(bx, by, br, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#0a0c18"; ctx.font = `900 ${Math.round(br * 1.25)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+    ctx.fillText(String(o.badge), bx, by + br * 0.06);
+  }
+  ctx.restore();
+  return true;
+}
+// the magic's little corner mark, for ships whose magic counts something
+function magicBadge(S) {
+  if (S.id === "orian" && game.soak) { const n = soakCharges(MAGIC[S.magic], game.soak.held); return n ? { t: n } : null; }   // light charges
+  if (S.id === "talus" && game.talus && game.talus.stage) return { t: game.talus.stage };   // layers built
+  if (S.id === "vanta" && game.vtint) return { t: "", c: VANTA_TINTS[game.vtint].color };   // the liquid's colour
+  if (S.id === "drakon" && game.bomb) return { t: "!", c: "#ff3fb0" };   // the bomb is out: tap to set it off
+  return null;
+}
+
+// ---- the magic effects over the ships ----
+const kitFx = [];   // { id: ship, who: "me" | "them", t, x, y, ang }
+function kitFxStart(who) {
+  const o = who === "me" ? game : enemy, id = who === "me" ? game.ship : enemy.ship;
+  if (!KIT[id] || BOT) return;
+  kitFx.push({ id, who, t: 0, x: o.x, y: o.y, ang: o.ang });
+  if (kitFx.length > 6) kitFx.shift();
+}
+// my magic was cast (or TALUS grew): show it here and tell the other phone
+function kitFxMine() { if (!HUD_KIT) return; kitFxStart("me"); duelSend({ t: "mfx" }); }
+function updateKitFx(dt) { for (let i = kitFx.length - 1; i >= 0; i--) { kitFx[i].t += dt; if (kitFx[i].t * 1000 >= KIT_FX.frames * KIT_FX.ms) kitFx.splice(i, 1); } }
+function kitPreloadFx(id) { if (!KIT[id] || BOT) return; for (let i = 0; i < KIT_FX.frames; i++) kitImg(id, "fx/" + String(i).padStart(2, "0")); }
+// layer: "behind" ones are drawn before the ships, the others after
+function drawKitFx(layer) {
+  for (const F of kitFx) {
+    const K = KIT[F.id]; if (((K.fx === "behind") ? "behind" : "above") !== layer) continue;
+    const o = F.who === "me" ? game : enemy;
+    if (F.who === "them" && !enemy.on) continue;
+    const world = K.fx === "world";
+    const p = toScreen(world ? F.x : o.x, world ? F.y : o.y), ang = world ? 0 : o.ang;
+    const img = kitImg(F.id, "fx/" + String(Math.min(KIT_FX.frames - 1, Math.floor(F.t * 1000 / KIT_FX.ms))).padStart(2, "0"));
+    if (!img) continue;
+    const d = shipSize() * KIT_FX.size;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+  }
+}
 
 // ======================================================================
 //  DRAWING
@@ -6041,17 +6150,18 @@ function drawMines() {
   const size = shipSize();
   for (const m of mines) {
     const Wp = WEAPONS[m.w], p = toScreen(m.x, m.y), L = size * 0.2, armed = m.t >= Wp.arm, fade = Math.min(1, (Wp.stay - m.t) / 0.5);
+    const ph = typeof m.id === "number" ? m.id : parseFloat(String(m.id).replace(/^r/, "")) || 0;   // (the other phone's mines have ids like "r12")
     if (Wp.drill) { drawDrillMine(m, Wp, p, L, armed, fade); continue; }
     ctx.save(); ctx.globalAlpha = Math.max(0, fade); ctx.translate(p.x, p.y); ctx.rotate(m.ang);
     if (armed) {
-      const blink = 0.5 + 0.5 * Math.sin(time * 9 + m.id);
+      const blink = 0.5 + 0.5 * Math.sin(time * 9 + ph);
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, L * 1.1); g.addColorStop(0, `rgba(255,60,40,${0.35 * blink})`); g.addColorStop(1, "rgba(255,60,40,0)");
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, L * 1.1, 0, TAU); ctx.fill();
     }
     const g = ctx.createLinearGradient(-L * 0.1, 0, L * 0.1, 0); g.addColorStop(0, "#6a6a72"); g.addColorStop(0.5, "#e8e8f0"); g.addColorStop(1, "#5a5a62");
     ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, -L * 0.6); ctx.lineTo(L * 0.08, L * 0.35); ctx.lineTo(-L * 0.08, L * 0.35); ctx.closePath(); ctx.fill();   // the spike
     ctx.fillStyle = "#3a2c20"; ctx.beginPath(); ctx.ellipse(0, L * 0.38, L * 0.24, L * 0.1, 0, 0, TAU); ctx.fill();   // the head
-    ctx.fillStyle = armed ? `rgba(255,${80 + 80 * Math.sin(time * 9 + m.id)},40,1)` : "#ffb347"; ctx.beginPath(); ctx.arc(0, L * 0.38, L * 0.07, 0, TAU); ctx.fill();
+    ctx.fillStyle = armed ? `rgba(255,${Math.round(80 + 80 * Math.sin(time * 9 + ph))},40,1)` : "#ffb347"; ctx.beginPath(); ctx.arc(0, L * 0.38, L * 0.07, 0, TAU); ctx.fill();
     ctx.restore();
   }
 }
@@ -6560,6 +6670,7 @@ function draw() {
     const shown = trade.stage === "swapping" && !trade.fleet && trade.t > 0.9 ? shipById(trade.incoming) : S;
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
+    drawKitFx("behind");
     drawEnemy();
     if (!game.dead) {
       drawTail(game.tail, S);
@@ -6617,6 +6728,7 @@ function draw() {
     drawMarkStain();
     drawRiftMark(); drawRiftBursts();
     drawChips(); drawPieces();
+    drawKitFx("above");
     drawParts();
     drawRings();
     ctx.restore();
@@ -7331,9 +7443,29 @@ function weaponIcon(w, x, y, r, color) {
 // An empty one goes dim until it has refilled enough for a shot
 function drawFire() {
   if (trade.stage === "swapping") return;
+  const S0 = shipById(game.ship), kit = kitOf(S0);
   for (const b of fireButtons()) {
     if (b.r < 3) continue;
     const w = slotWeapon(b.i), Wp = WEAPONS[w], ammo = slotAmmo(b.i), ready = ammo >= 1, pressed = game.fire[b.i] !== null;
+    // the kit's buttons: the plate and icon, the ammo as a ring. Button 3 shows the weapon it carries (drawn in code)
+    if (kit) {
+      const slot = ["primary", "secondary", "pickup"][b.i];
+      const extra = b.i === 2 ? (x, y, r) => weaponIcon(w, x, y, r * 0.42, ready ? "#ffffff" : "#9a9aa8")
+        : w === "spike" && game.trap && game.trap.power > 0 ? (x, y, r) => {   // SKARN's powered-up shards: ember dots
+          const n = game.trap.power; ctx.save(); ctx.globalAlpha = Math.min(1, game.trap.powerT / 3) * (0.75 + 0.25 * Math.sin(time * 6));
+          for (let j = 0; j < n; j++) { ctx.fillStyle = "#ff8a5a"; ctx.beginPath(); ctx.arc(x + (j - (n - 1) / 2) * r * 0.24, y + r * 0.72, r * 0.08, 0, TAU); ctx.fill(); }
+          ctx.restore(); } : null;
+      const o = { pressed, ready, fill: ammo / Wp.ammo, ring: b.i === 2 ? Wp.color : null };
+      if (b.i === 2) o.draw = extra; else if (extra) o.after = extra;
+      if (drawKitButton(game.ship, slot, b, o)) {
+        if (o.after) o.after(b.x, b.y, b.r);
+        if (b.i === 2 && game.loot && game.loot.show < 1) {   // just picked up: a sparkle ring
+          ctx.save(); ctx.globalAlpha = 1 - game.loot.show; ctx.strokeStyle = Wp.color; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(b.x, b.y, b.r * (1.1 + game.loot.show), 0, TAU); ctx.stroke(); ctx.restore();
+        }
+        continue;
+      }
+    }
     const r = b.r * (pressed && ready ? 0.92 : 1);
     ctx.save(); ctx.globalAlpha = ready ? 1 : 0.45;
     if (pressed && ready) {
@@ -7381,6 +7513,13 @@ function drawMagic() {
   drawMagicButton(b, M, ready, k);
 }
 function drawMagicButton(b, M, ready, k) {
+  // the kit's magic button: plate, icon, the recharge as a ring and a dark sweep; a corner mark for ships that count something
+  const S = shipById(game.ship);
+  if (kitOf(S)) {
+    const used = S.id === "drakon" && game.splitUsed && !game.bomb;   // DRAKON's magic is once a life
+    const B = magicBadge(S) || {};
+    if (drawKitButton(game.ship, "magic", b, { pressed: game.magicFinger != null, ready: ready && !used, fill: used ? 0 : k, glow: true, badge: B.t, badgeColor: B.c })) return;
+  }
   if (M.look === "tail") drawTailButton(b, M, ready, k);
   if (M.look === "grinder") drawGrinderButton(b, M, ready, k);
   if (M.look === "shatter") drawShatterButton(b, M, ready, k);
@@ -7573,6 +7712,9 @@ function drawThrust() {
     ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 1.2 * STICK * 2, 0, TAU); ctx.stroke();
   }
   const x = b.x + kx, y = b.y + ky;
+  // the kit's button: its plate is the knob, the ring round it is the fuel (white -> black, as before)
+  if (kitOf(shipById(game.ship)) && drawKitButton(game.ship, "thrust", { x, y, r: b.r * (0.6 + 0.4 * fade) },
+    { pressed, ready: !game.locked, fill: f, ring: col, iconAng: game.ang })) { ctx.restore(); return; }
   // glow in its own color while pressed
   if (pressed && !game.locked) {
     const gl = ctx.createRadialGradient(x, y, r * 0.8, x, y, r * 1.7);
@@ -7924,7 +8066,8 @@ function duelLink(event, data) {
     for (const [x, y, vx, vy, fuse, color] of m.p)
       pieces.push({ x: x * WW, y: y * WH, vx: vx * WW, vy: vy * WH, t: 0, fuse, r: shipSize() * 0.085, spin: Math.random() * TAU, color, remote: true });
     burstAt(enemy.x, enemy.y, 40, ["#e8dcc4", "#ff4d3a", "#ffffff"], 0.6, 0.8, enemy.vx, enemy.vy); audio.crunch();
-  } else if (m.t === "bye") endDuel(false);
+  } else if (m.t === "mfx") kitFxStart("them");   // their magic went off: its effect over their ship
+  else if (m.t === "bye") endDuel(false);
 }
 // the other player's ship on this phone: glide toward where it said it is (moved on by its speed since then)
 function updateRival(dt) {
@@ -8631,18 +8774,21 @@ if (!BOT) { preloadArt(); server.sync(); }
 let last = performance.now(), frameDt = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; frameDt = dt;
-  update(dt);
+  requestAnimationFrame(frame);   // first: an error below must never stop the game
+  try { update(dt); } catch (e) { console.error("update:", e && e.stack || e); }
   // the computer player moves on with every frame of the page (it has no frames of its own)
-  if (bot.ready) { const bw = botWindow(); try { bw && bw.botTick && bw.botTick(dt); } catch (e) {} }
-  draw();
-  requestAnimationFrame(frame);
+  if (bot.ready) { const bw = botWindow(); try { bw && bw.botTick && bw.botTick(dt); } catch (e) { console.error("computer player:", e && e.stack || e); } }
+  try { draw(); } catch (e) {
+    console.error("draw:", e && e.stack || e);
+    try { if (ctx.reset) ctx.reset(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); } catch (e2) {}   // a drawing stopped half-way: start the next one clean
+  }
 }
 if (BOT) {
-  window.botTick = (dt) => { frameDt = dt; update(dt); };
+  window.botTick = (dt) => { frameDt = dt; update(dt); };   // (an error here is caught and logged by the page)
   try { parent.botReady(); } catch (e) {}
 } else requestAnimationFrame(frame);
 // test hooks (used by the screenshot checks on a computer)
-window.__ship = { SHIPS, damageShip, camp, picker, bot, pickerTap, botAI, realDuel, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic, duel, duelButton, eggs, hunters };
+window.__ship = { SHIPS, damageShip, kitFx, tryShipTest: (id) => tryShip(id), camp, picker, bot, pickerTap, botAI, realDuel, game, gift, tilt, trade, enemy, crate, shots, tapGift, openTrade, answer, useMagic, duel, duelButton, eggs, hunters };
 </script>
 </body>
 </html>
