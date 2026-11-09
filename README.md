@@ -76,7 +76,8 @@ THUL's smoke is three times as thick as before, in bigger, nearly solid puffs: a
 
 **MIRAGE's filmed explosion (a trial):** when MIRAGE loses its ship (mine or the other player's), its Orbit Break
 clip plays once where it was instead of the game's own explosion: 26 frames from the first flash (1.08 s), the light
-drawn adding light and the dark pieces drawn normally so they show on a bright star (`art/ships/mirage/blast/`,
+drawn adding light and the dark pieces drawn normally so they show on a bright star (two pictures,
+`art/ships/mirage/blast-glow.webp` and `blast-shard.webp`, loaded as the page opens and tried again if a load fails;
 `FILM_BLAST`). The score counts at once and the round goes on as always; not loaded: the ordinary explosion. The
 test hangar's 💥 button (top left) plays it on the enemy, or ahead of your ship, without a round.
 
