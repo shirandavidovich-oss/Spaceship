@@ -11,7 +11,7 @@ android {
         minSdk 26
         targetSdk 34
         versionCode((System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger())
-        versionName "0.1"
+        versionName "0.9"
     }
 
     // One fixed key, so each new build installs over the previous one.

@@ -16,9 +16,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
 
     <application
-        android:label="Spaceship"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="Orbit Break"
+        android:icon="@mipmap/orbit_break_vexar"
+        android:roundIcon="@mipmap/orbit_break_vexar_round"
         android:theme="@style/ShipTheme"
         android:hardwareAccelerated="true">
         <activity

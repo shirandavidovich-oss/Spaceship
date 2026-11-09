@@ -1,5 +1,22 @@
 # Spaceship
 
+## Orbit Break (the near-final version)
+
+The app is called **Orbit Break** now (VEXAR is its icon). It opens on a **title screen** (tap to start); each player's
+own 3 ships are switched off for now (`THREE_SHIPS = false`: no sign-up, no "my ships", no trading): against the
+computer the hangar's ships are split into two random fleets, as before.
+
+- **Music** (`audio/music/`, from the Orbit Break audio pack): one loop per screen, crossfaded: the title, the hangar and
+  the ship picker, and in the arena one per body in the middle (`BODY_MUSIC`). **Two dials** under CONNECT (on the title:
+  at the bottom): pink = effects, mint = music. Drag right for louder (160 px = the whole way); kept on the phone.
+- **CONNECT** (`art/ui/connect*.webp`), under the map: joins another player (the old duel button); pressed while
+  looking and while connected.
+- **YOU WIN / GAME OVER** (`RESULT_ART`, `art/ui/result/`): YOU WIN when the computer's whole fleet is beaten, GAME OVER
+  when yours is. The letters float and tilt, W / V open in two; each new press of the gas kicks one letter up and round
+  (for fun). TRY AGAIN: after a win the next level, after a loss a new game. EXIT: back to the title. Their fanfares
+  play at the music volume, the gas at the effects volume.
+
+
 Every player has one spaceship. It arrives inside a surprise gift: tap the gift 3 times and it opens.
 The ship is chosen by rarity (common 50%, rare 30%, epic 15%, legendary 5%) and kept on the phone.
 Flying works like Star Control 2's Super Melee: space is 10 screens wide and 10 tall and wraps
