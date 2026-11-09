@@ -74,6 +74,12 @@ On THUL the two orange vent covers slide open, the vents pulse, and at 0.45 s th
 Tapped during a cannon shot, the smoke follows right after it.
 THUL's smoke is three times as thick as before, in bigger, nearly solid puffs: a real smoke screen that hides the ship.
 
+**MIRAGE's filmed explosion (a trial):** when MIRAGE loses its ship (mine or the other player's), its Orbit Break
+clip plays once where it was instead of the game's own explosion: 26 frames from the first flash (1.08 s), the light
+drawn adding light and the dark pieces drawn normally so they show on a bright star (`art/ships/mirage/blast/`,
+`FILM_BLAST`). The score counts at once and the round goes on as always; not loaded: the ordinary explosion. The
+test hangar's 💥 button (top left) plays it on the enemy, or ahead of your ship, without a round.
+
 **Every ship flies its own way** (`HANDLING`, next to `SHIPS`): multipliers for its size (drawn and as a target),
 top speed, engine push and turning. Small ones are quick (ZORIAN is 40% smaller and the fastest; PUFF, VANTA and
 ORIAN 20% smaller and faster), heavy ones slow (PALISADE, THUL, REPRISE, TALUS). Every engine still beats the black

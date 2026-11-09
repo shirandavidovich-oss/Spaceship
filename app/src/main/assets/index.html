@@ -2491,7 +2491,7 @@ function update(dt) {
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
   rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateGimbal(dt); updateLariat(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
-  updateReso(dt); updatePollen(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
+  updateReso(dt); updatePollen(dt); updateFilmBlasts(dt); if (!BOT && !filmBlasts.ready) filmBlasts.ready = filmReady();   // (loads MIRAGE's explosion early) updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
   gift.squash = Math.max(0, gift.squash - dt * 5);
@@ -4570,9 +4570,11 @@ function blowUpShip() {
   game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
-  burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
-  for (let k = 0; k < 10; k++) smokeAt(game.x, game.y, game, S, 2.5, 2.5);
-  rings.push({ x: game.x, y: game.y, t: 0, max: 0.8, r: shipSize() * 2.6, c: S.flame });
+  if (!(S.id === FILM_BLAST.ship && filmBlast(game.x, game.y))) {   // MIRAGE: its filmed explosion (if it has loaded)
+    burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
+    for (let k = 0; k < 10; k++) smokeAt(game.x, game.y, game, S, 2.5, 2.5);
+    rings.push({ x: game.x, y: game.y, t: 0, max: 0.8, r: shipSize() * 2.6, c: S.flame });
+  }
   audio.boom(); audio.cannon(); shake(1.2); buzz(400);
   enemy.ghostX = game.x; enemy.ghostY = game.y;
 }
@@ -6530,6 +6532,47 @@ function myStarTouch(t) {
   return true;
 }
 // a ship shattered by the star: a burst of the star's fire, then its hull in shards flying out
+// ---------- a filmed explosion (a trial, for MIRAGE only: its Orbit Break clip) ----------
+// Played once, where the ship was, when MIRAGE loses its ship (blowUpShip for mine, the duel state for theirs). Any
+// other ship, any ordinary hit and MIRAGE's own wins keep the game's own effects. The clip starts at its first flash
+// (the film's close-up of the ship is hidden in the flash) and runs 26 frames at 24 a second (1.08 s), then the round
+// goes on as always (the score is counted at once; the explosion does not hold anything up).
+// Frames (art/ships/mirage/blast/, 384 x 384, the blast in the middle): glow_NN, the light, drawn adding light
+// ("lighter"); shard_NN, the dark pieces, drawn normally so they show on a bright star too.
+// size: the picture's width, in ship-lengths. shards: how solid the dark pieces are. Not loaded (yet): the game's own explosion instead
+const FILM_BLAST = { ship: "mirage", frames: 26, ms: 1000 / 24, size: 2.8, shards: 0.8, dir: "art/ships/mirage/blast/" };
+const filmBlasts = [];
+function filmFrame(kind, i) { return artImage(FILM_BLAST.dir + kind + "_" + String(i).padStart(2, "0") + ".webp"); }
+function filmReady() {   // all frames loaded (asking also starts loading them: called early, so the first one is instant)
+  let ok = true;
+  for (let i = 0; i < FILM_BLAST.frames; i++) if (!filmFrame("glow", i) || !filmFrame("shard", i)) ok = false;
+  return ok;
+}
+// play it at (x, y); false: not loaded, so the caller shows the ordinary explosion
+function filmBlast(x, y) {
+  if (BOT || !filmReady()) return false;
+  filmBlasts.push({ x, y, t: 0 });
+  return true;
+}
+function updateFilmBlasts(dt) {
+  for (let i = filmBlasts.length - 1; i >= 0; i--) { filmBlasts[i].t += dt; if (filmBlasts[i].t * 1000 >= FILM_BLAST.frames * FILM_BLAST.ms) filmBlasts.splice(i, 1); }
+}
+function drawFilmBlasts() {
+  for (const F of filmBlasts) {
+    const i = Math.min(FILM_BLAST.frames - 1, Math.floor(F.t * 1000 / FILM_BLAST.ms)), g = filmFrame("glow", i), sh = filmFrame("shard", i);
+    const p = toScreen(F.x, F.y), d = shipSize() * FILM_BLAST.size;
+    ctx.save();
+    if (g) { ctx.globalCompositeOperation = "lighter"; ctx.drawImage(g, p.x - d / 2, p.y - d / 2, d, d); ctx.globalCompositeOperation = "source-over"; }
+    if (sh) { ctx.globalAlpha = FILM_BLAST.shards; ctx.drawImage(sh, p.x - d / 2, p.y - d / 2, d, d); }
+    ctx.restore();
+  }
+}
+// the test hangar's button: the explosion on the enemy (or ahead of my ship), nothing destroyed
+function testFilmBlast() {
+  const a = game.ang, x = enemy.on ? enemy.x : game.x + Math.sin(a) * shipSize() * 2.5, y = enemy.on ? enemy.y : game.y - Math.cos(a) * shipSize() * 2.5;
+  if (!filmBlast(x, y)) { burstAt(x, y, 90, ["#ffffff", "#ffd166", "#c86bff", "#ff6b35"], 1.4, 1.4); rings.push({ x, y, t: 0, max: 0.7, r: shipSize() * 2.2, c: "#ffd166" }); }
+  audio.boom(); shake(0.8); buzz(200);
+}
 function shatterAt(x, y, E) {
   const dx = wrapDelta(x - WW / 2, WW), dy = wrapDelta(y - WH / 2, WH), d = Math.hypot(dx, dy) || 1, vx = dx / d * U, vy = dy / d * U;
   burstAt(x, y, 120, ["#ffffff", body().color, "#4dff9a", E ? E.hull : "#888", E ? E.trim : "#fff"], 1.8, 1.4, vx * 0.6, vy * 0.6);
@@ -8099,6 +8142,7 @@ function draw() {
     drawKitFx("above");
     drawParts();
     drawRings();
+    drawFilmBlasts();   // (in the arena, under the buttons and bars)
     ctx.restore();
     if (enemyShown()) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
     if (game.rift && game.rift.mark) edgeArrow(game.rift.mark.x, game.rift.mark.y, "#ff68c7");   // DRAKON's mark, off screen
@@ -9540,8 +9584,10 @@ function updateRival(dt) {
   if (n.d && enemy.on) {
     enemy.on = false; duel.won++; scoreKill(true);   // a player beaten: the reward
     lenses.length = 0;   // (the false stars go out on both phones)
-    burstAt(enemy.x, enemy.y, 90, ["#ffffff", "#ffd166", E.flame, E.hull, E.trim, "#ff6b35"], 1.4, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
-    rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.7, r: shipSize() * 2.2, c: "#ffd166" });
+    if (!(E.id === FILM_BLAST.ship && filmBlast(enemy.x, enemy.y))) {   // their MIRAGE lost: its filmed explosion (if loaded)
+      burstAt(enemy.x, enemy.y, 90, ["#ffffff", "#ffd166", E.flame, E.hull, E.trim, "#ff6b35"], 1.4, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
+      rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.7, r: shipSize() * 2.2, c: "#ffd166" });
+    }
     audio.boom(); buzz(220);
     Object.assign(crate, { on: true, w: lootOf(E), x: enemy.x, y: enemy.y, vx: enemy.vx * 0.4, vy: enemy.vy * 0.4, t: 0 });
   } else if (!n.d && !enemy.on) { enemy.on = true; enemy.warp = 1; enemy.x = tx; enemy.y = ty; duel.roundStart = game.t; }
@@ -10193,6 +10239,7 @@ function tryShip(id) {
 function hangarTap(x, y) {
   for (const c of hangar.cards) if (x > c.x && x < c.x + c.w && y > c.y && y < c.y + c.h) {
     if (c.close) { hangar.open = false; audio.pop(); return; }
+    if (c.blast) { hangar.open = false; testFilmBlast(); return; }
     tryShip(c.id); hangar.open = false; return;
   }
 }
@@ -10222,6 +10269,12 @@ function drawHangar() {
   ctx.fillText(tr("hangarNote"), W / 2, U * 0.08 + f * 0.85);
   const cr = U * 0.045, cx = W - U * 0.06 - cr, cy = U * 0.08;
   cross(cx, cy, cr * 0.45, "#ffffff"); hangar.cards.push({ close: true, x: cx - cr * 1.4, y: cy - cr * 1.4, w: cr * 2.8, h: cr * 2.8 });
+  // a test: MIRAGE's filmed explosion, on the enemy (or ahead of the ship), without playing a round
+  const bx = U * 0.06 + cr * 1.2;
+  ctx.fillStyle = "rgba(200,107,255,0.25)"; ctx.strokeStyle = "#c86bff"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(bx, cy, cr * 1.2, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.font = `${Math.round(cr * 1.2)}px sans-serif`; ctx.fillStyle = "#ffffff"; ctx.fillText("💥", bx, cy + cr * 0.05);
+  hangar.cards.push({ blast: true, x: bx - cr * 1.4, y: cy - cr * 1.4, w: cr * 2.8, h: cr * 2.8 });
   // the cards: as many columns as fit
   // as many columns as make the cards biggest on this screen (2 to 4)
   const top = U * 0.08 + f * 1.6, gap = U * 0.025;
