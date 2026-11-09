@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("thirty-three ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 33);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 33);
+ok("thirty-four ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 34);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 34);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });

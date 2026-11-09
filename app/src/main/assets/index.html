@@ -13,6 +13,443 @@
 <body>
 <canvas id="c"></canvas>
 <script>
+// ======================================================================
+//  BLOOM's art package (art/bloom/): the flower's petal animation and the zombie look of every ship.
+//  These five renderers come from the package as they are (only the file names changed: .png -> .webp).
+//  ZOMBIE_ART: for each ship (by its id in SHIPS), which zombie drawing and which renderer draws it moving.
+// ======================================================================
+// ---- bloom-motion.js ----
+((root,factory)=>{
+  const api=factory();
+  if(typeof module==="object"&&module.exports)module.exports=api;
+  else root.BloomMotion=api;
+})(globalThis,()=>{
+  "use strict";
+  const TAU=2*Math.PI;
+  const config=Object.freeze({cell:256,columns:8,rows:8,frames:16,tiers:4,periodMs:880,coreX:128,coreY:149,topSpeed:250});
+  const clamp=(x,min,max)=>Math.min(max,Math.max(min,x));
+  function update(previous,dtMs,ship){
+    const dt=Math.max(0,dtMs);
+    const sin=Math.sin(ship.angle),cos=Math.cos(ship.angle);
+    const forward=ship.vx*sin-ship.vy*cos;
+    const side=ship.vx*cos+ship.vy*sin;
+    const target=clamp(forward/config.topSpeed,0,1);
+    const k=1-Math.exp(-dt/(target>previous.flow?130:245));
+    const sideK=1-Math.exp(-dt/175);
+    return {flow:previous.flow+(target-previous.flow)*k,
+      side:previous.side+(-clamp(side/config.topSpeed,-1,1)-previous.side)*sideK};
+  }
+  function indices(now,flow){
+    const tier=clamp(flow,0,1)*(config.tiers-1);
+    const loop=((now/config.periodMs)%1+1)%1;
+    const frame=Math.floor(loop*config.frames);
+    const low=Math.floor(tier);
+    return {first:low*config.frames+frame,second:Math.min(config.tiers-1,low+1)*config.frames+frame,mix:tier-low};
+  }
+
+  function filaments(now,{flow,side}){
+    return Array.from({length:8},(_,i)=>{
+      const x=(i-3.5)*6.1, p=now*.012+i*1.45;
+      const endX=x*(1.5+flow*.37)+Math.sin(p)*(3+10*flow)+side*21*flow;
+      const endY=16+(i%3)*7+flow*(57+(i%4)*8)+Math.cos(p*.73)*4;
+      const end={x:endX,y:endY};
+      return {start:{x:x*.56,y:1+Math.abs(x)*.14},
+        c1:{x:x*1.05+Math.sin(p*.9)*4,y:12+flow*19},
+        c2:{x:endX-side*4+Math.sin(p+1)*8,y:endY-18-flow*12},
+        end,light:.62+.34*(.5+.5*Math.sin(p*1.48)),color:i%3===0?"#b9fff2":"#ffe5a6"};
+    });
+  }
+
+  function load(base=""){
+    const img=new Image();
+    img.src=base+"fx/bloom-petals-atlas.webp";
+    return img;
+  }
+
+  function draw(ctx,atlas,now,pose,{size=128,reducedMotion=false}={}){
+    if(!atlas?.complete||!atlas.naturalWidth)return false;
+    const q=reducedMotion?{flow:0,side:0}:pose;
+    const time=reducedMotion?0:now;
+    const {first,second,mix}=indices(time,q.flow);
+    const n=config.cell;
+    function cell(i){
+      ctx.drawImage(atlas,i%config.columns*n,Math.floor(i/config.columns)*n,n,n,-size/2,-size/2,size,size);
+    }
+    ctx.save();
+    const opacity=ctx.globalAlpha;
+    if(mix>.04&&mix<.96){
+      cell(first);
+      ctx.globalAlpha=opacity*mix;cell(second);ctx.globalAlpha=opacity;
+    }else cell(mix>=.96?second:first);
+    ctx.translate((config.coreX-n/2)*size/n,(config.coreY-n/2)*size/n);
+    ctx.scale(size/n,size/n);
+    for(const f of filaments(time,q)){
+      const {start:a,c1:b,c2:c,end:d}=f;
+      ctx.strokeStyle=f.color;ctx.lineCap="round";
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.bezierCurveTo(b.x,b.y,c.x,c.y,d.x,d.y);
+      ctx.lineWidth=3.5;ctx.globalAlpha=opacity*.22*f.light;ctx.stroke();
+      ctx.lineWidth=1.18;ctx.globalAlpha=opacity*.93*f.light;ctx.stroke();
+      ctx.fillStyle=f.color;ctx.globalAlpha=opacity*.28*f.light;
+      ctx.beginPath();ctx.arc(d.x,d.y,4.5+q.flow*.9,0,TAU);ctx.fill();
+      ctx.fillStyle="#fff5ce";ctx.globalAlpha=opacity*f.light;
+      ctx.beginPath();ctx.arc(d.x,d.y,1.6+q.flow*.75,0,TAU);ctx.fill();
+    }
+    ctx.restore();
+    return true;
+  }
+  return {config,update,indices,filaments,load,draw};
+});
+// ---- fleet-motion.js ----
+((root,factory)=>{
+  const api=factory();
+  if(typeof module==="object"&&module.exports)module.exports=api;
+  else root.ZombieFleetMotion=api;
+})(globalThis,()=>{
+  "use strict";
+  const TAU=2*Math.PI;
+  const config=Object.freeze({cell:224,columns:6,rows:3,frames:18,periodMs:3000});
+  const phase=now=>((now/config.periodMs)%1+1)%1*TAU;
+  function load(entry,base=""){
+    const hull=new Image();hull.src=base+entry.sprite;
+    const atlas=new Image();atlas.src=base+entry.atlas;
+    return {hull,atlas};
+  }
+  const ready=im=>im?.complete&&im.naturalWidth;
+  const path=(ctx,pts,style,width)=>{
+    if(pts.length<2)return;
+    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+    for(const p of pts.slice(1))ctx.lineTo(p.x,p.y);
+    ctx.strokeStyle=style;ctx.lineWidth=width;ctx.lineCap="round";ctx.stroke();
+  };
+  const dot=(ctx,p,r,color)=>{
+    ctx.beginPath();ctx.arc(p.x,p.y,r,0,TAU);ctx.fillStyle=color;ctx.fill();
+  };
+  function curves(entry,t){
+    const b=entry.bounds,r=entry.recipe, f=Math.min(b.w,b.h);
+    return r.anchors.map(([x,y],i)=>{
+      const q=t+i*1.45,a={x:b.x+x*b.w,y:b.y+y*b.h};
+      const side=x<.49?-1:1, sz=f*(.08+.013*(i%3));
+      const rear=["tentacles","embers","engines","cloud","winch","plates"].includes(r.style);
+      const dx=Math.sin(q)*sz*.72+(rear?side*sz*.31:side*sz*.94);
+      const dy=(rear?sz*1.14:sz*.55)+Math.cos(q*2)*sz*.42;
+      return {a,b:{x:a.x+dx*.12,y:a.y+dy*.56},c:{x:a.x+dx*.83+Math.cos(q)*sz*.39,y:a.y+dy*.55},
+        d:{x:a.x+dx,y:a.y+dy},w:Math.max(2.2,f*.018),pulse:.35+.55*(.5+.5*Math.sin(q)),i};
+    });
+  }
+  function accents(ctx,entry,t){
+    const b=entry.bounds,r=entry.recipe;
+    const p=(u,v)=>({x:b.x+u*b.w,y:b.y+v*b.h});
+    const min=Math.min(b.w,b.h);
+    const mid=p(.5,.5);
+    const color="#b6f9da",pink="#f68bbe";
+    function train(points,phaseShift=0){
+      path(ctx,points,"#5c375e",Math.max(1.8,min*.012));
+      if(points.length<2)return;
+      const pos=((t/TAU+phaseShift)%1+1)%1*(points.length-1),i=Math.floor(pos),u=pos-i;
+      const a=points[i],z=points[Math.min(i+1,points.length-1)];
+      const x={x:a.x+(z.x-a.x)*u,y:a.y+(z.y-a.y)*u};
+      dot(ctx,x,Math.max(2,min*.014),"#7ce8bc52");dot(ctx,x,Math.max(1,min*.007),color);
+    }
+    switch(r.style){
+      case "rings":
+      case "winch":
+      case "drill":{
+        const local=r.style==="winch"?p(.52,.62):r.style==="drill"?p(.5,.43):mid;
+        for(const [i,rad] of [min*.16,min*.27].entries()){
+          const a=t*(i%2?-1:1)+i*1.8;
+          ctx.beginPath();ctx.ellipse(local.x,local.y,rad,rad*(r.style==="drill"?.37:.93),0,a,a+.88);
+          ctx.strokeStyle=i?pink:color;ctx.lineWidth=Math.max(1,min*.006);ctx.stroke();
+        }
+        break;
+      }
+      case "conduit": train([p(.23,.77),p(.50,.65),p(.77,.52)]);break;
+      case "diagonal": train([p(.24,.40),p(.47,.53),p(.64,.68),p(.72,.77)]);break;
+      case "rail": train([p(.23,.86),p(.80,.86),p(.83,.49),p(.83,.20)]);break;
+      case "prism":
+        train([p(.48,.28),p(.38,.57),p(.66,.71)],.1);train([p(.48,.28),p(.59,.52),p(.40,.75)],.47);break;
+      case "strings":
+        for(let i=0;i<5;i++){
+          const x=.23+i*.135,a=p(x,.28),d=p(.32+i*.09,.79);
+          ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo((a.x+d.x)/2+Math.sin(t*2+i)*min*.038,(a.y+d.y)/2,d.x,d.y);
+          ctx.strokeStyle=i%2?"#8bf3cba0":"#da73a6a0";ctx.lineWidth=Math.max(1,min*.007);ctx.stroke();
+        }
+        break;
+      case "liquid":{
+        const ps=Array.from({length:17},(_,i)=>p(.51+Math.sin(i*.52-t*2)*.073,.23+i*.035));
+        train(ps,.2);break;
+      }
+      case "cloud":
+      case "embers":
+      case "engines":{
+        const centers=r.style==="cloud"?[p(.24,.64),p(.73,.64)]:r.style==="embers"?[p(.30,.82),p(.69,.82)]:[p(.27,.77),p(.50,.85),p(.73,.77)];
+        for(let i=0;i<centers.length;i++)for(let j=0;j<4;j++){
+          const u=(t/TAU+j*.24+i*.19)%1,c=centers[i];
+          ctx.globalAlpha=(1-u)*.72;
+          dot(ctx,{x:c.x+Math.sin(u*4+j)*min*.08,y:c.y+u*min*.33},Math.max(1,(1-u)*min*.014),j%2?pink:color);
+        }
+        ctx.globalAlpha=1;break;
+      }
+      case "archive":
+      case "plates":
+      case "shutters":
+      case "stone":
+      case "ribs":
+      case "hammer":
+      case "fan":
+      case "tentacles":
+      case "inflate":{
+        r.anchors.forEach(([u,v],i)=>{
+          const a=p(u,v),o=.15+.50*(.5+.5*Math.sin(t*2+i*1.9));
+          ctx.globalAlpha=o;
+          dot(ctx,a,Math.max(1.5,min*(r.style==="inflate"?.016:.010)),i%2?pink:color);
+        });
+        ctx.globalAlpha=1;break;
+      }
+    }
+  }
+  function draw(ctx,entry,assets,now,{size=128,reducedMotion=false}={}){
+    if(!ready(assets.hull)&&!ready(assets.atlas))return false;
+    const t=phase(reducedMotion?0:now),n=config.cell;
+    ctx.save();ctx.translate(-size/2,-size/2);ctx.scale(size/512,size/512);
+    if(ready(assets.atlas)){
+      const i=Math.floor(t/TAU*config.frames);
+      ctx.drawImage(assets.atlas,i%config.columns*n,Math.floor(i/config.columns)*n,n,n,0,0,512,512);
+    }else ctx.drawImage(assets.hull,0,0,512,512);
+    for(const v of curves(entry,t)){
+      ctx.beginPath();ctx.moveTo(v.a.x,v.a.y);ctx.bezierCurveTo(v.b.x,v.b.y,v.c.x,v.c.y,v.d.x,v.d.y);
+      ctx.lineCap="round";ctx.strokeStyle="#201323";ctx.lineWidth=v.w+2;ctx.stroke();
+      ctx.strokeStyle="#85385d";ctx.lineWidth=v.w;ctx.stroke();
+      ctx.strokeStyle="#a9617d";ctx.lineWidth=Math.max(.7,v.w*.26);ctx.stroke();
+      if(v.i%2===0){dot(ctx,v.d,v.w*.60,"#c0527b");dot(ctx,v.d,v.w*.24,"#a6f1d2");}
+    }
+    accents(ctx,entry,t);ctx.restore();return true;
+  }
+  return {config,phase,curves,load,draw};
+});
+// ---- zombie-thul-motion.js ----
+((root,factory)=>{
+  const api=factory();
+  if(typeof module==="object"&&module.exports)module.exports=api;
+  else root.ZombieThulMotion=api;
+})(globalThis,()=>{
+  "use strict";
+  const config=Object.freeze({size:512,handCell:192,handColumns:4,handFrames:16,cycleMs:5200,
+    mouth:{x:378,y:172}, outlets:[{x:165,y:338,side:1},{x:346,y:339,side:-1}]});
+  const clamp=t=>Math.max(0,Math.min(1,t));
+  const smooth=t=>{t=clamp(t);return t*t*(3-2*t);};
+  function pose(now){
+    const t=((now%config.cycleMs)+config.cycleMs)%config.cycleMs;
+    const reach=smooth((t-770)/460)*(1-smooth((t-2280)/520));
+    const fingerPhase=Math.max(0,t-980)/620;
+    const index=Math.floor(((fingerPhase%1+1)%1)*config.handFrames);
+    return {reach,index,tilt:Math.sin(t*.012)*.08*reach,shift:Math.sin(t*.008)*9*reach};
+  }
+
+  function roots(now){
+    return config.outlets.flatMap(({x,y,side},outlet)=>Array.from({length:3},(_,i)=>{
+      const phase=now*.0053+i*1.8+outlet*2.5;
+      const fan=i-1;
+      const end={x:x+side*(22+i*9)+Math.sin(phase)*(8+i*3),y:y+32+i*8+Math.cos(phase*.9)*(7+i*2)};
+      return {start:{x:x+fan*2.8,y:y+Math.abs(fan)*2},
+        c1:{x:x+side*(5+fan*3),y:y+12+Math.sin(phase)*5},
+        c2:{x:end.x+side*10+Math.sin(phase+1)*9,y:end.y-11},end,
+        thickness:3.1-i*.43,leafAngle:side*.58+Math.sin(phase+.4)*.43,leafLength:12+(i%2)*7,leaf:i!==1};
+    }));
+  }
+
+  function handTransform(state){
+    return {x:config.mouth.x+state.shift,y:config.mouth.y+(1-state.reach)*132,angle:state.tilt,size:150};
+  }
+
+  function load(base=""){
+    const hand=new Image();hand.src=base+"fx/zombie-hand-atlas.webp";
+    const hull=new Image();hull.src=base+"zombie-thul-top.webp";
+    return {hand,hull};
+  }
+
+  function drawRoots(ctx,now){
+    for(const vine of roots(now)){
+      const {start:a,c1:b,c2:c,end:d}=vine;
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.bezierCurveTo(b.x,b.y,c.x,c.y,d.x,d.y);
+      ctx.strokeStyle="#180f24";ctx.lineWidth=vine.thickness+2.3;ctx.stroke();
+      ctx.strokeStyle="#8d3f6e";ctx.lineWidth=vine.thickness;ctx.stroke();
+      ctx.strokeStyle="#de78a5";ctx.lineWidth=.85;ctx.stroke();
+      if(vine.leaf){
+        ctx.save();ctx.translate(d.x,d.y);ctx.rotate(vine.leafAngle);
+        const n=vine.leafLength;
+        ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(-n*.63,n*.15,-n*.49,n*.8,0,n);
+        ctx.bezierCurveTo(n*.38,n*.73,n*.61,n*.29,0,0);
+        ctx.fillStyle="#ad3e78";ctx.fill();ctx.strokeStyle="#79dcc3";ctx.lineWidth=.85;ctx.stroke();
+        ctx.beginPath();ctx.moveTo(0,1);ctx.quadraticCurveTo(1,n*.45,0,n*.87);
+        ctx.strokeStyle="#efc489";ctx.lineWidth=.7;ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+
+  function draw(ctx,assets,now,{size=128,reducedMotion=false,suppressHand=false}={}){
+    const {hand,hull}=assets;
+    if(!hull?.complete||!hull.naturalWidth)return false;
+    const n=config.handCell;
+    ctx.save();ctx.translate(-size/2,-size/2);ctx.scale(size/512,size/512);
+    ctx.drawImage(hull,0,0,512,512);
+    drawRoots(ctx,reducedMotion?0:now);
+    const state=pose(reducedMotion?0:now);
+    if(!suppressHand&&state.reach>.02&&hand?.complete&&hand.naturalWidth){
+      const a=handTransform(state),mouth=config.mouth;
+      ctx.save();
+      ctx.beginPath();ctx.rect(mouth.x-78,mouth.y-139,156,147);ctx.clip();
+      ctx.translate(a.x,a.y);ctx.rotate(a.angle);
+      const i=state.index;
+      ctx.drawImage(hand,i%4*n,Math.floor(i/4)*n,n,n,-a.size/2,-a.size*.94,a.size,a.size);
+      ctx.restore();
+      ctx.strokeStyle="#ad8060";ctx.lineWidth=2.2;
+      ctx.beginPath();ctx.ellipse(mouth.x,mouth.y,20,8,0,.06,Math.PI-.06);ctx.stroke();
+    }
+    ctx.restore();
+    return true;
+  }
+
+  return {config,pose,roots,handTransform,load,draw};
+});
+// ---- zombie-vexar-motion.js ----
+((root,factory)=>{
+  const api=factory();
+  if(typeof module==="object"&&module.exports)module.exports=api;
+  else root.ZombieVexarMotion=api;
+})(globalThis,()=>{
+  "use strict";
+  const TAU=2*Math.PI;
+  const config=Object.freeze({cell:320,columns:6,rows:4,frames:24,periodMs:3600,logicalSize:512});
+  const branches=[
+    {a:[185,259],e:[172,319],n:9,w:3.5,flower:12},
+    {a:[205,267],e:[174,359],n:10,w:3.2,flower:13},
+    {a:[214,292],e:[200,411],n:12,w:4.1,flower:14},
+    {a:[217,333],e:[178,456],n:16,w:4.2,flower:10},
+    {a:[230,319],e:[222,444],n:13,w:3.1,flower:12},
+    {a:[259,318],e:[246,425],n:9,w:3.8,flower:0},
+    {a:[278,312],e:[291,429],n:13,w:4.2,flower:13},
+    {a:[289,335],e:[326,454],n:17,w:4.2,flower:11},
+    {a:[298,281],e:[331,376],n:11,w:3.8,flower:14},
+    {a:[312,263],e:[342,326],n:10,w:3.6,flower:11},
+    {a:[326,253],e:[352,289],n:8,w:2.6,flower:9}
+  ];
+  const phase=now=>((now/config.periodMs)%1+1)%1*TAU;
+  function growth(now){
+    const t=phase(now);
+    return branches.map((v,i)=>{
+      const a={x:v.a[0],y:v.a[1]},p=i*.83;
+      const end={x:v.e[0]+Math.sin(t+p)*v.n+Math.sin(2*t-p)*3,
+        y:v.e[1]+Math.cos(t*2-p)*(3+v.n*.2)};
+      const c1={x:a.x+Math.cos(t+p)*7+(i<5?-12:12),y:a.y+(end.y-a.y)*.36};
+      const c2={x:end.x+Math.sin(t-p)*15,y:end.y-(end.y-a.y)*.32};
+      return {start:a,c1,c2,end,width:v.w,flower:v.flower,
+        angle:Math.sin(t+p)*.46+Math.cos(2*t-p)*.15,scale:.93+.12*Math.sin(t+p+1)};
+    });
+  }
+  function load(base=""){
+    const hull=new Image();hull.src=base+"zombie-vexar-top.webp";
+    const atlas=new Image();atlas.src=base+"fx/zombie-vexar-growth-atlas.webp";
+    const bloom=new Image();bloom.src=base+"vexar-bloomlet.webp";
+    return {hull,atlas,bloom};
+  }
+  const ready=img=>img?.complete&&img.naturalWidth;
+  function draw(ctx,assets,now,{size=128,reducedMotion=false}={}){
+    if(!ready(assets.hull)&&!ready(assets.atlas))return false;
+    const time=reducedMotion?0:now;
+    const q=config.cell;
+    ctx.save();
+    ctx.translate(-size/2,-size/2);
+    ctx.scale(size/512,size/512);
+    if(ready(assets.atlas)){
+      const i=Math.floor(phase(time)/TAU*config.frames);
+      ctx.drawImage(assets.atlas,i%config.columns*q,Math.floor(i/config.columns)*q,q,q,0,0,512,512);
+    }else ctx.drawImage(assets.hull,0,0,512,512);
+    for(const v of growth(time)){
+      const {start:a,c1:b,c2:c,end:d}=v;
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.bezierCurveTo(b.x,b.y,c.x,c.y,d.x,d.y);
+      ctx.lineCap="round";ctx.strokeStyle="#1c1020";ctx.lineWidth=v.width+3;ctx.stroke();
+      ctx.strokeStyle="#733050";ctx.lineWidth=v.width;ctx.stroke();
+      ctx.strokeStyle="#a65b78";ctx.lineWidth=Math.min(1,v.width*.28);ctx.stroke();
+      if(v.flower&&ready(assets.bloom)){
+        const width=v.flower*2*v.scale;
+        ctx.save();ctx.translate(d.x,d.y);ctx.rotate(v.angle);
+        ctx.drawImage(assets.bloom,-width/2,-width/2,width,width);
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+    return true;
+  }
+  return {config,growth,phase,load,draw};
+});
+// ---- zombie-lyth-motion.js ----
+((root,factory)=>{
+  const api=factory();
+  if(typeof module==="object"&&module.exports)module.exports=api;
+  else root.ZombieLythMotion=api;
+})(globalThis,()=>{
+  "use strict";
+  const TAU=2*Math.PI;
+  const config=Object.freeze({cell:320,columns:6,rows:4,frames:24,periodMs:3600});
+  const strands=[
+    {a:[116,250],b:[117,236],c:[140,236],e:[150,259],s:5,w:4.4},
+    {a:[128,256],b:[123,273],c:[137,286],e:[155,289],s:7,w:3.9},
+    {a:[388,253],b:[387,234],c:[366,232],e:[349,250],s:6,w:4.7},
+    {a:[383,256],b:[382,277],c:[362,289],e:[350,297],s:8,w:4.0},
+    {a:[359,127],b:[347,137],c:[354,159],e:[370,164],s:5,w:3.5},
+    {a:[135,355],b:[143,347],c:[165,351],e:[173,369],s:7,w:3.6},
+    {a:[251,365],b:[237,374],c:[239,396],e:[256,404],s:5,w:4.0},
+    {a:[240,363],b:[230,367],c:[214,369],e:[216,390],s:9,w:3.1,bud:true},
+    {a:[268,363],b:[279,369],c:[285,369],e:[288,390],s:9,w:3.1,bud:true}
+  ];
+  function phase(now){return ((now/config.periodMs)%1+1)%1*TAU;}
+  function roots(now){
+    const t=phase(now);
+    return strands.map((p,i)=>{
+      const z=t+i*1.17,bend=Math.sin(z),twist=Math.cos(z*2-i*.5);
+      return {start:{x:p.a[0],y:p.a[1]},c1:{x:p.b[0]+bend*p.s*.55,y:p.b[1]+twist*2.8},
+        c2:{x:p.c[0]+twist*p.s*.55,y:p.c[1]+bend*p.s*.6},
+        end:{x:p.e[0]+bend*p.s,y:p.e[1]+twist*p.s*.53},
+        width:p.w*(1+.17*bend),bud:!!p.bud,angle:bend*.49};
+    });
+  }
+  function load(base=""){
+    const hull=new Image();hull.src=base+"zombie-lyth-top.webp";
+    const atlas=new Image();atlas.src=base+"fx/zombie-lyth-roots-atlas.webp";
+    return {hull,atlas};
+  }
+  const ready=a=>a?.complete&&a.naturalWidth;
+  function draw(ctx,assets,now,{size=128,reducedMotion=false}={}){
+    if(!ready(assets.hull)&&!ready(assets.atlas))return false;
+    const time=reducedMotion?0:now,n=config.cell;
+    ctx.save();ctx.translate(-size/2,-size/2);ctx.scale(size/512,size/512);
+    if(ready(assets.atlas)){
+      const i=Math.floor(phase(time)/TAU*config.frames);
+      ctx.drawImage(assets.atlas,i%config.columns*n,Math.floor(i/config.columns)*n,n,n,0,0,512,512);
+    }else ctx.drawImage(assets.hull,0,0,512,512);
+    for(const v of roots(time)){
+      const {start:a,c1:b,c2:c,end:d}=v;
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.bezierCurveTo(b.x,b.y,c.x,c.y,d.x,d.y);
+      ctx.lineCap="round";ctx.strokeStyle="#1a1022";ctx.lineWidth=v.width+3;ctx.stroke();
+      ctx.strokeStyle="#743250";ctx.lineWidth=v.width;ctx.stroke();
+      ctx.strokeStyle="#bd6989";ctx.lineWidth=.86;ctx.stroke();
+      if(v.bud){
+        ctx.save();ctx.translate(d.x,d.y);ctx.rotate(v.angle);
+        ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(-8,3,-7,10,0,17);
+        ctx.bezierCurveTo(7,11,8,4,0,0);ctx.fillStyle="#8b385f";ctx.fill();
+        ctx.strokeStyle="#da987f";ctx.lineWidth=1.25;ctx.stroke();
+        ctx.beginPath();ctx.moveTo(0,2);ctx.quadraticCurveTo(-2,8,0,14);ctx.strokeStyle="#89dccc";ctx.stroke();
+        ctx.restore();
+      }
+    }
+    ctx.restore();return true;
+  }
+  return {config,roots,phase,load,draw};
+});
+const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}}};
+</script>
+<script>
 "use strict";
 // ======================================================================
 //  SETTINGS  (the numbers worth playing with)
@@ -528,7 +965,18 @@ const SHIPS = [
     weapons: ["ionrivet", "harpoon"],
     guns: { ionrivet: [[0.147, -0.283]], harpoon: [[-0.192, -0.487]] },
     winch: { x: 231, y: 247, w: 50, h: 64 },   // the winch drum on the hull (512 px), drawn turning while the cable runs
-    anim: { dir: "lariat", size: 1.2, idle: "idle.webp" } }
+    anim: { dir: "lariat", size: 1.2, idle: "idle.webp" } },
+  // BLOOM, the flower ship (art/bloom/, art/ships/bloom/idle.webp; 512 x 512, center pivot, nose up). Its petals flutter
+  // and its eight stamens trail behind it as it flies (BloomMotion, the package's renderer).
+  // Button 1: flower shots. Button 2: a bouquet, five petals in a fan.
+  // Magic: a pollen cloud round it (MAGIC.pollen). An enemy that stays in it becomes a zombie (ZOMBIE): its weapons
+  // hit at 20%, it has no magic, and it is drawn with its zombie art. So the enemy has to keep away and fight from afar.
+  { id: "bloom", name: "BLOOM", rarity: "legendary", mass: 0.9, fuel: 30, refill: 15, sfx: null, magic: "pollen", bloom: true,
+    hull: "#e0569a", wingC: "#3a1030", trim: "#8ff5d8", flame: "#ffd27a",
+    body: [], wing: [], nozzles: [0], engineY: 0.4, cockpit: [0, 0, 0.05, 0.1], noFlame: true,
+    weapons: ["flower", "bouquet"],
+    guns: { flower: [[0, -0.52]], bouquet: [[0, -0.5]] },
+    anim: { dir: "bloom", size: 1.05, idle: "idle.webp" } }
 ];
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
 function mechFrames(name, ms, deg) {
@@ -688,7 +1136,10 @@ const WEAPONS = {
   //   swarm: hunters per egg   hunterSpeed: screens per second   hunterTurn: radians per second   hunterLife: seconds
   hive:    { name: "קן ציידים", dmg: 9,  speed: 0.9, life: 1.15, cool: 1.0, ammo: 3,  refill: 12, r: 0.12,  color: "#b8ff3a",
              egg: true, swarm: 3, hunterSpeed: 1.7, hunterTurn: 4, hunterLife: 4.5 },
-  laser:   { name: "לייזר",     dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
+  // BLOOM. flower: a spinning pink flower. bouquet: five petals in a fan (`fan` radians)
+  flower:  { name: "יריית פרח",    dmg: 7,  speed: 2.4, life: 1.1, cool: 0.22, ammo: 28, refill: 7, r: 0.03, color: "#ff7ac8", flower: true },
+  bouquet: { name: "זר עלי כותרת", dmg: 6,  speed: 2.0, life: 0.9, cool: 1.0,  ammo: 6,  refill: 8, r: 0.03, color: "#ffd27a", flower: true, pellets: 5, fan: 0.6 },
+  laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
 };
@@ -729,6 +1180,9 @@ const MAGIC = {
   //   A ship they reach is scrambled for `scramble` seconds: its steering is reversed (it turns the other way) and its
   //   shots fly off the wrong way
   resonance: { name: "הדף תהודה", look: "waves", range: 5, speed: 7, scramble: 60, cool: 30, color: "#ffc38b" },
+  // BLOOM's pollen: a cloud round the flower (it moves with it). It spreads out to `range` ship-lengths in `grow` seconds
+  //   and lasts `last` seconds. An enemy inside it for `infect` seconds in all becomes a zombie (ZOMBIE).
+  pollen: { name: "ענן אבקנים", look: "pollen", range: 3, grow: 0.8, last: 6, infect: 0.9, cool: 20, color: "#ffd27a" },
   // RIVET's flip: the hull turns a quarter round (clockwise; back again on the next tap) in `turn` seconds, and its
   //   other corner is the nose: two other weapons. Nothing fires while it turns
   flip:  { name: "סיבוב", look: "flip", turn: 0.44, cool: 0.5, color: "#ffb347" },
@@ -1362,7 +1816,7 @@ function buzz(ms) { try { native && native.vibrate(ms); } catch (e) {} }
 const LANG_KEY = "orbit-break.language";
 let LANG = (() => { try { const v = LS.getItem(LANG_KEY); return v === "en" || v === "he" ? v : "he"; } catch (e) { return "he"; } })();
 const STR = {
-  he: { streak: (m) => `רצף ×${m}`, hacked: "⚠ נפרצת: הירייה הבאה תסטה ⚠", scrambled: (n) => `♪ הניווט שובש · ${n} ♪`,
+  he: { streak: (m) => `רצף ×${m}`, zombie: "🧟 זומבי: הנשק ב־20% · בלי קסם", hacked: "⚠ נפרצת: הירייה הבאה תסטה ⚠", scrambled: (n) => `♪ הניווט שובש · ${n} ♪`,
     closer: "קרוב יותר לכוכב", mineIn: "המוקש כבר בכוכב", rarity: (r) => "חללית " + r, victory: "ניצחון!",
     levelUp: (n) => `שלב ${n}: צי המחשב חוזר, חזק יותר`, fleetLost: "כל הצי שלך הובס", reached: (n) => `הגעת לשלב ${n}`, newGame: "משחק חדש",
     pickFirst: "בחר חללית מהצי שלך", pickNext: "בחר את החללית הבאה", leftOf: (a, b, n) => `נשארו ${a} מתוך ${b}  ·  שלב ${n}`,
@@ -1371,7 +1825,7 @@ const STR = {
     offline: "בלי חשבון: הכול נשמר רק בטלפון הזה · החלפות וקרבות עם טלפון קרוב", noMagic: "בלי קסם", inUse: "✈ בשימוש",
     tradeDrag: "החלפה: גררו לכאן חללית שתרצו להחליף", tradeBoth: "ההחלפה קורית רק אם גם השחקן השני מציע חללית ושניכם מסכימים",
     hangar: "האנגר בדיקות", hangarNote: "לבדיקה בלבד: הבחירה לא נשמרת. במשחק כל שחקן מקבל חללית אחת", noMagicYet: "בלי קסם עדיין" },
-  en: { streak: (m) => `Streak ×${m}`, hacked: "⚠ Hacked: your next shot will veer ⚠", scrambled: (n) => `♪ Steering scrambled · ${n} ♪`,
+  en: { streak: (m) => `Streak ×${m}`, zombie: "🧟 Zombie: weapons at 20% · no magic", hacked: "⚠ Hacked: your next shot will veer ⚠", scrambled: (n) => `♪ Steering scrambled · ${n} ♪`,
     closer: "Get closer to the star", mineIn: "The mine is already in the star", rarity: (r) => r + " ship", victory: "Victory!",
     levelUp: (n) => `Level ${n}: the computer's fleet returns, stronger`, fleetLost: "Your whole fleet is down", reached: (n) => `You reached level ${n}`, newGame: "New game",
     pickFirst: "Choose a ship from your fleet", pickNext: "Choose your next ship", leftOf: (a, b, n) => `${a} of ${b} left  ·  level ${n}`,
@@ -1384,7 +1838,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -1637,6 +2091,8 @@ const audio = {
     else if (w === "storm") { }   // (its release has its own sound)
     else if (w === "neon") { this.tone(2600, 0.04, "square", 0.035, 0.4); this.tone(1300, 0.06, "sawtooth", 0.025, 0.6); }
     else if (w === "hack") { this.tone(520, 0.18, "square", 0.05, 3); this.noise(0.08, 0.12, 5000); }
+    else if (w === "flower") { this.tone(1320 + Math.random() * 220, 0.09, "sine", 0.04, 1.3); this.tone(2640, 0.05, "triangle", 0.015, 1); }
+    else if (w === "bouquet") { for (let i = 0; i < 3; i++) this.tone(660 + i * 330, 0.14, "sine", 0.035, 1.4, i * 0.03); this.noise(0.12, 0.05, 6000); }
     else if (w === "scatter") this.sfx("rivet", "scatter", 0, 0.8);
     else if (w === "rail" || w === "wave" || w === "nails") { }   // (their own sounds at the start)
     else if (w === "magnet") { if (time - (this.magT || -9) > 0.15) { this.magT = time; this.sfx("rivet", "wave", 0, 0.7); this.tone(900, 0.25, "sine", 0.05, 2.2); } }
@@ -2003,7 +2459,7 @@ function update(dt) {
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
   rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateGimbal(dt); updateLariat(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
-  updateReso(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
+  updateReso(dt); updatePollen(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
   gift.squash = Math.max(0, gift.squash - dt * 5);
@@ -2300,6 +2756,7 @@ function useMagic(which = 0) {
 }
 function useMagicNow(which = 0) {
   const S = shipById(game.ship), M = magicOf(S);
+  if (game.zombie) { audio.nope(); buzz(20); return; }   // a zombie has no magic
   if (which === 1) {   // the second magic, on the right half of a split button
     if (!S.magic2 || game.magicCool2 > 0 || game.dead) return;
     const M2 = MAGIC[S.magic2];
@@ -2374,6 +2831,12 @@ function useMagicNow(which = 0) {
   if (M.look === "rainbow") {   // NIMBUS: the cloud banks lift, and the rainbow flies at their "rain" frame
     if (game.anim) return;   // (busy with lightning or a storm)
     game.magicCool = M.cool; game.anim = { seq: "rainbow", t: 0, rain: true }; buzz(30);
+    return;
+  }
+  if (M.look === "pollen") {   // BLOOM: a pollen cloud round it (updatePollen)
+    game.magicCool = M.cool; game.pollen = { t: 0, hit: 0, done: false };
+    for (let i = 0; i < 4; i++) audio.tone(880 + i * 220, 0.5, "sine", 0.035, 1.6, i * 0.07);
+    audio.noise(0.8, 0.06, 7000); burstAt(game.x, game.y, 30, ["#ffe08a", "#b9fff2", "#ff9ad8"], 0.6, 1.0, game.vx, game.vy); buzz(60);
     return;
   }
   if (M.look === "waves") {   // CANTOR: rings of sound go out from here
@@ -4069,6 +4532,7 @@ function blowUpShip() {
     game.pick = true;
   }
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
+  game.zombie = false; game.pollen = null;   // (a zombie is cured only by blowing up)
   game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
@@ -4593,6 +5057,7 @@ function shipFrame(S, a) {
 // the enemy loses health. In a duel the other phone decides: the damage is sent there
 function harmEnemy(n) {
   if (n <= 0 || !enemy.on) return;
+  if (game.zombie && n < 9999) n *= ZOMBIE.dmg;   // a zombie's weapons hit at 20%
   enemy.hurt = 0.15;
   if (enemy.remote) { duel.outDmg += n; return; }
   enemy.hp -= n;
@@ -5266,6 +5731,9 @@ function drawShip(S, x, y, size, o = {}) {
   glow.addColorStop(0, hexA(S.flame, 0.18 + power * 0.12)); glow.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = glow; ctx.fillRect(-0.7, -0.6, 1.4, 1.3);
 
+  // turned into a zombie by BLOOM's pollen: its zombie art, moving (ZOMBIE_ART). BLOOM: its petals and stamens moving
+  if (o.zombie && drawZombieShip(S)) { ctx.restore(); return; }
+  if (S.bloom && drawBloomMoving(S, power)) { ctx.restore(); return; }
   // a real drawing of the ship, once there is one
   let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep, o.cin || { power: o.power }, o.power);
   if (o.frame && S.anim) img = artImage(framePath(S.anim.dir, o.frame)) || img;   // PUFF: puffed / crumpled
@@ -5367,6 +5835,137 @@ function artImage(src) {
   let a = artCache[src];
   if (!a) { a = artCache[src] = new Image(); a.src = src; }
   return a.complete && a.naturalWidth ? a : null;
+}
+// ---------- BLOOM: the pollen cloud and the zombies ----------
+// game.pollen: { t, hit } (mine: it moves with my ship; my phone decides if it gets them). Theirs: duel.net.pn
+//   (seconds since they cast it, -1 = none), drawn round their ship here.
+// A zombie (game.zombie, on the zombie's own phone; the other phone sees it in duel.net.zb): its weapons hit at
+//   ZOMBIE.dmg of their damage, it has no magic, and it is drawn with its zombie art (ZOMBIE_ART). Until it blows up.
+//   BLOOM itself never turns (it is the flower).
+const ZOMBIE = { dmg: 0.2 };
+function pollenRadius(t, M) { return M.range * Math.min(1, t / M.grow) * shipSize(); }
+function enemyZombie() { return enemy.remote ? !!(duel.net && duel.net.zb) : !!enemy.zombie; }
+function updatePollen(dt) {
+  const M = MAGIC.pollen, P = game.pollen;
+  if (!P) return;
+  P.t += dt;
+  if (P.t > M.last || game.dead) { game.pollen = null; return; }
+  if (!enemy.on || enemy.warp >= 0.5 || enemy.ship === "bloom" || enemyZombie() || P.done) return;
+  const d = Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH));
+  if (d > pollenRadius(P.t, M) + shipSize() * 0.3) return;
+  P.hit += dt;   // breathing it in: a few grains stick to them
+  if (Math.random() < dt * 20) burstAt(enemy.x, enemy.y, 1, ["#ffe08a", "#b9fff2"], 0.15, 0.5, enemy.vx, enemy.vy);
+  if (P.hit >= M.infect) { P.done = true; zombifyEnemy(); }
+}
+function zombifyEnemy() {
+  enemy.zombie = true;
+  if (enemy.remote) link.send({ t: "zb" });
+  zombieBurst(enemy.x, enemy.y, enemy.vx, enemy.vy);
+}
+// their BLOOM's pollen got me
+function becomeZombie() {
+  if (game.zombie || game.ship === "bloom" || game.dead) return;
+  game.zombie = true;
+  zombieBurst(game.x, game.y, game.vx, game.vy); shake(0.5); buzz(220);
+}
+function zombieBurst(x, y, vx, vy) {
+  burstAt(x, y, 46, ["#ff7ac8", "#e0569a", "#b9fff2", "#ffe08a", "#5c375e"], 0.7, 1.0, vx, vy);
+  rings.push({ x, y, t: 0, max: 0.6, r: shipSize() * 1.1, c: "#ff7ac8" }, { x, y, t: -0.1, max: 0.7, r: shipSize() * 1.6, c: "#8ff5d8" });
+  audio.tone(196, 0.9, "sawtooth", 0.05, 0.4); audio.tone(98, 1.2, "sine", 0.07, 0.5, 0.1); audio.tone(1568, 0.3, "triangle", 0.03, 0.8);
+}
+// the pollen round a ship: golden and mint grains drifting outward, and a faint edge showing how far it reaches
+function drawPollen(x, y, t) {
+  const M = MAGIC.pollen;
+  if (!(t >= 0) || t > M.last) return;
+  const r = pollenRadius(t, M), fade = Math.min(1, (M.last - t) / 0.8), cols = ["#ffe08a", "#b9fff2", "#ff9ad8", "#fff5ce"];
+  ctx.save();
+  const g = ctx.createRadialGradient(x, y, r * 0.15, x, y, r);
+  g.addColorStop(0, `rgba(255,224,138,${0.26 * fade})`); g.addColorStop(0.8, `rgba(185,255,242,${0.13 * fade})`); g.addColorStop(1, "rgba(185,255,242,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  ctx.strokeStyle = `rgba(255,224,138,${(0.5 + 0.2 * Math.sin(time * 5)) * fade})`; ctx.lineWidth = Math.max(2, shipSize() * 0.022);
+  ctx.setLineDash([shipSize() * 0.04, shipSize() * 0.09]); ctx.beginPath(); ctx.arc(x, y, r, time * 0.4, time * 0.4 + TAU); ctx.stroke(); ctx.setLineDash([]);
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 140; i++) {
+    const h1 = (Math.sin(i * 12.9898) * 43758.5453) % 1, h2 = (Math.sin(i * 78.233) * 12543.123) % 1;
+    const u = ((Math.abs(h2) + t * 0.22) % 1), a = Math.abs(h1) * TAU + t * (i % 2 ? 0.35 : -0.25) + Math.sin(t * 2 + i) * 0.15;
+    const q = Math.sqrt(u) * r, s = Math.max(1, shipSize() * (0.012 + (i % 3) * 0.006));
+    ctx.globalAlpha = fade * (u < 0.85 ? 0.85 : (1 - u) / 0.15 * 0.85);
+    ctx.fillStyle = cols[i % 4]; ctx.beginPath(); ctx.arc(x + Math.cos(a) * q, y + Math.sin(a) * q, s, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+// the line at the top while I am a zombie
+function drawZombieNote() {
+  if (!game.zombie || game.dead) return;
+  ctx.save(); ctx.font = `bold ${Math.round(Math.min(W, H) * 0.035)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top";
+  ctx.fillStyle = `rgba(255,122,200,${0.75 + 0.25 * Math.sin(time * 4)})`;
+  ctx.fillText(tr("zombie"), W / 2, H * 0.135);
+  ctx.restore();
+}
+// the magic button of a zombie: dark, with roots across it
+function drawZombieMagicButton(b) {
+  ctx.save(); ctx.translate(b.x, b.y);
+  ctx.fillStyle = "rgba(20,8,20,0.82)"; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "#85385d"; ctx.lineWidth = Math.max(2, b.r * 0.1); ctx.lineCap = "round";
+  for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-b.r * 0.6, s * b.r * 0.6); ctx.quadraticCurveTo(b.r * 0.1 * s, -b.r * 0.1 * s, b.r * 0.6, -s * b.r * 0.6); ctx.stroke(); }
+  ctx.fillStyle = "#ff7ac8"; for (const [x, y] of [[-0.6, -0.6], [0.6, 0.6], [-0.6, 0.6], [0.6, -0.6]]) { ctx.beginPath(); ctx.arc(x * b.r, y * b.r, b.r * 0.1, 0, TAU); ctx.fill(); }
+  ctx.restore();
+}
+// BLOOM's magic button: a pink flower with a golden heart, pollen spilling round it while it is ready
+function drawPollenButton(b, M, ready, k) {
+  ctx.save(); ctx.translate(b.x, b.y);
+  if (ready) {
+    const gl = ctx.createRadialGradient(0, 0, b.r * 0.6, 0, 0, b.r * 1.6);
+    gl.addColorStop(0, `rgba(255,224,138,${0.25 + 0.1 * Math.sin(time * 3)})`); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, TAU); ctx.fill();
+  }
+  const bg = ctx.createRadialGradient(-b.r * 0.3, -b.r * 0.35, b.r * 0.1, 0, 0, b.r);
+  bg.addColorStop(0, "#5a1840"); bg.addColorStop(1, "#1c0614");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.1); ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(255,224,138,0.15)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = M.color; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.9, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+  ctx.globalAlpha = ready ? 1 : 0.5;
+  flowerShape(0, 0, b.r * 0.5, ready ? time * 0.6 : 0, "#ff7ac8", "#ffe08a");
+  if (ready) for (let i = 0; i < 6; i++) {
+    const a = i / 6 * TAU + time * 0.8, q = b.r * (0.62 + 0.08 * Math.sin(time * 3 + i));
+    ctx.fillStyle = i % 2 ? "#b9fff2" : "#ffe08a"; ctx.beginPath(); ctx.arc(Math.cos(a) * q, Math.sin(a) * q, b.r * 0.04, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+// a five-petal flower (shots and icons)
+function flowerShape(x, y, r, spin, petal, heart) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(spin); ctx.fillStyle = petal;
+  for (let i = 0; i < 5; i++) { ctx.rotate(TAU / 5); ctx.beginPath(); ctx.ellipse(0, -r * 0.52, r * 0.3, r * 0.5, 0, 0, TAU); ctx.fill(); }
+  ctx.fillStyle = heart; ctx.beginPath(); ctx.arc(0, 0, r * 0.28, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+// BLOOM drawn moving (the package's petal atlas and stamens), and any ship drawn as a zombie (its own renderer).
+// Both inside drawShip, after it has turned to the ship and scaled to ship-lengths. false: not loaded yet (draw the still picture)
+const bloomArt = { petals: null, pose: { flow: 0, side: 0 }, z: {} };
+function drawBloomMoving(S, power) {
+  if (BOT || typeof BloomMotion === "undefined") return false;
+  if (!bloomArt.petals) bloomArt.petals = BloomMotion.load("art/bloom/");
+  const flow = clamp(power || 0, 0, 1);   // (the engine's push: the stamens stream back as it speeds up)
+  bloomArt.pose = { flow: bloomArt.pose.flow + (flow - bloomArt.pose.flow) * 0.1, side: 0 };
+  return BloomMotion.draw(ctx, bloomArt.petals, performance.now(), { flow: Math.max(flow * 0.9, bloomArt.pose.flow), side: 0 }, { size: S.anim.size });
+}
+function zombieImg(S) { const Z = ZOMBIE_ART[S.id]; return Z ? artImage("art/bloom/" + Z.sprite) : null; }
+function drawZombieShip(S) {
+  const Z = ZOMBIE_ART[S.id];
+  if (!Z || BOT) return false;
+  const size = S.anim ? 512 * S.anim.size / (S.anim.base || 512) : 1, now = performance.now();
+  let A = bloomArt.z[S.id], R = { thul: "ZombieThulMotion", vexar: "ZombieVexarMotion", lyth: "ZombieLythMotion", fleet: "ZombieFleetMotion" }[Z.kind];
+  R = globalThis[R];
+  if (!A && R) {
+    const e = { ...Z, sprite: Z.sprite, atlas: Z.atlas };
+    A = bloomArt.z[S.id] = Z.kind === "fleet" ? R.load(e, "art/bloom/") : R.load("art/bloom/");
+  }
+  if (R && A && (Z.kind === "fleet" ? R.draw(ctx, Z, A, now, { size }) : R.draw(ctx, A, now, { size }))) return true;
+  const img = zombieImg(S);
+  if (!img) return false;
+  ctx.drawImage(img, -size / 2, -size / 2, size, size);
+  return true;
 }
 // ---------- CANTOR's resonance ----------
 // game.reso: { x, y, t, hit } (mine: my phone decides if it reaches them). duel.reso: theirs, only shown here
@@ -7412,7 +8011,7 @@ function draw() {
       const dug = shown === S && game.dive;
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
-        { power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
+        { zombie: shown === S && game.zombie, power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
@@ -7431,6 +8030,7 @@ function draw() {
       if (shown === S) { drawFlail(game, S, game.flail); drawAnchor(p.x, p.y, shipSize()); }
       if (game.inked > 0) drawInkOn(p.x, p.y, shipSize(), game.inked / MAGIC.ink.stun, 0.4);
       drawScramble(p.x, p.y, shipSize(), game.scramble);
+      if (game.pollen) drawPollen(p.x, p.y, game.pollen.t);
       drawRewind(p.x, p.y, shipSize(), !!game.rw);
       if (game.charged > 0) {   // just charged by its thundercloud: a golden glow
         const g = ctx.createRadialGradient(p.x, p.y, shipSize() * 0.2, p.x, p.y, shipSize() * 0.9);
@@ -7468,7 +8068,7 @@ function draw() {
     drawCard(shown, Math.min(1, game.card * 2));
     drawRadar();
     drawHealth();
-    drawScrambleNote(); drawHackNote();
+    drawScrambleNote(); drawHackNote(); drawZombieNote();
     if (game.flash > 0) { ctx.save(); ctx.globalAlpha = Math.min(0.7, game.flash * 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     if (!game.dead) { drawThrust(); drawFire(); drawMagic(); }
     drawDuel();
@@ -7675,7 +8275,7 @@ function drawEnemy() {
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (enemy.remote && duel.net && duel.net.bb) drawHeldBubble(enemy, duel.net.bb);
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
+    drawShip(E, p.x, p.y, size * esc, { zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
@@ -7685,6 +8285,7 @@ function drawEnemy() {
     drawRewind(p.x, p.y, size, !!enemy.rw || enemy.rwShow > 0);
     if (E.clouds) drawNimbusClouds(enemy, enemy.remote ? enemy.anim : null, "enemy");
     drawScramble(p.x, p.y, size, Math.max(enemy.scramble || 0, enemy.remote && duel.net && duel.net.sc ? 1 : 0));
+    if (enemy.remote && duel.net && duel.net.pn >= 0) drawPollen(p.x, p.y, duel.net.pn + (performance.now() - duel.net.at) / 1000);
     drawHacked(p.x, p.y, size, Math.max(enemy.hacked || 0, enemy.remote && duel.net && duel.net.hk ? 1 : 0));
     if (enemy.remote) drawRing(duel.ring, E);
     if (enemy.remote) drawDevour(enemy, E, duel.devour);
@@ -7909,6 +8510,13 @@ function drawShots(list = shots) {
       ctx.save(); ctx.strokeStyle = "rgba(233,182,106,0.85)"; ctx.lineWidth = 2; ctx.shadowColor = "#e9b66a"; ctx.shadowBlur = 6;
       ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(5, size * 0.07), 0, TAU); ctx.stroke(); ctx.restore();
     }
+    if (Wp && Wp.flower) {   // BLOOM's flower shots: a spinning flower with a soft glow (the bouquet's: golden petals)
+      const k = size * (s.w === "bouquet" ? 0.075 : 0.09);
+      ctx.save(); ctx.shadowColor = Wp.color; ctx.shadowBlur = 10;
+      if (s.w === "bouquet") { ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy)); ctx.fillStyle = "#ffd27a"; ctx.beginPath(); ctx.ellipse(0, 0, k * 0.45, k, 0, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff9ad8"; ctx.beginPath(); ctx.ellipse(0, k * 0.2, k * 0.2, k * 0.55, 0, 0, TAU); ctx.fill(); }
+      else flowerShape(p.x, p.y, k, time * 7 + (s.x % 7), "#ff7ac8", "#ffe08a");
+      ctx.restore(); continue;
+    }
     if (s.w === "blade") {   // GIMBAL's rim blade: a curved cyan crescent, bowed outward to its side
       const k = size * 0.11, side = Math.sign(s.side || 1);
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy));
@@ -8117,6 +8725,10 @@ function weaponIcon(w, x, y, r, color) {
   } else if (w === "neon") {   // three neon dashes
     ctx.lineWidth = Math.max(2, r * 0.16); ctx.lineCap = "round";
     for (let i = 0; i < 3; i++) { const y = r * (0.55 - i * 0.55); ctx.beginPath(); ctx.moveTo(-r * 0.15, y); ctx.lineTo(r * 0.15, y - r * 0.3); ctx.stroke(); }
+  } else if (w === "flower") {   // a flower
+    flowerShape(0, 0, r * 0.85, 0, color, "rgba(0,0,0,0.35)");
+  } else if (w === "bouquet") {   // three petals in a fan
+    for (const a of [-0.45, 0, 0.45]) { ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.ellipse(0, -r * 0.35, r * 0.2, r * 0.55, 0, 0, TAU); ctx.fill(); ctx.restore(); }
   } else if (w === "hack") {   // a broken square with a diamond inside
     ctx.lineWidth = Math.max(2, r * 0.12);
     ctx.beginPath(); ctx.moveTo(-r * 0.7, -r * 0.2); ctx.lineTo(-r * 0.7, -r * 0.7); ctx.lineTo(r * 0.2, -r * 0.7); ctx.moveTo(r * 0.7, r * 0.2); ctx.lineTo(r * 0.7, r * 0.7); ctx.lineTo(-r * 0.2, r * 0.7); ctx.stroke();
@@ -8288,6 +8900,7 @@ function drawMagic() {
   const S = shipById(game.ship), M = magicOf(S);
   if (!M || trade.stage === "swapping") return;
   const b = magicButton(), ready = game.magicCool <= 0, k = ready ? 1 : 1 - game.magicCool / M.cool;
+  if (game.zombie) { drawZombieMagicButton(b); return; }   // a zombie has no magic
   if (S.magic2) {   // split in two: each half its own magic and its own recharge
     const M2 = MAGIC[S.magic2], r = b.r * 0.66, c2 = game.magicCool2 || 0;
     drawMagicButton({ x: b.x - r * 1.02, y: b.y, r }, M, ready, k);
@@ -8316,6 +8929,7 @@ function drawMagicButton(b, M, ready, k) {
   if (M.look === "anchor") drawAnchorButton(b, M);
   if (M.look === "tint") drawTintButton(b, M, ready, k);
   if (M.look === "waves") drawWavesButton(b, M, ready, k);
+  if (M.look === "pollen") drawPollenButton(b, M, ready, k);
   if (M.look === "flip") drawFlipButton(b, M, ready, k);
   if (M.look === "steam") drawSteamButton(b, M, ready, k);
   if (M.look === "vshield" || M.look === "slip") drawGlitchMagicButton(b, M, ready, k);
@@ -8744,6 +9358,7 @@ function endDuel(tellThem) {
   if (!viaPipe) setTimeout(() => link.stop(), tellThem ? 250 : 0); else link.stop();
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
+  game.zombie = false; game.pollen = null; enemy.zombie = false;
   duel.shots.length = 0; duel.tail = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
@@ -8820,6 +9435,8 @@ function duelLink(event, data) {
     startStorm(m.w, m.x * WW, m.y * WH, m.a, true);
   } else if (m.t === "rb") {   // their NIMBUS's rainbow (only shown; their phone decides if it touches me)
     spawnRainbow(true, m.x * WW, m.y * WH, m.a);
+  } else if (m.t === "zb") {   // their BLOOM's pollen got me: a zombie until this ship blows up
+    becomeZombie();
   } else if (m.t === "hk") {   // their GLITCH's pulse hit me: my next firing turns a quarter
     game.hacked = m.n || WEAPONS.hack.status; shake(0.3); buzz(80);
   } else if (m.t === "scr") {   // their CANTOR's rings reached me: scrambled
@@ -8995,7 +9612,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), tk: game.tanks, d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, hf: game.splitUsed ? 1 : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, zb: game.zombie ? 1 : 0, pn: game.pollen ? +game.pollen.t.toFixed(2) : -1, hf: game.splitUsed ? 1 : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +(duel.outDmg * (BOT ? botLevel().dmg : 1)).toFixed(1),
       ga: game.pushAng != null ? +game.pushAng.toFixed(3) : 0,
       lh: game.hook ? [+(game.hook.x / WW).toFixed(5), +(game.hook.y / WH).toFixed(5), +game.hook.vx.toFixed(1), +game.hook.vy.toFixed(1)] : 0, lt: game.tether ? Math.max(0.01, +game.tether.t.toFixed(2)) : 0,
@@ -9135,9 +9752,15 @@ function botThink(dt) {
   // Leaving that takes more room than entering it, so it does not flip between running and fighting
   const px = wrapDelta(game.x + game.vx * 0.8 - WW / 2, WW), py = wrapDelta(game.y + game.vy * 0.8 - WH / 2, WH), pd = Math.hypot(px, py) || 1;
   botAI.danger = pd < planetR() + U * (botAI.danger ? 0.6 : 0.3);
+  // their BLOOM: keep out of its pollen (further while the cloud is out), and fight it from afar
+  const pr = shipSize() * MAGIC.pollen.range, bloomNear = enemy.ship === "bloom" && !game.zombie && seen &&
+    d < pr + shipSize() * (duel.net && duel.net.pn >= 0 ? 1.5 : 0.3);
   if (botAI.danger) {
     const away = Math.atan2(px, -py) + 0.45 * Math.sign(px * game.vy - py * game.vx || 1);
     botAI.head = away; botKey(" ", Math.abs(wrapAngle(away - game.ang)) < 0.7 && !game.locked);
+  } else if (bloomNear) {
+    const away = Math.atan2(-dx, dy);
+    botAI.head = away; botKey(" ", Math.abs(wrapAngle(away - game.ang)) < 0.8 && !game.locked);
   } else if (d < U * 1.8) {   // near: turn to aim, close in only when lined up and not too close
     botAI.head = aim; botKey(" ", d > U * 0.75 && off < 0.4 && !game.locked);
   } else { botAI.head = c.target; botKey(" ", c.thrust); }   // far: chase (the old enemy's way)
@@ -9151,7 +9774,8 @@ function botThink(dt) {
   if (botAI.t2 <= 0 && seen && d < U * 2.4 && off < 0.7) { botTap("x", 0.15 + Math.random() * 1.6); botAI.t2 = L.special * (0.6 + Math.random() * 0.8); }
   // the magic (and a split button's second magic), now and then when near; sometimes held, sometimes tapped twice
   botAI.tM -= dt;
-  if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S) && (S.id !== "lariat" || game.tether || game.elasso)) {
+  if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S) && (S.id !== "lariat" || game.tether || game.elasso) &&
+      (S.id !== "bloom" || d < shipSize() * MAGIC.pollen.range * 0.8)) {   // (BLOOM: only with them close enough for its pollen)
     botTap("v", Math.random() < 0.5 ? 0.1 : 0.4 + Math.random() * 2.4); botAI.tM = L.magic * (0.6 + Math.random() * 0.8);
   }
   botAI.tB -= dt;
@@ -9520,7 +10144,7 @@ function hangarBtn() { const d = duelBtn(); return { x: d.x, y: d.y + d.r * 2.7,
 function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.4; }
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
-  game.ship = id;
+  game.ship = id; game.zombie = false; game.pollen = null;
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
   game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
