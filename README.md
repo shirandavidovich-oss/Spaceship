@@ -297,9 +297,13 @@ and does nothing). In a duel each phone shows the other's gate and turns its own
 rivet from the right mount (9). Button 2, star harpoon: 0.16 s after the press a hook flies from the boom the way the nose
 points; if it reaches the body in the middle while the ship is near enough, it bites in and the ship is on a cable: the
 winch reels it in (the drum on the hull turns), and a taut cable pulls it toward the body, so it swings round it. The
-cable lets go by itself after 5.2 s, or if the ship gets too far or too close. One hook or cable at a time. Magic, clutch
-release: only on a cable; 0.17 s later the cable lets go with a push along the swing (the way it was going round), its
-speed capped; the nose stays where it points. The hook only catches the body (it does not hurt ships). It does not stick in: the rope winds round the body, four
+cable lets go by itself after 5.2 s, or if the ship gets too far or too close. One hook or cable at a time. Magic, tug
+ram (`clutch` in `MAGIC`, every 12 s): any cable lets go, and the tug flies fast straight into the enemy (it keeps turning
+toward it, up to 0.9 s); on contact it takes 50% of a full ship's health (no crash damage on top), knocks the enemy away
+and bounces back. If the hook hits an enemy ship first, it winds round it (four loops) and holds it on a rope (`ELASSO`):
+the caught ship turns at a third of its speed, so it is hard for it to aim at the tug, and a taut rope pulls the two
+ships together (each phone pulls its own). The rope lets go only when the caught ship does any damage to the tug, or a
+ship is gone. On the body, the hook does not stick in: the rope winds round the body, four
 loops one after another (0.55 s), and holds it tight, cinched round its waist; the body is squeezed a little into an oval
 (narrower across the loops, longer along the pull, more while the cable is taut). The loops turn with the ship as it
 swings (`LASSO` in the game). Our bodies are much
