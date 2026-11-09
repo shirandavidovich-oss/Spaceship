@@ -298,7 +298,8 @@ rivet from the right mount (9). Button 2, star harpoon: 0.16 s after the press a
 points; if it reaches the body in the middle while the ship is near enough, it bites in and the ship is on a cable: the
 winch reels it in (the drum on the hull turns), and a taut cable pulls it toward the body, so it swings round it. The
 cable lets go by itself after 5.2 s, or if the ship gets too far or too close. One hook or cable at a time. Magic, tug
-ram (`clutch` in `MAGIC`, every 12 s): any cable lets go, and the tug flies fast straight into the enemy (it keeps turning
+ram (`clutch` in `MAGIC`, every 12 s): only while the rope is round the enemy or the star (the button stays dark
+without it); the rope lets go, and the tug flies fast straight into the enemy (it keeps turning
 toward it, up to 0.9 s); on contact it takes 50% of a full ship's health (no crash damage on top), knocks the enemy away
 and bounces back. If the hook hits an enemy ship first, it winds round it (four loops) and holds it on a rope (`ELASSO`):
 the caught ship turns at a third of its speed, so it is hard for it to aim at the tug, and a taut rope pulls the two

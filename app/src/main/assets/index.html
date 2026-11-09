@@ -772,9 +772,8 @@ const MAGIC = {
              count: 10, web: 0.18, webDps: 14 },
   // PALISADE: ceramic shatter. Only with its wall up; at `at` s the wall breaks into `shards` shards fanned `fan`
   //   radians apart, straight out the way it was set facing. If the wall is gone by then, nothing (the cost is kept)
-  // LARIAT's clutch release: only on a cable; at `cue` s the cable lets go with a push along the swing
   // LARIAT's ram: it turns to the enemy and charges straight into it at `speed` screens a second (for at most `max` s);
-  // hitting it takes `dmg` of a ship's full health (0.5 = half). On a cable, the cable lets go first. Without an enemy: straight ahead
+  // hitting it takes `dmg` of a ship's full health (0.5 = half). Only with the rope round the enemy or the star; the rope lets go first. Without an enemy: straight ahead
   clutch:  { name: "הסתערות גרירה", look: "clutch", cool: 12, speed: 4.2, max: 0.9, dmg: 0.5, knock: 1.2, color: "#7ce9dc" },
   // GIMBAL's momentum flip: at `cue` s the way it moves turns right round (same speed; the nose stays). Only when it is
   // moving at least `min` pack units a second (from rest it does nothing and costs nothing)
@@ -4906,6 +4905,7 @@ function updateLariat(dt) {
 }
 function larClutch(M) {
   if (game.ldash) return;
+  if (!game.tether && !game.elasso) { audio.tone(110, 0.12, "square", 0.03, 0.8); buzz(25); return; }   // only with the rope round the enemy or the star
   if (game.tether) game.tether = null;   // on the star's cable: it lets go first
   if (game.elasso) larLetGo();            // on an enemy: the same
   game.magicCool = M.cool; game.ldash = { t: 0, hit: false };
@@ -8255,7 +8255,8 @@ function drawMagicButton(b, M, ready, k) {
   const S = shipById(game.ship);
   if (kitOf(S)) {
     const used = (S.id === "drakon" && game.splitUsed && !game.bomb) ||   // DRAKON's magic is once a life
-      (S.id === "gimbal" && Math.hypot(game.vx, game.vy) < MAGIC.momentum.min * gimU());   // GIMBAL's only works while moving
+      (S.id === "gimbal" && Math.hypot(game.vx, game.vy) < MAGIC.momentum.min * gimU()) ||   // GIMBAL's only works while moving
+      (S.id === "lariat" && !game.tether && !game.elasso);   // LARIAT's ram only with the rope round the enemy or the star
     const B = magicBadge(S) || {};
     if (drawKitButton(game.ship, "magic", b, { pressed: game.magicFinger != null, ready: ready && !used, fill: used ? 0 : k, glow: true, badge: B.t, badgeColor: B.c })) return;
   }
@@ -9104,7 +9105,7 @@ function botThink(dt) {
   if (botAI.t2 <= 0 && seen && d < U * 2.4 && off < 0.7) { botTap("x", 0.15 + Math.random() * 1.6); botAI.t2 = L.special * (0.6 + Math.random() * 0.8); }
   // the magic (and a split button's second magic), now and then when near; sometimes held, sometimes tapped twice
   botAI.tM -= dt;
-  if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S)) {
+  if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S) && (S.id !== "lariat" || game.tether || game.elasso)) {
     botTap("v", Math.random() < 0.5 ? 0.1 : 0.4 + Math.random() * 2.4); botAI.tM = L.magic * (0.6 + Math.random() * 0.8);
   }
   botAI.tB -= dt;
