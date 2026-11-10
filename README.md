@@ -113,7 +113,7 @@ hole's pull (the tests check it). **A win fills one spare health tank** again (i
 **BLOOM**, the flower ship (`art/ships/bloom/`, `art/bloom/`): its petals flutter and its eight stamens stream back as
 it flies (the art package's `BloomMotion`). Button 1: flower shots. Button 2: a bouquet, five petals in a fan.
 Magic: a **pollen cloud** round it (moves with it, reaches 3 ship-lengths, lasts 6 s, recharges in 20 s; `MAGIC.pollen`).
-An enemy that stays in the cloud for 0.9 s becomes a **zombie** until that ship blows up: its weapons fire at a fifth of the rate (and refill at a fifth, `ZOMBIE.rate`) and hit at 20%
+An enemy that stays in the cloud for 0.9 s becomes a **zombie** until that ship blows up: its weapons fire at 60% of the rate, only 40% fewer shots (and refill at 60%, `ZOMBIE.rate`) and hit at 20%
 (`ZOMBIE.dmg`), its magic button is dead, a pink line at the top says so, and it is drawn with its zombie art
 (`ZOMBIE_ART`: a still drawing and a moving renderer per ship from the BLOOM package; THUL has the hand in the cannon,
 VEXAR and LYTH their own growth, the rest roots and lights). So the enemy has to keep away and fight it from afar,
