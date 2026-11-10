@@ -423,6 +423,28 @@ is nearer than FRANKENSTEIN. It also falls apart when FRANKENSTEIN blows up; the
 The computer operates when you are far off, stays in the zone and starts each part as soon as it can. In a duel the other phone sees
 the surgery, the spot, the parts and the creature (`fk`); the creature's shots go as ordinary shots.
 
+**LABYRINTH**, the iron foundry (`art/ships/labyrinth/`: the LABYRINTH package's atlases cut into 512 px frames: a
+24-frame flight loop, the rivet burst, the slag fan and the soldering-iron melt; `crown.webp` is the Iron Crown spire;
+its buttons are in `art/hud/labyrinth/`, its BLOOM zombie in `art/bloom/zombie-labyrinth-top.webp`). Heavy and slow.
+Button 1, Rivet Burst: three rivets a press, left / right / left from the two arms, 0.075 s apart, 0.5 s rest after.
+Button 2, Slag Fan: five hot fragments in a short fan (weaker each). Magic, Starforge (`starforge` in `MAGIC`,
+`updateMaze`): an iron crown rises round the star for 4.5 s (the star still burns and pulls), then its jaws close and the
+star goes out (no pull, no heat, nothing to hit): the light dips, and iron walls spread out from it as an outline
+(0.65 s), then turn solid. The whole arena is a maze for **60 s** (a countdown at the top), then the walls dissolve and
+the same star comes back (a ship sitting where it will be is moved out first). The maze wraps round like the arena:
+cells about a screen wide (`cell`), every corridor joined, a fifth of the extra walls opened for loops, open round the
+star. In the maze:
+- **LABYRINTH flies through the walls**: its soldering iron heats and reaches out, the wall glows white-hot and opens a
+  passage with a cyan seam just for it, which closes behind it.
+- **Its shots bounce off the walls** (the same speed, mirror-like, so the angle decides where they go; up to 6 bounces,
+  each giving 0.35 s more flight), so they can find the other ship round corners.
+- **The other ship's shots are stopped by the walls** (they splash on the iron), and the other ship is stopped by them
+  too: flying into a wall bounces it lightly, it slides along, and it loses 4 health (at most every 0.5 s).
+  A STRATA up in its vertical shift passes over them.
+The computer flies the corridors (`mazeWaypoint`), slows before turns and holds its fire when a wall is in the way.
+Destroying LABYRINTH while the crown is still rising calls it off. In a duel the owner's phone sends the maze's seed and
+clock (`mz`), and the other phone builds the same one; if both press at once the lower seed wins.
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

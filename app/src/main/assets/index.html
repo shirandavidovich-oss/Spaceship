@@ -447,7 +447,7 @@
   }
   return {config,roots,phase,load,draw};
 });
-const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0}};
+const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"}};
 </script>
 <script>
 "use strict";
@@ -1021,7 +1021,23 @@ const SHIPS = [
     body: [], wing: [], nozzles: [-0.1, 0.1], engineY: 0.47, cockpit: [0, 0, 0.05, 0.1],
     weapons: ["scalpel", "suture"],
     guns: { scalpel: [[0, -0.48]], suture: [[0, -0.45]] },
-    anim: { dir: "frankenstein", size: 1.2, idle: "idle.webp" } }
+    anim: { dir: "frankenstein", size: 1.2, idle: "idle.webp" } },
+  // LABYRINTH, the iron foundry (art/ships/labyrinth/, the LABYRINTH package: 512 px frames sliced from its atlases,
+  // nose up). Button 1: Rivet Burst, three rivets per press, left / right / left from the two arms (0.075 s apart).
+  // Button 2: Slag Fan, five hot fragments in a short fan. Magic: Starforge (MAGIC.starforge): an iron spire closes
+  // over the star, puts it out, and the whole arena becomes a maze of iron walls for 60 s. LABYRINTH flies through
+  // the walls (it melts a passage with its soldering iron) and its shots bounce off them; the other ship's shots are
+  // stopped by them, and it is hurt by flying into them (STRATA up high passes over)
+  { id: "labyrinth", name: "LABYRINTH", rarity: "legendary", mass: 1.35, fuel: 30, refill: 15, sfx: null, magic: "starforge", labyrinth: true,
+    hull: "#e6d2b4", wingC: "#3a2a22", trim: "#ff9a2e", flame: "#5ee7ff",
+    body: [], wing: [], nozzles: [-0.066, 0.066], engineY: 0.45, cockpit: [0, 0, 0.05, 0.1],
+    weapons: ["rivet", "slagfan"],
+    guns: { rivet: [[-0.139, -0.361], [0.137, -0.361]], slagfan: [[0, -0.36]] },
+    anim: { dir: "labyrinth", size: 1.25, idle: "idle.webp",
+      idleLoop: frames("fly", 24, () => 50).map((f) => f[0]),   // the magazine shuttles, the jaw pistons pump, the exhausts pulse
+      primary: frames("main", 22, () => 25, { 4: "left", 7: "right" }),   // the rivets at 75 / 150 / 225 ms (left, right, left)
+      secondary: frames("slag", 14, () => 40, { 6: "fire" }),            // the fan leaves at 200 ms
+      melt: frames("melt", 22, () => 40) } }                              // the iron heats and extends to melt through a wall
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1055,7 +1071,8 @@ const HANDLING = {
   ballast:  { size: 1.05, speed: 0.8,  accel: 0.85, turn: 0.8  },   // a heavy tug
   strata:   { size: 1,    speed: 1.1,  accel: 1.05, turn: 1.05 },   // a sleek fork
   kiln:     { size: 1.05, speed: 0.85, accel: 0.9,  turn: 0.85 },   // a furnace
-  frankenstein: { size: 1, speed: 1.3,  accel: 1.3,  turn: 1.15 }    // quick (it has to stand still to operate)
+  frankenstein: { size: 1, speed: 1.3,  accel: 1.3,  turn: 1.15 },   // quick (it has to stand still to operate)
+  labyrinth: { size: 1.1, speed: 0.85, accel: 0.9,  turn: 0.85 }    // an iron foundry
 };
 function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1240,6 +1257,11 @@ const WEAPONS = {
   // STRATA. forkbolt: from both fork tips at once. riftseeker: a slow orb that turns after the enemy (homing)
   forkbolt:   { name: "חץ מזלג",   dmg: 6,  speed: 2.6, life: 1.0, cool: 0.3, ammo: 24, refill: 7, r: 0.022, color: "#c86bff", both: true },
   riftseeker: { name: "זרע שכבות", dmg: 16, speed: 1.4, life: 3.0, cool: 1.2, ammo: 5,  refill: 9, r: 0.045, color: "#e3c5ff", homing: 2.2 },
+  // LABYRINTH. rivet: a burst of 3 (`burst`, `gap` s apart), taking turns from the two arms (`alt`); cool counts from the
+  //   press, so 0.5 s rest after the last rivet. slagfan: five fragments in a short fan. lab: in its own maze these bounce
+  //   off the walls (each bounce gives `ext` s more flight, up to MAGIC.starforge.extMax)
+  rivet:    { name: "פרץ מסמרות", dmg: 5, speed: 2.6, life: 1.0, cool: 0.65, ammo: 12, refill: 7, r: 0.022, color: "#ffb36b", burst: 3, gap: 0.075, alt: true, lab: true },
+  slagfan:  { name: "מניפת סיגים", dmg: 3, speed: 2.0, life: 0.6, cool: 1.1, ammo: 6, refill: 8, r: 0.026, color: "#ff7a2e", pellets: 5, fan: 0.7, lab: true },
   laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -1362,6 +1384,14 @@ const MAGIC = {
   //   normal pull): out from it at `push` screens a second each second, and round it at `swirl`, the strength wavering
   //   a little (from a seed both phones share), so it is flung round in a widening circle, into the mines. Within
   //   `reach` screens of the body at full strength, fading out by twice that. `cool` s to recharge, from the press
+  // LABYRINTH's Starforge: an iron spire is built over the star (`build` s, the star still burns), then the star goes out
+  //   and the walls spread out from it (`wave` s, only an outline), then they are solid for `last` s; then they dissolve
+  //   and the same star comes back. cell: a cell's size in screen-widths (the arena wraps round, so does the maze); loops: share
+  //   of the other walls opened too; wall: thickness (screen-widths); clear: open space round the star (its radii);
+  //   hit: health lost flying into a wall (4% of a bar, at most every `hitCool` s); bounces: a LABYRINTH shot's most
+  //   bounces; ext / extMax: flight time each bounce adds; cool: recharge after the maze is gone
+  starforge: { name: "כור הכוכבים", look: "starforge", build: 4.5, wave: 0.65, last: 60, cell: 1.0, loops: 0.2, wall: 0.13, clear: 1.25,
+               hit: 4, hitCool: 0.5, bounces: 6, ext: 0.35, extMax: 1.4, cool: 20, color: "#5ee7ff" },
   reverse: { name: "היפוך כבידה", look: "reverse", at: 0.65, last: 4, push: 0.55, swirl: 1.1, reach: 1.5, cool: 16, color: "#7fb6ff" },
   // STRATA's vertical shift (its package: strata-magic.mjs). It tips its nose, the front engine fires down, and it
   //   rises into the upper dimension (up by `rise`[1] s): drawn high above its grey shadow, which stays where it is on
@@ -1984,6 +2014,75 @@ function cableRelease(dx, dy, vx, vy, fx, fy, boost, cap) {
   if (sp > cap) { nx *= cap / sp; ny *= cap / sp; }
   return { vx: nx, vy: ny };
 }
+// ---- LABYRINTH's maze (Starforge). The arena wraps round, so the maze does too: a grid of cols x rows cells on a
+// ring both ways. E[c]: a wall on the east side of cell c (c = i + j * cols); S[c]: on its south side. The same seed
+// gives the same maze on both phones (the caster sends seed, cols, rows and the clearing)
+function mazeRng(seed) {
+  let t = seed >>> 0;
+  return () => { t = (t + 0x6D2B79F5) >>> 0; let r = Math.imul(t ^ (t >>> 15), 1 | t); r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); return ((r ^ (r >>> 14)) >>> 0) / 4294967296; };
+}
+// a spanning tree of passages (every cell reachable), then `loops` of the other walls opened too, then no walls inside
+// the ellipse `clear` = [half-width, half-height] in cells round the middle (where the star and its spire are)
+function mazeMake(seed, cols, rows, loops = 0.2, clear = [0, 0]) {
+  const rnd = mazeRng(seed), n = cols * rows, E = new Uint8Array(n).fill(1), S = new Uint8Array(n).fill(1), seen = new Uint8Array(n);
+  const stack = [Math.floor(rnd() * n)]; seen[stack[0]] = 1;
+  while (stack.length) {
+    const c = stack[stack.length - 1], i = c % cols, j = (c - i) / cols, il = (i - 1 + cols) % cols, ju = (j - 1 + rows) % rows;
+    const nb = [[(i + 1) % cols + j * cols, E, c], [il + j * cols, E, il + j * cols], [i + ((j + 1) % rows) * cols, S, c], [i + ju * cols, S, i + ju * cols]].filter((q) => !seen[q[0]]);
+    if (!nb.length) { stack.pop(); continue; }
+    const q = nb[Math.floor(rnd() * nb.length)];
+    q[1][q[2]] = 0; seen[q[0]] = 1; stack.push(q[0]);
+  }
+  for (let c = 0; c < n; c++) { if (E[c] && rnd() < loops) E[c] = 0; if (S[c] && rnd() < loops) S[c] = 0; }
+  if (clear[0] > 0 && clear[1] > 0) {
+    const mx = cols / 2, my = rows / 2, inside = (x, y) => ((x - mx) / clear[0]) ** 2 + ((y - my) / clear[1]) ** 2 < 1;
+    for (let c = 0; c < n; c++) {
+      const i = c % cols, j = (c - i) / cols;
+      if (inside(i + 1, clamp01(my, j, j + 1))) E[c] = 0;   // the nearest point of the wall to the middle
+      if (inside(clamp01(mx, i, i + 1), j + 1)) S[c] = 0;
+    }
+  }
+  return { cols, rows, E, S };
+}
+function clamp01(v, a, b) { return Math.max(a, Math.min(b, v)); }
+// the open cells next to cell c
+function mazeNext(M, c) {
+  const { cols, rows, E, S } = M, i = c % cols, j = (c - i) / cols, il = (i - 1 + cols) % cols, ju = (j - 1 + rows) % rows, out = [];
+  if (!E[c]) out.push((i + 1) % cols + j * cols);
+  if (!E[il + j * cols]) out.push(il + j * cols);
+  if (!S[c]) out.push(i + ((j + 1) % rows) * cols);
+  if (!S[i + ju * cols]) out.push(i + ju * cols);
+  return out;
+}
+// the way through the corridors: the next cell from `from` toward `to` (from itself if they are the same; -1: no way)
+function mazeRoute(M, from, to) {
+  if (from === to) return from;
+  const prev = new Int32Array(M.cols * M.rows).fill(-1), q = [to]; prev[to] = to;
+  for (let h = 0; h < q.length; h++) for (const d of mazeNext(M, q[h])) if (prev[d] < 0) { prev[d] = q[h]; if (d === from) return q[h]; q.push(d); }
+  return -1;
+}
+// every cell can be reached from every other
+function mazeConnected(M) {
+  const seen = new Uint8Array(M.cols * M.rows), q = [0]; seen[0] = 1;
+  for (let h = 0; h < q.length; h++) for (const d of mazeNext(M, q[h])) if (!seen[d]) { seen[d] = 1; q.push(d); }
+  return q.length === M.cols * M.rows;
+}
+// a point moving from (0, 0) by (dx, dy) against a box centred at (cx, cy) with half-sizes hw, hh:
+// { t: how far along (0..1) it touches, nx, ny: the face's outward normal }, or null (no touch, or it started inside)
+function sweepBox(dx, dy, cx, cy, hw, hh) {
+  let t0 = 0, t1 = 1, nx = 0, ny = 0;
+  for (const [d, lo, hi, isX] of [[dx, cx - hw, cx + hw, true], [dy, cy - hh, cy + hh, false]]) {
+    if (Math.abs(d) < 1e-9) { if (lo > 0 || hi < 0) return null; continue; }
+    let a = lo / d, b = hi / d, s = -1;
+    if (a > b) { const k = a; a = b; b = k; s = 1; }
+    if (a > t0) { t0 = a; nx = isX ? s : 0; ny = isX ? 0 : s; }
+    if (b < t1) t1 = b;
+    if (t0 > t1) return null;
+  }
+  return nx || ny ? { t: t0, nx, ny } : null;
+}
+// a bounce: the speed along the face's normal turns round (k = 1: a perfect bounce)
+function bounceOff(vx, vy, nx, ny, k = 1) { const vn = vx * nx + vy * ny; return vn >= 0 ? { vx, vy } : { vx: vx - (1 + k) * vn * nx, vy: vy - (1 + k) * vn * ny }; }
 // </logic>
 
 // ======================================================================
@@ -2028,7 +2127,7 @@ function buzz(ms) { try { native && native.vibrate(ms); } catch (e) {} }
 const LANG_KEY = "orbit-break.language";
 let LANG = (() => { try { const v = LS.getItem(LANG_KEY); return v === "en" || v === "he" ? v : "he"; } catch (e) { return "he"; } })();
 const STR = {
-  he: { tapStart: "לחצו כדי להתחיל", nextLevel: (n) => `הבא: שלב ${n}`, streak: (m) => `רצף ×${m}`, zombie: "🧟 זומבי: פגיעה 50% · ירי 60% · בלי קסם", hacked: "⚠ נפרצת: הירייה הבאה תסטה ⚠", scrambled: (n) => `♪ הניווט שובש · ${n} ♪`,
+  he: { maze: "מבוך", tapStart: "לחצו כדי להתחיל", nextLevel: (n) => `הבא: שלב ${n}`, streak: (m) => `רצף ×${m}`, zombie: "🧟 זומבי: פגיעה 50% · ירי 60% · בלי קסם", hacked: "⚠ נפרצת: הירייה הבאה תסטה ⚠", scrambled: (n) => `♪ הניווט שובש · ${n} ♪`,
     closer: "קרוב יותר לכוכב", mineIn: "המוקש כבר בכוכב", rarity: (r) => "חללית " + r, victory: "ניצחון!",
     levelUp: (n) => `שלב ${n}: צי המחשב חוזר, חזק יותר`, fleetLost: "כל הצי שלך הובס", reached: (n) => `הגעת לשלב ${n}`, newGame: "משחק חדש",
     pickFirst: "בחר חללית מהצי שלך", pickNext: "בחר את החללית הבאה", leftOf: (a, b, n) => `נשארו ${a} מתוך ${b}  ·  שלב ${n}`,
@@ -2037,7 +2136,7 @@ const STR = {
     offline: "בלי חשבון: הכול נשמר רק בטלפון הזה · החלפות וקרבות עם טלפון קרוב", noMagic: "בלי קסם", inUse: "✈ בשימוש",
     tradeDrag: "החלפה: גררו לכאן חללית שתרצו להחליף", tradeBoth: "ההחלפה קורית רק אם גם השחקן השני מציע חללית ושניכם מסכימים",
     hangar: "האנגר בדיקות", hangarNote: "לבדיקה בלבד: הבחירה לא נשמרת. במשחק כל שחקן מקבל חללית אחת", noMagicYet: "בלי קסם עדיין" },
-  en: { tapStart: "Tap to start", nextLevel: (n) => `Next: level ${n}`, streak: (m) => `Streak ×${m}`, zombie: "🧟 Zombie: hits 50% · fire 60% · no magic", hacked: "⚠ Hacked: your next shot will veer ⚠", scrambled: (n) => `♪ Steering scrambled · ${n} ♪`,
+  en: { maze: "MAZE", tapStart: "Tap to start", nextLevel: (n) => `Next: level ${n}`, streak: (m) => `Streak ×${m}`, zombie: "🧟 Zombie: hits 50% · fire 60% · no magic", hacked: "⚠ Hacked: your next shot will veer ⚠", scrambled: (n) => `♪ Steering scrambled · ${n} ♪`,
     closer: "Get closer to the star", mineIn: "The mine is already in the star", rarity: (r) => r + " ship", victory: "Victory!",
     levelUp: (n) => `Level ${n}: the computer's fleet returns, stronger`, fleetLost: "Your whole fleet is down", reached: (n) => `You reached level ${n}`, newGame: "New game",
     pickFirst: "Choose a ship from your fleet", pickNext: "Choose your next ship", leftOf: (a, b, n) => `${a} of ${b} left  ·  level ${n}`,
@@ -2050,7 +2149,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -2712,6 +2811,7 @@ function update(dt) {
 
   game.shakeT = Math.max(0, game.shakeT - dt * 2.5);
   updateCosmos(dt);
+  if (game.stage === "fly") updateMaze(dt);
   game.hurt = Math.max(0, game.hurt - dt); game.tankT = Math.max(0, (game.tankT || 0) - dt * 1.5);
   game.arriveT = Math.max(0, (game.arriveT || 0) - dt * 1.5);
   if (BOT) botThink(dt); else campTick(dt);
@@ -2856,7 +2956,7 @@ function moveShip(o, S, c, dt) {
   // 3. the planet in the middle pulls (nearest way round, since space wraps)
   const R = planetR();
   const dx = wrapDelta(o.x - WW / 2, WW), dy = wrapDelta(o.y - WH / 2, WH);
-  const g = gravityAt(dx, dy, U, R, body().pull);
+  const g = gravityAt(dx, dy, U, R, bodyPull());   // (bodyPull: none while LABYRINTH's maze keeps the star out)
   const rk = reverseOn(o);   // KILN's reverse gravity: this ship is pushed away and round instead of pulled
   if (rk > 0) {
     const RV = o === game ? game.reversed : game.kiln, ra = revAccel(dx, dy, o === game ? RV.t : RV.t - MAGIC.reverse.at, RV.seed, MAGIC.reverse, U);
@@ -2866,12 +2966,14 @@ function moveShip(o, S, c, dt) {
   // 4. no air in space: the ship keeps flying, up to its top speed
   const sp = Math.hypot(o.vx, o.vy), top = st.top * U * (o === game && game.puffJet ? MAGIC.inflate.jetTop : 1);   // (PUFF let go: faster)
   if (sp > top) { const k = lerp(1, top / sp, 1 - Math.exp(-dt * 4)); o.vx *= k; o.vy *= k; }
+  const px = o.x, py = o.y;
   o.x += o.vx * dt; o.y += o.vy * dt;
   o.x = ((o.x % WW) + WW) % WW; o.y = ((o.y % WH) + WH) % WH;
+  if (o === game) mazeShip(o, px, py);   // LABYRINTH's maze: the iron walls stop my ship
 
   // 5. bounce off the planet. Stars, black holes and lava burn a ship that touches them (yours: health; see touchBurn)
   o.hitCool = Math.max(0, (o.hitCool || 0) - dt);
-  const d = Math.hypot(dx, dy), touch = R + size * 0.32;
+  const d = starOut() ? Infinity : Math.hypot(dx, dy), touch = R + size * 0.32;   // (the star out: nothing to touch)
   if (o === game) {
     const touching = d < touch + size * 0.08;
     if (myStarTouch(touching)) return 0;   // a BORER's bomb was waiting in the star: shattered
@@ -2964,7 +3066,7 @@ function chemSmoke(dt) {
 // touching a hot one: health goes, a little at a time (the red flash only every few points)
 function touchBurn(dt) {
   const B = body();
-  if (!B.burn || game.dead || stratAloft(game)) return;   // (STRATA up high: out of reach)
+  if (!B.burn || game.dead || stratAloft(game) || starOut()) return;   // (STRATA up high: out of reach)
   cosmos.burn += B.burn * dt;
   if (Math.random() < dt * 20) burstAt(game.x, game.y, 3, [B.color, "#ffffff"], 0.2, 0.4, game.vx, game.vy);
   if (cosmos.burn >= 5) { damageShip(Math.floor(cosmos.burn)); cosmos.burn -= Math.floor(cosmos.burn); }
@@ -2983,6 +3085,287 @@ function setBody(i, show = true) {
 function updateCosmos(dt) {
   cosmos.morph = Math.min(1, cosmos.morph + dt / 1.2);
   cosmos.label = Math.max(0, cosmos.label - dt);
+}
+
+// ---------- LABYRINTH's Starforge (MAGIC.starforge): the spire, the dark star, the maze ----------
+// maze: { owner: "me" | "them" (whose LABYRINTH made it), seed, cols, rows, clear, t (seconds since the press), M (the
+//   grid: mazeMake), body (the star it was built on), hitCool, melts (glowing passages LABYRINTH melts through walls) }
+// Only one at a time on both phones. The owner's phone sends it in its state (`mz`); the other phone builds the same.
+let maze = null;
+function sfTotal() { const M = MAGIC.starforge; return M.build + M.wave + M.last; }
+function starOut() { return !!maze && maze.t >= MAGIC.starforge.build; }                          // the star is dark
+function mazeSolid() { return !!maze && maze.t >= MAGIC.starforge.build + MAGIC.starforge.wave; }  // the walls are solid
+function bodyPull() { return starOut() ? 0 : body().pull; }
+function mazeCells() { return { cw: WW / maze.cols, ch: WH / maze.rows }; }
+function wallT() { return U * MAGIC.starforge.wall; }
+function cellAt(x, y) { const { cw, ch } = mazeCells(); return (Math.floor(wrapX(x) / cw) % maze.cols) + (Math.floor(wrapY(y) / ch) % maze.rows) * maze.cols; }
+// the walls near (x, y), as boxes relative to it, each grown by `rad` (the size of what hits them)
+function mazeBoxes(x, y, rad) {
+  const { cw, ch } = mazeCells(), T = wallT(), out = [], M = maze.M;
+  const i0 = Math.floor(wrapX(x) / cw), j0 = Math.floor(wrapY(y) / ch);
+  for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+    const i = ((i0 + a) % M.cols + M.cols) % M.cols, j = ((j0 + b) % M.rows + M.rows) % M.rows, c = i + j * M.cols;
+    if (M.E[c]) out.push({ x: wrapDelta((i + 1) * cw - x, WW), y: wrapDelta((j + 0.5) * ch - y, WH), hw: T / 2 + rad, hh: ch / 2 + T / 2 + rad, c, s: "E" });
+    if (M.S[c]) out.push({ x: wrapDelta((i + 0.5) * cw - x, WW), y: wrapDelta((j + 1) * ch - y, WH), hw: cw / 2 + T / 2 + rad, hh: T / 2 + rad, c, s: "S" });
+  }
+  return out;
+}
+// the first wall a point meets moving by (dx, dy) from (x, y)
+function mazeSweep(x, y, dx, dy, rad) {
+  let best = null;
+  for (const b of mazeBoxes(x, y, rad)) { const h = sweepBox(dx, dy, b.x, b.y, b.hw, b.hh); if (h && (!best || h.t < best.t)) { best = h; best.box = b; } }
+  return best;
+}
+function inWall(x, y, rad) { return mazeBoxes(x, y, rad).find((b) => Math.abs(b.x) < b.hw && Math.abs(b.y) < b.hh) || null; }
+// is a wall in the way from (x, y) by (dx, dy)? (in steps of half a cell, so a long look crosses every cell)
+function mazeBlocked(x, y, dx, dy) {
+  if (!mazeSolid()) return false;
+  const { cw, ch } = mazeCells(), n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (Math.min(cw, ch) * 0.5)));
+  for (let k = 0; k < n; k++) if (mazeSweep(x + dx * k / n, y + dy * k / n, dx / n, dy / n, 0)) return true;
+  return false;
+}
+// my ship flies through the walls: my own LABYRINTH in its own maze, or a STRATA up in the upper dimension
+function wallPass() { return (maze.owner === "me" && game.ship === "labyrinth") || stratAloft(game); }
+function wallBound() { return mazeSolid() && !game.dead && !wallPass(); }
+
+function startForge(M) {
+  if (maze) { audio.nope(); buzz(20); return; }   // one Starforge at a time (theirs too)
+  const cols = Math.max(4, Math.round(WW / (U * M.cell))), rows = Math.max(4, Math.round(WH / (U * M.cell))), r = planetR() * M.clear + shipSize();
+  const clear = [+(r / (WW / cols)).toFixed(4), +(r / (WH / rows)).toFixed(4)], seed = Math.floor(Math.random() * 2147483647);
+  if (!mazeBegin("me", seed, cols, rows, clear, 0)) { audio.nope(); return; }   // (a layout that does not join up: none)
+  game.magicCool = sfTotal() + M.cool;
+  audio.tone(55, M.build, "sawtooth", 0.04, 1.2); audio.noise(0.6, 0.12, 700); buzz(60);   // the iron starts to fall
+}
+function mazeBegin(owner, seed, cols, rows, clear, t) {
+  const G = mazeMake(seed, cols, rows, MAGIC.starforge.loops, clear);
+  if (!mazeConnected(G)) return false;
+  maze = { owner, seed, cols, rows, clear, t, M: G, body: cosmos.body, hitCool: 0, melts: [], clank: Math.floor(t / 0.5) };
+  return true;
+}
+// over: `restore` brings the star back (and moves my ship out of it first, with no damage)
+function mazeEnd(restore) {
+  if (!maze) return;
+  const was = starOut();
+  maze = null;
+  if (!restore || !was) return;
+  const dx = wrapDelta(game.x - WW / 2, WW), dy = wrapDelta(game.y - WH / 2, WH), d = Math.hypot(dx, dy) || 1, safe = planetR() + shipSize() * 0.45;
+  if (d < safe && !game.dead) { game.x = wrapX(WW / 2 + dx / d * safe); game.y = wrapY(WH / 2 + dy / d * safe); const vn = game.vx * dx / d + game.vy * dy / d; if (vn < 0) { game.vx -= vn * dx / d; game.vy -= vn * dy / d; } }
+  audio.whoosh(); audio.tone(110, 0.8, "sine", 0.05, 3);
+}
+// what the other phone says of its maze (their state's `mz`), or nothing
+function mazeSync(z) {
+  const M = MAGIC.starforge;
+  if (Array.isArray(z)) {
+    if (maze && maze.owner === "me") {   // both pressed at once: the lower seed wins; mine gives way while still building
+      if (z[0] < maze.seed && maze.t < M.build) { maze = null; game.magicCool = M.cool; } else return;
+    }
+    if (!maze) { if (z[5] < sfTotal() - 0.5) mazeBegin("them", z[0], z[1], z[2], [z[3], z[4]], z[5]); return; }
+    if (maze.seed !== z[0]) return;
+    if (Math.abs(maze.t - z[5]) > 0.3) maze.t = z[5];   // (kept in step with their clock)
+  } else if (maze && maze.owner === "them") mazeEnd(starOut());
+}
+function mazeNet() { return maze && maze.owner === "me" ? [maze.seed, maze.cols, maze.rows, maze.clear[0], maze.clear[1], +maze.t.toFixed(2)] : 0; }
+function updateMaze(dt) {
+  if (!maze) return;
+  const M = MAGIC.starforge, t0 = maze.t; maze.t += dt;
+  // the build is called off if the caster is destroyed (or flies another ship now) or the star changes
+  if (maze.t < M.build && (maze.body !== cosmos.body || (maze.owner === "me" && (game.dead || game.ship !== "labyrinth")))) { mazeEnd(false); if (maze === null && game.ship === "labyrinth") game.magicCool = M.cool; return; }
+  if (maze.t < M.build && Math.floor(maze.t / 0.5) > maze.clank) {   // the iron ratchets into place
+    maze.clank = Math.floor(maze.t / 0.5);
+    audio.tone(70 + maze.clank * 6, 0.12, "square", 0.04, 0.5); audio.noise(0.08, 0.08, 2500);
+    for (let k = 0; k < 6; k++) { const a = Math.random() * TAU, r = planetR() * 1.2; burstAt(WW / 2 + Math.cos(a) * r, WH / 2 + Math.sin(a) * r * 0.6, 3, ["#ffd27a", "#ff8a2e", "#ffffff"], 0.25, 0.6); }
+  }
+  if (t0 < M.build && maze.t >= M.build) {   // the jaws close: the star goes out
+    maze.dip = 0.6; audio.boom(); audio.tone(40, 1.2, "sine", 0.08, 0.4); shake(0.6); buzz(160);
+  }
+  if (t0 < M.build + M.wave && maze.t >= M.build + M.wave) {   // the walls are solid: my ship, if inside one, is set beside it
+    audio.tone(90, 0.3, "square", 0.06, 0.4); audio.noise(0.25, 0.15, 900); shake(0.4); buzz(80);
+  }
+  maze.dip = Math.max(0, (maze.dip || 0) - dt);
+  if (maze.t >= sfTotal()) { mazeEnd(true); return; }
+  maze.hitCool = Math.max(0, maze.hitCool - dt);
+  // LABYRINTH melting through: on my phone for mine, and for theirs (only shown)
+  if (mazeSolid()) {
+    if (maze.owner === "me" && game.ship === "labyrinth" && !game.dead) meltScan(game, true);
+    if (maze.owner === "them" && enemy.on && enemy.ship === "labyrinth") meltScan(enemy, false);
+  }
+  for (let k = maze.melts.length - 1; k >= 0; k--) {
+    const m = maze.melts[k]; m.t += dt;
+    if (!m.on) { m.close += dt; if (m.close > 0.4) maze.melts.splice(k, 1); }
+    m.on = false;   // (set again next time while the hull is still in it)
+  }
+}
+// the hot iron at the wall: a passage opens round where the hull crosses it, and closes behind it
+function meltScan(o, mine) {
+  const size = shipSize(), b = inWall(o.x, o.y, size * 0.32);
+  if (mine) {   // the soldering iron heats and reaches out as it nears a wall; held hot while inside one
+    const near = b || mazeSweep(o.x, o.y, o.vx * 0.25, o.vy * 0.25, size * 0.3);
+    if (near && (!game.anim || game.anim.seq === "melt")) {
+      if (!game.anim) { game.anim = { seq: "melt", t: 0 }; audio.noise(0.3, 0.05, 6000); audio.tone(1800, 0.25, "sine", 0.015, 0.4); }
+      else if (b && game.anim.t > 600) game.anim.t = 560;
+    }
+  }
+  if (!b) return;
+  const key = b.c + b.s, wx = b.s === "E" ? o.x + b.x : o.x, wy = b.s === "E" ? o.y : o.y + b.y;
+  let m = maze.melts.find((q) => q.key === key && Math.hypot(wrapDelta(q.x - wx, WW), wrapDelta(q.y - wy, WH)) < size * 0.8);
+  if (!m) { m = { key, x: wx, y: wy, horiz: b.s === "S", t: 0, close: 0 }; maze.melts.push(m); if (mine) audio.noise(0.4, 0.06, 3500); }
+  m.on = true; m.close = 0; m.x = wx; m.y = wy;
+  if (Math.random() < 0.5) burstAt(wx, wy, 2, ["#fff2c0", "#ffb347", "#ff6a1a"], 0.15, 0.6, 0, U * 0.2);   // droplets
+}
+// my ship against the walls, after it moved from (px, py): it stops at the face, slides along it, a light bounce,
+// sparks, and 4% of a bar at most every 0.5 s. Found inside a wall (the walls just came, a respawn, a STRATA coming
+// down): set beside it, no damage
+function mazeShip(o, px, py) {
+  if (!wallBound()) return;
+  const size = shipSize(), rad = size * 0.3 * handling(shipById(game.ship)).size, M = MAGIC.starforge;
+  const dx = wrapDelta(o.x - px, WW), dy = wrapDelta(o.y - py, WH);
+  const h = (dx || dy) && !inWall(px, py, rad) ? mazeSweep(px, py, dx, dy, rad) : null;
+  if (h) {
+    o.x = wrapX(px + dx * h.t + h.nx * 0.5); o.y = wrapY(py + dy * h.t + h.ny * 0.5);
+    const vn = -(o.vx * h.nx + o.vy * h.ny), v = bounceOff(o.vx, o.vy, h.nx, h.ny, 0.3); o.vx = v.vx; o.vy = v.vy;
+    if (vn > U * 0.1 && maze.hitCool <= 0) {
+      maze.hitCool = M.hitCool; damageShip(M.hit * SHIP_HP / 100);
+      burstAt(o.x - h.nx * rad, o.y - h.ny * rad, 16, ["#ffffff", "#ffd27a", "#ff8a2e"], 0.4, 0.6);
+      audio.tone(140, 0.12, "square", 0.06, 0.5); audio.noise(0.12, 0.12, 2200); buzz(70);
+    } else if (vn > U * 0.03 && Math.random() < 0.3) burstAt(o.x - h.nx * rad, o.y - h.ny * rad, 2, ["#ffd27a", "#ff8a2e"], 0.15, 0.4);   // scraping
+  }
+  for (let k = 0; k < 4; k++) {
+    const b = inWall(o.x, o.y, rad);
+    if (!b) break;
+    const ox = b.hw - Math.abs(b.x), oy = b.hh - Math.abs(b.y);
+    if (ox < oy) { const s = -Math.sign(b.x) || 1; o.x = wrapX(o.x + s * (ox + 0.5)); if (o.vx * s < 0) o.vx = 0; }
+    else { const s = -Math.sign(b.y) || 1; o.y = wrapY(o.y + s * (oy + 0.5)); if (o.vy * s < 0) o.vy = 0; }
+  }
+}
+// a shot this step against the walls. LABYRINTH's own shots in its own maze bounce (a little longer flight each time);
+// every other shot is stopped by the iron. True: the shot is gone
+function mazeShot(list, k, s, Wp, dt) {
+  if (!mazeSolid() || !Wp.speed) return false;
+  const M = MAGIC.starforge, r = (Wp.r || 0) * shipSize() * shotScale(s, Wp);
+  const bounces = Wp.lab && (list === shots ? maze.owner === "me" : list === duel.shots ? maze.owner === "them" : false);
+  const near = Math.hypot(wrapDelta(s.x - game.x, WW), wrapDelta(s.y - game.y, WH)) < U * 1.3;
+  if (inWall(s.x, s.y, r)) {
+    if (bounces) return false;   // fired from inside a wall (the caster crossing one): it flies out first
+    burstAt(s.x, s.y, 6, ["#ffd27a", "#ff8a2e", "#5a4030"], 0.2, 0.4); list.splice(k, 1); return true;
+  }
+  const h = mazeSweep(s.x, s.y, s.vx * dt, s.vy * dt, r);
+  if (!h) return false;
+  const cx = wrapX(s.x + s.vx * dt * h.t), cy = wrapY(s.y + s.vy * dt * h.t);
+  if (bounces && (s.bounces || 0) < M.bounces) {
+    const v = bounceOff(s.vx, s.vy, h.nx, h.ny); s.vx = v.vx; s.vy = v.vy;
+    s.x = wrapX(cx + h.nx); s.y = wrapY(cy + h.ny); s.bounces = (s.bounces || 0) + 1; s.ext = Math.min(M.extMax, (s.ext || 0) + M.ext); s.bt = time;
+    burstAt(cx, cy, 6, ["#ffffff", "#5ee7ff", Wp.color], 0.2, 0.35);
+    if (near) audio.tone(1300 + Math.random() * 400, 0.04, "square", 0.025, 0.6);
+    return false;
+  }
+  // stopped: it splashes on the iron
+  burstAt(cx, cy, 9, ["#ffd27a", "#ff8a2e", "#ffffff", "#5a4030"], 0.3, 0.45);
+  if (near) audio.tone(180, 0.05, "square", 0.03, 0.5);
+  list.splice(k, 1);
+  return true;
+}
+// the computer player in the maze: the next corridor to fly to on its way to them (null: go straight, it is near)
+function mazeWaypoint(o, prey) {
+  if (!wallBound()) return null;
+  const from = cellAt(o.x, o.y), to = cellAt(prey.x, prey.y);
+  if (from === to) return null;
+  const nx = mazeRoute(maze.M, from, to);
+  if (nx < 0 || nx === from) return null;
+  if (nx === to && !mazeBlocked(o.x, o.y, wrapDelta(prey.x - o.x, WW), wrapDelta(prey.y - o.y, WH))) return null;
+  const { cw, ch } = mazeCells(), i = nx % maze.cols, j = (nx - i) / maze.cols;
+  return { dx: wrapDelta((i + 0.5) * cw - o.x, WW), dy: wrapDelta((j + 0.5) * ch - o.y, WH) };
+}
+// ---- drawing ----
+// the iron spire round the star: Iron Crown (art/ships/labyrinth/crown.webp), its opening centred on the star, 1.2 times
+// its radius. It is forged in while the star still burns (rising from the base, with sparks), stays dark over the dead
+// star, and fades as the maze ends
+const CROWN = { file: "crown.webp", w: 358, h: 366, ax: 180, ay: 245, open: 120, fit: 1.2 };
+function drawSpire() {
+  if (!maze) return;
+  const M = MAGIC.starforge, img = artImage(framePath("labyrinth", CROWN.file)), p = toScreen(WW / 2, WH / 2);
+  if (!img) return;
+  const k = CROWN.fit * planetR() / CROWN.open, build = clamp(maze.t / M.build, 0, 1), end = clamp((sfTotal() - maze.t) / 1, 0, 1);
+  ctx.save(); ctx.translate(p.x, p.y);
+  ctx.globalAlpha = Math.min(1, build * 3) * end;
+  const top = -CROWN.ay * k, h = CROWN.h * k, shown = h * ease(build);   // rising from the base up
+  ctx.beginPath(); ctx.rect(-CROWN.ax * k - 2, top + h - shown, CROWN.w * k + 4, shown); ctx.clip();
+  ctx.drawImage(img, -CROWN.ax * k, top, CROWN.w * k, h);
+  if (starOut()) { ctx.globalCompositeOperation = "source-atop"; ctx.fillStyle = "rgba(0,0,10,0.35)"; ctx.fillRect(-CROWN.ax * k, top, CROWN.w * k, h); }   // cooled
+  ctx.restore();
+}
+// the star going out: a dark disc over it with a dim, cooling rim
+function drawDeadStar() {
+  if (!maze) return;
+  const M = MAGIC.starforge, k = clamp((maze.t - M.build) / 0.5, 0, 1) * clamp((sfTotal() - maze.t) / 0.6, 0, 1);
+  if (k <= 0) return;
+  const p = toScreen(WW / 2, WH / 2), R = planetR() * 1.04;
+  ctx.save(); ctx.globalAlpha = k;
+  const g = ctx.createRadialGradient(p.x, p.y, R * 0.6, p.x, p.y, R * 1.15);
+  g.addColorStop(0, "#020104"); g.addColorStop(0.85, "#07030a"); g.addColorStop(0.93, `rgba(255,90,30,${0.25 + 0.1 * Math.sin(time * 2)})`); g.addColorStop(1, "rgba(255,90,30,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, R * 1.15, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+// the walls (only those on screen): dark iron with a glowing orange seam and rivets. While they spread out from the
+// star they are only an outline; in the last second they dissolve
+function drawMaze() {
+  if (!maze || !starOut()) return;
+  const M = MAGIC.starforge, { cw, ch } = mazeCells(), T = wallT(), G = maze.M;
+  const wave = clamp((maze.t - M.build) / M.wave, 0, 1), solid = mazeSolid(), fade = clamp(sfTotal() - maze.t, 0, 1);
+  const reach = Math.hypot(WW, WH) / 2 * ease(wave);
+  const z = game.zoom || 1, cx = game.x + game.lx, cy = game.y + game.ly, hw = W / 2 / z + T, hh = H / 2 / z + T;
+  const i0 = Math.floor((cx - hw) / cw) - 1, i1 = Math.floor((cx + hw) / cw) + 1, j0 = Math.floor((cy - hh) / ch) - 1, j1 = Math.floor((cy + hh) / ch) + 1;
+  ctx.save(); ctx.globalAlpha = fade * (0.6 + 0.4 * fade);
+  const melts = maze.melts;
+  const wall = (x0, y0, x1, y1, horiz) => {   // world box corners
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    if (Math.hypot(wrapDelta(mx - WW / 2, WW), wrapDelta(my - WH / 2, WH)) > reach) return;
+    const p = toScreen(mx, my), w = x1 - x0, h = y1 - y0, x = p.x - w / 2, y = p.y - h / 2;
+    if (!solid) { ctx.strokeStyle = "rgba(94,231,255,0.7)"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 5]); ctx.strokeRect(x, y, w, h); ctx.setLineDash([]); return; }
+    ctx.fillStyle = "#2b231e"; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#4a3a2e"; if (horiz) ctx.fillRect(x, y, w, h * 0.22); else ctx.fillRect(x, y, w * 0.22, h);   // the lit edge
+    const glow = 0.55 + 0.25 * Math.sin(time * 1.7 + (mx + my) * 0.003);
+    ctx.fillStyle = `rgba(255,140,40,${glow * 0.35})`; if (horiz) ctx.fillRect(x, p.y - T * 0.22, w, T * 0.44); else ctx.fillRect(p.x - T * 0.22, y, T * 0.44, h);
+    ctx.fillStyle = `rgba(255,190,90,${glow})`; if (horiz) ctx.fillRect(x, p.y - T * 0.06, w, T * 0.12); else ctx.fillRect(p.x - T * 0.06, y, T * 0.12, h);
+    ctx.fillStyle = "#8a7258";   // rivets
+    const L = horiz ? w : h, n = Math.max(2, Math.floor(L / (T * 3)));
+    for (let q = 0; q <= n; q++) { const f = q / n; const rx = horiz ? x + w * f : x + w * 0.5, ry = horiz ? y + h * 0.5 : y + h * f; ctx.fillRect(rx - T * 0.08 + (horiz ? 0 : -T * 0.3), ry - T * 0.08 + (horiz ? -T * 0.3 : 0), T * 0.16, T * 0.16); }
+  };
+  for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+    const c = ((i % G.cols) + G.cols) % G.cols + (((j % G.rows) + G.rows) % G.rows) * G.cols;
+    if (G.E[c]) wall((i + 1) * cw - T / 2, j * ch - T / 2, (i + 1) * cw + T / 2, (j + 1) * ch + T / 2, false);
+    if (G.S[c]) wall(i * cw - T / 2, (j + 1) * ch - T / 2, (i + 1) * cw + T / 2, (j + 1) * ch + T / 2, true);
+  }
+  // the passages LABYRINTH melts: white-hot lips, a cyan seam (only it may pass), closing behind it
+  for (const m of melts) {
+    const p = toScreen(m.x, m.y), open = Math.min(1, m.t / 0.22) * (1 - Math.min(1, m.close / 0.22)), len = shipSize() * 0.75 * open, hot = 1 - Math.min(1, m.close / 0.4);
+    if (hot <= 0) continue;
+    ctx.save(); ctx.translate(p.x, p.y); if (m.horiz) ctx.rotate(Math.PI / 2);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, shipSize() * 0.6);
+    g.addColorStop(0, `rgba(255,250,220,${0.9 * hot})`); g.addColorStop(0.35, `rgba(255,150,40,${0.6 * hot})`); g.addColorStop(1, "rgba(255,80,20,0)");
+    ctx.fillStyle = g; ctx.fillRect(-T * 1.5, -shipSize() * 0.6, T * 3, shipSize() * 1.2);
+    if (len > 1) {
+      ctx.fillStyle = "rgba(8,6,14,0.95)"; ctx.fillRect(-T * 0.55, -len / 2, T * 1.1, len);   // the opening
+      ctx.strokeStyle = "rgba(94,231,255,0.9)"; ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(-T * 0.55, -len / 2); ctx.lineTo(-T * 0.55, len / 2); ctx.moveTo(T * 0.55, -len / 2); ctx.lineTo(T * 0.55, len / 2); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+// over the screen: a light dip as the star goes out, and the maze's countdown at the top
+function drawMazeHud() {
+  if (!maze) return;
+  const M = MAGIC.starforge;
+  if (maze.dip > 0) { ctx.save(); ctx.globalAlpha = Math.min(0.55, maze.dip); ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+  if (!starOut()) return;
+  const left = Math.max(0, Math.ceil(M.build + M.wave + M.last - Math.max(maze.t, M.build + M.wave))), y = H * 0.17, s = Math.round(U * 0.06);
+  ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  ctx.font = `900 ${s}px Rubik, Arial, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = "#140c08";
+  ctx.fillStyle = left <= 5 ? (Math.sin(time * 10) > 0 ? "#ffffff" : "#ff8a2e") : "#ffb36b";
+  ctx.strokeText(left, W / 2, y); ctx.fillText(left, W / 2, y);
+  ctx.font = `700 ${Math.round(s * 0.36)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#5ee7ff";
+  ctx.strokeText(tr("maze"), W / 2, y + s * 0.7); ctx.fillText(tr("maze"), W / 2, y + s * 0.7);
+  ctx.restore();
 }
 
 // ---------- magic: the gear button ----------
@@ -3136,6 +3519,7 @@ function useMagicNow(which = 0) {
   if (M.look === "tow") { startTow(M); return; }   
   if (M.look === "vshift") { startShift(M); return; }
   if (M.look === "reverse") { startReverse(M); return; }
+  if (M.look === "starforge") { startForge(M); return; }   // LABYRINTH: the spire, then the maze (updateMaze)
   if (M.look === "surgery") { surgeryPress(M); return; }   // FRANKENSTEIN: surgery, then a part a press (updateSurgery)   // KILN: the body pushes the enemy away (updateReverse)   // STRATA: up into the upper dimension (updateShift)   // BALLAST: held, it tows an asteroid in (updateTow)
   if (M.look === "tail") {   // the stinger tail grows out behind the ship, stays out, and comes back by itself
     if (game.tail) return;
@@ -4627,14 +5011,14 @@ function updateEnemyShots(dt) {
     s.life += dt;
     if (Wp.magnet) magnetPull(s, Wp, dt);
     if (Wp.homing && !game.dead && s.life > 0.12) { const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), Wp.homing * 0.6 * dt); s.vx = t.vx; s.vy = t.vy; }
-    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), body().pull); s.vx += g.ax * dt; s.vy += g.ay * dt; }
+    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), bodyPull()); s.vx += g.ax * dt; s.vy += g.ay * dt; }
     if (s.rw && enemy.rw) { s.life -= dt; if (!rewindShot(s, dt, enemy.rw.slow)) eshots.splice(k, 1); continue; }   // going back with it (harmless)
     s.rw = false;
     if (shotFx(eshots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;
     if (Wp.phase) phaseTrail(s);
-    if (s.life > Wp.life || Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR()) { eshots.splice(k, 1); continue; }
+    if (s.life > Wp.life || (!starOut() && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR())) { eshots.splice(k, 1); continue; }
     if (threadBlocks(game.thread, s, dt)) { threadSpark(s); eshots.splice(k, 1); continue; }   // my thread stops it
     if (vShieldUp(game) && inFrontV(game, s.x, s.y)) {   // GLITCH's V: batted back, now mine
       vBat(s); eshots.splice(k, 1); shots.push({ ...s, vx: -s.vx, vy: -s.vy, life: 0 }); continue;
@@ -5554,7 +5938,7 @@ function updateWeapons(dt) {
   if (game.burstQ) {   // GLITCH's burst: the next round, turned like the first if it was hacked
     const Q = game.burstQ; Q.t -= dt;
     if (game.dead) game.burstQ = null;
-    else if (Q.t <= 0) { spawnShots(Q.w, Q.g, Q.rot); audio.shot(Q.w); Q.left--; Q.t = WEAPONS[Q.w].gap; if (Q.left <= 0) game.burstQ = null; }
+    else if (Q.t <= 0) { spawnShots(Q.w, Q.guns ? Q.guns[++Q.n % Q.guns.length] : Q.g, Q.rot); audio.shot(Q.w); Q.left--; Q.t = WEAPONS[Q.w].gap; if (Q.left <= 0) game.burstQ = null; }
   }
   weaponsOf(S, game.flipMode || 0).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt * (game.zombie ? ZOMBIE.rate : 1)); });   // (a zombie refills at ZOMBIE.rate, 60%)
   updateAnim(dt);
@@ -5603,15 +5987,15 @@ function updateWeapons(dt) {
       const t = steerShot(s.vx, s.vy, wrapDelta(enemy.x - s.x, WW), wrapDelta(enemy.y - s.y, WH), Wp.homing * dt);
       s.vx = t.vx; s.vy = t.vy;
     }
-    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), body().pull); s.vx += g.ax * dt; s.vy += g.ay * dt; }
+    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), bodyPull()); s.vx += g.ax * dt; s.vy += g.ay * dt; }
     if (shotFx(shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (s.w === "missile" && Math.random() < 0.6) burstAt(s.x, s.y, 1, ["#b8fff0", "#ffffff"], 0.05, 0.6);
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;   // VANTA's drop inside the planet
     if (Wp.phase) phaseTrail(s);
-    if (s.life > Wp.life) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); if (Wp.blast) torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }
+    if (s.life > Wp.life + (s.ext || 0)) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); if (Wp.blast) torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }
     // into the planet: a puff, and it is gone
-    if (Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
+    if (!starOut() && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
       if (Wp.magnet) burstAt(s.x, s.y, 10, [Wp.colors[(s.ix || 0) % Wp.colors.length], "#ffffff"], 0.35, 0.7);
       burstAt(s.x, s.y, 5, ["#b8a3ff", "#ffffff"], 0.2, 0.6); shots.splice(k, 1); continue;
     }
@@ -5703,14 +6087,14 @@ function shoot(i) {
     } else audio.jaws();
     return;
   }
-  const guns = gunsOf(S, w), b = Wp.both ? 0 : game.barrel[i]++ % guns.length;
+  const guns = gunsOf(S, w), b = Wp.both || Wp.alt ? 0 : game.barrel[i]++ % guns.length;   // (alt: a burst always starts on the left)
   // the firing frames do not cut into the ship's other sequences (the heavy cannon, the smoke hatches, the jaw...)
   if (A && A.mech && A.mech[w] && !(game.flipT >= 0)) game.anim = { seq: A.mech[w], t: 0 };   // RIVET: the part that fires moves
   if (A && A.primary && i === 0 && !(game.anim && game.anim.seq !== "primary"))
     game.anim = { seq: "primary", t: Math.max(0, cueTime(A.primary, b === 0 ? "left" : "right")) };
   if (A && A.fireAnim && A.fireAnim[w] && !game.dash2) game.anim = { seq: A.fireAnim[w][b % A.fireAnim[w].length], t: 0 };   // CINDER's recoil
   if (Wp.both) for (const g of guns) spawnShots(w, g); else spawnShots(w, guns[b]);
-  if (Wp.burst) game.burstQ = { w, g: guns[b], left: Wp.burst - 1, t: Wp.gap, rot: spawnShots.rot };   // GLITCH: the rest of the burst
+  if (Wp.burst) game.burstQ = { w, g: guns[b], guns: Wp.alt ? guns : null, n: b, left: Wp.burst - 1, t: Wp.gap, rot: spawnShots.rot };   // (alt: LABYRINTH's arms take turns)   // GLITCH: the rest of the burst
   audio.shot(w);
 }
 // the shots leave from a gun point on the ship, turned with the ship
@@ -5814,7 +6198,7 @@ function updateRing(dt) {
   if (was === "back" && R.phase !== "back") { audio.sfx(S.sfx, "ring_capture"); buzz(30); }
   if (!R.phase) { audio.sfx(S.sfx, "ring_lock"); game.ring = null; return; }
   if (R.phase === "out") {
-    const g = gravityAt(wrapDelta(R.x - WW / 2, WW), wrapDelta(R.y - WH / 2, WH), U, planetR(), body().pull);
+    const g = gravityAt(wrapDelta(R.x - WW / 2, WW), wrapDelta(R.y - WH / 2, WH), U, planetR(), bodyPull());
     R.vx += g.ax * dt; R.vy += g.ay * dt;
     R.x = (((R.x + R.vx * dt) % WW) + WW) % WW; R.y = (((R.y + R.vy * dt) % WH) + WH) % WH;
     R.ang += 6.4 * dt;
@@ -6576,7 +6960,8 @@ const KIT = {
   lariat: { a: "#7ce9dc", b: "#eaa276", fx: "none", face: true },
   // (drawn for these four in the kit's style: whole faces, art/hud/<id>/<slot>-plate.webp)
   ballast: { a: "#7fdbc9", b: "#ffb21e", fx: "none", face: true }, strata: { a: "#c86bff", b: "#e3c5ff", fx: "none", face: true },
-  kiln: { a: "#ffb85a", b: "#7fb6ff", fx: "none", face: true }, frankenstein: { a: "#9bd2c3", b: "#c86bff", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
+  kiln: { a: "#ffb85a", b: "#7fb6ff", fx: "none", face: true }, frankenstein: { a: "#9bd2c3", b: "#c86bff", fx: "none", face: true },
+  labyrinth: { a: "#ffb36b", b: "#5ee7ff", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
 function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
@@ -7640,6 +8025,7 @@ function updateLenses(dt) {
 }
 // each moment, for a shot on its way: pulled by every false star; a seed due to split becomes three shards (true: it is gone)
 function shotFx(list, k, s, Wp, dt) {
+  if (maze && mazeShot(list, k, s, Wp, dt)) return true;   // LABYRINTH's maze: its own shots bounce, the rest are stopped
   if ((game.palWall || duel.palWall) && palShot(list, k, s, Wp, dt)) return true;
   if (lenses.length && !(Wp.speed === 0)) {
     const size = shipSize();
@@ -9285,7 +9671,7 @@ function draw() {
     if (sk > 0.2) ctx.translate((Math.random() - 0.5) * sk, (Math.random() - 0.5) * sk);
     ctx.translate(W / 2, H / 2); ctx.scale(game.zoom, game.zoom); ctx.translate(-W / 2, -H / 2);
   }
-  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); }
+  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); drawDeadStar(); drawSpire(); drawMaze(); }   // (LABYRINTH's Starforge)
 
   if (flying) {
     const p = shipScreen();
@@ -9359,6 +9745,7 @@ function draw() {
     drawParts();
     drawRings();
     ctx.restore();
+    drawMazeHud();
     drawResultTitle();   // YOU WIN / GAME OVER: over the arena, under the buttons
     if (enemyShown()) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
     if (game.rift && game.rift.mark) edgeArrow(game.rift.mark.x, game.rift.mark.y, "#ff68c7");   // DRAKON's mark, off screen
@@ -9841,8 +10228,8 @@ function drawShots(list = shots) {
       const im = artImage(framePath("puff", "spine.webp")), L = size * 0.225;
       if (im) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(s.vx, -s.vy)); ctx.drawImage(im, -L * 15 / 63, -L * 58 / 63, L * 30 / 63, L); ctx.restore(); continue; }
     }
-    if (s.w === "twin" || s.w === "laser" || s.w === "spread" || s.w === "neon" || s.w === "amber" || s.w === "floors" || s.w === "needles" || s.w === "blaster" || s.w === "mpulse" || s.w === "prism" || s.w === "shrapnel" || s.w === "ricochet" || s.w === "pshard") {
-      const len = size * (s.w === "ricochet" ? 0.18 : s.w === "pshard" ? 0.12 : s.w === "mpulse" ? 0.32 : s.w === "prism" ? 0.14 : s.w === "shrapnel" ? 0.09 : s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : s.w === "neon" ? 0.2 : s.w === "amber" ? 0.22 : s.w === "floors" ? 0.14 : s.w === "needles" ? 0.13 : s.w === "blaster" ? 0.22 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
+    if (s.w === "twin" || s.w === "laser" || s.w === "spread" || s.w === "neon" || s.w === "amber" || s.w === "floors" || s.w === "needles" || s.w === "blaster" || s.w === "mpulse" || s.w === "prism" || s.w === "shrapnel" || s.w === "ricochet" || s.w === "pshard" || s.w === "rivet") {
+      const len = size * (s.w === "rivet" ? 0.14 : s.w === "ricochet" ? 0.18 : s.w === "pshard" ? 0.12 : s.w === "mpulse" ? 0.32 : s.w === "prism" ? 0.14 : s.w === "shrapnel" ? 0.09 : s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : s.w === "neon" ? 0.2 : s.w === "amber" ? 0.22 : s.w === "floors" ? 0.14 : s.w === "needles" ? 0.13 : s.w === "blaster" ? 0.22 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
       const col = s.w === "ricochet" && s.bounced ? (time - s.bt < 0.15 ? "#ffffff" : "#b5a0ff") : Wp.color;   // banked: a change of colour
       ctx.strokeStyle = hexA(col, 0.35); ctx.lineWidth = wd * 2.6;
       ctx.beginPath(); ctx.moveTo(p.x - ux * len, p.y - uy * len); ctx.lineTo(p.x, p.y); ctx.stroke();
@@ -10750,6 +11137,7 @@ function endDuel(tellThem) {
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   game.zombie = false; game.pollen = null; enemy.zombie = false;
+  mazeEnd(true);   // the match is over: no maze, the star back
   duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
@@ -10791,6 +11179,7 @@ function duelLink(event, data) {
   if (m.t === "s") {   // where the other ship is now, and what it is doing
     duel.net = { ...m, at: performance.now() };
     if (shipById(m.s)) enemy.ship = m.s;
+    mazeSync(m.mz);   // their LABYRINTH's maze
     if (typeof m.h === "number" && m.h > 0) { damageShip(BOT ? m.h / botLevel().armor : m.h); }   // what my ship took from their weapons (the computer: less, by its level's armour)
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
     const S = shipById(m.s), a0 = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
@@ -11042,8 +11431,8 @@ function updateDuel(dt) {
     if (trapOpen()) suckShot(game, shipById(game.ship), s, dt);   // (their phone pulls it the same way)
     if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it and tells me: "caught")
     const near = !game.dead && !stratAloft(game) && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shotScale(s, Wp) * shipSize();
-    const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
-    if (near || inPlanet || s.life > Wp.life) {
+    const inPlanet = !starOut() && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
+    if (near || inPlanet || s.life > Wp.life + (s.ext || 0)) {
       if (Wp.blast && !inPlanet) torpedoBlast(s, Wp, false);   // their torpedo going off (their phone counts it)
       if (near) burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 5, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);
       duel.shots.splice(k, 1);
@@ -11069,7 +11458,7 @@ function updateDuel(dt) {
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
         ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2), creatureLeft(game.surg.c), +(game.surg.c.hp / MAGIC.surgery.hp).toFixed(3)] : [])] : 0,
-      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1,
+      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(),
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
@@ -11200,7 +11589,7 @@ function botThink(dt) {
   // close to the body in the middle (where it will be in a moment): get away first, straight out from it, a little to the side.
   // Leaving that takes more room than entering it, so it does not flip between running and fighting
   const px = wrapDelta(game.x + game.vx * 0.8 - WW / 2, WW), py = wrapDelta(game.y + game.vy * 0.8 - WH / 2, WH), pd = Math.hypot(px, py) || 1;
-  botAI.danger = pd < planetR() + U * (botAI.danger ? 0.6 : 0.3);
+  botAI.danger = !starOut() && pd < planetR() + U * (botAI.danger ? 0.6 : 0.3);
   // their BLOOM: keep out of its pollen (further while the cloud is out), and fight it from afar
   const pr = shipSize() * MAGIC.pollen.range, bloomNear = enemy.ship === "bloom" && !game.zombie && seen &&
     d < pr + shipSize() * (duel.net && duel.net.pn >= 0 ? 1.5 : 0.3);
@@ -11238,19 +11627,27 @@ function botThink(dt) {
     const ra = Math.atan2(wrapDelta(game.tow.x - game.x, WW), -wrapDelta(game.tow.y - game.y, WH));
     if (game.tow.t > 2.4 && Math.abs(wrapAngle(ra - Math.atan2(dx, -dy))) < 0.3) { delete botAI.hold.v; botKey("v", false); }
   }
+  // in LABYRINTH's maze (walls in its way): along the corridors toward them, slowing before each turn
+  const wp = !botAI.danger ? mazeWaypoint(game, prey) : null;
+  if (wp) {
+    const wd = Math.hypot(wp.dx, wp.dy) || 1, want = clamp(wd * 1.1, U * 0.35, U * 1.0);
+    const wx = wp.dx / wd * want - game.vx, wy = wp.dy / wd * want - game.vy;
+    botAI.head = Math.atan2(wx, -wy); botKey(" ", Math.hypot(wx, wy) > U * 0.12 && Math.abs(wrapAngle(botAI.head - game.ang)) < 0.5 && !game.locked);
+  }
+  const walled = wallBound() && mazeBlocked(game.x, game.y, dx, dy);   // (its shots would only hit the iron)
   // button 1: when lined up and in reach
   const reach1 = w1 ? Math.min(U * 2.5, w1.speed * U * (w1.life || 1) * 0.9) : U;
-  botKey("z", seen && off < 0.22 && d < reach1);
+  botKey("z", seen && off < 0.22 && d < reach1 && !walled);
   // button 3 (a weapon picked up from a crate): the same way
   botKey("c", seen && !!game.loot && off < 0.25 && d < U * 2);
   // button 2 (the heavy one) every few seconds when near, held a moment (some are held to charge)
   botAI.t2 -= dt;
-  if (botAI.t2 <= 0 && seen && d < U * 2.4 && off < 0.7) { botTap("x", 0.15 + Math.random() * 1.6); botAI.t2 = L.special * (0.6 + Math.random() * 0.8); }
+  if (botAI.t2 <= 0 && seen && d < U * 2.4 && off < 0.7 && !walled) { botTap("x", 0.15 + Math.random() * 1.6); botAI.t2 = L.special * (0.6 + Math.random() * 0.8); }
   // the magic (and a split button's second magic), now and then when near; sometimes held, sometimes tapped twice
   botAI.tM -= dt;
   if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S) && (S.id !== "lariat" || game.tether || game.elasso) &&
       (S.id !== "bloom" || d < shipSize() * MAGIC.pollen.range * 0.8) && (S.id !== "strata" || d < U * 1.2) &&
-      (S.id !== "kiln" || mines.some((q) => !q.remote && WEAPONS[q.w].kiln)) && S.id !== "frankenstein") {   // (KILN: once it has mines out)   // (STRATA: close enough to reach them up there)   // (BLOOM: only with them close enough for its pollen)
+      (S.id !== "kiln" || mines.some((q) => !q.remote && WEAPONS[q.w].kiln)) && S.id !== "frankenstein" && (S.id !== "labyrinth" || !maze)) {   // (KILN: once it has mines out)   // (STRATA: close enough to reach them up there)   // (BLOOM: only with them close enough for its pollen)
     botTap("v", S.id === "ballast" ? 7 + Math.random() * 4 : Math.random() < 0.5 ? 0.1 : 0.4 + Math.random() * 2.4);   // (BALLAST: held for its tow) botAI.tM = L.magic * (0.6 + Math.random() * 0.8);
   }
   botAI.tB -= dt;

@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{kilnRig,revRamp,revAccel,stratPose,STRATA_W,towRig,BALLAST_UNIT,HOLD_ANGLE,palInteract,palCarrier,PAL,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,levelStats,cablePull,cableRelease,gimbalTurn,gateSweep,quarterTurn,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,talusForge,bubbleCharge,vexarEggPose,vexarEggFlight,borerThrust,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
-const { kilnRig, revRamp, revAccel, stratPose, STRATA_W, towRig, BALLAST_UNIT, HOLD_ANGLE, SHIPS, palInteract, palCarrier, PAL, starMinePose, starMineCheck, talusForge, bubbleCharge, vexarEggPose, vexarEggFlight, borerThrust, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, levelStats, cablePull, cableRelease, gimbalTurn, gateSweep, quarterTurn, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{kilnRig,revRamp,revAccel,stratPose,STRATA_W,towRig,BALLAST_UNIT,HOLD_ANGLE,palInteract,palCarrier,PAL,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,levelStats,cablePull,cableRelease,gimbalTurn,gateSweep,quarterTurn,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,talusForge,bubbleCharge,vexarEggPose,vexarEggFlight,borerThrust,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward,mazeMake,mazeNext,mazeRoute,mazeConnected,sweepBox,bounceOff});", { box, Math, Object, parseInt });
+const { kilnRig, revRamp, revAccel, stratPose, STRATA_W, towRig, BALLAST_UNIT, HOLD_ANGLE, SHIPS, palInteract, palCarrier, PAL, starMinePose, starMineCheck, talusForge, bubbleCharge, vexarEggPose, vexarEggFlight, borerThrust, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, levelStats, cablePull, cableRelease, gimbalTurn, gateSweep, quarterTurn, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward, mazeMake, mazeNext, mazeRoute, mazeConnected, sweepBox, bounceOff } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("thirty-eight ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 38);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 38);
+ok("thirty-nine ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 39);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 39);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -656,5 +656,32 @@ ok("the four new ships have kit buttons in the HUD, all five of them", () => {
   for (const id of ["ballast", "strata", "kiln", "frankenstein"]) for (const slot of ["thrust", "primary", "secondary", "pickup", "magic"])
     assert(fs.existsSync(path.join(__dirname, "../app/src/main/assets/art/hud", id, slot + "-plate.webp")), id + " " + slot);
   assert(/bloom: \{ a: "#8ff5d8", b: "#ff9ad8", face: true, round: true \}/.test(html), "BLOOM's buttons are as they were");
+});
+ok("LABYRINTH: rivets in a burst of 3 taking turns from both arms, a fan of five; Starforge builds, then 60 s of maze", () => {
+  const S = shipById("labyrinth"), M = MAGIC.starforge; assert(S && S.magic === "starforge" && S.anim && S.labyrinth);
+  assert.strictEqual(weaponsOf(S).join(), "rivet,slagfan");
+  const R = WEAPONS.rivet; assert(R.burst === 3 && R.gap === 0.075 && R.alt && gunsOf(S, "rivet").length === 2 && Math.abs(R.cool - (R.gap * 2 + 0.5)) < 1e-9);
+  assert(WEAPONS.slagfan.pellets === 5 && WEAPONS.slagfan.dmg < R.dmg && WEAPONS.rivet.lab && WEAPONS.slagfan.lab);
+  assert(M.build === 4.5 && M.wave === 0.65 && M.last === 60 && M.hit === 4 && M.hitCool === 0.5 && M.loops === 0.2);
+  const A = S.anim; assert(seqFrame(A.primary, cueTime(A.primary, "left")) === 3 && cueTime(A.primary, "right") - cueTime(A.primary, "left") === 75);
+  assert(cueTime(A.secondary, "fire") === 200 && A.idleLoop.length === 24 && A.melt.length === 22);
+});
+ok("the maze: every cell joined (it wraps round), the same for the same seed, open round the star, a way through", () => {
+  for (const [c, r] of [[6, 13], [6, 6], [6, 4], [5, 11]]) for (let seed = 1; seed < 60; seed++) {
+    const G = mazeMake(seed, c, r, 0.2, [1.2, 1.2]); assert(mazeConnected(G), c + "x" + r + " " + seed);
+    const mid = Math.floor(c / 2) + Math.floor(r / 2) * c; assert(mazeNext(G, mid).length >= 2, "two ways out of the middle");
+    const nx = mazeRoute(G, 0, c * r - 1); assert(nx >= 0 && mazeNext(G, 0).includes(nx));
+  }
+  const a = mazeMake(42, 6, 13, 0.2), b = mazeMake(42, 6, 13, 0.2), d = mazeMake(43, 6, 13, 0.2);
+  assert.deepStrictEqual([...a.E, ...a.S], [...b.E, ...b.S]); assert.notDeepStrictEqual([...a.E, ...a.S], [...d.E, ...d.S]);
+  const walls = [...a.E, ...a.S].filter((v) => v).length; assert(walls > 40 && walls < 6 * 13 * 2 - 6 * 13 + 1, "a tree plus some loops");
+});
+ok("against a wall: a shot meets the face it flies into, and bounces off it at the same speed", () => {
+  const h = sweepBox(10, 0, 6, 0, 1, 5); assert(h && Math.abs(h.t - 0.5) < 1e-9 && h.nx === -1 && h.ny === 0);
+  const g = sweepBox(0, -10, 0, -6, 5, 1); assert(g && g.ny === 1 && g.nx === 0);
+  assert.strictEqual(sweepBox(10, 0, 6, 8, 1, 1), null); assert.strictEqual(sweepBox(1, 0, 0, 0, 1, 1), null);   // missing; starting inside
+  assert(Math.abs(sweepBox(100, 0, 6, 0, 0.1, 5).t - 0.059) < 1e-9);   // a fast shot cannot pass through a thin wall
+  const v = bounceOff(3, 4, -1, 0); assert(v.vx === -3 && v.vy === 4);
+  const w = bounceOff(3, 4, -1, 0, 0.3); assert(Math.abs(w.vx + 0.9) < 1e-9 && w.vy === 4);   // a ship: a light rebound, the slide kept
 });
 console.log(n + " checks passed");
