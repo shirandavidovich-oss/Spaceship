@@ -630,7 +630,8 @@ ok("STRATA's vertical shift: tips, jets, rises; only all the way up does the loc
   const f = P(3.3, { fire: 3.2, fall: 3.7 }); assert(f.beam > 0.9 && f.up);   // the beam opens only after the lock
   assert(P(3.75, { fire: 3.2, fall: 3.7 }).beam === 0 && !P(3.7 + M.fall, { fire: 3.2, fall: 3.7 }).up);
   assert(P(4.0, { fall: 3.7 }).bank > 0 && stratPose(null, M).z === 0);
-  assert(M.hold === 0.25 && M.lock < 0.55 && STRATA_W > 0.5);
+  assert(M.hold === 0.25 && M.lock === 0.6 && M.tank && STRATA_W > 0.5);
+  assert(M.stay - M.rise[1] > 2 * (4.6 - M.rise[1]) - 0.01);   // up there twice as long as before
 });
 ok("KILN: mines in a fan of three; the gear spins up; the reversed body pushes out AND round, the same for the same seed", () => {
   const M = MAGIC.reverse, S = shipById("kiln"); assert(S && S.magic === "reverse" && S.anim);

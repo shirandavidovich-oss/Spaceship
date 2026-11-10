@@ -1336,10 +1336,12 @@ const MAGIC = {
   //   rises into the upper dimension (up by `rise`[1] s): drawn high above its grey shadow, which stays where it is on
   //   the arena. Up there nothing touches it and it cannot fire; it still flies (its shadow is where it really is).
   //   Keep the shadow's middle on the enemy (within `lock` ship-lengths of its middle) for `hold` s and the sight
-  //   closes and a laser fires straight down: the enemy ship is destroyed, spare tanks and all (`slay`; set it false
-  //   and the laser does `dmg` instead). Then it comes down. If no lock by
-  //   `stay` s, it comes down anyway (`fall` s). `cool` s to recharge, counted from the press
-  vshift:  { name: "מעבר לממד הגובה", look: "vshift", rise: [0.49, 1.66], stay: 4.6, fall: 1.11, lock: 0.3, hold: 0.25, slay: true, dmg: 60,
+  //   closes and a laser fires straight down: the enemy loses one whole tank of power (`tank`; with no spare tank left
+  //   that is its ship; set `tank` false and the laser does `dmg` instead). Then it comes down. If no lock by `stay` s,
+  //   it comes down anyway (`fall` s): up there for about 5.9 s (it was 2.9). Slipping out of the lock does not start it
+  //   again at once: it unwinds twice as fast as it winds. Caught on a LARIAT's rope, the shift slips the rope off.
+  //   `cool` s to recharge, counted from the press
+  vshift:  { name: "מעבר לממד הגובה", look: "vshift", rise: [0.49, 1.66], stay: 7.55, fall: 1.11, lock: 0.6, hold: 0.25, tank: true, dmg: 60,
              cool: 18, color: "#c86bff" },
   tow:     { name: "גרירת אסטרואיד", look: "tow", stop: 1.43, reel: [1.46, 4.15], rock: 0.6, rest: [2.3, -0.25], kick: 0.35,
              fling: 0.9, throw: 1.4, fuse: 5, blast: 3.2, dmg: 70, edge: 30, near: 0.9, knock: 2.2, max: 14, cool: 12, miss: 2, color: "#7fdbc9" },
@@ -3405,16 +3407,26 @@ function drawTowButton(b, M, ready, k) {
 function startShift(M) {
   if (game.strata) return;
   game.strata = { t: 0, fall: null, fire: null, lockT: 0, ax: game.x, ay: game.y };
+  if (game.lassoed) {   // on a LARIAT's rope: the shift slips it off, and away it goes
+    game.lassoed = null; duelSend({ t: "lsf" });
+    audio.tone(900, 0.12, "triangle", 0.04, 0.6); burstAt(game.x, game.y, 16, ["#eaa276", "#ffffff", "#c86bff"], 0.4, 0.6, game.vx, game.vy);
+  }
   game.magicCool = M.cool;
   audio.tone(180, 1.3, "sawtooth", 0.05, 3.2, 0.4); audio.noise(1.0, 0.1, 3000); buzz(40);   // the front engine, rising
 }
 // high enough to be out of the arena: shots, crashes and the star do not touch it
 function stratAloft(o) { const T = o === game ? game.strata : enemy.remote ? duel.strata : null; return !!T && stratPose(T, MAGIC.vshift).up; }
-// the whole enemy ship is gone at once (spare tanks too): STRATA's laser
-function slayEnemy() {
+// STRATA's laser: the enemy loses one whole tank of power (its last one: the ship)
+function tankEnemy() {
   if (!enemy.on || enemyAloft()) return;
-  if (enemy.remote) { link.send({ t: "slay" }); duel.outDmg += 1; return; }   // (their phone blows it up)
-  enemy.hp = 0; destroyEnemy();
+  if (enemy.remote) { link.send({ t: "tank" }); duel.outDmg += 1; return; }   // (their phone takes it off)
+  harmEnemy(ENEMY_HP);
+}
+// a whole tank off my ship: a spare one if there is one (the bar stays as it is), else the ship
+function loseTank() {
+  if (game.dead || stratAloft(game)) return;
+  if (game.tanks > 0) { game.tanks--; game.tankT = 1; game.hurt = 0.35; shake(0.6); buzz(200); }
+  else damageShip(SHIP_HP * 100);
 }
 function enemyAloft() { return enemy.on && stratAloft(enemy); }
 function updateShift(dt) {
@@ -3432,13 +3444,13 @@ function updateShift(dt) {
       T.lockT += dt; T.ax = enemy.x; T.ay = enemy.y;
       if (T.lockT >= M.hold) {
         T.fire = T.t; T.fall = T.t + 0.5;
-        if (M.slay) slayEnemy(); else harmEnemy(M.dmg);
+        if (M.tank) tankEnemy(); else harmEnemy(M.dmg);
         enemy.hurt = 0.5;
         burstAt(enemy.x, enemy.y, 40, ["#ffffff", "#fcecff", "#ba7afd", "#a456fb"], 0.7, 1.1);
         rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.5, r: shipSize() * 1.2, c: "#ba7afd" });
         audio.tone(2200, 0.5, "sawtooth", 0.08, 0.1); audio.tone(110, 0.6, "square", 0.08, 0.5); audio.noise(0.5, 0.2, 5000); shake(0.6); buzz(160);
       }
-    } else T.lockT = 0;   // they slipped out: it starts again
+    } else T.lockT = Math.max(0, T.lockT - dt * 2);   // they slipped out: the lock unwinds (twice as fast)
     if (T.fall == null && T.t >= M.stay) { T.fall = T.t; audio.tone(600, 0.9, "sine", 0.04, 0.4); }
   } else if (T.t > T.fall + M.fall + 0.2) game.strata = null;
 }
@@ -3558,7 +3570,7 @@ function drawStrata(o, size, heading, power) {
 function strataOpts(o, other, T, key) {
   const size = shipSize(), dx = wrapDelta(other.x - o.x, WW), dy = wrapDelta(other.y - o.y, WH), otherOn = other === game ? !game.dead : enemy.on;
   const aimW = T && T.fire != null ? { x: wrapDelta(T.ax - o.x, WW), y: wrapDelta(T.ay - o.y, WH) } : { x: dx, y: dy };
-  return { key, T, aim: aimW, covered: otherOn && !stratAloft(other) && Math.hypot(dx, dy) < size * 0.55 };
+  return { key, T, aim: aimW, covered: otherOn && !stratAloft(other) && Math.hypot(dx, dy) < size * 0.7 };
 }
 // STRATA's magic button: a fork rising out of its shadow
 function drawShiftButton(b, M, ready, k) {
@@ -5993,7 +6005,7 @@ function updateLariat(dt) {
   const u = larU();
   if (game.dead) { larLetGo(); game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.lassoed = null; game.ldash = null; }
   larDash(dt);
-  if (game.elasso) { game.elasso.t += dt; if (!enemy.on || game.ship !== "lariat" || game.elasso.t >= ELASSO.hold) larLetGo(); }   // 30 s up, or their ship is gone: let go
+  if (game.elasso) { game.elasso.t += dt; if (!enemy.on || game.ship !== "lariat" || game.elasso.t >= ELASSO.hold || enemyAloft()) larLetGo(); }   // (their STRATA rising: the rope slips off)   // 30 s up, or their ship is gone: let go
   if (game.lassoed) { game.lassoed.t += dt; if (!enemy.on || game.lassoed.t >= ELASSO.hold + 1) game.lassoed = null; }   // (+1 s: in case their "let go" is lost)
   if (game.hookWait != null) {   // button 2 pressed: the hook leaves 0.16 s later, from the boom, the way the nose points
     game.hookWait += dt;
@@ -6010,7 +6022,7 @@ function updateLariat(dt) {
     const dx = H.vx * dt, dy = H.vy * dt, R = planetR(), px = wrapDelta(H.x - WW / 2, WW), py = wrapDelta(H.y - WH / 2, WH);
     const hit = gateSweep(px, py, dx, dy, R), q = larFromStar(game);
     const hitShip = enemy.on && enemy.warp < 0.5 ? gateSweep(wrapDelta(H.x - enemy.x, WW), wrapDelta(H.y - enemy.y, WH), dx, dy, shipSize() * 0.45) : null;
-    if (hitShip != null && (hit == null || hitShip <= hit)) { game.hook = null; larCatch(); }   // an enemy ship: the rope winds round it
+    if (hitShip != null && (hit == null || hitShip <= hit) && !enemyAloft()) { game.hook = null; larCatch(); }   // an enemy ship: the rope winds round it
     else if (hit != null && q.d <= R + LAR.reach * u) {   // it reaches the body: the rope winds round it (the cable)
       game.hook = null;
       game.tether = { rest: R + Math.max(LAR.slack * u, (q.d - R) * 0.84), t: 0 };
@@ -10459,8 +10471,10 @@ function duelLink(event, data) {
     bombs.length = 0; bombs.push({ x: m.x * WW, y: m.y * WH, ang: m.a, vx: 0, vy: 0, t: 0 }); audio.sfx("drakon", "rift_charge", 0, 0.6);
   } else if (m.t === "rg") {   // their KILN reversed the body: it pushes MY ship away and round (worked out here, from their seed)
     game.reversed = { t: -MAGIC.reverse.at, seed: m.s || 1 }; audio.tone(140, 1.0, "sine", 0.05, 3, 0.5);
-  } else if (m.t === "slay") {   // their STRATA's laser: my ship is destroyed, spare tanks and all
-    if (!game.dead && !stratAloft(game)) { game.tanks = 0; damageShip(SHIP_HP * 100); }
+  } else if (m.t === "tank") {   // their STRATA's laser: one whole tank of power off my ship
+    loseTank();
+  } else if (m.t === "lsf") {   // their STRATA slipped my LARIAT's rope with its shift
+    larLetGo();
   } else if (m.t === "btx") {   // their BALLAST's asteroid went off (their phone sends the damage and the shove)
     if (duel.tow) duel.tow.phase = "gone"; towBlast({ x: m.x * WW, y: m.y * WH });
   } else if (m.t === "bx") {   // their bomb went off (their phone sends the damage and the shove)

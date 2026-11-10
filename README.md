@@ -379,11 +379,13 @@ seeker, a slow orb that turns after the enemy (16). Magic, vertical shift (`vshi
 recharge): it tips its nose, the front engine fires a jet down, and it rises into the upper dimension: drawn high above
 its grey shadow, which stays on the arena where the ship really is. Up there nothing touches it (shots pass under, no
 crashes, no star) and it cannot fire, but it still flies. Keep the middle of its shadow on the enemy for a quarter of a
-second (counted only once it is all the way up; it starts again if they slip out) and the sight closes and a laser fires
-straight down: the enemy ship is destroyed, spare tanks and all (`slay`; set it false for `dmg` instead). Then it comes
-down; with no lock by 4.6 s it comes down anyway. The shadow hides while a ship is over it. The computer uses it when
-close, and flies its shadow onto you (braking as it gets there). In a duel the other phone sees it all (`sv`); the kill
-is sent as `slay`.
+second (within 0.6 ship-lengths of its middle; counted only once it is all the way up; slipping out unwinds the lock
+twice as fast as it wound) and the sight closes and a laser fires straight down: the enemy loses one whole tank of power
+(with no spare tank left, that is its ship; `tank`, or set it false for `dmg` instead). Then it comes down; with no lock
+by 7.55 s it comes down anyway (about 5.9 s up there, twice as long as before). The shadow hides while a ship is over it. Caught on a LARIAT's
+rope, the shift slips the rope off and STRATA gets away (`lsf`); a LARIAT's hook cannot catch it while it is up. The
+computer uses it when close, and flies its shadow onto you (braking as it gets there). In a duel the other phone sees it
+all (`sv`); the laser's tank is sent as `tank`.
 
 **KILN**, the furnace ship (`art/ships/kiln/`: hull, shutters, gear and mine from the KILN-Reverse-Gravity package, drawn
 by `drawKilnRig`). Button 1: slag shot from the furnace grille (7). Button 2: three mines in a fan (`kmine`); they slow to
