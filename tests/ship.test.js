@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("thirty-nine ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 39);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 39);
+ok("forty ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 40);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 40);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -683,5 +683,15 @@ ok("against a wall: a shot meets the face it flies into, and bounces off it at t
   assert(Math.abs(sweepBox(100, 0, 6, 0, 0.1, 5).t - 0.059) < 1e-9);   // a fast shot cannot pass through a thin wall
   const v = bounceOff(3, 4, -1, 0); assert(v.vx === -3 && v.vy === 4);
   const w = bounceOff(3, 4, -1, 0, 0.3); assert(Math.abs(w.vx + 0.9) < 1e-9 && w.vy === 4);   // a ship: a light rebound, the slide kept
+});
+ok("BOILER: a straight torpedo (12% of a bar, 0.8 s apart, 4 s), a side steam pulse that shoves; Flood Hunt 2 s + 60 s + 1 s", () => {
+  const S = shipById("boiler"), M = MAGIC.flood; assert(S && S.magic === "flood" && S.anim && S.boiler);
+  assert.strictEqual(weaponsOf(S).join(), "ptorp,steampulse");
+  const T = WEAPONS.ptorp; assert(T.dmg === 12 && T.cool === 0.8 && T.life === 4 && !T.homing && T.ptorp);
+  const P = WEAPONS.steampulse; assert(P.cool === 2 && P.knock > 0 && P.both && Math.abs(P.splay - Math.PI / 2) < 1e-9 && gunsOf(S, "steampulse").length === 2);
+  assert(M.fill === 2 && M.hunt === 60 && M.drain === 1 && M.xeltar > 1 && M.dragXeltar < M.drag && M.top < M.bottom);
+  assert(S.anim.idleLoop.length === 32 && S.anim.pressure.length === 32 && S.anim.primary.length === 16);
+  for (const id of ["labyrinth", "boiler"]) for (const slot of ["thrust", "primary", "secondary", "pickup", "magic"])
+    assert(require("fs").existsSync(require("path").join(__dirname, "../app/src/main/assets/art/hud", id, slot + "-plate.webp")), id + " " + slot);
 });
 console.log(n + " checks passed");

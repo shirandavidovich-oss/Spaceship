@@ -447,7 +447,7 @@
   }
   return {config,roots,phase,load,draw};
 });
-const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"}};
+const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"},"boiler":{"kind":"still","sprite":"zombie-boiler-top.webp"}};
 </script>
 <script>
 "use strict";
@@ -1037,7 +1037,20 @@ const SHIPS = [
       idleLoop: frames("fly", 24, () => 50).map((f) => f[0]),   // the magazine shuttles, the jaw pistons pump, the exhausts pulse
       primary: frames("main", 22, () => 25, { 4: "left", 7: "right" }),   // the rivets at 75 / 150 / 225 ms (left, right, left)
       secondary: frames("slag", 14, () => 40, { 6: "fire" }),            // the fan leaves at 200 ms
-      melt: frames("melt", 22, () => 40) } }                              // the iron heats and extends to melt through a wall
+      melt: frames("melt", 22, () => 40) } },                             // the iron heats and extends to melt through a wall
+  // BOILER, the copper diving bell (art/ships/boiler/, the BOILER Flood Hunt package: 384 px frames re-centred on its
+  // pivot, nose up; water churns in its glass, the gauge swings, the piston collars slide). Button 1: a pressure torpedo
+  // from the top launcher. Button 2: a steam pulse out of both sides that shoves a ship it touches.
+  // Magic: Flood Hunt (MAGIC.flood): water fills the arena from the bottom up to the star's middle for 60 s
+  { id: "boiler", name: "BOILER", rarity: "legendary", mass: 1.4, fuel: 30, refill: 15, sfx: null, magic: "flood", boiler: true,
+    hull: "#c8763a", wingC: "#2a2f3a", trim: "#7fd8ff", flame: "#9fe8ff",
+    body: [], wing: [], nozzles: [-0.23, 0.23], engineY: 0.32, cockpit: [0, 0, 0.05, 0.1],   // (the two copper fins)
+    weapons: ["ptorp", "steampulse"],
+    guns: { ptorp: [[0, -0.4]], steampulse: [[-0.4, -0.03], [0.4, -0.03]] },
+    anim: { dir: "boiler", size: 1.2, idle: "idle.webp",
+      idleLoop: frames("idle", 32, () => 50).map((f) => f[0]),          // bubbles, the gauge, the collars, a wisp of steam
+      primary: frames("fire", 16, () => 50),                           // the cold-blue launch flash (0.8 s)
+      pressure: frames("pressure", 32, () => 50) } }                   // more pressure, bigger strokes: while the water fills
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1072,7 +1085,8 @@ const HANDLING = {
   strata:   { size: 1,    speed: 1.1,  accel: 1.05, turn: 1.05 },   // a sleek fork
   kiln:     { size: 1.05, speed: 0.85, accel: 0.9,  turn: 0.85 },   // a furnace
   frankenstein: { size: 1, speed: 1.3,  accel: 1.3,  turn: 1.15 },   // quick (it has to stand still to operate)
-  labyrinth: { size: 1.1, speed: 0.85, accel: 0.9,  turn: 0.85 }    // an iron foundry
+  labyrinth: { size: 1.1, speed: 0.85, accel: 0.9,  turn: 0.85 },   // an iron foundry
+  boiler:   { size: 1.05, speed: 0.85, accel: 0.9,  turn: 0.9  }    // a heavy diving bell
 };
 function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1262,6 +1276,10 @@ const WEAPONS = {
   //   off the walls (each bounce gives `ext` s more flight, up to MAGIC.starforge.extMax)
   rivet:    { name: "פרץ מסמרות", dmg: 5, speed: 2.6, life: 1.0, cool: 0.65, ammo: 12, refill: 7, r: 0.022, color: "#ffb36b", burst: 3, gap: 0.075, alt: true, lab: true },
   slagfan:  { name: "מניפת סיגים", dmg: 3, speed: 2.0, life: 0.6, cool: 1.1, ammo: 6, refill: 8, r: 0.026, color: "#ff7a2e", pellets: 5, fan: 0.7, lab: true },
+  // BOILER. ptorp: a pressure torpedo, straight, 12% of a bar; under water it trails bubbles, in space a blue trail.
+  //   steampulse: a puff out of each side (`splay`: a quarter turn from the nose), short, that shoves (`knock`)
+  ptorp:      { name: "טורפדו לחץ", dmg: 12, speed: 1.6, life: 4.0, cool: 0.8, ammo: 8, refill: 8, r: 0.035, color: "#7fd8ff", ptorp: true },
+  steampulse: { name: "פעימת קיטור", dmg: 4, speed: 1.7, life: 0.35, cool: 2.0, ammo: 3, refill: 6, r: 0.09, color: "#e8f6ff", both: true, splay: Math.PI / 2, knock: 1.1 },
   laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -1392,6 +1410,16 @@ const MAGIC = {
   //   bounces; ext / extMax: flight time each bounce adds; cool: recharge after the maze is gone
   starforge: { name: "כור הכוכבים", look: "starforge", build: 4.5, wave: 0.65, last: 60, cell: 1.0, loops: 0.2, wall: 0.13, clear: 1.25,
                hit: 4, hitCool: 0.5, bounces: 6, ext: 0.35, extMax: 1.4, cool: 20, color: "#5ee7ff" },
+  // BOILER's Flood Hunt: water rises from the arena's bottom to the star's middle (`fill` s), stays for the `hunt`, then
+  //   drains (`drain` s). BOILER is kept under water and the enemy above it (a pull of `pull` screens/s² while it fills,
+  //   then a hard edge); in the water there is no gravity. The enemy cannot hurt BOILER until the hunt ends, except:
+  //   XELTAR swims in and fights it as usual (`xeltar`: faster and quicker in water; neither has magic then), LYTH's
+  //   ring and BALLAST's sinking asteroid blow it up, and LARIAT's rope can reel it out (`reel` screens/s), where it
+  //   blows up. sink: how fast BALLAST's asteroid sinks / drops onto it. top / bottom: the band (share of the arena's
+  //   height) no ship crosses while the water is up (the arena does not wrap top to bottom then). drag: how fast the water
+//   slows a ship (per second; XELTAR: dragXeltar)
+  flood:   { name: "ציד הצפה", look: "flood", fill: 2, hunt: 60, drain: 1, cool: 20, pull: 2.4, xeltar: 1.35, reel: 0.6, sink: 1.1, drag: 0.5, dragXeltar: 0.15,
+             top: 0.05, bottom: 0.95, color: "#3fd6d0" },
   reverse: { name: "היפוך כבידה", look: "reverse", at: 0.65, last: 4, push: 0.55, swirl: 1.1, reach: 1.5, cool: 16, color: "#7fb6ff" },
   // STRATA's vertical shift (its package: strata-magic.mjs). It tips its nose, the front engine fires down, and it
   //   rises into the upper dimension (up by `rise`[1] s): drawn high above its grey shadow, which stays where it is on
@@ -2127,7 +2155,7 @@ function buzz(ms) { try { native && native.vibrate(ms); } catch (e) {} }
 const LANG_KEY = "orbit-break.language";
 let LANG = (() => { try { const v = LS.getItem(LANG_KEY); return v === "en" || v === "he" ? v : "he"; } catch (e) { return "he"; } })();
 const STR = {
-  he: { maze: "מבוך", tapStart: "לחצו כדי להתחיל", nextLevel: (n) => `הבא: שלב ${n}`, streak: (m) => `רצף ×${m}`, zombie: "🧟 זומבי: פגיעה 50% · ירי 60% · בלי קסם", hacked: "⚠ נפרצת: הירייה הבאה תסטה ⚠", scrambled: (n) => `♪ הניווט שובש · ${n} ♪`,
+  he: { flood: "ציד הצפה", maze: "מבוך", tapStart: "לחצו כדי להתחיל", nextLevel: (n) => `הבא: שלב ${n}`, streak: (m) => `רצף ×${m}`, zombie: "🧟 זומבי: פגיעה 50% · ירי 60% · בלי קסם", hacked: "⚠ נפרצת: הירייה הבאה תסטה ⚠", scrambled: (n) => `♪ הניווט שובש · ${n} ♪`,
     closer: "קרוב יותר לכוכב", mineIn: "המוקש כבר בכוכב", rarity: (r) => "חללית " + r, victory: "ניצחון!",
     levelUp: (n) => `שלב ${n}: צי המחשב חוזר, חזק יותר`, fleetLost: "כל הצי שלך הובס", reached: (n) => `הגעת לשלב ${n}`, newGame: "משחק חדש",
     pickFirst: "בחר חללית מהצי שלך", pickNext: "בחר את החללית הבאה", leftOf: (a, b, n) => `נשארו ${a} מתוך ${b}  ·  שלב ${n}`,
@@ -2136,7 +2164,7 @@ const STR = {
     offline: "בלי חשבון: הכול נשמר רק בטלפון הזה · החלפות וקרבות עם טלפון קרוב", noMagic: "בלי קסם", inUse: "✈ בשימוש",
     tradeDrag: "החלפה: גררו לכאן חללית שתרצו להחליף", tradeBoth: "ההחלפה קורית רק אם גם השחקן השני מציע חללית ושניכם מסכימים",
     hangar: "האנגר בדיקות", hangarNote: "לבדיקה בלבד: הבחירה לא נשמרת. במשחק כל שחקן מקבל חללית אחת", noMagicYet: "בלי קסם עדיין" },
-  en: { maze: "MAZE", tapStart: "Tap to start", nextLevel: (n) => `Next: level ${n}`, streak: (m) => `Streak ×${m}`, zombie: "🧟 Zombie: hits 50% · fire 60% · no magic", hacked: "⚠ Hacked: your next shot will veer ⚠", scrambled: (n) => `♪ Steering scrambled · ${n} ♪`,
+  en: { flood: "FLOOD HUNT", maze: "MAZE", tapStart: "Tap to start", nextLevel: (n) => `Next: level ${n}`, streak: (m) => `Streak ×${m}`, zombie: "🧟 Zombie: hits 50% · fire 60% · no magic", hacked: "⚠ Hacked: your next shot will veer ⚠", scrambled: (n) => `♪ Steering scrambled · ${n} ♪`,
     closer: "Get closer to the star", mineIn: "The mine is already in the star", rarity: (r) => r + " ship", victory: "Victory!",
     levelUp: (n) => `Level ${n}: the computer's fleet returns, stronger`, fleetLost: "Your whole fleet is down", reached: (n) => `You reached level ${n}`, newGame: "New game",
     pickFirst: "Choose a ship from your fleet", pickNext: "Choose your next ship", leftOf: (a, b, n) => `${a} of ${b} left  ·  level ${n}`,
@@ -2149,7 +2177,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -2811,7 +2839,7 @@ function update(dt) {
 
   game.shakeT = Math.max(0, game.shakeT - dt * 2.5);
   updateCosmos(dt);
-  if (game.stage === "fly") updateMaze(dt);
+  if (game.stage === "fly") { updateMaze(dt); updateFlood(dt); }
   game.hurt = Math.max(0, game.hurt - dt); game.tankT = Math.max(0, (game.tankT || 0) - dt * 1.5);
   game.arriveT = Math.max(0, (game.arriveT || 0) - dt * 1.5);
   if (BOT) botThink(dt); else campTick(dt);
@@ -2915,7 +2943,8 @@ function flyShip(dt) {
 function moveShip(o, S, c, dt) {
   const st = shipStats(S), size = shipSize();
   if (o === game && game.soak && game.soak.boost) { const M = magicOf(S); st.push *= M.boost; st.top *= M.boost; }   // ORIAN charged: twice as fast
-  if (o === game && game.lassoed) st.turn *= ELASSO.turn;   // held by LARIAT's rope: turning takes twice as long
+  if (o === game && game.lassoed) st.turn *= ELASSO.turn;
+  if (o === game && game.ship === "xeltar" && floodXeltar() && inWater(o)) { const k = MAGIC.flood.xeltar; st.push *= k; st.top *= k; st.turn *= k; }   // XELTAR in BOILER's water: at home   // held by LARIAT's rope: turning takes twice as long
   // the fuller the tank, the stronger the engine and the faster the ship: worth waiting for a full (white) button
   const tank = clamp((o.fuel == null ? st.fuel : o.fuel) / st.fuel, 0, 1);
   st.push = Math.max(Math.min(st.push, PUSH_FLOOR), st.push * (POWER_LOW + (1 - POWER_LOW) * tank));
@@ -2956,13 +2985,14 @@ function moveShip(o, S, c, dt) {
   // 3. the planet in the middle pulls (nearest way round, since space wraps)
   const R = planetR();
   const dx = wrapDelta(o.x - WW / 2, WW), dy = wrapDelta(o.y - WH / 2, WH);
-  const g = gravityAt(dx, dy, U, R, bodyPull());   // (bodyPull: none while LABYRINTH's maze keeps the star out)
+  const g = gravityAt(dx, dy, U, R, inWater(o) ? 0 : bodyPull());   // (none in BOILER's water)   // (bodyPull: none while LABYRINTH's maze keeps the star out)
   const rk = reverseOn(o);   // KILN's reverse gravity: this ship is pushed away and round instead of pulled
   if (rk > 0) {
     const RV = o === game ? game.reversed : game.kiln, ra = revAccel(dx, dy, o === game ? RV.t : RV.t - MAGIC.reverse.at, RV.seed, MAGIC.reverse, U);
     o.vx += (g.ax * (1 - rk) + ra.ax * rk) * dt; o.vy += (g.ay * (1 - rk) + ra.ay * rk) * dt;
   } else { o.vx += g.ax * dt; o.vy += g.ay * dt; }
 
+  if (inWater(o)) { const k = Math.exp(-dt * (o === game && game.ship === "xeltar" ? MAGIC.flood.dragXeltar : MAGIC.flood.drag)); o.vx *= k; o.vy *= k; }   // BOILER's water: it drags (XELTAR hardly)
   // 4. no air in space: the ship keeps flying, up to its top speed
   const sp = Math.hypot(o.vx, o.vy), top = st.top * U * (o === game && game.puffJet ? MAGIC.inflate.jetTop : 1);   // (PUFF let go: faster)
   if (sp > top) { const k = lerp(1, top / sp, 1 - Math.exp(-dt * 4)); o.vx *= k; o.vy *= k; }
@@ -3066,10 +3096,10 @@ function chemSmoke(dt) {
 // touching a hot one: health goes, a little at a time (the red flash only every few points)
 function touchBurn(dt) {
   const B = body();
-  if (!B.burn || game.dead || stratAloft(game) || starOut()) return;   // (STRATA up high: out of reach)
+  if (!B.burn || game.dead || stratAloft(game) || starOut() || (flood && flood.owner === "me" && game.ship === "boiler")) return;   // (STRATA up high: out of reach)
   cosmos.burn += B.burn * dt;
   if (Math.random() < dt * 20) burstAt(game.x, game.y, 3, [B.color, "#ffffff"], 0.2, 0.4, game.vx, game.vy);
-  if (cosmos.burn >= 5) { damageShip(Math.floor(cosmos.burn)); cosmos.burn -= Math.floor(cosmos.burn); }
+  if (cosmos.burn >= 5) { damageShip(Math.floor(cosmos.burn), "env"); cosmos.burn -= Math.floor(cosmos.burn); }
 }
 // it changes each round: the old one shrinks away and the new one grows in its place, and its name shows for a moment
 const cosmos = { body: 0, prev: null, morph: 1, label: 0, burn: 0, started: false };
@@ -3224,7 +3254,7 @@ function mazeShip(o, px, py) {
     o.x = wrapX(px + dx * h.t + h.nx * 0.5); o.y = wrapY(py + dy * h.t + h.ny * 0.5);
     const vn = -(o.vx * h.nx + o.vy * h.ny), v = bounceOff(o.vx, o.vy, h.nx, h.ny, 0.3); o.vx = v.vx; o.vy = v.vy;
     if (vn > U * 0.1 && maze.hitCool <= 0) {
-      maze.hitCool = M.hitCool; damageShip(M.hit * SHIP_HP / 100);
+      maze.hitCool = M.hitCool; damageShip(M.hit * SHIP_HP / 100, "env");
       burstAt(o.x - h.nx * rad, o.y - h.ny * rad, 16, ["#ffffff", "#ffd27a", "#ff8a2e"], 0.4, 0.6);
       audio.tone(140, 0.12, "square", 0.06, 0.5); audio.noise(0.12, 0.12, 2200); buzz(70);
     } else if (vn > U * 0.03 && Math.random() < 0.3) burstAt(o.x - h.nx * rad, o.y - h.ny * rad, 2, ["#ffd27a", "#ff8a2e"], 0.15, 0.4);   // scraping
@@ -3368,6 +3398,208 @@ function drawMazeHud() {
   ctx.restore();
 }
 
+// ---------- BOILER's Flood Hunt (MAGIC.flood): water from the bottom up to the star's middle ----------
+// flood: { owner: "me" | "them" (whose BOILER made it), t (seconds since the press) }. One at a time on both phones;
+// the owner's phone sends its clock in its state (`fd`) and the other phone keeps the same water.
+// Each phone keeps its own ship on its side: BOILER under the water ("diver"), the enemy above it ("air"); XELTAR may
+// swim anywhere ("swimmer"). The arena does not wrap top to bottom while the water holds (MAGIC.flood.top / bottom).
+let flood = null;
+function fdTotal() { const M = MAGIC.flood; return M.fill + M.hunt + M.drain; }
+function floodLevel() {
+  if (!flood) return 0;
+  const M = MAGIC.flood, t = flood.t;
+  return t < M.fill ? ease(t / M.fill) : t < M.fill + M.hunt ? 1 : 1 - ease((t - M.fill - M.hunt) / M.drain);
+}
+function floodHeld() { return !!flood && flood.t < MAGIC.flood.fill + MAGIC.flood.hunt; }   // the sides and the shield hold
+function surfaceY() { return lerp(WH * MAGIC.flood.bottom, WH / 2, floodLevel()); }
+function bandY(y) { return y > WH * (MAGIC.flood.bottom + 0.01) ? y - WH : y; }   // (the strip past the bottom counts as above the top)
+function inWater(o) { return !!flood && floodLevel() > 0 && bandY(o.y) > surfaceY(); }
+function floodRole() { if (!flood) return null; if (flood.owner === "me") return game.ship === "boiler" ? "diver" : "air"; return game.ship === "xeltar" ? "swimmer" : "air"; }
+function floodXeltar() { return !!flood && (flood.owner === "me" ? enemy.ship === "xeltar" : game.ship === "xeltar"); }   // XELTAR is in it: a plain fight
+function floodSafe() { return floodHeld() && flood.owner === "me" && game.ship === "boiler" && !floodXeltar(); }   // my BOILER cannot be hurt
+function enemyDiver() { return !!flood && flood.owner === "them" && enemy.on && enemy.ship === "boiler" && !floodXeltar(); }
+function splashAt(x, y, n, big) {
+  burstAt(x, y, n, ["#ffffff", "#bff6ff", "#5fe0e0", "#2aa8b8"], big ? 0.7 : 0.3, big ? 0.9 : 0.5, 0, -U * (big ? 0.5 : 0.25));
+  if (big) rings.push({ x, y, t: 0, max: 0.45, r: shipSize() * 0.9, c: "#bff6ff" });
+}
+function startFlood(M) {
+  if (flood) { audio.nope(); buzz(20); return; }   // one flood at a time (theirs too)
+  flood = { owner: "me", t: 0 };
+  game.magicCool = fdTotal() + M.cool;
+  if (game.zombie) floodCure();   // the water washes BLOOM's roots off (every time)
+  if (!game.anim) game.anim = { seq: "pressure", t: 0 };
+  audio.noise(M.fill, 0.12, 500); audio.tone(60, M.fill, "sine", 0.06, 0.8); buzz(80);
+}
+function floodCure() {
+  game.zombie = false;
+  burstAt(game.x, game.y, 40, ["#ffffff", "#bff6ff", "#5fe0e0", "#ff7ac8"], 0.7, 0.9, game.vx, game.vy);
+  rings.push({ x: game.x, y: game.y, t: 0, max: 0.5, r: shipSize() * 1.1, c: "#5fe0e0" });
+  audio.tone(880, 0.3, "sine", 0.04, 0.6); audio.noise(0.4, 0.08, 3000);
+}
+// hit while the water shields it: only a splash
+function floodShield() { if (time - (flood.shieldT || 0) > 0.15) { flood.shieldT = time; splashAt(game.x, game.y, 10); audio.tone(300, 0.06, "sine", 0.03, 0.5); } }
+// my BOILER blows up (LYTH's ring, BALLAST's asteroid, or out of the water on LARIAT's rope)
+function floodKill() {
+  if (game.dead) return;
+  splashAt(game.x, game.y, 50, true);
+  game.tanks = 0; game.hp = 0; blowUpShip();
+}
+function floodKillEnemy() {
+  splashAt(enemy.x, enemy.y, 50, true);
+  if (enemy.remote) link.send({ t: "wk" }); else harmEnemy(99999);
+}
+function floodEnd() { if (!flood) return; flood = null; audio.noise(0.8, 0.08, 400); }
+function floodSync(fd) {
+  const M = MAGIC.flood;
+  if (typeof fd === "number" && fd >= 0) {
+    if (flood && flood.owner === "me") {   // both pressed at once: the bottom player's stays; mine gives way while still filling
+      if (duel.side === 0 && flood.t < M.fill) { flood = null; game.magicCool = M.cool; } else return;
+    }
+    if (!flood) { if (fd < fdTotal() - 0.3) flood = { owner: "them", t: fd }; return; }
+    if (Math.abs(flood.t - fd) > 0.3) flood.t = fd;
+  } else if (flood && flood.owner === "them") flood = null;
+}
+function updateFlood(dt) {
+  if (!flood) return;
+  const M = MAGIC.flood, t0 = flood.t; flood.t += dt;
+  if (flood.owner === "me" && (game.dead || game.ship !== "boiler")) { floodEnd(); return; }   // the caster is gone: over at once
+  if (flood.t >= fdTotal()) { floodEnd(); return; }
+  if (t0 < M.fill && flood.t >= M.fill) { audio.tone(45, 0.9, "sine", 0.08, 0.4); buzz(60); }   // full: the hunt begins
+  if (t0 < M.fill + M.hunt && flood.t >= M.fill + M.hunt) audio.noise(M.drain, 0.1, 400);       // draining
+  if (flood.owner === "me" && game.zombie && inWater(game)) floodCure();   // infected under water: washed at once
+  if (!game.dead && floodHeld()) floodKeep(dt);
+}
+// my ship on its side of the water
+function floodKeep(dt) {
+  const M = MAGIC.flood, r = shipSize() * 0.35, sy = surfaceY(), filled = flood.t >= M.fill, top = WH * M.top, bot = WH * M.bottom, role = floodRole();
+  if (role === "diver") {
+    let y = game.y < WH * 0.25 ? game.y + WH : game.y;
+    if (game.lassoed) {   // on LARIAT's rope: reeled in and up; out of the water, it blows up
+      game.lassoed.rest = Math.max(shipSize() * ELASSO.minRest, game.lassoed.rest - M.reel * U * dt);
+      if (filled && y < sy - r * 0.3) floodKill();
+      return;
+    }
+    if (y < sy + r) {
+      if (y > sy - r * 3 && (filled || y > sy - r)) { y = sy + r; if (game.vy < 0) game.vy = 0; }
+      else if (game.vy < U * 1.2) game.vy += M.pull * U * dt;   // drawn down into the water
+    }
+    if (y > bot - r) { y = bot - r; if (game.vy > 0) game.vy = 0; }
+    game.y = wrapY(y);
+  } else {
+    let y = bandY(game.y);
+    if (role === "air" && y > sy - r) {
+      if (y < sy + r * 3) { y = sy - r; if (game.vy > 0) game.vy = 0; }   // riding up on the surface
+      else if (game.vy > -U * 1.5) game.vy -= M.pull * U * dt;          // pushed up out of it
+    }
+    if (role === "swimmer" && y > bot - r) { y = bot - r; if (game.vy > 0) game.vy = 0; }
+    if (y < top + r) { y = top + r; if (game.vy < 0) game.vy = 0; }
+    game.y = wrapY(y);
+  }
+}
+// a shot crossing the surface. BOILER's (and XELTAR's) go through with a splash; the enemy's are stopped by the water
+// while it shields BOILER. True: the shot is gone
+function floodShot(list, k, s, Wp, dt) {
+  if (!Wp.speed || floodLevel() <= 0) return false;
+  const sy = surfaceY(), y0 = bandY(s.y), y1 = y0 + s.vy * dt;
+  if ((y0 - sy) * (y1 - sy) > 0) return false;
+  const x = s.x + s.vx * dt * clamp((sy - y0) / ((y1 - y0) || 1), 0, 1);
+  const owners = list === shots ? flood.owner === "me" : flood.owner === "them";
+  const near = Math.abs(wrapDelta(x - game.x, WW)) < W && Math.abs(wrapDelta(sy - game.y, WH)) < H;
+  if (owners || floodXeltar() || !floodHeld()) {
+    if (!s.splashed) { s.splashed = true; splashAt(x, sy, Wp.ptorp ? 22 : 8, Wp.ptorp); if (near && Wp.ptorp) audio.noise(0.15, 0.06, 2500); }
+    return false;
+  }
+  splashAt(x, sy, 10); if (near) audio.tone(260, 0.05, "sine", 0.03, 0.5);
+  list.splice(k, 1);
+  return true;
+}
+// BALLAST's asteroid near their BOILER: it sinks through the water onto it (or, passing over it, drops straight down
+// first), its fuse waiting, and blows it up on reaching it. True: it was handled here
+function floodSink(T, M, dt) {
+  const F = MAGIC.flood, size = shipSize(), R = M.rock * size, sy = surfaceY(), wet = bandY(T.y) > sy;
+  const dx = wrapDelta(enemy.x - T.x, WW), dy = wrapDelta(enemy.y - T.y, WH), d = Math.hypot(dx, dy) || 1;
+  const over = !wet && Math.abs(dx) < size * 2 && dy > 0;
+  if (!wet && !over && !T.sinking) return false;
+  if (!T.sinking) { T.sinking = 0; audio.tone(160, 0.5, "sine", 0.05, 0.4); }
+  T.sinking += dt; T.rel = Math.min(T.rel, M.fuse - 0.3);
+  if (T.sinking > 12) { blowTow(T, M); return true; }
+  const sp = F.sink * U, want = wet ? { vx: dx / d * sp, vy: dy / d * sp } : { vx: 0, vy: sp * 1.4 }, k = 1 - Math.exp(-dt * (wet ? 2.5 : 4));
+  T.vx += (want.vx - T.vx) * k; T.vy += (want.vy - T.vy) * k;
+  if (wet && !T.wet) splashAt(T.x, sy, 40, true);
+  T.wet = wet;
+  T.x = wrapX(T.x + T.vx * dt); T.y = wrapY(T.y + T.vy * dt); T.ang += T.spin * dt * 0.4;
+  if (wet && Math.random() < 25 * dt) burstAt(T.x, T.y, 1, ["#bff6ff", "#ffffff"], 0.1, 1.2, 0, -U * 0.3);   // bubbles
+  if (d < R + size * 0.45) { blowTow(T, M); floodKillEnemy(); }
+  return true;
+}
+// BOILER's torpedo: bubbles behind it under water, a short blue trail in space
+function ptorpTrail(s) {
+  if (inWater(s)) { if (Math.random() < 0.7) burstAt(s.x, s.y, 1, ["#bff6ff", "#ffffff"], 0.06, 1.0, -s.vx * 0.1, -s.vy * 0.1 - U * 0.15); }
+  else if (Math.random() < 0.8) burstAt(s.x, s.y, 1, ["#7fd8ff", "#e8f6ff"], 0.05, 0.35, -s.vx * 0.2, -s.vy * 0.2);
+}
+function drawPTorp(s) {
+  const p = toScreen(s.x, s.y), L = shipSize() * 0.2, a = Math.atan2(s.vx, -s.vy);
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(a);
+  ctx.fillStyle = "#2a2f3a"; ctx.beginPath(); ctx.moveTo(-L * 0.28, L * 0.5); ctx.lineTo(0, L * 0.3); ctx.lineTo(L * 0.28, L * 0.5); ctx.fill();   // the fins
+  ctx.fillStyle = "#c8763a"; ctx.fillRect(-L * 0.13, -L * 0.25, L * 0.26, L * 0.72);   // copper body
+  ctx.fillStyle = "#f2e6cf"; ctx.fillRect(-L * 0.13, -L * 0.02, L * 0.26, L * 0.08);   // ivory band
+  ctx.fillStyle = "#7fd8ff"; ctx.beginPath(); ctx.ellipse(0, -L * 0.3, L * 0.13, L * 0.22, 0, 0, TAU); ctx.fill();   // the glass warhead
+  ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.beginPath(); ctx.ellipse(-L * 0.04, -L * 0.36, L * 0.04, L * 0.08, 0, 0, TAU); ctx.fill();
+  const sp = Math.sin(time * 40) * L * 0.14;   // the propeller
+  ctx.strokeStyle = "#d8d0c0"; ctx.lineWidth = Math.max(1, L * 0.05); ctx.beginPath(); ctx.moveTo(-sp, L * 0.5); ctx.lineTo(sp, L * 0.5); ctx.stroke();
+  ctx.restore();
+}
+// the water, behind the ships: teal and deeper further down, with caustic light
+function floodRect() {
+  const z = game.zoom || 1, sy = toScreen(WW / 2, surfaceY()).y, by = sy + (WH * MAGIC.flood.bottom - surfaceY());
+  return { sy, by, x0: W / 2 - W / 2 / z - 4, x1: W / 2 + W / 2 / z + 4, y0: H / 2 - H / 2 / z - 4, y1: H / 2 + H / 2 / z + 4 };
+}
+function drawFlood() {
+  if (floodLevel() <= 0) return;
+  const R = floodRect(), top = Math.max(R.sy, R.y0), bot = Math.min(R.by, R.y1);
+  if (bot <= top) return;
+  ctx.save();
+  const g = ctx.createLinearGradient(0, R.sy, 0, R.sy + U * 3);
+  g.addColorStop(0, "rgba(40,190,190,0.42)"); g.addColorStop(1, "rgba(6,52,70,0.62)");
+  ctx.fillStyle = g; ctx.fillRect(R.x0, top, R.x1 - R.x0, bot - top);
+  // caustics: soft wavy bands of light, fixed in the water (they move with the world, not the camera)
+  ctx.strokeStyle = "rgba(160,255,240,0.10)"; ctx.lineWidth = Math.max(2, U * 0.012);
+  const step = U * 0.28, off = ((toScreen(0, 0).y % step) + step) % step;
+  for (let y = top - step + off; y < bot; y += step) {
+    ctx.beginPath();
+    for (let x = R.x0; x <= R.x1; x += U * 0.08) { const yy = y + Math.sin(x * 0.02 + time * 1.3 + y * 0.01) * U * 0.03; if (x === R.x0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy); }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+// over the ships: a light tint on what is under water, and the foam along the surface
+function drawFloodFront() {
+  if (floodLevel() <= 0) return;
+  const R = floodRect(), top = Math.max(R.sy, R.y0), bot = Math.min(R.by, R.y1);
+  ctx.save();
+  if (bot > top) { ctx.fillStyle = "rgba(40,200,200,0.12)"; ctx.fillRect(R.x0, top, R.x1 - R.x0, bot - top); }
+  if (R.sy > R.y0 - U && R.sy < R.y1 + U) {
+    const moving = flood.t < MAGIC.flood.fill || !floodHeld();
+    ctx.strokeStyle = "rgba(230,255,255,0.85)"; ctx.lineWidth = Math.max(2, U * (moving ? 0.016 : 0.009));
+    ctx.beginPath();
+    for (let x = R.x0; x <= R.x1; x += U * 0.04) { const y = R.sy + Math.sin(x * 0.03 + time * 3) * U * 0.008 + Math.sin(x * 0.011 - time * 1.7) * U * 0.012; if (x === R.x0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.stroke();
+    if (moving && Math.random() < 0.6) { const x = R.x0 + Math.random() * (R.x1 - R.x0), w = toScreen(0, 0); burstAt(game.x + game.lx + (x - W / 2), surfaceY(), 2, ["#ffffff", "#bff6ff"], 0.15, 0.5, 0, -U * 0.2); }
+  }
+  ctx.restore();
+}
+function drawFloodHud() {
+  if (!flood || !floodHeld()) return;
+  const M = MAGIC.flood, left = Math.max(0, Math.ceil(M.fill + M.hunt - Math.max(flood.t, M.fill))), y = H * (maze && starOut() ? 0.25 : 0.17), s = Math.round(U * 0.06);
+  ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  ctx.font = `900 ${s}px Rubik, Arial, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = "#04161c";
+  ctx.fillStyle = left <= 5 ? (Math.sin(time * 10) > 0 ? "#ffffff" : "#3fd6d0") : "#7fe9e0";
+  ctx.strokeText(left, W / 2, y); ctx.fillText(left, W / 2, y);
+  ctx.font = `700 ${Math.round(s * 0.36)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#bff6ff";
+  ctx.strokeText(tr("flood"), W / 2, y + s * 0.7); ctx.fillText(tr("flood"), W / 2, y + s * 0.7);
+  ctx.restore();
+}
+
 // ---------- magic: the gear button ----------
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
 function useMagic(which = 0) {
@@ -3378,7 +3610,8 @@ function useMagic(which = 0) {
 }
 function useMagicNow(which = 0) {
   const S = shipById(game.ship), M = magicOf(S);
-  if (game.zombie) { audio.nope(); buzz(20); return; }   // a zombie has no magic
+  if (game.zombie && S.magic !== "flood") { audio.nope(); buzz(20); return; }   // a zombie has no magic (BOILER's water washes it off)
+  if (game.ship === "xeltar" && floodXeltar()) { audio.nope(); buzz(20); return; }   // XELTAR in BOILER's water: plain weapons only
   if (which === 1) {   // the second magic, on the right half of a split button
     if (!S.magic2 || game.magicCool2 > 0 || game.dead) return;
     const M2 = MAGIC[S.magic2];
@@ -3519,7 +3752,8 @@ function useMagicNow(which = 0) {
   if (M.look === "tow") { startTow(M); return; }   
   if (M.look === "vshift") { startShift(M); return; }
   if (M.look === "reverse") { startReverse(M); return; }
-  if (M.look === "starforge") { startForge(M); return; }   // LABYRINTH: the spire, then the maze (updateMaze)
+  if (M.look === "starforge") { startForge(M); return; }
+  if (M.look === "flood") { startFlood(M); return; }   // BOILER: the water (updateFlood)   // LABYRINTH: the spire, then the maze (updateMaze)
   if (M.look === "surgery") { surgeryPress(M); return; }   // FRANKENSTEIN: surgery, then a part a press (updateSurgery)   // KILN: the body pushes the enemy away (updateReverse)   // STRATA: up into the upper dimension (updateShift)   // BALLAST: held, it tows an asteroid in (updateTow)
   if (M.look === "tail") {   // the stinger tail grows out behind the ship, stays out, and comes back by itself
     if (game.tail) return;
@@ -3695,6 +3929,7 @@ function updateTow(dt) {
     if (k < 1 && Math.random() < 6 * dt) audio.tone(95 + Math.random() * 20, 0.12, "sawtooth", 0.02, 0.8);   // the winch
     if (!held || T.t > M.max) letGoTow(T, M);
   } else if (T.phase === "fly") {
+    if (enemyDiver() && floodHeld() && floodSink(T, M, dt)) return;   // their BOILER under water: it sinks onto it
     T.x = wrapX(T.x + T.vx * dt); T.y = wrapY(T.y + T.vy * dt); T.ang += T.spin * dt;
     if (Math.random() < 20 * dt) burstAt(T.x, T.y, 1, ["#8a7a68", "#cdbb9e", "#ffb21e"], 0.1, 0.8, T.vx * 0.2, T.vy * 0.2);   // dust
     const near = enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - T.x, WW), wrapDelta(enemy.y - T.y, WH)) < R + M.near * size;
@@ -3844,6 +4079,7 @@ function tankEnemy() {
 // a whole tank off my ship: a spare one if there is one (the bar stays as it is), else the ship
 function loseTank() {
   if (game.dead || stratAloft(game)) return;
+  if (floodSafe()) { floodShield(); return; }
   if (game.tanks > 0) { game.tanks--; game.tankT = 1; game.hurt = 0.35; shake(0.6); buzz(200); }
   else damageShip(SHIP_HP * 100);
 }
@@ -5011,7 +5247,7 @@ function updateEnemyShots(dt) {
     s.life += dt;
     if (Wp.magnet) magnetPull(s, Wp, dt);
     if (Wp.homing && !game.dead && s.life > 0.12) { const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), Wp.homing * 0.6 * dt); s.vx = t.vx; s.vy = t.vy; }
-    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), bodyPull()); s.vx += g.ax * dt; s.vy += g.ay * dt; }
+    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), inWater(s) ? 0 : bodyPull()); s.vx += g.ax * dt; s.vy += g.ay * dt; }
     if (s.rw && enemy.rw) { s.life -= dt; if (!rewindShot(s, dt, enemy.rw.slow)) eshots.splice(k, 1); continue; }   // going back with it (harmless)
     s.rw = false;
     if (shotFx(eshots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
@@ -5876,8 +6112,9 @@ function bumpShips(a, A, b, B) {
 //  YOUR SHIP'S HEALTH
 // ======================================================================
 function shake(k) { game.shakeT = Math.min(1.2, Math.max(game.shakeT, k * SHAKE)); }
-function damageShip(n) {
+function damageShip(n, src) {
   if (game.dead || game.stage !== "fly" || n <= 0) return;
+  if (src !== "env" && floodSafe()) { floodShield(); return; }   // BOILER in its flood: the enemy cannot hurt it (src "env": walls, the star)
   game.hp = Math.max(0, game.hp - n); game.hurt = 0.35;
   shake(0.25 + n / 40); audio.hurt(); buzz(60 + n * 3);
   if (game.hp <= 0 && game.tanks > 0) {   // a spare tank empties and fills the bar again
@@ -5987,10 +6224,11 @@ function updateWeapons(dt) {
       const t = steerShot(s.vx, s.vy, wrapDelta(enemy.x - s.x, WW), wrapDelta(enemy.y - s.y, WH), Wp.homing * dt);
       s.vx = t.vx; s.vy = t.vy;
     }
-    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), bodyPull()); s.vx += g.ax * dt; s.vy += g.ay * dt; }
+    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), inWater(s) ? 0 : bodyPull()); s.vx += g.ax * dt; s.vy += g.ay * dt; }
     if (shotFx(shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (s.w === "missile" && Math.random() < 0.6) burstAt(s.x, s.y, 1, ["#b8fff0", "#ffffff"], 0.05, 0.6);
+    if (Wp.ptorp) ptorpTrail(s);
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;   // VANTA's drop inside the planet
     if (Wp.phase) phaseTrail(s);
     if (s.life > Wp.life + (s.ext || 0)) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); if (Wp.blast) torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }
@@ -6025,7 +6263,7 @@ function updateWeapons(dt) {
         if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
         const Hw = shotHit(s, Wp); hitEnemy(s, Hw); shots.splice(k, 1);
         if (Wp.tag) { enemy.markT = Wp.tag; audio.sfx("vanta", "mark_hit"); }   // VANTA's marking drop: the stain
-        if (Wp.knock && s.w === "bubble") {   // PUFF's bubble pops: a shove
+        if (Wp.knock && (s.w === "bubble" || s.w === "steampulse")) {   // PUFF's bubble pops / BOILER's steam: a shove
           const sp = Math.hypot(s.vx, s.vy) || 1, kn = Hw.knock;
           if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + s.vx / sp * kn, vy: enemy.vy / U + s.vy / sp * kn });
           else { enemy.vx += s.vx / sp * kn * U; enemy.vy += s.vy / sp * kn * U; }
@@ -6198,7 +6436,7 @@ function updateRing(dt) {
   if (was === "back" && R.phase !== "back") { audio.sfx(S.sfx, "ring_capture"); buzz(30); }
   if (!R.phase) { audio.sfx(S.sfx, "ring_lock"); game.ring = null; return; }
   if (R.phase === "out") {
-    const g = gravityAt(wrapDelta(R.x - WW / 2, WW), wrapDelta(R.y - WH / 2, WH), U, planetR(), bodyPull());
+    const g = gravityAt(wrapDelta(R.x - WW / 2, WW), wrapDelta(R.y - WH / 2, WH), U, planetR(), inWater(R) ? 0 : bodyPull());
     R.vx += g.ax * dt; R.vy += g.ay * dt;
     R.x = (((R.x + R.vx * dt) % WW) + WW) % WW; R.y = (((R.y + R.vy * dt) % WH) + WH) % WH;
     R.ang += 6.4 * dt;
@@ -6219,7 +6457,8 @@ function updateRing(dt) {
     if (!R[leg] && enemy.on && enemy.warp < 0.5 &&
         Math.hypot(wrapDelta(enemy.x - R.x, WW), wrapDelta(enemy.y - R.y, WH)) < shipSize() * (Wp.r + 0.3)) {
       R[leg] = true;
-      hitEnemy({ x: enemy.x, y: enemy.y, vx: R.vx || game.vx, vy: R.vy || game.vy }, Wp);
+      if (enemyDiver()) floodKillEnemy();   // their BOILER under water: the ring blows it up
+      else hitEnemy({ x: enemy.x, y: enemy.y, vx: R.vx || game.vx, vy: R.vy || game.vy }, Wp);
       rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.35, r: shipSize() * 0.8, c: Wp.color });
     }
   } else R.trace.length = 0;
@@ -6961,7 +7200,8 @@ const KIT = {
   // (drawn for these four in the kit's style: whole faces, art/hud/<id>/<slot>-plate.webp)
   ballast: { a: "#7fdbc9", b: "#ffb21e", fx: "none", face: true }, strata: { a: "#c86bff", b: "#e3c5ff", fx: "none", face: true },
   kiln: { a: "#ffb85a", b: "#7fb6ff", fx: "none", face: true }, frankenstein: { a: "#9bd2c3", b: "#c86bff", fx: "none", face: true },
-  labyrinth: { a: "#ffb36b", b: "#5ee7ff", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
+  labyrinth: { a: "#ffb36b", b: "#5ee7ff", fx: "none", face: true },
+  boiler: { a: "#ffb36b", b: "#3fd6d0", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
 function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
@@ -8025,7 +8265,8 @@ function updateLenses(dt) {
 }
 // each moment, for a shot on its way: pulled by every false star; a seed due to split becomes three shards (true: it is gone)
 function shotFx(list, k, s, Wp, dt) {
-  if (maze && mazeShot(list, k, s, Wp, dt)) return true;   // LABYRINTH's maze: its own shots bounce, the rest are stopped
+  if (maze && mazeShot(list, k, s, Wp, dt)) return true;
+  if (flood && floodShot(list, k, s, Wp, dt)) return true;   // BOILER's water: the enemy's shots stop at it   // LABYRINTH's maze: its own shots bounce, the rest are stopped
   if ((game.palWall || duel.palWall) && palShot(list, k, s, Wp, dt)) return true;
   if (lenses.length && !(Wp.speed === 0)) {
     const size = shipSize();
@@ -9671,7 +9912,7 @@ function draw() {
     if (sk > 0.2) ctx.translate((Math.random() - 0.5) * sk, (Math.random() - 0.5) * sk);
     ctx.translate(W / 2, H / 2); ctx.scale(game.zoom, game.zoom); ctx.translate(-W / 2, -H / 2);
   }
-  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); drawDeadStar(); drawSpire(); drawMaze(); }   // (LABYRINTH's Starforge)
+  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); drawDeadStar(); drawSpire(); drawMaze(); drawFlood(); }   // (LABYRINTH's Starforge)
 
   if (flying) {
     const p = shipScreen();
@@ -9742,10 +9983,11 @@ function draw() {
     drawRiftMark(); drawRiftBursts();
     drawChips(); drawPieces();
     drawKitFx("above");
+    drawFloodFront();
     drawParts();
     drawRings();
     ctx.restore();
-    drawMazeHud();
+    drawMazeHud(); drawFloodHud();
     drawResultTitle();   // YOU WIN / GAME OVER: over the arena, under the buttons
     if (enemyShown()) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
     if (game.rift && game.rift.mark) edgeArrow(game.rift.mark.x, game.rift.mark.y, "#ff68c7");   // DRAKON's mark, off screen
@@ -10193,7 +10435,8 @@ function drawShots(list = shots) {
     if (s.inside) { drawExitMark(s); continue; }
     if (s.w === "magnet") { drawMagnetBall(s); continue; }
     if (s.w === "bubble") { drawBubble(s); continue; }
-    if (s.w === "torpedo") { drawTorpedo(s); continue; }   // VANTA's drop inside the planet: only the exit mark, at the end
+    if (s.w === "torpedo") { drawTorpedo(s); continue; }
+    if (s.w === "ptorp") { drawPTorp(s); continue; }   // BOILER's   // VANTA's drop inside the planet: only the exit mark, at the end
     const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
     if (s.gold) {   // turned by GIMBAL's gate: a gold ring round it
       ctx.save(); ctx.strokeStyle = "rgba(233,182,106,0.85)"; ctx.lineWidth = 2; ctx.shadowColor = "#e9b66a"; ctx.shadowBlur = 6;
@@ -10661,7 +10904,7 @@ function drawMagic() {
   const S = shipById(game.ship), M = magicOf(S);
   if (!M || trade.stage === "swapping") return;
   const b = magicButton(), ready = game.magicCool <= 0, k = ready ? 1 : 1 - game.magicCool / M.cool;
-  if (game.zombie) { drawZombieMagicButton(b); return; }   // a zombie has no magic
+  if (game.zombie && game.ship !== "boiler") { drawZombieMagicButton(b); return; }   // a zombie has no magic
   if (S.magic2) {   // split in two: each half its own magic and its own recharge
     const M2 = MAGIC[S.magic2], r = b.r * 0.66, c2 = game.magicCool2 || 0;
     drawMagicButton({ x: b.x - r * 1.02, y: b.y, r }, M, ready, k);
@@ -11137,7 +11380,7 @@ function endDuel(tellThem) {
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   game.zombie = false; game.pollen = null; enemy.zombie = false;
-  mazeEnd(true);   // the match is over: no maze, the star back
+  mazeEnd(true); flood = null;   // the match is over: no maze, the star back, no water
   duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
@@ -11180,6 +11423,7 @@ function duelLink(event, data) {
     duel.net = { ...m, at: performance.now() };
     if (shipById(m.s)) enemy.ship = m.s;
     mazeSync(m.mz);   // their LABYRINTH's maze
+    floodSync(m.fd);  // their BOILER's water
     if (typeof m.h === "number" && m.h > 0) { damageShip(BOT ? m.h / botLevel().armor : m.h); }   // what my ship took from their weapons (the computer: less, by its level's armour)
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
     const S = shipById(m.s), a0 = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
@@ -11216,6 +11460,8 @@ function duelLink(event, data) {
     if (duel.surg && duel.surg.c) { const C = duel.surg.c; burstAt(C.x, C.y, 90, ["#ffffff", "#c86bff", "#ffd166", "#ff6a1a", "#7fdbc9"], 1.3, 1.3); audio.boom(); duel.surg = null; }
   } else if (m.t === "rg") {   // their KILN reversed the body: it pushes MY ship away and round (worked out here, from their seed)
     game.reversed = { t: -MAGIC.reverse.at, seed: m.s || 1 }; audio.tone(140, 1.0, "sine", 0.05, 3, 0.5);
+  } else if (m.t === "wk") {   // their LYTH's ring / BALLAST's asteroid got my BOILER under water: it blows up
+    if (flood && flood.owner === "me" && game.ship === "boiler") floodKill();
   } else if (m.t === "tank") {   // their STRATA's laser: one whole tank of power off my ship
     loseTank();
   } else if (m.t === "lsf") {   // their STRATA slipped my LARIAT's rope with its shift
@@ -11423,6 +11669,7 @@ function updateDuel(dt) {
     }
     if (shotFx(duel.shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
+    if (Wp.ptorp) ptorpTrail(s);
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;   // their VANTA drop inside the planet (the exit mark warns me)
     if (Wp.phase) phaseTrail(s);
     if (threadBlocks(game.thread, s, dt)) { threadSpark(s); duel.shots.splice(k, 1); continue; }
@@ -11458,7 +11705,7 @@ function updateDuel(dt) {
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
         ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2), creatureLeft(game.surg.c), +(game.surg.c.hp / MAGIC.surgery.hp).toFixed(3)] : [])] : 0,
-      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(),
+      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,

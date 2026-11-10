@@ -445,6 +445,30 @@ The computer flies the corridors (`mazeWaypoint`), slows before turns and holds 
 Destroying LABYRINTH while the crown is still rising calls it off. In a duel the owner's phone sends the maze's seed and
 clock (`mz`), and the other phone builds the same one; if both press at once the lower seed wins.
 
+**BOILER**, the copper diving bell (`art/ships/boiler/`: the BOILER Flood Hunt package's 384 px frames, re-centred on
+its pivot: a 32-frame idle (water churning in the glass, the gauge, the piston collars), a 32-frame high-pressure loop
+while the water fills, and the launch flash; buttons in `art/hud/boiler/`, its BLOOM zombie in
+`art/bloom/zombie-boiler-top.webp`). Button 1: a pressure torpedo, straight (12, 0.8 s apart, 4 s): bubbles behind it
+under water, a crown splash where it crosses the surface, a blue trail in space. Button 2: a steam pulse out of both
+sides that shoves a ship it touches (2 s). Magic, **Flood Hunt** (`flood` in `MAGIC`, `updateFlood`): water rises from
+the bottom of the arena up to the star's middle in 2 s, stays for a **60 s** hunt (a countdown at the top), then drains
+in 1 s. While it is up:
+- BOILER is drawn down under the water and kept there; the enemy is pushed up and kept above it (the arena does not
+  wrap top to bottom then). **In the water there is no gravity**, and the water drags (`drag`).
+- **The enemy cannot hurt BOILER**: its shots splash on the surface, and any other damage only splashes. BOILER's
+  torpedoes fly up through the surface and hit it. The star does not burn BOILER.
+- **XELTAR swims**: it may go into the water, and then the two fight with their plain weapons (neither has magic;
+  BOILER is not shielded from it). XELTAR has the edge: in the water it is faster and turns quicker, and it hardly drags.
+- **LYTH's ring** can be thrown into the water: if it passes over BOILER, BOILER blows up.
+- **LARIAT's harpoon** can catch BOILER (near the surface: the hook's reach) and reel it in; pulled out of the water,
+  BOILER blows up.
+- **BALLAST's asteroid** sinks in the water toward BOILER (its fuse waits), and one flying over BOILER drops straight
+  down onto it; reaching it, it blows BOILER up.
+- BLOOM: BOILER's magic still works as a zombie, and the water washes it clean, every time (an infection under water
+  is washed off at once). The health it lost stays lost.
+The flood ends at once if BOILER is destroyed. LABYRINTH's walls stay in the water, and the flood never relights a
+star the maze put out. In a duel the owner's phone sends its clock (`fd`); a blow-up is sent as `wk`.
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 
