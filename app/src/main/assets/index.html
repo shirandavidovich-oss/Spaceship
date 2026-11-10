@@ -980,7 +980,18 @@ const SHIPS = [
     body: [], wing: [], nozzles: [0], engineY: 0.4, cockpit: [0, 0, 0.05, 0.1], noFlame: true,
     weapons: ["flower", "bouquet"],
     guns: { flower: [[0, -0.52]], bouquet: [[0, -0.5]] },
-    anim: { dir: "bloom", size: 1.05, idle: "idle.webp" } }
+    anim: { dir: "bloom", size: 1.05, idle: "idle.webp" } },
+  // BALLAST, the asteroid tug (art/ships/ballast/: hull, wing, weight and asteroid from its package, drawn in code by
+  // drawBallastRig; idle.webp is the folded pose for the hangar and icons). Nose up; the cable wing on its right, the
+  // ballast weight on a rail on its left. One unit of the package = 1/170 ship-lengths (BALLAST_UNIT).
+  // Button 1: a rail slug from the nose. Button 2: a ballast sinker from the weight, heavy, and the body pulls it.
+  // Magic (hold): asteroid tow (MAGIC.tow, updateTow). Engines at the hull's foot, (-14,69) and (14,69) units
+  { id: "ballast", name: "BALLAST", rarity: "epic", mass: 1.45, fuel: 30, refill: 15, sfx: null, magic: "tow", ballast: true,
+    hull: "#d8c6a8", wingC: "#1d3a8a", trim: "#7fdbc9", flame: "#7fe9ff",
+    body: [], wing: [], nozzles: [-0.082, 0.082], engineY: 0.41, cockpit: [0, 0, 0.05, 0.1],
+    weapons: ["railslug", "sinker"],
+    guns: { railslug: [[0, -0.42]], sinker: [[-0.36, -0.18]] },
+    anim: { dir: "ballast", size: 1.2, idle: "idle.webp" } }
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1010,7 +1021,8 @@ const HANDLING = {
   palisade: { size: 1.15, speed: 0.7,  accel: 0.82, turn: 0.7  },   // a fortress: the slowest
   gimbal:   { size: 1,    speed: 1,    accel: 1,    turn: 1.5  },   // a gyroscope: spins round fastest
   lariat:   { size: 1.05, speed: 0.9,  accel: 0.85, turn: 0.85 },   // a tug
-  bloom:    { size: 1,    speed: 1.05, accel: 0.9,  turn: 1.15 }    // a drifting flower
+  bloom:    { size: 1,    speed: 1.05, accel: 0.9,  turn: 1.15 },   // a drifting flower
+  ballast:  { size: 1.05, speed: 0.8,  accel: 0.85, turn: 0.8  }    // a heavy tug
 };
 function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1176,6 +1188,10 @@ const WEAPONS = {
   //   (both fire at half the rate they had: cool 0.22 and 1.0)
   flower:  { name: "יריית פרח",    dmg: 7,  speed: 2.4, life: 1.1, cool: 0.44, ammo: 28, refill: 7, r: 0.03, color: "#ff7ac8", flower: true },
   bouquet: { name: "זר עלי כותרת", dmg: 6,  speed: 2.0, life: 0.9, cool: 2.0,  ammo: 6,  refill: 8, r: 0.03, color: "#ffd27a", flower: true, pellets: 5, fan: 0.6 },
+  // BALLAST. railslug: a plain fast slug from the nose. sinker: a heavy ballast slug, slow, and the body in the middle
+  //   pulls it (gravity, like TALUS's boulder), so it can be curved round the star
+  railslug: { name: "קליע מסילה", dmg: 8,  speed: 2.8, life: 1.1, cool: 0.32, ammo: 20, refill: 7,  r: 0.022, color: "#9fe9d2" },
+  sinker:   { name: "משקולת שוקעת", dmg: 24, speed: 1.1, life: 3.0, cool: 1.1, ammo: 4, refill: 9, r: 0.06,  color: "#ffb21e", gravity: true },
   laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -1271,6 +1287,17 @@ const MAGIC = {
   // LARIAT's ram: it turns to the enemy and charges straight into it at `speed` screens a second (for at most `max` s);
   // hitting it takes `dmg` of a ship's full health (0.5 = half). Only with the rope round the enemy or the star; the rope lets go first. Without an enemy: straight ahead
   clutch:  { name: "הסתערות גרירה", look: "clutch", cool: 12, speed: 4.2, max: 0.9, dmg: 0.5, knock: 1.2, color: "#7ce9dc" },
+  // BALLAST's asteroid tow (its package: ballast-magic.mjs). HOLD the button: the wing opens, three cables fire off the
+  //   screen to its right and latch onto a big asteroid out there (`stop` s; let go before that and nothing happens,
+  //   `miss` s to recharge); the weight slides out on its rail and stops with a jolt (`kick` screens a second to the
+  //   left). Still held, the asteroid is reeled in (`reel`: from, to s) to `rest` (ship-lengths: right, forward) and
+  //   swings round with the ship as it turns (so turn its right side to the enemy). LET GO: the cables let go, the ship
+  //   is flung one way (`fling`) and the asteroid flies the opposite way (`throw` screens a second) for `fuse` s, then
+  //   blows up: `dmg` at its middle, down to `edge` at `blast` ship-lengths, and a shove (`knock`). It blows up sooner
+  //   if the enemy comes within `near` ship-lengths of its rim, or it reaches the body in the middle.
+  //   `rock`: its radius in ship-lengths. Held `max` s, it is let go by itself. `cool` s from the let-go
+  tow:     { name: "גרירת אסטרואיד", look: "tow", stop: 1.43, reel: [1.46, 4.15], rock: 0.6, rest: [2.3, -0.25], kick: 0.35,
+             fling: 0.9, throw: 1.4, fuse: 5, blast: 3.2, dmg: 70, edge: 30, near: 0.9, knock: 2.2, max: 14, cool: 12, miss: 2, color: "#7fdbc9" },
   // GIMBAL's momentum flip: at `cue` s the way it moves turns right round (same speed; the nose stays). Only when it is
   // moving at least `min` pack units a second (from rest it does nothing and costs nothing)
   momentum: { name: "היפוך תנופה", look: "momentum", cool: 9, cue: 0.24, min: 24, color: "#6fe9ff" },
@@ -1295,6 +1322,25 @@ const MAGIC = {
   tail:  { name: "זנב כדור קוצים", out: 0.8, hold: 8, back: 0.7, len: 9.6, cool: 1, look: "tail", color: "#b8ff3a",
            ball: 0.22, hit: 20, every: 0.6, knock: 1.0 }
 };
+// BALLAST's rig through the tow (its package's timeline): T.t seconds since the button went down, T.rel seconds since
+// it was let go (null while held), T.miss: let go before the cables latched. Returns 0..1 for each moving part:
+//   wing (opening), weight (out on its rail), impact (the jolt's sparks), leads (each cable's way to the asteroid),
+//   taut (cables pulled straight), reel (how far the asteroid has come in)
+const BALLAST_UNIT = 1 / 170;   // one unit of the package, in ship-lengths
+function towRig(T, M) {
+  const range = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a))), between = (t, a, b) => smoothStep(range(t, a, b));
+  const t = T ? T.t : 0, rel = T && T.rel != null ? T.rel : -1, back = rel < 0 ? 1 : 1 - between(rel, 0.15, 0.6);
+  const out = T ? 1 : 0;
+  return {
+    wing: out * between(t, 0.40, 0.92) * (rel < 0 ? 1 : 1 - between(rel, 0.3, 0.8)),
+    weight: out * Math.pow(range(t, 0.71, M.stop), 1.45) * back,
+    impact: rel >= 0 ? 0 : between(t, 1.39, M.stop) * (1 - between(t, M.stop, 1.68)),
+    leads: [0, 1, 2].map((i) => rel >= 0 ? (T.miss ? between(t - rel, 0.72 + i * 0.1, 1.15 + i * 0.1) * (1 - range(rel, 0, 0.3)) : 0)
+      : out * between(t, 0.72 + i * 0.10, 1.15 + i * 0.10)),
+    taut: between(t, 1.28, 1.72),
+    reel: between(t, M.reel[0], M.reel[1])
+  };
+}
 // VEXAR's tail pieces along a tail `total` art-pixels long (the art is 512 px per 1.2 ship-lengths):
 // the mount, then vertebrae narrowing from 72 to 29 px wide, then the stinger, like tail-layout.json but as many
 // vertebrae as the length needs. start / end: art pixels from the mount; ob / oa: how far each overlaps the next
@@ -1885,7 +1931,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -2962,6 +3008,7 @@ function useMagicNow(which = 0) {
     audio.beam(); audio.sfx(S.sfx, "latches_unlock", 0.75); buzz(60);
     return;
   }
+  if (M.look === "tow") { startTow(M); return; }   // BALLAST: held, it tows an asteroid in (updateTow)
   if (M.look === "tail") {   // the stinger tail grows out behind the ship, stays out, and comes back by itself
     if (game.tail) return;
     game.magicCool = M.out + M.hold + M.back + M.cool;
@@ -3084,6 +3131,183 @@ function updateMagic(dt) {
   for (; game.smokeAcc >= 1; game.smokeAcc--) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, (2.6 + Math.random() * 1.5) * (M.big || 1), M.hide - 0.5, !!M.chem);
 }
 
+// ---------- BALLAST's magic: the asteroid tow (MAGIC.tow) ----------
+// game.tow: { phase: "reach" (cables on their way) | "tow" (latched, held) | "fly" (let go) | "miss" (let go too soon)
+//   | "gone" (blown up; the rig still folding back), t, rel, x, y (the asteroid), vx, vy, ang, spin, lx, ly }
+const wrapX = (v) => ((v % WW) + WW) % WW, wrapY = (v) => ((v % WH) + WH) % WH;
+function startTow(M) {
+  if (game.tow) return;   // one asteroid at a time
+  const size = shipSize(), R = M.rock * size;
+  // just past the edge of what can be seen, to the ship's right (a little ahead)
+  const D = Math.hypot(W, H) / 2 / (game.zoom || 1) + R * 1.15, off = rotatePt(D, -D * 0.12, game.ang);
+  game.tow = { phase: "reach", t: 0, rel: null, miss: false, x: wrapX(game.x + off.x), y: wrapY(game.y + off.y), vx: 0, vy: 0, ang: -0.17, spin: 0 };
+  audio.tone(140, 0.5, "square", 0.04, 1.8); audio.tone(520, 0.12, "triangle", 0.04, 0.5, 0.42); buzz(30);   // the wing unlocks
+  for (let i = 0; i < 3; i++) audio.tone(900 - i * 120, 0.18, "sawtooth", 0.03, 0.4, 0.72 + i * 0.1);   // three cables fire
+}
+// where the three cables leave the wing, in the world (ship `o`, its rig `R`)
+function towLaunchers(o, R) {
+  const size = shipSize() * (o === game ? shipScale() : enemyScale()), u = size * BALLAST_UNIT, wa = -0.54 * (1 - R.wing), wx = 24 + 15 * R.wing + 35;
+  return [-13, 0, 13].map((y) => {
+    const l = { x: 37 + wx * Math.cos(wa) - y * Math.sin(wa), y: 2 + wx * Math.sin(wa) + y * Math.cos(wa) }, w = rotatePt(l.x * u, l.y * u, o.ang);
+    return { x: o.x + w.x, y: o.y + w.y };
+  });
+}
+// the three points on the asteroid the cables hold (they turn with it)
+function towAnchors(T) {
+  const r = MAGIC.tow.rock * shipSize();
+  return [-0.47, 0, 0.46].map((dy) => { const p = rotatePt(-r * (0.84 - Math.abs(dy) * 0.32), dy * r, T.ang); return { x: T.x + p.x, y: T.y + p.y }; });
+}
+function updateTow(dt) {
+  const T = game.tow, M = MAGIC.tow;
+  if (!T) return;
+  const size = shipSize(), R = M.rock * size;
+  T.t += dt; if (T.rel != null) T.rel += dt;
+  const held = game.magicFinger !== null && !game.dead && !game.zombie && game.ship === "ballast";
+  if (T.phase === "reach") {
+    T.ang += dt * 0.05;
+    if (!held) { T.phase = "miss"; T.miss = true; T.rel = 0; game.magicCool = M.miss; audio.tone(300, 0.25, "sine", 0.03, 0.5); return; }
+    if (T.t >= M.stop) {   // the cables have latched on and the weight hits its stop: a jolt to the left
+      T.phase = "tow";
+      const l = rotatePt(wrapDelta(T.x - game.x, WW), wrapDelta(T.y - game.y, WH), -game.ang); T.lx = l.x; T.ly = l.y;
+      const k = rotatePt(-1, 0, game.ang); game.vx += k.x * M.kick * U; game.vy += k.y * M.kick * U;
+      const w = rotatePt(-120 * BALLAST_UNIT * size, 5 * BALLAST_UNIT * size, game.ang);
+      burstAt(game.x + w.x, game.y + w.y, 14, ["#ffcd71", "#ffffff", "#ffb21e"], 0.35, 0.5, game.vx, game.vy);
+      audio.tone(70, 0.35, "square", 0.12, 0.4); audio.noise(0.18, 0.25, 1400); shake(0.45); buzz(90);
+    }
+  } else if (T.phase === "tow") {
+    // reeled in toward its place on the right, and it swings round with the ship
+    const k = towRig(T, M).reel, lx = T.lx + (M.rest[0] * size - T.lx) * k, ly = T.ly + (-M.rest[1] * size - T.ly) * k;
+    const w = rotatePt(lx, ly, game.ang), nx = game.x + w.x, ny = game.y + w.y;
+    T.vx = wrapDelta(nx - T.x, WW) / Math.max(dt, 1e-3); T.vy = wrapDelta(ny - T.y, WH) / Math.max(dt, 1e-3);
+    T.x = wrapX(nx); T.y = wrapY(ny); T.ang += dt * (k < 1 ? 0.11 : 0.04);
+    if (k < 1 && Math.random() < 6 * dt) audio.tone(95 + Math.random() * 20, 0.12, "sawtooth", 0.02, 0.8);   // the winch
+    if (!held || T.t > M.max) letGoTow(T, M);
+  } else if (T.phase === "fly") {
+    T.x = wrapX(T.x + T.vx * dt); T.y = wrapY(T.y + T.vy * dt); T.ang += T.spin * dt;
+    if (Math.random() < 20 * dt) burstAt(T.x, T.y, 1, ["#8a7a68", "#cdbb9e", "#ffb21e"], 0.1, 0.8, T.vx * 0.2, T.vy * 0.2);   // dust
+    const near = enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - T.x, WW), wrapDelta(enemy.y - T.y, WH)) < R + M.near * size;
+    // the body in the middle: it blows up flying into it (not if it was let go already over it: it flies on out)
+    const inBody = Math.hypot(wrapDelta(T.x - WW / 2, WW), wrapDelta(T.y - WH / 2, WH)) < planetR() + R * 0.6, star = inBody && !T.overBody;
+    if (!inBody) T.overBody = false;
+    if (near || star || T.rel >= M.fuse) blowTow(T, M);
+  } else if (T.rel > 0.85) game.tow = null;   // missed or blown up: the rig has folded back
+}
+// let go: the cables drop, the ship is flung one way and the asteroid flies the other
+function letGoTow(T, M) {
+  const dx = wrapDelta(T.x - game.x, WW), dy = wrapDelta(T.y - game.y, WH), d = Math.hypot(dx, dy) || 1, nx = dx / d, ny = dy / d;
+  T.phase = "fly"; T.rel = 0; T.overBody = Math.hypot(wrapDelta(T.x - WW / 2, WW), wrapDelta(T.y - WH / 2, WH)) < planetR() + M.rock * shipSize() * 0.6;
+  T.vx = game.vx + nx * M.throw * U; T.vy = game.vy + ny * M.throw * U; T.spin = (Math.random() < 0.5 ? -1 : 1) * (0.8 + Math.random() * 0.8);
+  game.vx -= nx * M.fling * U; game.vy -= ny * M.fling * U;
+  game.magicCool = M.cool;
+  for (const p of towLaunchers(game, towRig(T, M))) burstAt(p.x, p.y, 5, ["#aaf5e0", "#ffffff"], 0.3, 0.4, game.vx, game.vy);
+  audio.whoosh(); audio.tone(1400, 0.08, "square", 0.04, 0.3); audio.tone(1100, 0.08, "square", 0.04, 0.3, 0.05); shake(0.35); buzz(120);
+}
+// the asteroid blows up: rock and fire, rings out to its reach. The enemy in reach is hurt (more nearer the middle) and thrown
+function blowTow(T, M) {
+  T.phase = "gone";
+  duelSend({ t: "btx", x: +(T.x / WW).toFixed(5), y: +(T.y / WH).toFixed(5) });
+  towBlast(T);
+  if (!enemy.on || enemy.warp >= 0.5) return;
+  const size = shipSize(), dx = wrapDelta(enemy.x - T.x, WW), dy = wrapDelta(enemy.y - T.y, WH), d = Math.hypot(dx, dy), Rb = M.blast * size;
+  if (d > Rb + size * 0.4) return;
+  const f = Math.max(0, Math.min(1, 1 - (d - size * 0.4) / Rb)), nx = d ? dx / d : 0, ny = d ? dy / d : -1, kn = M.knock * (0.4 + 0.6 * f);
+  harmEnemy(Math.round(M.edge + (M.dmg - M.edge) * f)); enemy.hurt = 0.4;
+  if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + nx * kn, vy: enemy.vy / U + ny * kn });
+  else { enemy.vx += nx * kn * U; enemy.vy += ny * kn * U; enemy.spin = 6; }
+}
+function towBlast(c) {
+  const size = shipSize(), Rb = MAGIC.tow.blast * size;
+  burstAt(c.x, c.y, 120, ["#ffffff", "#ffcd71", "#ff8a3d", "#8a7a68", "#cdbb9e", "#5a4c42"], 2.0, 1.7);
+  burstAt(c.x, c.y, 40, ["#ffffff", "#aaf5e0"], 0.9, 2.0);
+  rings.push({ x: c.x, y: c.y, t: 0, max: 0.6, r: Rb, c: "#ff8a3d" }, { x: c.x, y: c.y, t: -0.08, max: 0.75, r: Rb * 1.1, c: "#ffffff" }, { x: c.x, y: c.y, t: -0.18, max: 0.9, r: Rb * 0.7, c: "#ffcd71" });
+  const near = Math.hypot(wrapDelta(c.x - game.x, WW), wrapDelta(c.y - game.y, WH)) < U * 2.5;   // (only felt when it is close)
+  if (near) { game.flash = 0.3; shake(1.4); buzz(350); }
+  audio.boom(); audio.crunch(); audio.noise(1.1, 0.3, 600);
+}
+// the asteroid and the cables, in the world (ship `o`; T: its tow; R: its rig)
+function drawTow(o, T, R) {
+  if (!T) return;
+  const size = shipSize(), r = MAGIC.tow.rock * size, a = toScreen(o.x, o.y), sc = (p) => ({ x: a.x + wrapDelta(p.x - o.x, WW), y: a.y + wrapDelta(p.y - o.y, WH) });
+  const rk = sc(T), img = artImage(framePath("ballast", "asteroid.webp"));
+  if (T.phase !== "gone" && T.phase !== "miss") {
+    ctx.save(); ctx.translate(rk.x, rk.y);
+    if (T.phase === "fly") {   // flying: the fuse runs down, its cracks glowing hotter, a warning ring at its reach
+      const k = Math.min(1, T.rel / MAGIC.tow.fuse), blink = 0.5 + 0.5 * Math.sin(time * (5 + 18 * k));
+      const g = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, r * 1.7);
+      g.addColorStop(0, `rgba(255,138,61,${0.25 + 0.45 * k * blink})`); g.addColorStop(1, "rgba(255,138,61,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * 1.7, 0, TAU); ctx.fill();
+      ctx.setLineDash([size * 0.08, size * 0.08]); ctx.lineDashOffset = -time * 40; ctx.strokeStyle = `rgba(255,138,61,${0.15 + 0.3 * k})`; ctx.lineWidth = Math.max(1.5, size * 0.02);
+      ctx.beginPath(); ctx.arc(0, 0, MAGIC.tow.blast * size, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.rotate(T.ang);
+    if (img) ctx.drawImage(img, -r, -r * img.height / img.width, r * 2, r * 2 * img.height / img.width);
+    else { ctx.fillStyle = "#8a7a68"; rockPath(r, 3); ctx.fill(); }
+    if (T.phase === "fly") {   // the cracks
+      const k = Math.min(1, T.rel / MAGIC.tow.fuse);
+      ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = `rgba(255,${Math.round(200 - 120 * k)},80,${0.3 + 0.6 * k})`; ctx.lineWidth = Math.max(1.5, r * 0.05);
+      ctx.beginPath(); ctx.moveTo(-r * 0.6, -r * 0.2); ctx.lineTo(-r * 0.1, r * 0.1); ctx.lineTo(r * 0.3, -r * 0.35); ctx.moveTo(-r * 0.1, r * 0.1); ctx.lineTo(r * 0.15, r * 0.55); ctx.moveTo(r * 0.3, -r * 0.35); ctx.lineTo(r * 0.6, -r * 0.1); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // the cables: from the wing's three launchers to their points on the rock (sagging until pulled taut)
+  if (!R.leads.some((v) => v > 0)) return;
+  const from = towLaunchers(o, R).map(sc), to = towAnchors(T).map(sc), u = size * BALLAST_UNIT * (o === game ? shipScale() : enemyScale());
+  ctx.save(); ctx.lineCap = "round";
+  for (let i = 0; i < 3; i++) {
+    const p = R.leads[i]; if (p <= 0) continue;
+    const A = from[i], B = { x: A.x + (to[i].x - A.x) * p, y: A.y + (to[i].y - A.y) * p }, sag = (17 - 13 * R.taut + 5 * i) * u;
+    const sg = rotatePt(0, sag, o.ang);
+    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo((A.x + B.x) / 2 + sg.x, (A.y + B.y) / 2 + sg.y, B.x, B.y);
+    ctx.strokeStyle = "#101a28"; ctx.lineWidth = 6 * u; ctx.stroke();
+    ctx.strokeStyle = ["#7fdbc9", "#e2f5dc", "#a4bdf2"][i]; ctx.lineWidth = 2.2 * u; ctx.stroke();
+    ctx.fillStyle = "#152334"; ctx.strokeStyle = "#aaf5e0"; ctx.lineWidth = 1.5 * u;
+    ctx.beginPath(); ctx.arc(B.x, B.y, 4.1 * u, 0, TAU); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+// BALLAST itself, drawn from its parts (inside drawShip: ship-lengths, nose up): the weight's rail, the cable wing
+// turning out on its hinge, the weight, the hull; sparks where the weight hits its stop. R: towRig (or null: folded)
+function drawBallastRig(R) {
+  const im = (n) => artImage(framePath("ballast", n + ".webp")), hull = im("hull"), wing = im("wing"), weight = im("weight");
+  if (!hull || !wing || !weight) return false;
+  R = R || { wing: 0, weight: 0, impact: 0 };
+  const sprite = (img, x, y, w, h) => ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
+  const armX = -61 - R.weight * 58, wingAngle = -0.54 * (1 - R.wing), wc = 24 + 15 * R.wing;
+  ctx.save(); ctx.scale(BALLAST_UNIT, BALLAST_UNIT); ctx.lineCap = "round";
+  ctx.strokeStyle = "#10192a"; ctx.lineWidth = 24; ctx.beginPath(); ctx.moveTo(-24, 5); ctx.lineTo(armX, 5); ctx.stroke();
+  ctx.strokeStyle = "#627184"; ctx.lineWidth = 15; ctx.stroke();
+  ctx.strokeStyle = "#ccd5cc"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-30, 1); ctx.lineTo(armX, 1); ctx.stroke();
+  ctx.fillStyle = "#344250"; for (let i = 0; i < 3; i++) ctx.fillRect(armX + 28 + i * 8, -5, 4, 20);
+  ctx.save(); ctx.translate(37, 2); ctx.rotate(wingAngle);
+  ctx.fillStyle = "#222e3e"; ctx.fillRect(-8, -13, wc + 8, 26);
+  sprite(wing, wc, 0, 74, 52);
+  if (R.wing > 0.12) for (const y of [-13, 0, 13]) { ctx.fillStyle = "#101927"; ctx.fillRect(wc + 26, y - 4, 10, 8); ctx.fillStyle = "#9fe9d2"; ctx.fillRect(wc + 32, y - 2, 4, 4); }
+  ctx.restore();
+  sprite(weight, armX, 5, 70, 72);
+  sprite(hull, 0, 0, 82, 139);
+  if (R.impact > 0) {
+    ctx.strokeStyle = `rgba(255,205,113,${R.impact})`; ctx.lineWidth = 2;
+    for (let i = 0; i < 7; i++) {
+      const a = i * 1.41, x = armX + 31, y = 5, d = 7 + (1 - R.impact) * 25;
+      ctx.beginPath(); ctx.moveTo(x + d * Math.cos(a), y + d * Math.sin(a)); ctx.lineTo(x + (d + 8) * Math.cos(a), y + (d + 8) * Math.sin(a)); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  return true;
+}
+// BALLAST's magic button: the asteroid, a cable to it; the recharge as a ring
+function drawTowButton(b, M, ready, k) {
+  const img = artImage(framePath("ballast", "asteroid.webp")), held = game.tow && (game.tow.phase === "reach" || game.tow.phase === "tow");
+  ctx.save(); ctx.translate(b.x, b.y);
+  ctx.fillStyle = held ? "rgba(127,219,201,0.35)" : "rgba(10,14,30,0.75)"; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.globalAlpha = ready || held ? 1 : 0.45;
+  if (img) { ctx.save(); ctx.rotate(time * 0.3); ctx.drawImage(img, -b.r * 0.62, -b.r * 0.6, b.r * 1.24, b.r * 1.2); ctx.restore(); }
+  ctx.strokeStyle = "#7fdbc9"; ctx.lineWidth = Math.max(2, b.r * 0.07); ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-b.r * 0.85, b.r * 0.5); ctx.quadraticCurveTo(-b.r * 0.5, b.r * 0.55, -b.r * 0.35, b.r * 0.15); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.strokeStyle = M.color; ctx.lineWidth = Math.max(3, b.r * 0.1);
+  ctx.beginPath(); ctx.arc(0, 0, b.r * 0.95, -Math.PI / 2, -Math.PI / 2 + TAU * (ready ? 1 : k)); ctx.stroke();
+  ctx.restore();
+}
 // ---------- SKARN's magic: the jaw on chains ----------
 function mouthOf(o, S) { const m = rotatePt(0, -0.38 * shipSize(), o.ang); return { x: o.x + m.x, y: o.y + m.y }; }
 function updateDevour(dt) {
@@ -4604,7 +4828,7 @@ function blowUpShip() {
   }
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
   game.zombie = false; game.pollen = null;   // (a zombie is cured only by blowing up)
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; if (game.tow && game.tow.phase !== "fly") game.tow = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -4656,7 +4880,7 @@ function updateWeapons(dt) {
   updateRift(dt); updateRiftBursts(dt); updateCrosses(dt);
   if (!game.dead) updateDash(dt);
   updateThread(dt); updateFlail(dt);
-  enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt);
+  enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt); updateTow(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt * (game.lassoed ? ELASSO.fire : 1) * (game.zombie ? ZOMBIE.rate : 1));   // held by LARIAT's rope: half the fire rate; a zombie: a fifth
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].converge) { crossHold(dt); continue; }
@@ -5812,6 +6036,7 @@ function drawShip(S, x, y, size, o = {}) {
   // turned into a zombie by BLOOM's pollen: its zombie art, moving (ZOMBIE_ART). BLOOM: its petals and stamens moving
   if (o.zombie && drawZombieShip(S)) { ctx.restore(); return; }
   if (S.bloom && drawBloomMoving(S, power)) { ctx.restore(); return; }
+  if (S.ballast && drawBallastRig(o.tow)) { ctx.restore(); return; }   // BALLAST: its parts, moving with the tow
   // a real drawing of the ship, once there is one
   let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep, o.cin || { power: o.power }, o.power);
   if (o.frame && S.anim) img = artImage(framePath(S.anim.dir, o.frame)) || img;   // PUFF: puffed / crumpled
@@ -8373,7 +8598,7 @@ function draw() {
       const dug = shown === S && game.dive;
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
-        { zombie: shown === S && game.zombie, power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
+        { tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && game.zombie, power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
@@ -8412,7 +8637,7 @@ function draw() {
     drawShots(eshots);
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
-    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
+    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawTow(game, game.tow, towRig(game.tow, MAGIC.tow)); if (enemy.remote && duel.tow) drawTow(enemy, duel.tow, towRig(duel.tow, MAGIC.tow)); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -8642,7 +8867,7 @@ function drawEnemy() {
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (enemy.remote && duel.net && duel.net.bb) drawHeldBubble(enemy, duel.net.bb);
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
+    drawShip(E, p.x, p.y, size * esc, { tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
@@ -8957,6 +9182,19 @@ function drawShots(list = shots) {
       ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, 11, 26, 0, 0, TAU); ctx.fill();
       ctx.fillStyle = "#fff8cd"; ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(3, -1); ctx.lineTo(0, 12); ctx.lineTo(-3, -1); ctx.closePath(); ctx.fill();
       ctx.restore();
+    } else if (s.w === "railslug") {
+      // BALLAST's rail slug: a short mint streak with a white core, pointing where it flies
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(uy, ux)); const l = size * 0.13;
+      ctx.fillStyle = "rgba(127,219,201,0.35)"; ctx.beginPath(); ctx.ellipse(-l * 0.35, 0, l * 0.75, l * 0.16, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#e2f5dc"; ctx.beginPath(); ctx.moveTo(l * 0.4, 0); ctx.lineTo(0, l * 0.07); ctx.lineTo(-l * 0.4, 0); ctx.lineTo(0, -l * 0.07); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    } else if (s.w === "sinker" && artImage(framePath("ballast", "weight.webp"))) {
+      // BALLAST's sinker: its own hexagon weight, tumbling, a hazard-amber glow behind it
+      const im = artImage(framePath("ballast", "weight.webp")), d = Wp.r * size * 3.2;
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, d);
+      g.addColorStop(0, "rgba(255,178,30,0.35)"); g.addColorStop(1, "rgba(255,178,30,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, d, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s.life * 4); ctx.drawImage(im, -d / 2, -d / 2 * im.height / im.width, d, d * im.height / im.width); ctx.restore();
     } else if (s.w === "shard") {
       // a stone shard: an ivory splinter with a red glowing edge, pointing where it flies
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(uy, ux)); const l = size * 0.11;
@@ -9170,6 +9408,13 @@ function weaponIcon(w, x, y, r, color) {
     for (let i = 0; i < n; i++) { ctx.fillStyle = "#ff8a5a"; ctx.beginPath(); ctx.arc((i - (n - 1) / 2) * r * 0.32, r * 0.78, r * 0.11, 0, TAU); ctx.fill(); }
   } else if (w === "bolt") {   // a spark of light
     ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.25, -r * 0.1); ctx.lineTo(0, r); ctx.lineTo(-r * 0.25, -r * 0.1); ctx.closePath(); ctx.fill();
+  } else if (w === "railslug") {   // BALLAST: a slug between two rails
+    ctx.fillRect(-r * 0.5, -r * 0.85, r * 0.14, r * 1.7); ctx.fillRect(r * 0.36, -r * 0.85, r * 0.14, r * 1.7);
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.75); ctx.lineTo(r * 0.2, -r * 0.35); ctx.lineTo(r * 0.2, r * 0.3); ctx.lineTo(-r * 0.2, r * 0.3); ctx.lineTo(-r * 0.2, -r * 0.35); ctx.closePath(); ctx.fill();
+  } else if (w === "sinker") {   // BALLAST: the hexagon weight falling in a curve
+    ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + Math.PI / 6; ctx.lineTo(r * 0.15 + Math.cos(a) * r * 0.5, r * 0.25 + Math.sin(a) * r * 0.5); } ctx.closePath(); ctx.fill();
+    ctx.lineWidth = Math.max(1.5, r * 0.1); ctx.setLineDash([r * 0.14, r * 0.12]);
+    ctx.beginPath(); ctx.moveTo(-r * 0.85, -r * 0.8); ctx.quadraticCurveTo(-r * 0.6, -r * 0.05, -r * 0.2, r * 0.05); ctx.stroke(); ctx.setLineDash([]);
   } else if (w === "solar") {   // a fan of mirrors under a beam
     for (let i = 0; i < 5; i++) { const a = Math.PI / 2 + (i - 2) * 0.45; ctx.beginPath(); ctx.moveTo(0, -r * 0.05); ctx.lineTo(Math.cos(a - 0.17) * r * 0.85, Math.sin(a - 0.17) * r * 0.85); ctx.lineTo(Math.cos(a + 0.17) * r * 0.85, Math.sin(a + 0.17) * r * 0.85); ctx.closePath(); ctx.fill(); }
     ctx.fillRect(-r * 0.09, -r, r * 0.18, r * 0.85);
@@ -9286,6 +9531,7 @@ function drawMagicButton(b, M, ready, k) {
     if (drawKitButton(game.ship, "magic", b, { pressed: game.magicFinger != null, ready: ready && !used, fill: used ? 0 : k, glow: true, badge: B.t, badgeColor: B.c })) return;
   }
   if (M.look === "tail") drawTailButton(b, M, ready, k);
+  if (M.look === "tow") drawTowButton(b, M, ready, k);
   if (M.look === "grinder") drawGrinderButton(b, M, ready, k);
   if (M.look === "shatter") drawShatterButton(b, M, ready, k);
   if (M.look === "sun") drawSunButton(b, M, ready, k);
@@ -9738,7 +9984,7 @@ function endDuel(tellThem) {
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   game.zombie = false; game.pollen = null; enemy.zombie = false;
-  duel.shots.length = 0; duel.tail = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
+  duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
   for (let k = hunters.length - 1; k >= 0; k--) if (hunters[k].remote) hunters.splice(k, 1);
@@ -9766,7 +10012,7 @@ function duelLink(event, data) {
       setTimeout(() => { if (realDuel()) openPicker("start"); }, 0);
     }
     duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.outDmg = 0; eshots.length = 0; duel.roundStart = game.t + 3;
-    duel.shots.length = 0; duel.tail = null; duel.net = null; duel.gate = null;
+    duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.net = null; duel.gate = null;
     for (let k = eggs.length - 1; k >= 0; k--) eggs.splice(k, 1);
     hunters.length = 0; shots.length = 0; crate.on = false;
     game.hp = SHIP_HP; game.tanks = TANKS; game.dead = 0; game.tail = null; game.anim = null; fillAmmo(); duelPlace();
@@ -9809,6 +10055,8 @@ function duelLink(event, data) {
     game.starMine = null; game.magicCool = MAGIC.starmine.cool; shatterAt(m.x * WW, m.y * WH, shipById(enemy.ship));
   } else if (m.t === "sp") {   // their DRAKON came apart: its bomb is here
     bombs.length = 0; bombs.push({ x: m.x * WW, y: m.y * WH, ang: m.a, vx: 0, vy: 0, t: 0 }); audio.sfx("drakon", "rift_charge", 0, 0.6);
+  } else if (m.t === "btx") {   // their BALLAST's asteroid went off (their phone sends the damage and the shove)
+    if (duel.tow) duel.tow.phase = "gone"; towBlast({ x: m.x * WW, y: m.y * WH });
   } else if (m.t === "bx") {   // their bomb went off (their phone sends the damage and the shove)
     bombs.length = 0; bigBlast({ x: m.x * WW, y: m.y * WH }, MAGIC.split);
   } else if (m.t === "rw") {   // their REPRISE sent me back in time: along my last seconds, slowly; my shots too
@@ -9938,6 +10186,13 @@ function updateRival(dt) {
     const kk = 1 - Math.exp(-dt * 15); R.x += wrapDelta(n.fl[0] * WW - R.x, WW) * kk; R.y += wrapDelta(n.fl[1] * WH - R.y, WH) * kk; R.swing = n.fl[2] ? 0 : -1; R.spin += dt * (n.fl[2] ? 12 : 3); }
   else duel.flail = null;
   // their SKARN's jaw on chains: shown here; while it bites, my ship is held in it (their phone sends the damage)
+  // their BALLAST's asteroid and cables (their phone decides what the blast does)
+  if (n.bt) {
+    const [ph, bx, by, ba, bt, br] = n.bt, P = ["reach", "tow", "fly", "miss", "gone"][ph], D = duel.tow;
+    if (!D || D.phase !== P) duel.tow = { phase: P, x: bx * WW, y: by * WH, ang: ba, t: bt + age, rel: br >= 0 ? br + age : null, miss: P === "miss" };
+    else { const kk = 1 - Math.exp(-dt * 14); D.x = wrapX(D.x + wrapDelta(bx * WW - D.x, WW) * kk); D.y = wrapY(D.y + wrapDelta(by * WH - D.y, WH) * kk); D.ang = ba;
+      D.t += dt; if (Math.abs(D.t - (bt + age)) > 0.25) D.t = bt + age; if (br >= 0) { D.rel = (D.rel ?? br) + dt; if (Math.abs(D.rel - (br + age)) > 0.25) D.rel = br + age; } }
+  } else duel.tow = null;
   duel.devour = n.dv ? { phase: n.dv[0], x: n.dv[1] * WW, y: n.dv[2] * WH, open: n.dv[3], ang: n.dv[4] } : null;
   if (duel.devour && duel.devour.phase === "bite" && !game.dead) {
     const kk = 1 - Math.exp(-dt * 12);
@@ -10013,6 +10268,7 @@ function updateDuel(dt) {
       kn: game.trap ? game.trap.stored : 0, kc: trapOpen() ? 1 : 0,
       fl: game.flail ? [+(game.flail.x / WW).toFixed(5), +(game.flail.y / WH).toFixed(5), game.flail.swing >= 0 ? 1 : 0] : 0, ik: game.inked > 0 ? +game.inked.toFixed(1) : 0,
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
+      bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
       gr: game.grind ? [game.grind.phase, +game.grind.spin.toFixed(2), +game.grind.teeth.toFixed(2), +game.grind.nx.toFixed(3), +game.grind.ny.toFixed(3)] : 0 });
     duel.outDmg = 0;
@@ -10150,6 +10406,12 @@ function botThink(dt) {
   } else if (d < U * 1.8) {   // near: turn to aim, close in only when lined up and not too close
     botAI.head = aim; botKey(" ", d > U * 0.75 && off < 0.4 && !game.locked);
   } else { botAI.head = c.target; botKey(" ", c.thrust); }   // far: chase (the old enemy's way)
+  // BALLAST towing: it turns its right side (where the asteroid swings) to them, and lets go when the asteroid lines up
+  if (S.id === "ballast" && game.tow && game.tow.phase === "tow" && !botAI.danger) {
+    botAI.head = wrapAngle(aim - Math.PI / 2);
+    const ra = Math.atan2(wrapDelta(game.tow.x - game.x, WW), -wrapDelta(game.tow.y - game.y, WH));
+    if (game.tow.t > 2.4 && Math.abs(wrapAngle(ra - Math.atan2(dx, -dy))) < 0.3) { delete botAI.hold.v; botKey("v", false); }
+  }
   // button 1: when lined up and in reach
   const reach1 = w1 ? Math.min(U * 2.5, w1.speed * U * (w1.life || 1) * 0.9) : U;
   botKey("z", seen && off < 0.22 && d < reach1);
@@ -10162,7 +10424,7 @@ function botThink(dt) {
   botAI.tM -= dt;
   if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S) && (S.id !== "lariat" || game.tether || game.elasso) &&
       (S.id !== "bloom" || d < shipSize() * MAGIC.pollen.range * 0.8)) {   // (BLOOM: only with them close enough for its pollen)
-    botTap("v", Math.random() < 0.5 ? 0.1 : 0.4 + Math.random() * 2.4); botAI.tM = L.magic * (0.6 + Math.random() * 0.8);
+    botTap("v", S.id === "ballast" ? 7 + Math.random() * 4 : Math.random() < 0.5 ? 0.1 : 0.4 + Math.random() * 2.4);   // (BALLAST: held for its tow) botAI.tM = L.magic * (0.6 + Math.random() * 0.8);
   }
   botAI.tB -= dt;
   if (S.magic2 && botAI.tB <= 0 && d < U * 2.6) { botTap("b", 0.1 + Math.random() * 0.5); botAI.tB = L.magic * (0.7 + Math.random() * 0.8); }
@@ -10557,6 +10819,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id; game.zombie = false; game.pollen = null;
+  if (game.tow && game.tow.phase !== "fly") game.tow = null;   // (BALLAST's asteroid already flying goes on)
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
   game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];

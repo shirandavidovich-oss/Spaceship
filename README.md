@@ -358,6 +358,20 @@ swings (`LASSO` in the game). Our bodies are much
 bigger than the pack's practice star, so the reach (306 units) and the slack (64) are measured from the body's surface.
 In a duel the other phone sees the hook and the cable (`lh`, `lt`, `lfx`).
 
+**BALLAST**, the asteroid tug (`art/ships/ballast/`: hull, wing, weight and asteroid from the BALLAST-Asteroid-Magic
+package, drawn from its parts by `drawBallastRig` so they move; `idle.webp` is the folded pose for the hangar and icons).
+Heavy and slow (`HANDLING`). Button 1: a rail slug from the nose (8). Button 2: a ballast sinker from the weight (24),
+slow, and the body in the middle pulls it, so it curves. Magic, asteroid tow (`tow` in `MAGIC`, `updateTow`): **hold** the
+button. The cable wing opens, three cables fire 100 ms apart off the screen to the right and latch onto a big asteroid out
+there (1.43 s, the package's timeline in `towRig`); the weight slides out on its rail and hits its stop with a jolt to the
+left. Let go before the cables latch and nothing happens (2 s recharge). Still holding, the asteroid is reeled in to the
+ship's right side and swings round with it as it turns, so turn your right side to the enemy. **Let go**: the cables drop,
+the ship is flung one way and the asteroid flies the opposite way; after 5 s it blows up (sooner if the enemy comes near
+it, or if it flies into the body in the middle): 70 health at its middle down to 30 at 3.2 ship-lengths, and a big shove.
+A warning ring shows its reach and its cracks glow hotter as the fuse runs down. Held 14 s it lets go by itself; 12 s
+recharge after the let-go. The computer holds it, turns its right side to you and lets go when the asteroid lines up.
+In a duel the other phone sees the asteroid and the cables (`bt`) and the blast (`btx`).
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 
