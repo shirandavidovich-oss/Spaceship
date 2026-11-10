@@ -385,6 +385,16 @@ down; with no lock by 4.6 s it comes down anyway. The shadow hides while a ship 
 close, and flies its shadow onto you (braking as it gets there). In a duel the other phone sees it all (`sv`); the kill
 is sent as `slay`.
 
+**KILN**, the furnace ship (`art/ships/kiln/`: hull, shutters, gear and mine from the KILN-Reverse-Gravity package, drawn
+by `drawKilnRig`). Button 1: slag shot from the furnace grille (7). Button 2: three mines in a fan (`kmine`); they slow to
+a stop, arm after 0.6 s, wait 25 s (at most 9 of yours) and blow up once on an enemy that comes near (22 and a shove).
+Magic, reverse gravity (`reverse` in `MAGIC`, 16 s recharge): the shutters slide apart and the gear spins up; at full
+power, for 4 s, the body in the middle pushes the ENEMY away and round instead of pulling it (KILN keeps the normal
+pull), wavering a little, so the enemy is flung round in a widening circle, into the mines, and swings back after. Full
+strength within 1.5 screens of the body, none past 3. The body glows cold blue with rings going out while it lasts.
+Each phone moves its own ship, so the push is worked out on the pushed ship's phone from a seed both share (`rg`); the
+gear is shown with `kl`. The computer lays its mines first and only then uses the magic.
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

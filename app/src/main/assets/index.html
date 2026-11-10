@@ -1001,7 +1001,17 @@ const SHIPS = [
     body: [], wing: [], nozzles: [-0.075, 0.075], engineY: 0.54, cockpit: [0, 0, 0.05, 0.1],
     weapons: ["forkbolt", "riftseeker"],
     guns: { forkbolt: [[-0.18, -0.56], [0.18, -0.56]], riftseeker: [[0, -0.26]] },
-    anim: { dir: "strata", size: 1.16, idle: "idle.webp" } }
+    anim: { dir: "strata", size: 1.16, idle: "idle.webp" } },
+  // KILN, the furnace ship (art/ships/kiln/, the KILN-Reverse-Gravity package: hull, two shutters, the gear and the
+  // mine; drawn in code by drawKilnRig). One unit of the package = 1/170 ship-lengths (KILN_UNIT), nose up.
+  // Button 1: slag shot from the furnace grille. Button 2: three mines in a fan (they arm and wait).
+  // Magic: reverse gravity (MAGIC.reverse): the body pushes the ENEMY away, swirling, into the mines; KILN flies as normal
+  { id: "kiln", name: "KILN", rarity: "rare", mass: 1.3, fuel: 30, refill: 15, sfx: null, magic: "reverse", kiln: true,
+    hull: "#c8763a", wingC: "#3a2418", trim: "#fb7754", flame: "#ffb85a",
+    body: [], wing: [], nozzles: [-0.2, 0.2], engineY: 0.5, cockpit: [0, 0, 0.05, 0.1],
+    weapons: ["slag", "kmine"],
+    guns: { slag: [[0, -0.5]], kmine: [[0, -0.45]] },
+    anim: { dir: "kiln", size: 1.2, idle: "idle.webp" } }
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1033,7 +1043,8 @@ const HANDLING = {
   lariat:   { size: 1.05, speed: 0.9,  accel: 0.85, turn: 0.85 },   // a tug
   bloom:    { size: 1,    speed: 1.05, accel: 0.9,  turn: 1.15 },   // a drifting flower
   ballast:  { size: 1.05, speed: 0.8,  accel: 0.85, turn: 0.8  },   // a heavy tug
-  strata:   { size: 1,    speed: 1.1,  accel: 1.05, turn: 1.05 }    // a sleek fork
+  strata:   { size: 1,    speed: 1.1,  accel: 1.05, turn: 1.05 },   // a sleek fork
+  kiln:     { size: 1.05, speed: 0.85, accel: 0.9,  turn: 0.85 }    // a furnace
 };
 function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1203,6 +1214,11 @@ const WEAPONS = {
   //   pulls it (gravity, like TALUS's boulder), so it can be curved round the star
   railslug: { name: "קליע מסילה", dmg: 8,  speed: 2.8, life: 1.1, cool: 0.32, ammo: 20, refill: 7,  r: 0.022, color: "#9fe9d2" },
   sinker:   { name: "משקולת שוקעת", dmg: 24, speed: 1.1, life: 3.0, cool: 1.1, ammo: 4, refill: 9, r: 0.06,  color: "#ffb21e", gravity: true },
+  // KILN. slag: a glowing lump from the furnace. kmine: three mines in a fan (`fan` radians), slowing to a stop; armed
+  //   after `arm` s they wait `stay` s (at most `max` of yours) and blow up once on an enemy that comes near (`knock`)
+  slag:     { name: "סיגים לוהטים", dmg: 7, speed: 2.4, life: 1.0, cool: 0.3, ammo: 22, refill: 7, r: 0.025, color: "#ffb85a" },
+  kmine:    { name: "מוקשי כבשן", dmg: 22, speed: 1.3, life: 0, cool: 2.6, ammo: 3, refill: 9, r: 0.05, color: "#fb7754", mines: 3, fan: 1.6,
+              stop: 0.45, arm: 0.6, stay: 25, max: 9, knock: 1.0, kiln: true },
   // STRATA. forkbolt: from both fork tips at once. riftseeker: a slow orb that turns after the enemy (homing)
   forkbolt:   { name: "חץ מזלג",   dmg: 6,  speed: 2.6, life: 1.0, cool: 0.3, ammo: 24, refill: 7, r: 0.022, color: "#c86bff", both: true },
   riftseeker: { name: "זרע שכבות", dmg: 16, speed: 1.4, life: 3.0, cool: 1.2, ammo: 5,  refill: 9, r: 0.045, color: "#e3c5ff", homing: 2.2 },
@@ -1310,6 +1326,12 @@ const MAGIC = {
   //   blows up: `dmg` at its middle, down to `edge` at `blast` ship-lengths, and a shove (`knock`). It blows up sooner
   //   if the enemy comes within `near` ship-lengths of its rim, or it reaches the body in the middle.
   //   `rock`: its radius in ship-lengths. Held `max` s, it is let go by itself. `cool` s from the let-go
+  // KILN's reverse gravity (its package: kiln-rig.mjs). The shutters slide open and the gear spins up; at `at` s it is
+  //   at full power and for `last` s the body in the middle pushes the ENEMY away instead of pulling (KILN keeps the
+  //   normal pull): out from it at `push` screens a second each second, and round it at `swirl`, the strength wavering
+  //   a little (from a seed both phones share), so it is flung round in a widening circle, into the mines. Within
+  //   `reach` screens of the body at full strength, fading out by twice that. `cool` s to recharge, from the press
+  reverse: { name: "היפוך כבידה", look: "reverse", at: 0.65, last: 4, push: 0.55, swirl: 1.1, reach: 1.5, cool: 16, color: "#7fb6ff" },
   // STRATA's vertical shift (its package: strata-magic.mjs). It tips its nose, the front engine fires down, and it
   //   rises into the upper dimension (up by `rise`[1] s): drawn high above its grey shadow, which stays where it is on
   //   the arena. Up there nothing touches it and it cannot fire; it still flies (its shadow is where it really is).
@@ -1354,6 +1376,25 @@ const BALLAST_UNIT = 1 / 170;
 // (null until then), T.fire: when the laser fired (null), T.lockT: seconds the shadow has stayed on the enemy.
 // Returns 0..1: z (height), bank (nose tipped), jet (front engine), rise (the hull's mechanism open), lock (the
 // sight closing), beam (the laser), and up: high enough to be out of the arena (nothing touches it)
+const KILN_UNIT = 1 / 170;   // one unit of the KILN package (its hull 120 units wide), in ship-lengths
+// KILN's converter at `t` seconds since the press (its package's sampleRig): open (shutters), power (the glow), angle
+// (the gear, radians), piston
+function kilnRig(t, M = MAGIC.reverse) {
+  const c = (x) => Math.max(0, Math.min(1, x)), fade = (t, a, b) => smoothStep((t - a) / (b - a)), end = M.at + M.last;
+  const open = fade(t, 0, 0.65) * (1 - fade(t, end, end + 0.54)), power = fade(t, 0.19, 0.65) * (1 - fade(t, end - 0.1, end + 0.49));
+  const age = Math.max(0, t), spin = Math.min(age, end), after = Math.max(0, t - end);
+  return { open, power, angle: 10.5 * (spin - 0.25 * (1 - Math.exp(-spin / 0.25))) + 3 * (1 - Math.exp(-after / 0.3)), piston: power * (0.52 + 0.48 * Math.sin(age * 21)), time: t };
+}
+// the reversal's strength `t` s after it starts: up in 0.35 s, back down over 0.5 s after `last`
+function revRamp(t, M) { return t < 0 ? 0 : smoothStep(t / 0.35) * (1 - smoothStep((t - M.last) / 0.5)); }
+// the reversed body's push on a ship at (dx, dy) from its middle, `t` s in: out from it and round it, wavering by the seed.
+// Full strength within `reach` screens, none past twice that. Returns { ax, ay } in screens a second each second (times u)
+function revAccel(dx, dy, t, seed, M, u) {
+  const d = Math.hypot(dx, dy) || 1, nx = dx / d, ny = dy / d, far = Math.max(0, Math.min(1, 2 - d / (M.reach * u)));
+  const w = 1 + 0.25 * Math.sin(t * 1.3 + seed) + 0.15 * Math.sin(t * 2.9 + seed * 2.1), dir = seed % 2 ? 1 : -1;
+  const out = M.push * u * w * far, round = M.swirl * u * (1 + 0.3 * Math.sin(t * 1.7 + seed * 0.7)) * far * dir;
+  return { ax: nx * out - ny * round, ay: ny * out + nx * round };
+}
 const STRATA_W = 0.62;   // its width in ship-lengths (the package's `size`)
 function stratPose(T, M) {
   const range = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a))), between = (t, a, b) => smoothStep(range(t, a, b));
@@ -1975,7 +2016,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -2780,7 +2821,11 @@ function moveShip(o, S, c, dt) {
   const R = planetR();
   const dx = wrapDelta(o.x - WW / 2, WW), dy = wrapDelta(o.y - WH / 2, WH);
   const g = gravityAt(dx, dy, U, R, body().pull);
-  o.vx += g.ax * dt; o.vy += g.ay * dt;
+  const rk = reverseOn(o);   // KILN's reverse gravity: this ship is pushed away and round instead of pulled
+  if (rk > 0) {
+    const RV = o === game ? game.reversed : game.kiln, ra = revAccel(dx, dy, o === game ? RV.t : RV.t - MAGIC.reverse.at, RV.seed, MAGIC.reverse, U);
+    o.vx += (g.ax * (1 - rk) + ra.ax * rk) * dt; o.vy += (g.ay * (1 - rk) + ra.ay * rk) * dt;
+  } else { o.vx += g.ax * dt; o.vy += g.ay * dt; }
 
   // 4. no air in space: the ship keeps flying, up to its top speed
   const sp = Math.hypot(o.vx, o.vy), top = st.top * U * (o === game && game.puffJet ? MAGIC.inflate.jetTop : 1);   // (PUFF let go: faster)
@@ -3053,7 +3098,8 @@ function useMagicNow(which = 0) {
     return;
   }
   if (M.look === "tow") { startTow(M); return; }   
-  if (M.look === "vshift") { startShift(M); return; }   // STRATA: up into the upper dimension (updateShift)   // BALLAST: held, it tows an asteroid in (updateTow)
+  if (M.look === "vshift") { startShift(M); return; }
+  if (M.look === "reverse") { startReverse(M); return; }   // KILN: the body pushes the enemy away (updateReverse)   // STRATA: up into the upper dimension (updateShift)   // BALLAST: held, it tows an asteroid in (updateTow)
   if (M.look === "tail") {   // the stinger tail grows out behind the ship, stays out, and comes back by itself
     if (game.tail) return;
     game.magicCool = M.out + M.hold + M.back + M.cool;
@@ -3524,6 +3570,97 @@ function drawShiftButton(b, M, ready, k) {
   ctx.fillStyle = "#c86bff";
   for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * b.r * 0.12, b.r * 0.25); ctx.lineTo(sx * b.r * 0.36, -b.r * 0.62); ctx.lineTo(sx * b.r * 0.3, b.r * 0.2); ctx.closePath(); ctx.fill(); }
   ctx.fillStyle = "#e3c5ff"; ctx.beginPath(); ctx.moveTo(0, -b.r * 0.35); ctx.lineTo(b.r * 0.16, b.r * 0.28); ctx.lineTo(-b.r * 0.16, b.r * 0.28); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1; ctx.strokeStyle = M.color; ctx.lineWidth = Math.max(3, b.r * 0.1);
+  ctx.beginPath(); ctx.arc(0, 0, b.r * 0.95, -Math.PI / 2, -Math.PI / 2 + TAU * (ready ? 1 : k)); ctx.stroke();
+  ctx.restore();
+}
+// ---------- KILN's magic: reverse gravity (MAGIC.reverse) ----------
+// game.kiln: my KILN's converter { t: seconds since the press, seed }. game.reversed: the body pushing MY ship away
+// (their KILN's magic, or for testing my own) { t: seconds from the start of the reversal (negative: not yet), seed }.
+// Each phone moves its own ship, so the push is worked out on the phone of the ship being pushed, from the seed.
+function startReverse(M) {
+  if (game.kiln) return;
+  const seed = Math.floor(Math.random() * 1000) + 1;
+  game.kiln = { t: 0, seed }; game.magicCool = M.cool;
+  duelSend({ t: "rg", s: seed });
+  audio.tone(90, 0.8, "sawtooth", 0.05, 2.5); audio.noise(0.4, 0.1, 1200); buzz(40);   // the shutters, the gear spinning up
+  audio.tone(220, 1.2, "square", 0.03, 4, 0.2);
+}
+function updateReverse(dt) {
+  const M = MAGIC.reverse;
+  if (game.kiln) { game.kiln.t += dt; if (game.dead || game.ship !== "kiln" || game.kiln.t > M.at + M.last + 0.8) game.kiln = null; }
+  if (game.reversed) { game.reversed.t += dt; if (game.reversed.t > M.last + 0.6) game.reversed = null; }
+}
+// how strong the reversal is now, 0..1, for my ship (game.reversed) or the enemy (my own KILN's, if it is not another phone)
+function reverseOn(o) {
+  const M = MAGIC.reverse;
+  if (o === game) return game.reversed ? revRamp(game.reversed.t, M) : 0;
+  return !enemy.remote && game.kiln ? revRamp(game.kiln.t - M.at, M) : 0;
+}
+// the body looks reversed (cold halo, rings going out) while either KILN's reversal is on
+function reverseShown() { const M = MAGIC.reverse; return Math.max(game.kiln ? revRamp(game.kiln.t - M.at, M) : 0, game.reversed ? revRamp(game.reversed.t, M) : 0); }
+function drawReverseBody() {
+  const k = reverseShown();
+  if (k <= 0) return;
+  const p = toScreen(WW / 2, WH / 2), R = planetR();
+  ctx.save(); ctx.translate(p.x, p.y); ctx.globalCompositeOperation = "lighter";
+  const g = ctx.createRadialGradient(0, 0, R * 0.2, 0, 0, R * 2.6);
+  g.addColorStop(0, `rgba(190,225,255,${0.5 * k})`); g.addColorStop(0.4, `rgba(80,150,255,${0.28 * k})`); g.addColorStop(1, "rgba(40,90,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, R * 2.6, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(1.5, R * 0.04);
+  for (let i = 0; i < 4; i++) {   // rings racing out from the middle
+    const f = (time * 0.6 + i / 4) % 1;
+    ctx.strokeStyle = `rgba(150,200,255,${0.55 * k * (1 - f)})`; ctx.beginPath(); ctx.arc(0, 0, R * (1 + 2.4 * f), 0, TAU); ctx.stroke();
+  }
+  ctx.restore();
+}
+// KILN itself (inside drawShip: ship-lengths, nose up): the hull, the shutters sliding apart, the gear spinning in its bay
+function kilnArt() { const im = (n) => artImage(framePath("kiln", n + ".webp")), A = { hull: im("hull"), shutter: im("shutter"), rotor: im("rotor") }; return A.hull && A.shutter && A.rotor ? A : null; }
+function drawKilnRig(rig) {
+  const A = kilnArt();
+  if (!A) return false;
+  const { open, power, angle, piston, time: tt } = rig || { open: 0, power: 0, angle: 0, piston: 0, time: 0 };
+  const part = (img, x, y, w, h = w * img.height / img.width) => ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
+  ctx.save(); ctx.scale(KILN_UNIT, KILN_UNIT);
+  part(A.hull, 0, 0, 120, 120 * A.hull.height / A.hull.width);
+  for (const side of [-1, 1]) {
+    const sh = side * (23 + open * 27);
+    if (open > 0.01) {
+      ctx.fillStyle = "#1a181f"; ctx.fillRect(side === 1 ? 0 : sh, -35, Math.abs(sh), 13);
+      ctx.fillStyle = "#886252"; ctx.fillRect(side === 1 ? 6 : sh, -33 + 4 * piston, 16 + 14 * open, 5);
+      ctx.fillStyle = "#f5be77"; ctx.fillRect(side * (19 + 11 * piston) - 2, -33 + 4 * piston, 4, 6);
+    }
+  }
+  ctx.save(); ctx.translate(0, -29);
+  if (open > 0.01) {
+    ctx.globalAlpha = open; ctx.fillStyle = "#14121d"; ctx.beginPath(); ctx.ellipse(0, 0, 30, 26, 0, 0, TAU); ctx.fill();
+    const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 41); g.addColorStop(0, `rgba(255,184,90,${power * 0.73})`); g.addColorStop(1, "rgba(255,120,42,0)");
+    ctx.fillStyle = g; ctx.fillRect(-41, -41, 82, 82);
+    ctx.rotate(angle); part(A.rotor, 0, 0, 40 + 7 * open, 40 + 7 * open); ctx.rotate(-angle);
+    ctx.strokeStyle = `rgba(255,213,148,${power * 0.85})`; ctx.lineWidth = 1.7;
+    for (let i = 0; i < 3; i++) { const a = i * TAU / 3 - tt * 3.6; ctx.beginPath(); ctx.arc(0, 0, 27, a, a + 0.52); ctx.stroke(); }
+  }
+  ctx.restore();
+  for (const side of [-1, 1]) { ctx.save(); ctx.translate(side * (9 + open * 32), -29 + open * 10); ctx.rotate(side * 0.27 * open); part(A.shutter, 0, 0, 18, 46); ctx.restore(); }
+  if (power > 0.01) { ctx.fillStyle = `rgba(255,149,77,${power * 0.76})`; for (let i = 0; i < 5; i++) ctx.fillRect(-10 + i * 5, -4 + (i % 2) * 2, 2, 4); }
+  ctx.restore();
+  return true;
+}
+// a KILN mine: its own drawing, turning slowly; armed, a red ring pulses round it
+function drawKilnMine(m, Wp, p, armed, fade) {
+  const img = artImage(framePath("kiln", "mine.webp")), d = shipSize() * 0.17;
+  ctx.save(); ctx.globalAlpha = Math.max(0, fade); ctx.translate(p.x, p.y); ctx.rotate(m.ang + m.t * 0.4);
+  if (img) ctx.drawImage(img, -d / 2, -d / 2, d, d); else { ctx.fillStyle = "#a0522d"; ctx.beginPath(); ctx.arc(0, 0, d * 0.4, 0, TAU); ctx.fill(); }
+  if (armed) { ctx.strokeStyle = `rgba(251,119,84,${0.28 + 0.26 * (0.5 + 0.5 * Math.sin(time * 9 + (parseFloat(String(m.id).replace(/^r/, "")) || 0)))})`; ctx.lineWidth = Math.max(1.3, d * 0.05); ctx.beginPath(); ctx.arc(0, 0, d * 0.62, 0, TAU); ctx.stroke(); }
+  ctx.restore();
+}
+// KILN's magic button: its gear, spinning while the converter runs
+function drawReverseButton(b, M, ready, k) {
+  const img = artImage(framePath("kiln", "rotor.webp")), on = !!game.kiln;
+  ctx.save(); ctx.translate(b.x, b.y);
+  ctx.fillStyle = on ? "rgba(120,180,255,0.3)" : "rgba(10,14,30,0.75)"; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.globalAlpha = ready || on ? 1 : 0.45;
+  if (img) { ctx.save(); ctx.rotate(on ? kilnRig(game.kiln.t).angle : 0); ctx.drawImage(img, -b.r * 0.7, -b.r * 0.7, b.r * 1.4, b.r * 1.4); ctx.restore(); }
   ctx.globalAlpha = 1; ctx.strokeStyle = M.color; ctx.lineWidth = Math.max(3, b.r * 0.1);
   ctx.beginPath(); ctx.arc(0, 0, b.r * 0.95, -Math.PI / 2, -Math.PI / 2 + TAU * (ready ? 1 : k)); ctx.stroke();
   ctx.restore();
@@ -5049,7 +5186,7 @@ function blowUpShip() {
   }
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
   game.zombie = false; game.pollen = null;   // (a zombie is cured only by blowing up)
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; game.kiln = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -5101,7 +5238,7 @@ function updateWeapons(dt) {
   updateRift(dt); updateRiftBursts(dt); updateCrosses(dt);
   if (!game.dead) updateDash(dt);
   updateThread(dt); updateFlail(dt);
-  enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt); updateTow(dt); updateShift(dt);
+  enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt); updateTow(dt); updateShift(dt); updateReverse(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt * (game.lassoed ? ELASSO.fire : 1) * (game.zombie ? ZOMBIE.rate : 1));   // held by LARIAT's rope: half the fire rate; a zombie: a fifth
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].converge) { crossHold(dt); continue; }
@@ -6260,6 +6397,7 @@ function drawShip(S, x, y, size, o = {}) {
   if (o.zombie && drawZombieShip(S)) { ctx.restore(); return; }
   if (S.bloom && drawBloomMoving(S, power)) { ctx.restore(); return; }
   if (S.ballast && drawBallastRig(o.tow)) { ctx.restore(); return; }
+  if (S.kiln && drawKilnRig(o.kiln)) { ctx.restore(); return; }   // KILN: its parts, the gear spinning
   if (S.strata) {   // STRATA: drawn by its package's renderer in screen pixels, so undo the turn and scale first
     ctx.save(); ctx.scale(1 / (size * Math.cos(bank * 0.9)), 1 / size); ctx.rotate(-(ang + bank * 0.15));
     const done = drawStrata(o, size * STRATA_W, ang, power); ctx.restore();
@@ -8294,6 +8432,7 @@ function drawMines() {
     const Wp = WEAPONS[m.w], p = toScreen(m.x, m.y), L = size * 0.2, armed = m.t >= Wp.arm, fade = Math.min(1, (Wp.stay - m.t) / 0.5);
     const ph = typeof m.id === "number" ? m.id : parseFloat(String(m.id).replace(/^r/, "")) || 0;   // (the other phone's mines have ids like "r12")
     if (Wp.drill) { drawDrillMine(m, Wp, p, L, armed, fade); continue; }
+    if (Wp.kiln) { drawKilnMine(m, Wp, p, armed, fade); continue; }
     ctx.save(); ctx.globalAlpha = Math.max(0, fade); ctx.translate(p.x, p.y); ctx.rotate(m.ang);
     if (armed) {
       const blink = 0.5 + 0.5 * Math.sin(time * 9 + ph);
@@ -8826,7 +8965,7 @@ function draw() {
       const dug = shown === S && game.dive;
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
-        { strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && game.zombie, power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
+        { kiln: shown === S && game.kiln ? kilnRig(game.kiln.t) : null, strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && game.zombie, power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
@@ -8912,6 +9051,7 @@ function drawPlanet() {
   // changing: the old one shrinks and fades as the new one grows in
   if (cosmos.prev !== null && cosmos.morph < 1) drawBody(BODIES[cosmos.prev], p, U * BODIES[cosmos.prev].r * (1 - k), 1 - k);
   drawBody(body(), p, planetR() * (0.2 + 0.8 * k), Math.min(1, k * 1.5));
+  drawReverseBody();   // KILN's reversal: a cold halo, rings going out
 }
 // one body, at screen point p with radius R (alpha: fading in or out)
 function drawBody(B, p, R, alpha) {
@@ -9095,7 +9235,7 @@ function drawEnemy() {
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (enemy.remote && duel.net && duel.net.bb) drawHeldBubble(enemy, duel.net.bb);
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
+    drawShip(E, p.x, p.y, size * esc, { kiln: enemy.remote && duel.kiln ? kilnRig(duel.kiln.t) : null, strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
@@ -9410,6 +9550,12 @@ function drawShots(list = shots) {
       ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, 11, 26, 0, 0, TAU); ctx.fill();
       ctx.fillStyle = "#fff8cd"; ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(3, -1); ctx.lineTo(0, 12); ctx.lineTo(-3, -1); ctx.closePath(); ctx.fill();
       ctx.restore();
+    } else if (s.w === "slag") {
+      // KILN's slag: a glowing orange lump trailing sparks
+      const r = Wp.r * size * 1.3, g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.2);
+      g.addColorStop(0, "rgba(255,240,200,1)"); g.addColorStop(0.35, "rgba(255,170,80,0.9)"); g.addColorStop(1, "rgba(251,119,84,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.2, 0, TAU); ctx.fill();
+      if (Math.random() < 0.4) burstAt(s.x, s.y, 1, ["#ffb85a", "#fb7754"], 0.06, 0.4);
     } else if (s.w === "forkbolt") {
       // STRATA's fork bolt: a violet blade of light, pointing where it flies
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(uy, ux)); const l = size * 0.14;
@@ -9649,6 +9795,12 @@ function weaponIcon(w, x, y, r, color) {
     for (let i = 0; i < n; i++) { ctx.fillStyle = "#ff8a5a"; ctx.beginPath(); ctx.arc((i - (n - 1) / 2) * r * 0.32, r * 0.78, r * 0.11, 0, TAU); ctx.fill(); }
   } else if (w === "bolt") {   // a spark of light
     ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.25, -r * 0.1); ctx.lineTo(0, r); ctx.lineTo(-r * 0.25, -r * 0.1); ctx.closePath(); ctx.fill();
+  } else if (w === "slag") {   // KILN: a glowing lump with sparks
+    ctx.beginPath(); ctx.arc(0, r * 0.1, r * 0.45, 0, TAU); ctx.fill();
+    for (const a of [-0.9, -0.3, 0.4]) { ctx.beginPath(); ctx.arc(Math.sin(a) * r * 0.8, r * 0.1 - Math.cos(a) * r * 0.8, r * 0.1, 0, TAU); ctx.fill(); }
+  } else if (w === "kmine") {   // KILN: three mines in a fan
+    for (const a of [-0.6, 0, 0.6]) { const x = Math.sin(a) * r * 0.65, y = r * 0.35 - Math.cos(a) * r * 0.65; ctx.beginPath(); for (let i = 0; i < 6; i++) { const b = i * Math.PI / 3; ctx.lineTo(x + Math.cos(b) * r * 0.24, y + Math.sin(b) * r * 0.24); } ctx.closePath(); ctx.fill(); }
+    ctx.beginPath(); ctx.arc(0, r * 0.7, r * 0.12, 0, TAU); ctx.fill();
   } else if (w === "forkbolt") {   // STRATA: two blades from a fork
     for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * r * 0.35, -r * 0.9); ctx.lineTo(sx * r * 0.5, r * 0.1); ctx.lineTo(sx * r * 0.35, r * 0.5); ctx.lineTo(sx * r * 0.2, r * 0.1); ctx.closePath(); ctx.fill(); }
     ctx.beginPath(); ctx.moveTo(-r * 0.35, r * 0.5); ctx.lineTo(0, r * 0.85); ctx.lineTo(r * 0.35, r * 0.5); ctx.lineWidth = Math.max(1.5, r * 0.1); ctx.stroke();
@@ -9781,6 +9933,7 @@ function drawMagicButton(b, M, ready, k) {
   if (M.look === "tail") drawTailButton(b, M, ready, k);
   if (M.look === "tow") drawTowButton(b, M, ready, k);
   if (M.look === "vshift") drawShiftButton(b, M, ready, k);
+  if (M.look === "reverse") drawReverseButton(b, M, ready, k);
   if (M.look === "grinder") drawGrinderButton(b, M, ready, k);
   if (M.look === "shatter") drawShatterButton(b, M, ready, k);
   if (M.look === "sun") drawSunButton(b, M, ready, k);
@@ -10233,7 +10386,7 @@ function endDuel(tellThem) {
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   game.zombie = false; game.pollen = null; enemy.zombie = false;
-  duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
+  duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
   for (let k = hunters.length - 1; k >= 0; k--) if (hunters[k].remote) hunters.splice(k, 1);
@@ -10261,7 +10414,7 @@ function duelLink(event, data) {
       setTimeout(() => { if (realDuel()) openPicker("start"); }, 0);
     }
     duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.outDmg = 0; eshots.length = 0; duel.roundStart = game.t + 3;
-    duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.net = null; duel.gate = null;
+    duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.net = null; duel.gate = null;
     for (let k = eggs.length - 1; k >= 0; k--) eggs.splice(k, 1);
     hunters.length = 0; shots.length = 0; crate.on = false;
     game.hp = SHIP_HP; game.tanks = TANKS; game.dead = 0; game.tail = null; game.anim = null; fillAmmo(); duelPlace();
@@ -10304,6 +10457,8 @@ function duelLink(event, data) {
     game.starMine = null; game.magicCool = MAGIC.starmine.cool; shatterAt(m.x * WW, m.y * WH, shipById(enemy.ship));
   } else if (m.t === "sp") {   // their DRAKON came apart: its bomb is here
     bombs.length = 0; bombs.push({ x: m.x * WW, y: m.y * WH, ang: m.a, vx: 0, vy: 0, t: 0 }); audio.sfx("drakon", "rift_charge", 0, 0.6);
+  } else if (m.t === "rg") {   // their KILN reversed the body: it pushes MY ship away and round (worked out here, from their seed)
+    game.reversed = { t: -MAGIC.reverse.at, seed: m.s || 1 }; audio.tone(140, 1.0, "sine", 0.05, 3, 0.5);
   } else if (m.t === "slay") {   // their STRATA's laser: my ship is destroyed, spare tanks and all
     if (!game.dead && !stratAloft(game)) { game.tanks = 0; damageShip(SHIP_HP * 100); }
   } else if (m.t === "btx") {   // their BALLAST's asteroid went off (their phone sends the damage and the shove)
@@ -10437,6 +10592,8 @@ function updateRival(dt) {
     const kk = 1 - Math.exp(-dt * 15); R.x += wrapDelta(n.fl[0] * WW - R.x, WW) * kk; R.y += wrapDelta(n.fl[1] * WH - R.y, WH) * kk; R.swing = n.fl[2] ? 0 : -1; R.spin += dt * (n.fl[2] ? 12 : 3); }
   else duel.flail = null;
   // their SKARN's jaw on chains: shown here; while it bites, my ship is held in it (their phone sends the damage)
+  // their KILN's converter (the push itself comes as `rg`)
+  if (n.kl >= 0) { const D = duel.kiln || (duel.kiln = { t: n.kl + age }); D.t += dt; if (Math.abs(D.t - (n.kl + age)) > 0.25) D.t = n.kl + age; } else duel.kiln = null;
   // their STRATA's vertical shift (their phone decides the lock and sends the damage)
   if (n.sv) {
     const [st, sf, sx, sl, sax, say] = n.sv, D = duel.strata, fresh = !D || st + age < D.t - 0.5;
@@ -10528,6 +10685,7 @@ function updateDuel(dt) {
       kn: game.trap ? game.trap.stored : 0, kc: trapOpen() ? 1 : 0,
       fl: game.flail ? [+(game.flail.x / WW).toFixed(5), +(game.flail.y / WH).toFixed(5), game.flail.swing >= 0 ? 1 : 0] : 0, ik: game.inked > 0 ? +game.inked.toFixed(1) : 0,
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
+      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
@@ -10690,7 +10848,8 @@ function botThink(dt) {
   // the magic (and a split button's second magic), now and then when near; sometimes held, sometimes tapped twice
   botAI.tM -= dt;
   if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S) && (S.id !== "lariat" || game.tether || game.elasso) &&
-      (S.id !== "bloom" || d < shipSize() * MAGIC.pollen.range * 0.8) && (S.id !== "strata" || d < U * 1.2)) {   // (STRATA: close enough to reach them up there)   // (BLOOM: only with them close enough for its pollen)
+      (S.id !== "bloom" || d < shipSize() * MAGIC.pollen.range * 0.8) && (S.id !== "strata" || d < U * 1.2) &&
+      (S.id !== "kiln" || mines.some((q) => !q.remote && WEAPONS[q.w].kiln))) {   // (KILN: once it has mines out)   // (STRATA: close enough to reach them up there)   // (BLOOM: only with them close enough for its pollen)
     botTap("v", S.id === "ballast" ? 7 + Math.random() * 4 : Math.random() < 0.5 ? 0.1 : 0.4 + Math.random() * 2.4);   // (BALLAST: held for its tow) botAI.tM = L.magic * (0.6 + Math.random() * 0.8);
   }
   botAI.tB -= dt;
@@ -11086,7 +11245,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id; game.zombie = false; game.pollen = null;
-  if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null;   // (BALLAST's asteroid already flying goes on)
+  if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; game.kiln = null;   // (BALLAST's asteroid already flying goes on)
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
   game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
