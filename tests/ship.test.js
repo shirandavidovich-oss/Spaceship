@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("thirty-seven ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 37);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 37);
+ok("thirty-eight ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 38);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 38);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -643,5 +643,12 @@ ok("KILN: mines in a fan of three; the gear spins up; the reversed body pushes o
   assert(a.ax > 0, "pushed out"); assert(Math.abs(a.ay) > 0, "and round"); assert.deepStrictEqual([a.ax, a.ay], [b.ax, b.ay]);
   assert(Math.sign(a.ay) !== Math.sign(c.ay), "the seed picks the way round");
   const far = revAccel(u * M.reach * 2.1, 0, 1, 7, M, u); assert(far.ax === 0 && far.ay === 0);
+});
+ok("FRANKENSTEIN: 5 s of surgery, four parts 0.62 s each, a creature that fires bolts, springs and nuts", () => {
+  const M = MAGIC.surgery, S = shipById("frankenstein"); assert(S && S.magic === "surgery" && S.anim && S.frank);
+  assert.strictEqual(weaponsOf(S).join(), "scalpel,suture");
+  assert(M.prep === 5 && M.join === 0.62 && M.life > 0 && M.cool > 0);
+  for (const w of ["sbolt", "sspring", "snut"]) assert(WEAPONS[w] && WEAPONS[w].scrap && WEAPONS[w].dmg > 0, w);
+  assert(!SHIPS.some((q) => /creature|companion/i.test(q.id)), "the creature is not a ship anyone can pick");
 });
 console.log(n + " checks passed");

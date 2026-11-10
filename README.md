@@ -397,6 +397,19 @@ strength within 1.5 screens of the body, none past 3. The body glows cold blue w
 Each phone moves its own ship, so the push is worked out on the pushed ship's phone from a seed both share (`rg`); the
 gear is shown with `kl`. The computer lays its mines first and only then uses the magic.
 
+**FRANKENSTEIN**, the white surgeon (`art/ships/frankenstein/`: the surgeon, arms, forceps, saw, the four creature parts and
+the scrap shots from the FRANKENSTEIN-Surgery package; drawn by `drawSurgeonShip` and `drawCreature`). Quick, since it is
+the one that has to stand still to work. Button 1: scalpel, a fast thin cut (6). Button 2: three electric sutures in a
+fan (5 each). Magic, surgery (`surgery` in `MAGIC`, `updateSurgery`): the first press marks a work spot just ahead of
+the nose and starts 5 s of surgery: it cannot move or steer (the forceps reach out, a roof hatch opens and the saw spins
+and cuts), so choose a spot far from the enemy. After that the spot stays where it is, even when FRANKENSTEIN flies off,
+and each new press adds one part there, in turn: STRATA's chassis, VEXAR's wing, BALLAST's shoulder, KILN's engine (0.62 s
+each; a fifth press builds nothing; the count shows by the spot and on the button). With the fourth on, the creature lifts
+off: it flies by itself round the enemy and fires a bolt, a spring and a nut in turn (every 0.75 s, within 2.2 screens).
+It is nobody's ship to pick or fly. It falls apart after 30 s, or when FRANKENSTEIN blows up; then 20 s to recharge.
+The computer operates when you are far off and presses for each part as soon as it can. In a duel the other phone sees
+the surgery, the spot, the parts and the creature (`fk`); the creature's shots go as ordinary shots.
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 
