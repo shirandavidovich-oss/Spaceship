@@ -97,6 +97,9 @@ On THUL the two orange vent covers slide open, the vents pulse, and at 0.45 s th
 Tapped during a cannon shot, the smoke follows right after it.
 THUL's smoke is three times as thick as before, in bigger, nearly solid puffs: a real smoke screen that hides the ship.
 
+**Kit buttons for BALLAST, STRATA, KILN and FRANKENSTEIN** (`art/hud/<id>/`, whole faces like LARIAT's): drawn in the kit's
+style (dark octagon, grid, coloured corners, a neon icon for each button) by a small script; BLOOM's are as they were.
+
 **Explosion films (`video/`, 720p, `FILMS`: THUL, SKARN, XELTAR, ORIAN, CANTOR, MIRAGE, LARIAT):** one a game, as a
 surprise. A new game picks one of those ships at random (`filmNewGame`); the first time it blows up (yours or the
 computer's) its film plays full screen, full length, and the game waits (a tap skips it). Only that film is loaded.
@@ -410,7 +413,11 @@ a part is made: fire, colourful lightning and bubbles passing lightning between 
 of the part flickering in; when it is there the bubbles fly apart and pop, then it all starts again for the next part
 (a fifth press makes nothing; the count shows by the spot and on the button). With the fourth on, the effects die down and the creature lifts
 off: it flies by itself round the enemy and fires a bolt, a spring and a nut in turn (every 0.75 s, within 2.2 screens).
-It is nobody's ship to pick or fly. It falls apart after 30 s, or when FRANKENSTEIN blows up; then 20 s to recharge.
+It is nobody's ship to pick or fly. It has two tanks' worth of power (200) and does not wear out by itself: it has to
+be shot down. A power bar over it has a notch at each quarter; each quarter lost knocks a part off (KILN's engine, then
+BALLAST's shoulder, then VEXAR's wing) so it looks less and less built, and the last quarter blows it up with STRATA's
+chassis. The other phone decides its hits and sends them (`chit`; its end: `cx`), and the computer shoots it first when it
+is nearer than FRANKENSTEIN. It also falls apart when FRANKENSTEIN blows up; then 20 s to recharge.
 The computer operates when you are far off, stays in the zone and starts each part as soon as it can. In a duel the other phone sees
 the surgery, the spot, the parts and the creature (`fk`); the creature's shots go as ordinary shots.
 

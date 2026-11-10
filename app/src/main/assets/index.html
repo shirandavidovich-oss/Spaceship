@@ -1351,10 +1351,12 @@ const MAGIC = {
   //   while FRANKENSTEIN is inside the work zone (`zone` ship-lengths round the spot; outside, the making waits; the
   //   fire, bubbles and lightning keep to `fx` ship-lengths round the spot, whatever the zone). With the
   //   fourth on, the creature lifts off: it flies by itself round the enemy (`keep` screens away, at most `speed`
-  //   screens a second), and within `range` screens fires a bolt, a spring, a nut in turn every `rate` s. It falls
-  //   apart after `life` s, or when FRANKENSTEIN blows up; then `cool` s to recharge. It is drawn `size` ship-lengths
+  //   screens a second), and within `range` screens fires a bolt, a spring, a nut in turn every `rate` s. It has `hp`
+  //   of power (two tanks' worth): it does not wear out by itself, it has to be shot down. Each quarter of its power
+  //   lost knocks a part off (KILN's engine, BALLAST's shoulder, VEXAR's wing; the last, STRATA's chassis, blows up
+  //   with it). It also falls apart when FRANKENSTEIN blows up; then `cool` s to recharge. It is drawn `size` ship-lengths
   surgery: { name: "ניתוח והרכבה", look: "surgery", ahead: 0.55, prep: 5, join: 3, zone: 7, fx: 1.4, keep: 0.9, speed: 1.0, range: 2.2, rate: 0.75,
-             life: 30, cool: 20, size: 1.3, color: "#9bd2c3" },
+             hp: 200, cool: 20, size: 1.3, color: "#9bd2c3" },
   // KILN's reverse gravity (its package: kiln-rig.mjs). The shutters slide open and the gear spins up; at `at` s it is
   //   at full power and for `last` s the body in the middle pushes the ENEMY away instead of pulling (KILN keeps the
   //   normal pull): out from it at `push` screens a second each second, and round it at `swirl`, the strength wavering
@@ -3761,7 +3763,7 @@ function updateSurgery(dt) {
       audio.tone(150 + i * 60, 0.3, "square", 0.06, 0.6); audio.noise(0.25, 0.18, 4000); shake(0.3); buzz(80);
       if (G.parts.every((v) => v >= 1)) {   // the fourth part is on: it lifts off, and all the effects die down
         G.phase = "alive"; G.aliveT = G.t;
-        G.c = { x: G.px, y: G.py, vx: 0, vy: 0, ang: G.ang, t: 0, fire: 1, k: 0, orbit: Math.random() * TAU };
+        G.c = { x: G.px, y: G.py, vx: 0, vy: 0, ang: G.ang, t: 0, fire: 1, k: 0, orbit: Math.random() * TAU, hp: M.hp, hurt: 0 };
         burstAt(G.px, G.py, 60, ["#ffffff", "#c86bff", "#7fdbc9", "#ffb85a", "#b8ff3a"], 0.9, 1.2);
         audio.tone(110, 0.8, "sawtooth", 0.08, 2.5); audio.tone(880, 0.4, "square", 0.04, 0.5, 0.3); shake(0.5); buzz(150);
       }
@@ -3772,8 +3774,7 @@ function updateSurgery(dt) {
 // the creature: it flies by itself round the enemy (or beside its maker), turning to face it, and fires bolts,
 // springs and nuts in turn. After `life` s it falls apart
 function updateCreature(C, M, dt) {
-  C.t += dt;
-  if (C.t >= M.life) { creatureFalls(C); game.surg = null; game.magicCool = M.cool; return; }
+  C.t += dt; C.hurt = Math.max(0, C.hurt - dt);
   const on = enemy.on && enemy.warp < 0.5 && !enemyAloft(), size = shipSize();
   let tx, ty;
   if (on) { C.orbit += dt * 0.6; tx = enemy.x + Math.cos(C.orbit) * U * M.keep; ty = enemy.y + Math.sin(C.orbit) * U * M.keep; }
@@ -3793,6 +3794,27 @@ function updateCreature(C, M, dt) {
     shots.push(s); C.fire = M.rate;
     if (duel.stage === "on") { s.id = ++shotSeq; duelSend({ t: "f", w, ...netPos(s), s: "frankenstein", id: s.id }); }
     audio.tone(w === "sspring" ? 520 : w === "snut" ? 260 : 380, 0.07, "square", 0.025, w === "sspring" ? 2 : 0.6);
+  }
+}
+// how many of its four parts are still on (one off for each quarter of its power lost)
+function creatureLeft(C) { return Math.max(0, Math.min(4, Math.ceil(C.hp / (MAGIC.surgery.hp / 4) - 1e-6))); }
+// the enemy hit my creature (their phone saw it): a part flies off at each quarter; the last one, it blows up
+function creatureHurt(n) {
+  const G = game.surg, C = G && G.c, M = MAGIC.surgery;
+  if (!C || n <= 0) return;
+  const before = creatureLeft(C); C.hp -= n; C.hurt = 0.15;
+  const after = creatureLeft(C);
+  if (C.hp <= 0) {
+    burstAt(C.x, C.y, 90, ["#ffffff", "#c86bff", "#ffd166", "#ff6a1a", "#7fdbc9"], 1.3, 1.3, C.vx, C.vy);
+    rings.push({ x: C.x, y: C.y, t: 0, max: 0.6, r: shipSize() * 2, c: "#c86bff" });
+    audio.boom(); shake(0.6); buzz(150);
+    duelSend({ t: "cx" }); game.surg = null; game.magicCool = M.cool; return;
+  }
+  for (let i = after; i < before; i++) {   // a part knocked off: it flies away in a burst of its colours
+    const col = [["#c86bff", "#e3c5ff"], ["#b8ff3a", "#63e99b"], ["#7fdbc9", "#e2f5dc"], ["#ffb85a", "#fb7754"]][i];
+    const q = FRANK_SLOTS[i], s = shipSize() * M.size / 250, o = rotatePt(q.x * s, q.y * s, C.ang);
+    burstAt(C.x + o.x, C.y + o.y, 40, [...col, "#ffffff", "#888888"], 0.9, 1.0, C.vx, C.vy);
+    audio.crunch(); shake(0.35); buzz(90);
   }
 }
 function creatureFalls(C) {
@@ -3944,7 +3966,17 @@ function drawSurgery(o, S) {
   const heat = S.cur >= 0 ? 0.25 + 0.75 * S.parts[S.cur] : 0, fade = S.aliveT != null ? Math.max(0, 1 - (S.t - S.aliveT) / 1.5) : 1;
   if (S.phase === "build") drawCreature(S.px, S.py, S.ang || 0, surgShown(S.parts), true, o, S.parts, S.out);
   drawSurgeryFx(x, y, R, heat * (S.out > 0 ? 0.35 : 1), S.t - S.done, fade);
-  if (S.phase === "alive" && S.c) drawCreature(S.c.x, S.c.y, S.c.ang, [1, 1, 1, 1], false, o);
+  if (S.phase === "alive" && S.c) {
+    const left = S.c.left != null ? S.c.left : creatureLeft(S.c), k = S.c.hpk != null ? S.c.hpk : S.c.hp / MAGIC.surgery.hp;
+    drawCreature(S.c.x, S.c.y, S.c.ang, [0, 1, 2, 3].map((i) => i < left ? 1 : 0), false, o);
+    // its power bar (a notch at each quarter, where a part comes off)
+    const c = { x: a.x + wrapDelta(S.c.x - o.x, WW), y: a.y + wrapDelta(S.c.y - o.y, WH) }, bw = shipSize() * 0.9, bh = Math.max(4, shipSize() * 0.045), by = c.y - shipSize() * 0.85;
+    ctx.save(); ctx.fillStyle = "rgba(0,0,0,0.55)"; roundRect(c.x - bw / 2 - 2, by - 2, bw + 4, bh + 4, 3); ctx.fill();
+    ctx.fillStyle = `hsl(${Math.round(280 - 40 * (1 - k))},80%,62%)`; roundRect(c.x - bw / 2, by, Math.max(1, bw * Math.max(0, k)), bh, 2); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,0.6)"; for (let i = 1; i < 4; i++) ctx.fillRect(c.x - bw / 2 + bw * i / 4 - 1, by, 2, bh);
+    if (S.c.hurt > 0) { ctx.globalAlpha = S.c.hurt / 0.15 * 0.4; ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(c.x, c.y, shipSize() * 0.55, 0, TAU); ctx.fill(); }
+    ctx.restore();
+  }
 }
 // FRANKENSTEIN's magic button: the saw; then how many parts are made
 function drawSurgeryButton(b, M, ready, k) {
@@ -3959,7 +3991,7 @@ function drawSurgeryButton(b, M, ready, k) {
     ctx.fillText(G.phase === "alive" ? "✓" : G.parts.filter((v) => v >= 1).length + "/4", 0, 0);
   }
   ctx.globalAlpha = 1; ctx.strokeStyle = M.color; ctx.lineWidth = Math.max(3, b.r * 0.1);
-  const f = G ? (G.phase === "prep" ? G.t / M.prep : G.phase === "alive" ? 1 - G.c.t / M.life : G.cur >= 0 ? G.parts[G.cur] : 1) : ready ? 1 : k;
+  const f = G ? (G.phase === "prep" ? G.t / M.prep : G.phase === "alive" ? Math.max(0, G.c.hp / M.hp) : G.cur >= 0 ? G.parts[G.cur] : 1) : ready ? 1 : k;
   ctx.beginPath(); ctx.arc(0, 0, b.r * 0.95, -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
   ctx.restore();
 }
@@ -5595,6 +5627,13 @@ function updateWeapons(dt) {
       link.send({ t: "caught", x: s.x / WW, y: s.y / WH }); duel.net.kc = 0;   // (one per message; the next state says if it is still open)
       burstAt(s.x, s.y, 8, ["#ff8a5a", "#ffffff"], 0.2, 0.4); shots.splice(k, 1); continue;
     }
+    // into their FRANKENSTEIN's creature (it is shot down part by part; their phone counts its power)
+    const TC = enemy.remote && duel.surg && duel.surg.phase === "alive" ? duel.surg.c : null;
+    if (TC && Math.hypot(wrapDelta(TC.x - s.x, WW), wrapDelta(TC.y - s.y, WH)) < size * 0.55 + Wp.r * shotScale(s, Wp) * size) {
+      const n = (shotHit(s, Wp).dmg || 0) * (game.zombie ? ZOMBIE.dmg : 1) * (BOT ? botLevel().dmg : 1);
+      link.send({ t: "chit", n: +n.toFixed(1) }); TC.hurt = 0.15;
+      burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 6, [Wp.color, "#ffffff", "#c86bff"], 0.3, 0.6); audio.hit(); shots.splice(k, 1); continue;
+    }
     // into the enemy
     if (enemy.on && enemy.warp < 0.5 && !enemyAloft()) {   // (their STRATA up high: shots pass under it)
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
@@ -6534,7 +6573,10 @@ const KIT = {
   palisade: { a: "#dfff83", b: "#b5a0ff", fx: "none" },   // (its magic plays the wall's own shatter, at the wall)
   gimbal: { a: "#6fe9ff", b: "#e9b66a", fx: "none", face: true },
   bloom: { a: "#8ff5d8", b: "#ff9ad8", face: true, round: true },   // (round flower buttons: the state glow is a circle)
-  lariat: { a: "#7ce9dc", b: "#eaa276", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
+  lariat: { a: "#7ce9dc", b: "#eaa276", fx: "none", face: true },
+  // (drawn for these four in the kit's style: whole faces, art/hud/<id>/<slot>-plate.webp)
+  ballast: { a: "#7fdbc9", b: "#ffb21e", fx: "none", face: true }, strata: { a: "#c86bff", b: "#e3c5ff", fx: "none", face: true },
+  kiln: { a: "#ffb85a", b: "#7fb6ff", fx: "none", face: true }, frankenstein: { a: "#9bd2c3", b: "#c86bff", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
 function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
@@ -6609,6 +6651,8 @@ function magicBadge(S) {
   if (S.id === "talus" && game.talus && game.talus.stage) return { t: game.talus.stage };   // layers built
   if (S.id === "vanta" && game.vtint) return { t: "", c: VANTA_TINTS[game.vtint].color };   // the liquid's colour
   if (S.id === "drakon" && game.bomb) return { t: "!", c: "#ff3fb0" };   // the bomb is out: tap to set it off
+  if (S.id === "frankenstein" && game.surg && game.surg.phase === "build") return { t: game.surg.parts.filter((v) => v >= 1).length + "/4", c: inSurgZone(game, game.surg) ? "#9bd2c3" : "#ff4d6d" };   // parts made (red: out of the zone)
+  if (S.id === "frankenstein" && game.surg && game.surg.c) return { t: creatureLeft(game.surg.c), c: "#c86bff" };   // the creature's parts left
   return null;
 }
 
@@ -10777,6 +10821,10 @@ function duelLink(event, data) {
     game.starMine = null; game.magicCool = MAGIC.starmine.cool; shatterAt(m.x * WW, m.y * WH, shipById(enemy.ship));
   } else if (m.t === "sp") {   // their DRAKON came apart: its bomb is here
     bombs.length = 0; bombs.push({ x: m.x * WW, y: m.y * WH, ang: m.a, vx: 0, vy: 0, t: 0 }); audio.sfx("drakon", "rift_charge", 0, 0.6);
+  } else if (m.t === "chit") {   // my creature was hit (their phone saw it)
+    creatureHurt(m.n || 0);
+  } else if (m.t === "cx") {   // their creature was shot down
+    if (duel.surg && duel.surg.c) { const C = duel.surg.c; burstAt(C.x, C.y, 90, ["#ffffff", "#c86bff", "#ffd166", "#ff6a1a", "#7fdbc9"], 1.3, 1.3); audio.boom(); duel.surg = null; }
   } else if (m.t === "rg") {   // their KILN reversed the body: it pushes MY ship away and round (worked out here, from their seed)
     game.reversed = { t: -MAGIC.reverse.at, seed: m.s || 1 }; audio.tone(140, 1.0, "sine", 0.05, 3, 0.5);
   } else if (m.t === "tank") {   // their STRATA's laser: one whole tank of power off my ship
@@ -10917,12 +10965,13 @@ function updateRival(dt) {
   // their FRANKENSTEIN: its surgery, the spot and its parts, its creature (their phone moves it and decides its hits)
   if (n.fk) {
     const f = n.fk, P = ["prep", "build", "alive"][f[0]], D = duel.surg;
-    const c = f.length > 12 ? { x: f[12] * WW, y: f[13] * WH, ang: f[14] } : null;
+    const c = f.length > 12 ? { x: f[12] * WW, y: f[13] * WH, ang: f[14], left: f[15], hpk: f[16] } : null;
     if (!D || D.phase !== P) duel.surg = { phase: P, t: f[1] + age, px: f[2] * WW, py: f[3] * WH, ang: f[4], parts: f.slice(5, 9), cur: f[9], done: f[1] + age - f[10], out: f[11], aliveT: P === "alive" ? f[1] + age : null, c };
     else {
       D.t += dt; if (Math.abs(D.t - (f[1] + age)) > 0.25) D.t = f[1] + age; D.parts = f.slice(5, 9); D.cur = f[9]; D.out = f[11];
       if (f[10] < 8.9) D.done = D.t - f[10];
-      if (c) { if (!D.c) D.c = c; const kk = 1 - Math.exp(-dt * 14); D.c.x = wrapX(D.c.x + wrapDelta(c.x - D.c.x, WW) * kk); D.c.y = wrapY(D.c.y + wrapDelta(c.y - D.c.y, WH) * kk); D.c.ang = c.ang; }
+      if (c) { if (!D.c) D.c = c; const kk = 1 - Math.exp(-dt * 14); D.c.x = wrapX(D.c.x + wrapDelta(c.x - D.c.x, WW) * kk); D.c.y = wrapY(D.c.y + wrapDelta(c.y - D.c.y, WH) * kk); D.c.ang = c.ang; D.c.left = c.left; D.c.hpk = c.hpk; }
+      D.c && (D.c.hurt = Math.max(0, (D.c.hurt || 0) - dt));
     }
   } else duel.surg = null;
   // their KILN's converter (the push itself comes as `rg`)
@@ -11019,7 +11068,7 @@ function updateDuel(dt) {
       fl: game.flail ? [+(game.flail.x / WW).toFixed(5), +(game.flail.y / WH).toFixed(5), game.flail.swing >= 0 ? 1 : 0] : 0, ik: game.inked > 0 ? +game.inked.toFixed(1) : 0,
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
-        ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2)] : [])] : 0,
+        ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2), creatureLeft(game.surg.c), +(game.surg.c.hp / MAGIC.surgery.hp).toFixed(3)] : [])] : 0,
       kl: game.kiln ? +game.kiln.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
@@ -11135,7 +11184,11 @@ function botThink(dt) {
   const L = botLevel(), S = shipById(game.ship), st = shipStats(S), seen = !enemy.hidden;
   // hidden in their smoke: it heads for where it last saw them
   if (seen) { botAI.lastX = enemy.x; botAI.lastY = enemy.y; }
-  const prey = seen ? enemy : { x: botAI.lastX != null ? botAI.lastX : enemy.x, y: botAI.lastY != null ? botAI.lastY : enemy.y, vx: 0, vy: 0 };
+  let prey = seen ? enemy : { x: botAI.lastX != null ? botAI.lastX : enemy.x, y: botAI.lastY != null ? botAI.lastY : enemy.y, vx: 0, vy: 0 };
+  // their FRANKENSTEIN's creature, nearer than its maker: shoot it down first
+  const TC = duel.surg && duel.surg.phase === "alive" ? duel.surg.c : null;
+  if (TC && Math.hypot(wrapDelta(TC.x - game.x, WW), wrapDelta(TC.y - game.y, WH)) < Math.hypot(wrapDelta(prey.x - game.x, WW), wrapDelta(prey.y - game.y, WH)) * 0.8)
+    prey = { x: TC.x, y: TC.y, vx: 0, vy: 0 };
   const c = enemyControl(game, prey, st, { ww: WW, wh: WH, u: U, planetR: planetR() });
   const dx = wrapDelta(prey.x - game.x, WW), dy = wrapDelta(prey.y - game.y, WH), d = Math.hypot(dx, dy) || 1;
   // aim where they will be when the shot gets there, a little off (less each level)

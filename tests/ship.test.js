@@ -647,8 +647,14 @@ ok("KILN: mines in a fan of three; the gear spins up; the reversed body pushes o
 ok("FRANKENSTEIN: 5 s of surgery, four parts 3 s each (inside the work zone), a creature that fires bolts, springs and nuts", () => {
   const M = MAGIC.surgery, S = shipById("frankenstein"); assert(S && S.magic === "surgery" && S.anim && S.frank);
   assert.strictEqual(weaponsOf(S).join(), "scalpel,suture");
-  assert(M.prep === 5 && M.join === 3 && M.zone > 1 && M.life > 0 && M.cool > 0);
+  assert(M.prep === 5 && M.join === 3 && M.zone > 1 && M.hp === 2 * SHIP_HP && M.cool > 0 && M.life === undefined);   // two tanks of power, no wearing out
   for (const w of ["sbolt", "sspring", "snut"]) assert(WEAPONS[w] && WEAPONS[w].scrap && WEAPONS[w].dmg > 0, w);
   assert(!SHIPS.some((q) => /creature|companion/i.test(q.id)), "the creature is not a ship anyone can pick");
+});
+ok("the four new ships have kit buttons in the HUD, all five of them", () => {
+  const fs = require("fs"), path = require("path");
+  for (const id of ["ballast", "strata", "kiln", "frankenstein"]) for (const slot of ["thrust", "primary", "secondary", "pickup", "magic"])
+    assert(fs.existsSync(path.join(__dirname, "../app/src/main/assets/art/hud", id, slot + "-plate.webp")), id + " " + slot);
+  assert(/bloom: \{ a: "#8ff5d8", b: "#ff9ad8", face: true, round: true \}/.test(html), "BLOOM's buttons are as they were");
 });
 console.log(n + " checks passed");
