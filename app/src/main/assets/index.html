@@ -974,7 +974,7 @@ const SHIPS = [
   // and its eight stamens trail behind it as it flies (BloomMotion, the package's renderer).
   // Button 1: flower shots. Button 2: a bouquet, five petals in a fan.
   // Magic: a pollen cloud round it (MAGIC.pollen). An enemy that stays in it becomes a zombie (ZOMBIE): its weapons
-  // hit at 20%, it has no magic, and it is drawn with its zombie art. So the enemy has to keep away and fight from afar.
+  // hit at 50% and fire at 60% of the rate, it has no magic, and it is drawn with its zombie art. So the enemy has to keep away and fight from afar.
   { id: "bloom", name: "BLOOM", rarity: "legendary", mass: 0.9, fuel: 30, refill: 15, sfx: null, magic: "pollen", bloom: true,
     hull: "#e0569a", wingC: "#3a1030", trim: "#8ff5d8", flame: "#ffd27a",
     body: [], wing: [], nozzles: [0], engineY: 0.4, cockpit: [0, 0, 0.05, 0.1], noFlame: true,
@@ -6049,7 +6049,7 @@ function shipFrame(S, a) {
 // the enemy loses health. In a duel the other phone decides: the damage is sent there
 function harmEnemy(n) {
   if (n <= 0 || !enemy.on || enemyAloft()) return;   // (their STRATA up in the upper dimension: nothing touches it)
-  if (game.zombie && n < 9999) n *= ZOMBIE.dmg;   // a zombie's weapons hit at 20%
+  if (game.zombie && n < 9999) n *= ZOMBIE.dmg;   // a zombie's weapons hit at ZOMBIE.dmg (50%)
   enemy.hurt = 0.15;
   if (enemy.remote) { duel.outDmg += n; return; }
   enemy.hp -= n;
@@ -7138,7 +7138,7 @@ function drawResultButtons() {
 // A zombie (game.zombie, on the zombie's own phone; the other phone sees it in duel.net.zb): its weapons hit at
 //   ZOMBIE.dmg of their damage, it has no magic, and it is drawn with its zombie art (ZOMBIE_ART). Until it blows up.
 //   BLOOM itself never turns (it is the flower).
-const ZOMBIE = { dmg: 0.2, rate: 0.6 };   // dmg: how hard its shots hit. rate: how fast it fires and its ammo refills (60%: only 40% fewer shots; it was 20%)
+const ZOMBIE = { dmg: 0.5, rate: 0.6 };   // dmg: how hard its shots hit (50%; it was 20%). rate: how fast it fires and its ammo refills (60%: only 40% fewer shots; it was 20%)
 function pollenRadius(t, M) { return M.range * Math.min(1, t / M.grow) * shipSize(); }
 function enemyZombie() { return enemy.remote ? !!(duel.net && duel.net.zb) : !!enemy.zombie; }
 function updatePollen(dt) {
