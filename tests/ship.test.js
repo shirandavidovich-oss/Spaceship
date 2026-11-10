@@ -644,10 +644,10 @@ ok("KILN: mines in a fan of three; the gear spins up; the reversed body pushes o
   assert(Math.sign(a.ay) !== Math.sign(c.ay), "the seed picks the way round");
   const far = revAccel(u * M.reach * 2.1, 0, 1, 7, M, u); assert(far.ax === 0 && far.ay === 0);
 });
-ok("FRANKENSTEIN: 5 s of surgery, four parts 0.62 s each, a creature that fires bolts, springs and nuts", () => {
+ok("FRANKENSTEIN: 5 s of surgery, four parts 3 s each (inside the work zone), a creature that fires bolts, springs and nuts", () => {
   const M = MAGIC.surgery, S = shipById("frankenstein"); assert(S && S.magic === "surgery" && S.anim && S.frank);
   assert.strictEqual(weaponsOf(S).join(), "scalpel,suture");
-  assert(M.prep === 5 && M.join === 0.62 && M.life > 0 && M.cool > 0);
+  assert(M.prep === 5 && M.join === 3 && M.zone > 1 && M.life > 0 && M.cool > 0);
   for (const w of ["sbolt", "sspring", "snut"]) assert(WEAPONS[w] && WEAPONS[w].scrap && WEAPONS[w].dmg > 0, w);
   assert(!SHIPS.some((q) => /creature|companion/i.test(q.id)), "the creature is not a ship anyone can pick");
 });

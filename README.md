@@ -403,11 +403,15 @@ the one that has to stand still to work. Button 1: scalpel, a fast thin cut (6).
 fan (5 each). Magic, surgery (`surgery` in `MAGIC`, `updateSurgery`): the first press marks a work spot just ahead of
 the nose and starts 5 s of surgery: it cannot move or steer (the forceps reach out, a roof hatch opens and the saw spins
 and cuts), so choose a spot far from the enemy. After that the spot stays where it is, even when FRANKENSTEIN flies off,
-and each new press adds one part there, in turn: STRATA's chassis, VEXAR's wing, BALLAST's shoulder, KILN's engine (0.62 s
-each; a fifth press builds nothing; the count shows by the spot and on the button). With the fourth on, the creature lifts
+and each new press starts the next part there, in turn: STRATA's chassis, VEXAR's wing, BALLAST's shoulder, KILN's engine.
+Each takes 3 s to make, and only while FRANKENSTEIN is inside the work zone round the spot (the ring, 1.4 ship-lengths;
+a press from outside does nothing and the ring flashes red; leaving halfway stops the making until it comes back). While
+a part is made: fire, colourful lightning and bubbles passing lightning between them, growing as it is made, with a ghost
+of the part flickering in; when it is there the bubbles fly apart and pop, then it all starts again for the next part
+(a fifth press makes nothing; the count shows by the spot and on the button). With the fourth on, the effects die down and the creature lifts
 off: it flies by itself round the enemy and fires a bolt, a spring and a nut in turn (every 0.75 s, within 2.2 screens).
 It is nobody's ship to pick or fly. It falls apart after 30 s, or when FRANKENSTEIN blows up; then 20 s to recharge.
-The computer operates when you are far off and presses for each part as soon as it can. In a duel the other phone sees
+The computer operates when you are far off, stays in the zone and starts each part as soon as it can. In a duel the other phone sees
 the surgery, the spot, the parts and the creature (`fk`); the creature's shots go as ordinary shots.
 
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in

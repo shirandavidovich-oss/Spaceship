@@ -1347,11 +1347,12 @@ const MAGIC = {
   // FRANKENSTEIN's surgery (its package: surgery.mjs, companion.mjs). First press: a work spot just ahead of the nose
   //   (`ahead` ship-lengths) and `prep` s of surgery: it cannot move or steer (out in the open: choose a spot far from the
   //   enemy). Then the spot stays where it is, even when FRANKENSTEIN flies off, and each new press adds one part there,
-  //   in turn (STRATA's chassis, VEXAR's wing, BALLAST's shoulder, KILN's engine), each `join` s to go in. With the
+  //   in turn (STRATA's chassis, VEXAR's wing, BALLAST's shoulder, KILN's engine), each made in `join` s, and only
+  //   while FRANKENSTEIN is inside the work zone (`zone` ship-lengths round the spot; outside, the making waits). With the
   //   fourth on, the creature lifts off: it flies by itself round the enemy (`keep` screens away, at most `speed`
   //   screens a second), and within `range` screens fires a bolt, a spring, a nut in turn every `rate` s. It falls
   //   apart after `life` s, or when FRANKENSTEIN blows up; then `cool` s to recharge. It is drawn `size` ship-lengths
-  surgery: { name: "ניתוח והרכבה", look: "surgery", ahead: 0.55, prep: 5, join: 0.62, keep: 0.9, speed: 1.0, range: 2.2, rate: 0.75,
+  surgery: { name: "ניתוח והרכבה", look: "surgery", ahead: 0.55, prep: 5, join: 3, zone: 1.4, keep: 0.9, speed: 1.0, range: 2.2, rate: 0.75,
              life: 30, cool: 20, size: 1.3, color: "#9bd2c3" },
   // KILN's reverse gravity (its package: kiln-rig.mjs). The shutters slide open and the gear spins up; at `at` s it is
   //   at full power and for `last` s the body in the middle pushes the ENEMY away instead of pulling (KILN keeps the
@@ -3709,44 +3710,60 @@ function drawReverseButton(b, M, ready, k) {
   ctx.restore();
 }
 // ---------- FRANKENSTEIN's magic: surgery (MAGIC.surgery) ----------
-// game.surg: { phase: "prep" (5 s of work, held in place) | "build" (presses add parts) | "alive" (the creature flies),
-//   t (seconds since the first press), ang (its heading then), px, py (the work spot, in the world), arrivals (the
-//   press times, one a part), c (the creature: { x, y, vx, vy, ang, t, fire, k, orbit }) }
+// game.surg: { phase: "prep" (5 s of work, held in place) | "build" (presses make parts) | "alive" (the creature flies),
+//   t (seconds since the first press), ang (its heading then), px, py (the work spot, in the world),
+//   parts: [0..1 each: how far each part is made], cur (the part being made now, or -1), done (when the last part was
+//   finished: its effects scatter then), aliveT (when the creature lifted off: the effects die down), c (the creature) }
 // duel.surg: what their phone says of theirs, to draw (their phone moves their creature and decides its hits)
 function surgeryPress(M) {
   const G = game.surg;
   if (!G) {   // the first press: the work spot just ahead of the nose, held there; 5 s of surgery
     if (game.magicCool > 0) return;
     const n = rotatePt(0, -M.ahead * shipSize(), game.ang);
-    game.surg = { phase: "prep", t: 0, ang: game.ang, px: wrapX(game.x + n.x), py: wrapY(game.y + n.y), arrivals: [], c: null };
+    game.surg = { phase: "prep", t: 0, ang: game.ang, px: wrapX(game.x + n.x), py: wrapY(game.y + n.y), parts: [0, 0, 0, 0], cur: -1, done: -9, aliveT: null, c: null, out: 0 };
     game.thrust = null;
     audio.tone(1200, 0.08, "square", 0.03, 0.3); audio.tone(300, 0.6, "sawtooth", 0.03, 2, 0.1); buzz(40);
     return;
   }
-  if (G.phase !== "build" || G.arrivals.length >= 4) return;   // (a fifth press builds nothing)
-  if (G.arrivals.length && G.t < G.arrivals[G.arrivals.length - 1] + M.join) return;   // the last part is still going in
-  G.arrivals.push(G.t);
-  const col = [["#c86bff", "#e3c5ff"], ["#b8ff3a", "#63e99b"], ["#7fdbc9", "#e2f5dc"], ["#ffb85a", "#fb7754"]][G.arrivals.length - 1];
-  burstAt(G.px, G.py, 26, [...col, "#ffffff"], 0.5, 0.8);
-  rings.push({ x: G.px, y: G.py, t: 0, max: 0.4, r: shipSize() * 0.9, c: col[0] });
-  audio.tone(150 + G.arrivals.length * 60, 0.25, "square", 0.05, 0.6); audio.noise(0.15, 0.12, 4000); buzz(60);
+  if (G.phase !== "build" || G.cur >= 0) return;   // (one part at a time)
+  const next = G.parts.findIndex((v) => v < 1);
+  if (next < 0) return;   // (all four made: a fifth press makes nothing)
+  if (!inSurgZone(game, G)) { G.out = 0.8; audio.nope(); buzz(20); return; }   // only from inside the work zone
+  G.cur = next; G.parts[next] = 0.001;
+  audio.tone(90, 0.6, "sawtooth", 0.05, 2.2); audio.noise(0.4, 0.12, 3000); buzz(40);
 }
 function surgPrep() { return !!(game.surg && game.surg.phase === "prep"); }   // held in place: no steering, no engine
-function surgProgress(G, M = MAGIC.surgery) { return [0, 1, 2, 3].map((i) => i < G.arrivals.length ? Math.max(0, Math.min(1, (G.t - G.arrivals[i]) / M.join)) : 0); }
+// inside the work zone round the spot (the ring drawn round it): the parts can be made only from there
+function inSurgZone(o, G) { return Math.hypot(wrapDelta(o.x - G.px, WW), wrapDelta(o.y - G.py, WH)) < MAGIC.surgery.zone * shipSize(); }
+// how each part is shown: made but not there yet (a ghost flickering in), then flying in to its place over the last
+// quarter of its making
+function surgShown(parts) { return parts.map((v) => v >= 1 ? 1 : v < 0.75 ? 0 : (v - 0.75) / 0.25); }
 function updateSurgery(dt) {
   const G = game.surg, M = MAGIC.surgery;
   if (!G) return;
   if (game.dead || game.ship !== "frankenstein") { if (G.c) creatureFalls(G.c); game.surg = null; return; }
-  G.t += dt;
+  G.t += dt; G.out = Math.max(0, G.out - dt);
   if (G.phase === "prep" && G.t >= M.prep) { G.phase = "build"; audio.tone(660, 0.2, "triangle", 0.05, 1.5); buzz(40); }
-  if (G.phase === "build") {
-    // the spot: low purple and teal smoke, a short spark of lightning now and then
-    if (Math.random() < 6 * dt) burstAt(G.px + (Math.random() - 0.5) * shipSize() * 0.8, G.py + (Math.random() - 0.5) * shipSize() * 0.8, 1, ["#7a5aa8", "#3f8f8a", "#5a4a7a"], 0.05, 1.6);
-    if (G.arrivals.length === 4 && G.t >= G.arrivals[3] + M.join) {   // the fourth part is on: it lifts off
-      G.phase = "alive";
-      G.c = { x: G.px, y: G.py, vx: 0, vy: 0, ang: G.ang, t: 0, fire: 1, k: 0, orbit: Math.random() * TAU };
-      burstAt(G.px, G.py, 50, ["#ffffff", "#c86bff", "#7fdbc9", "#ffb85a", "#b8ff3a"], 0.8, 1.1);
-      audio.tone(110, 0.8, "sawtooth", 0.08, 2.5); audio.tone(880, 0.4, "square", 0.04, 0.5, 0.3); shake(0.5); buzz(150);
+  if (G.phase === "build" && G.cur >= 0) {
+    const i = G.cur, inside = inSurgZone(game, G);
+    if (!inside) G.out = 0.3;   // out of the zone: the making stops until it comes back
+    else {
+      G.parts[i] = Math.min(1, G.parts[i] + dt / M.join);
+      if (Math.random() < 9 * dt) burstAt(G.px + (Math.random() - 0.5) * shipSize() * 0.6, G.py + (Math.random() - 0.5) * shipSize() * 0.6, 2, ["#ff6a1a", "#ffd166", "#ff3d3d"], 0.25, 0.9, 0, -U * 0.15);   // fire
+      if (Math.random() < 5 * dt) audio.tone(1400 + Math.random() * 2000, 0.04, "square", 0.02, 0.3);   // crackle
+    }
+    if (G.parts[i] >= 1) {   // the part is there: the effects scatter
+      G.cur = -1; G.done = G.t;
+      const col = [["#c86bff", "#e3c5ff"], ["#b8ff3a", "#63e99b"], ["#7fdbc9", "#e2f5dc"], ["#ffb85a", "#fb7754"]][i];
+      burstAt(G.px, G.py, 60, [...col, "#ffffff", "#ff6a1a", "#7fe9ff"], 1.1, 1.0);
+      rings.push({ x: G.px, y: G.py, t: 0, max: 0.5, r: shipSize() * 1.4, c: col[0] }, { x: G.px, y: G.py, t: -0.08, max: 0.6, r: shipSize() * 1.7, c: "#ffffff" });
+      audio.tone(150 + i * 60, 0.3, "square", 0.06, 0.6); audio.noise(0.25, 0.18, 4000); shake(0.3); buzz(80);
+      if (G.parts.every((v) => v >= 1)) {   // the fourth part is on: it lifts off, and all the effects die down
+        G.phase = "alive"; G.aliveT = G.t;
+        G.c = { x: G.px, y: G.py, vx: 0, vy: 0, ang: G.ang, t: 0, fire: 1, k: 0, orbit: Math.random() * TAU };
+        burstAt(G.px, G.py, 60, ["#ffffff", "#c86bff", "#7fdbc9", "#ffb85a", "#b8ff3a"], 0.9, 1.2);
+        audio.tone(110, 0.8, "sawtooth", 0.08, 2.5); audio.tone(880, 0.4, "square", 0.04, 0.5, 0.3); shake(0.5); buzz(150);
+      }
     }
   }
   if (G.phase === "alive") updateCreature(G.c, M, dt);
@@ -3824,25 +3841,72 @@ function drawSurgeonShip(prepAge) {
   ctx.restore();
   return true;
 }
-// the creature, being built at its spot (marker on, parts flying in) or flying (all four parts, engines pulsing)
+// the work spot's effects, in screen pixels round (x, y): R the zone's radius.
+//   heat: 0..1 the part being made (fire, colourful lightning, bubbles passing lightning between them, growing as it is
+//   made); scatter: seconds since a part was finished (the bubbles fly apart and pop, the fire bursts out);
+//   fade: 0..1 all of it dying down once the creature has lifted off
+const SURG_COLORS = ["#ff3df0", "#7fe9ff", "#b8ff3a", "#ffd166", "#c86bff", "#ff6a1a"];
+function drawSurgeryFx(x, y, R, heat, scatter, fade) {
+  const sc = scatter >= 0 && scatter < 0.7 ? scatter / 0.7 : -1;   // 0..1 while scattering
+  const k = Math.max(heat, sc >= 0 ? 1 - sc : 0) * fade;
+  if (k <= 0.01) return;
+  ctx.save(); ctx.translate(x, y); ctx.globalCompositeOperation = "lighter";
+  // the fire: flickering tongues rising round the middle
+  for (let i = 0; i < 9; i++) {
+    const a = i * TAU / 9 + Math.sin(time * 3 + i) * 0.3, r0 = R * (0.25 + 0.15 * Math.sin(time * 5 + i * 2)) * (sc >= 0 ? 1 + sc * 2 : 1);
+    const fx = Math.cos(a) * r0, fy = Math.sin(a) * r0, h = R * (0.25 + 0.2 * Math.abs(Math.sin(time * 9 + i * 1.7))) * k;
+    const g = ctx.createRadialGradient(fx, fy - h * 0.4, 0, fx, fy - h * 0.4, h);
+    g.addColorStop(0, `rgba(255,230,140,${0.7 * k})`); g.addColorStop(0.45, `rgba(255,106,26,${0.45 * k})`); g.addColorStop(1, "rgba(255,40,20,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(fx, fy - h * 0.4, h * 0.45, h, 0, 0, TAU); ctx.fill();
+  }
+  // the bubbles: going round the spot, wobbling; scattering, they fly out and pop
+  const B = [];
+  for (let i = 0; i < 7; i++) {
+    const a = time * (0.5 + i * 0.13) * (i % 2 ? 1 : -1) + i * 0.9, rr = R * (0.55 + 0.25 * Math.sin(time * 0.9 + i * 1.3)) * (sc >= 0 ? 1 + sc * 2.5 : 1);
+    const br = R * (0.1 + 0.05 * Math.sin(time * 2 + i)) * (sc >= 0 ? 1 + sc : 1), al = k * (sc >= 0 ? 1 - sc : 1);
+    const bx = Math.cos(a) * rr, by = Math.sin(a) * rr; B.push({ x: bx, y: by, r: br });
+    const c = SURG_COLORS[i % SURG_COLORS.length];
+    const g = ctx.createRadialGradient(bx - br * 0.3, by - br * 0.3, 0, bx, by, br);
+    g.addColorStop(0, `rgba(255,255,255,${0.35 * al})`); g.addColorStop(0.7, hexA(c, 0.12 * al)); g.addColorStop(1, hexA(c, 0.55 * al));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(bx, by, br, 0, TAU); ctx.fill();
+    ctx.strokeStyle = hexA(c, 0.8 * al); ctx.lineWidth = Math.max(1, br * 0.08); ctx.stroke();
+  }
+  // the lightning: colourful bolts jumping from bubble to bubble, and down into the part being made
+  const zap = (ax, ay, bx, by, c, w) => {
+    ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(ax, ay);
+    const n = 6; for (let j = 1; j < n; j++) { const f = j / n, jit = R * 0.09; ctx.lineTo(ax + (bx - ax) * f + (Math.random() - 0.5) * jit, ay + (by - ay) * f + (Math.random() - 0.5) * jit); }
+    ctx.lineTo(bx, by); ctx.stroke();
+  };
+  if (sc < 0) {
+    const n = 2 + Math.round(5 * heat);
+    for (let j = 0; j < n; j++) {
+      if (Math.random() > 0.55) continue;
+      const p = B[Math.floor(Math.random() * B.length)], q = Math.random() < 0.35 ? { x: 0, y: 0 } : B[Math.floor(Math.random() * B.length)];
+      if (p === q) continue;
+      const c = SURG_COLORS[Math.floor(Math.random() * SURG_COLORS.length)];
+      zap(p.x, p.y, q.x, q.y, hexA(c, 0.35 * k), Math.max(3, R * 0.05)); zap(p.x, p.y, q.x, q.y, `rgba(255,255,255,${0.85 * k})`, Math.max(1, R * 0.015));
+    }
+  } else {   // scattering: a last crack outward from the middle
+    for (let j = 0; j < 6; j++) { const a = j * TAU / 6 + scatter * 3; zap(0, 0, Math.cos(a) * R * (0.6 + sc * 1.5), Math.sin(a) * R * (0.6 + sc * 1.5), hexA(SURG_COLORS[j], 0.7 * (1 - sc) * fade), Math.max(1.5, R * 0.02)); }
+  }
+  ctx.restore();
+}
+// the creature, being built at its spot (the zone ring, parts flying in, ghosts of the part being made) or flying
 const FRANK_SLOTS = [
   { id: "chassis", x: 3, y: -23, width: 126, angle: -0.035 }, { id: "left-wing", x: -80, y: -8, width: 106, angle: -0.15 },
   { id: "right-shoulder", x: 73, y: -9, width: 104, angle: 0.17 }, { id: "engine", x: -9, y: 83, width: 114, angle: -0.1 }];
-function drawCreature(wx, wy, heading, progress, marker, fromO) {
+function drawCreature(wx, wy, heading, progress, marker, fromO, ghosts, zoneOut) {
   const parts = FRANK_SLOTS.map((q) => frankImg(q.id));
   if (parts.some((p) => !p)) return;
   const a = toScreen(fromO.x, fromO.y), x = a.x + wrapDelta(wx - fromO.x, WW), y = a.y + wrapDelta(wy - fromO.y, WH), s = shipSize() * MAGIC.surgery.size / 250;
-  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-  if (marker) {
-    ctx.strokeStyle = "rgba(155,210,195,0.55)"; ctx.lineWidth = 2 / s * shipSize() / 120;
-    for (let i = 0; i < 4; i++) { const b = i * Math.PI / 2 + time * 0.29; ctx.beginPath(); ctx.arc(0, 0, 130, b, b + 0.67); ctx.stroke(); }
-    ctx.strokeStyle = "rgba(115,138,166,0.3)"; ctx.setLineDash([3, 6]); ctx.beginPath(); ctx.arc(0, 0, 118, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
-    if (Math.random() < 0.05) {   // a short spark of lightning over the seams
-      ctx.strokeStyle = "rgba(170,240,255,0.9)"; ctx.lineWidth = 2.5; ctx.beginPath(); let px = (Math.random() - 0.5) * 120, py = (Math.random() - 0.5) * 120; ctx.moveTo(px, py);
-      for (let i = 0; i < 4; i++) { px += (Math.random() - 0.5) * 40; py += (Math.random() - 0.5) * 40; ctx.lineTo(px, py); } ctx.stroke();
-    }
+  if (marker) {   // the work zone: FRANKENSTEIN must be inside it to make the parts (red when it is not)
+    const R = MAGIC.surgery.zone * shipSize(), red = zoneOut > 0;
+    ctx.save(); ctx.strokeStyle = red ? `rgba(255,77,109,${0.5 + 0.4 * Math.sin(time * 14)})` : "rgba(155,210,195,0.55)"; ctx.lineWidth = Math.max(1.5, shipSize() * 0.015);
+    for (let i = 0; i < 4; i++) { const b = i * Math.PI / 2 + time * 0.29; ctx.beginPath(); ctx.arc(x, y, R, b, b + 0.67); ctx.stroke(); }
+    ctx.strokeStyle = red ? "rgba(255,77,109,0.35)" : "rgba(115,138,166,0.3)"; ctx.setLineDash([4, 7]); ctx.beginPath(); ctx.arc(x, y, R * 0.92, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
   }
-  ctx.rotate(heading);
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.rotate(heading);
   const count = progress.filter((v) => v >= 0.98).length, sm = (v) => v * v * (3 - 2 * v);
   const lines = [[[-31, 23], [-69, 10], [-83, -22]], [[33, 29], [65, 9], [82, -12]], [[-18, 26], [-37, 50], [-22, 80]]];
   for (let i = 0; i < Math.max(0, count - 1); i++) {   // the improvised joints between the parts
@@ -3851,40 +3915,50 @@ function drawCreature(wx, wy, heading, progress, marker, fromO) {
     ctx.strokeStyle = i === 1 ? "#725866" : "#865b42"; ctx.lineWidth = 6; ctx.stroke(); ctx.strokeStyle = "#d5a76e"; ctx.lineWidth = 1.8; ctx.stroke();
   }
   for (const i of [3, 1, 2, 0]) {
-    const q = FRANK_SLOTS[i], p = Math.max(0, Math.min(1, progress[i] || 0)); if (p <= 0) continue;
+    const q = FRANK_SLOTS[i], p = Math.max(0, Math.min(1, progress[i] || 0)), img = parts[i], gh = ghosts ? ghosts[i] : 0;
+    if (p <= 0 && gh > 0 && gh < 1) {   // being made: a ghost of it flickering at its place, firmer as it is made
+      ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.angle); ctx.globalAlpha *= (0.08 + 0.3 * gh) * (0.6 + 0.4 * Math.sin(time * 23 + i));
+      const w = q.width * (0.85 + 0.1 * gh); ctx.drawImage(img, -w / 2, -w * img.height / img.width / 2, w, w * img.height / img.width); ctx.restore();
+      continue;
+    }
+    if (p <= 0) continue;
     const b = sm(p), sign = i === 1 ? -1 : 1;
     ctx.save(); ctx.translate(q.x + (1 - b) * sign * 49, q.y - (1 - b) * (i === 3 ? -55 : 46)); ctx.rotate(q.angle + (1 - b) * sign * 0.43);
-    ctx.globalAlpha *= 0.21 + 0.79 * b; const w = q.width * (0.73 + 0.27 * b), img = parts[i]; ctx.drawImage(img, -w / 2, -w * img.height / img.width / 2, w, w * img.height / img.width); ctx.restore();
+    ctx.globalAlpha *= 0.21 + 0.79 * b; const w = q.width * (0.73 + 0.27 * b); ctx.drawImage(img, -w / 2, -w * img.height / img.width / 2, w, w * img.height / img.width); ctx.restore();
   }
   if (count === 4 && !marker) {   // flying: the engines pulse
     const pulse = 0.55 + 0.33 * Math.sin(time * 18); ctx.fillStyle = `rgba(219,167,255,${pulse})`;
     for (const ex of [-28, 15]) { ctx.beginPath(); ctx.ellipse(ex, 136, 8, 13 + 6 * pulse, 0, 0, TAU); ctx.fill(); }
   }
   ctx.restore();
-  if (marker) {   // how many parts are on, beside the spot
+  if (marker) {   // how many parts are made, beside the spot
     ctx.save(); ctx.font = `800 ${Math.round(shipSize() * 0.16)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "#9bd2c3"; ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
-    ctx.fillText(Math.min(4, count + progress.filter((v) => v > 0 && v < 0.98).length) + "/4", x, y + shipSize() * 0.95); ctx.restore();
+    ctx.fillText(count + "/4", x, y + MAGIC.surgery.zone * shipSize() + shipSize() * 0.18); ctx.restore();
   }
 }
-// a creature's whole surgery, mine or theirs: S: { phase, px, py, progress, c } (o: whose; it is drawn round their spot)
+// a creature's whole surgery, mine or theirs: S: { phase, t, px, py, ang, parts, done, aliveT, out, c } (o: whose)
 function drawSurgery(o, S) {
-  if (!S) return;
-  if (S.phase === "build") drawCreature(S.px, S.py, S.ang || 0, S.progress, true, o);
-  else if (S.phase === "alive" && S.c) drawCreature(S.c.x, S.c.y, S.c.ang, [1, 1, 1, 1], false, o);
+  if (!S || S.phase === "prep") return;
+  const a = toScreen(o.x, o.y), x = a.x + wrapDelta(S.px - o.x, WW), y = a.y + wrapDelta(S.py - o.y, WH), R = MAGIC.surgery.zone * shipSize();
+  const heat = S.cur >= 0 ? 0.25 + 0.75 * S.parts[S.cur] : 0, fade = S.aliveT != null ? Math.max(0, 1 - (S.t - S.aliveT) / 1.5) : 1;
+  if (S.phase === "build") drawCreature(S.px, S.py, S.ang || 0, surgShown(S.parts), true, o, S.parts, S.out);
+  drawSurgeryFx(x, y, R, heat * (S.out > 0 ? 0.35 : 1), S.t - S.done, fade);
+  if (S.phase === "alive" && S.c) drawCreature(S.c.x, S.c.y, S.c.ang, [1, 1, 1, 1], false, o);
 }
-// FRANKENSTEIN's magic button: the saw; then how many parts are on
+// FRANKENSTEIN's magic button: the saw; then how many parts are made
 function drawSurgeryButton(b, M, ready, k) {
   const img = frankImg("saw"), G = game.surg;
   ctx.save(); ctx.translate(b.x, b.y);
-  ctx.fillStyle = G ? "rgba(155,210,195,0.3)" : "rgba(10,14,30,0.75)"; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  const zoneOK = G && G.phase === "build" && inSurgZone(game, G);
+  ctx.fillStyle = G ? (G.phase === "build" && !zoneOK ? "rgba(255,77,109,0.25)" : "rgba(155,210,195,0.3)") : "rgba(10,14,30,0.75)"; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
   ctx.globalAlpha = ready || G ? 1 : 0.45;
-  if (img) { ctx.save(); ctx.rotate(G && G.phase === "prep" ? time * 20 : 0); ctx.drawImage(img, -b.r * 0.62, -b.r * 0.62, b.r * 1.24, b.r * 1.24); ctx.restore(); }
+  if (img) { ctx.save(); ctx.rotate(G && (G.phase === "prep" || G.cur >= 0) ? time * 20 : 0); ctx.drawImage(img, -b.r * 0.62, -b.r * 0.62, b.r * 1.24, b.r * 1.24); ctx.restore(); }
   if (G && G.phase !== "prep") {
     ctx.font = `800 ${Math.round(b.r * 0.55)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#000"; ctx.shadowBlur = 5;
-    ctx.fillText(G.phase === "alive" ? "✓" : G.arrivals.length + "/4", 0, 0);
+    ctx.fillText(G.phase === "alive" ? "✓" : G.parts.filter((v) => v >= 1).length + "/4", 0, 0);
   }
   ctx.globalAlpha = 1; ctx.strokeStyle = M.color; ctx.lineWidth = Math.max(3, b.r * 0.1);
-  const f = G ? (G.phase === "prep" ? G.t / M.prep : G.phase === "alive" ? 1 - G.c.t / M.life : 1) : ready ? 1 : k;
+  const f = G ? (G.phase === "prep" ? G.t / M.prep : G.phase === "alive" ? 1 - G.c.t / M.life : G.cur >= 0 ? G.parts[G.cur] : 1) : ready ? 1 : k;
   ctx.beginPath(); ctx.arc(0, 0, b.r * 0.95, -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
   ctx.restore();
 }
@@ -9228,7 +9302,7 @@ function draw() {
     drawShots(eshots);
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
-    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawTow(game, game.tow, towRig(game.tow, MAGIC.tow)); if (game.surg) drawSurgery(game, { ...game.surg, progress: surgProgress(game.surg) }); if (enemy.remote && duel.surg) drawSurgery(enemy, duel.surg); if (enemy.remote && duel.tow) drawTow(enemy, duel.tow, towRig(duel.tow, MAGIC.tow)); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
+    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawTow(game, game.tow, towRig(game.tow, MAGIC.tow)); if (game.surg) drawSurgery(game, game.surg); if (enemy.remote && duel.surg) drawSurgery(enemy, duel.surg); if (enemy.remote && duel.tow) drawTow(enemy, duel.tow, towRig(duel.tow, MAGIC.tow)); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -10842,10 +10916,11 @@ function updateRival(dt) {
   // their FRANKENSTEIN: its surgery, the spot and its parts, its creature (their phone moves it and decides its hits)
   if (n.fk) {
     const f = n.fk, P = ["prep", "build", "alive"][f[0]], D = duel.surg;
-    const c = f.length > 9 ? { x: f[9] * WW, y: f[10] * WH, ang: f[11] } : null;
-    if (!D || D.phase !== P) duel.surg = { phase: P, t: f[1] + age, px: f[2] * WW, py: f[3] * WH, ang: f[4], progress: f.slice(5, 9), c };
+    const c = f.length > 12 ? { x: f[12] * WW, y: f[13] * WH, ang: f[14] } : null;
+    if (!D || D.phase !== P) duel.surg = { phase: P, t: f[1] + age, px: f[2] * WW, py: f[3] * WH, ang: f[4], parts: f.slice(5, 9), cur: f[9], done: f[1] + age - f[10], out: f[11], aliveT: P === "alive" ? f[1] + age : null, c };
     else {
-      D.t += dt; if (Math.abs(D.t - (f[1] + age)) > 0.25) D.t = f[1] + age; D.progress = f.slice(5, 9);
+      D.t += dt; if (Math.abs(D.t - (f[1] + age)) > 0.25) D.t = f[1] + age; D.parts = f.slice(5, 9); D.cur = f[9]; D.out = f[11];
+      if (f[10] < 8.9) D.done = D.t - f[10];
       if (c) { if (!D.c) D.c = c; const kk = 1 - Math.exp(-dt * 14); D.c.x = wrapX(D.c.x + wrapDelta(c.x - D.c.x, WW) * kk); D.c.y = wrapY(D.c.y + wrapDelta(c.y - D.c.y, WH) * kk); D.c.ang = c.ang; }
     }
   } else duel.surg = null;
@@ -10943,7 +11018,7 @@ function updateDuel(dt) {
       fl: game.flail ? [+(game.flail.x / WW).toFixed(5), +(game.flail.y / WH).toFixed(5), game.flail.swing >= 0 ? 1 : 0] : 0, ik: game.inked > 0 ? +game.inked.toFixed(1) : 0,
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
-        ...surgProgress(game.surg).map((v) => +v.toFixed(2)), ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2)] : [])] : 0,
+        ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2)] : [])] : 0,
       kl: game.kiln ? +game.kiln.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
@@ -11088,7 +11163,14 @@ function botThink(dt) {
   if (S.id === "frankenstein") {
     const G = game.surg;
     if (!G && game.magicCool <= 0 && d > U * 1.6 && !botAI.keys.v) botTap("v", 0.08);
-    else if (G && G.phase === "build" && !botAI.keys.v && (!G.arrivals.length || G.t >= G.arrivals[G.arrivals.length - 1] + MAGIC.surgery.join + 0.1)) botTap("v", 0.08);
+    else if (G && G.phase === "build") {
+      const sx = wrapDelta(G.px - game.x, WW), sy = wrapDelta(G.py - game.y, WH), sd = Math.hypot(sx, sy);
+      if (sd > MAGIC.surgery.zone * shipSize() * 0.5) {   // back to the spot (braking as it gets there)
+        const wx = sx * 1.6 - game.vx, wy = sy * 1.6 - game.vy; botAI.head = Math.atan2(wx, -wy);
+        botKey(" ", Math.hypot(wx, wy) > U * 0.08 && Math.abs(wrapAngle(botAI.head - game.ang)) < 0.5 && !game.locked);
+      } else botKey(" ", false);
+      if (G.cur < 0 && inSurgZone(game, G) && !botAI.keys.v) botTap("v", 0.08);
+    }
   }
   // STRATA up in the upper dimension: fly its shadow onto them and stay there
   if (S.id === "strata" && game.strata && stratPose(game.strata, MAGIC.vshift).z > 0.2) {
