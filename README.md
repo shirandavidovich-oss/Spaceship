@@ -100,6 +100,8 @@ THUL's smoke is three times as thick as before, in bigger, nearly solid puffs: a
 **Kit buttons for BALLAST, STRATA, KILN and FRANKENSTEIN** (`art/hud/<id>/`, whole faces like LARIAT's): drawn in the kit's
 style (dark octagon, grid, coloured corners, a neon icon for each button) by a small script; BLOOM's are as they were.
 
+**Zombie forms for BALLAST, STRATA, KILN and FRANKENSTEIN** (from the BLOOM-Four-Zombie-Ships package: `art/bloom/zombie-<id>-top.webp` and their motion atlases in `art/bloom/fx/`, drawn by the same fleet renderer; `scale` in `ZOMBIE_ART` makes each the size of the ship itself). FRANKENSTEIN has one zombie form; its creature never becomes a zombie.
+
 **Explosion films (`video/`, 720p, `FILMS`: THUL, SKARN, XELTAR, ORIAN, CANTOR, MIRAGE, LARIAT):** one a game, as a
 surprise. A new game picks one of those ships at random (`filmNewGame`); the first time it blows up (yours or the
 computer's) its film plays full screen, full length, and the game waits (a tap skips it). Only that film is loaded.
