@@ -404,7 +404,7 @@ fan (5 each). Magic, surgery (`surgery` in `MAGIC`, `updateSurgery`): the first 
 the nose and starts 5 s of surgery: it cannot move or steer (the forceps reach out, a roof hatch opens and the saw spins
 and cuts), so choose a spot far from the enemy. After that the spot stays where it is, even when FRANKENSTEIN flies off,
 and each new press starts the next part there, in turn: STRATA's chassis, VEXAR's wing, BALLAST's shoulder, KILN's engine.
-Each takes 3 s to make, and only while FRANKENSTEIN is inside the work zone round the spot (the ring, 1.4 ship-lengths;
+Each takes 3 s to make, and only while FRANKENSTEIN is inside the work zone round the spot (the ring, 7 ship-lengths, about two screens;
 a press from outside does nothing and the ring flashes red; leaving halfway stops the making until it comes back). While
 a part is made: fire, colourful lightning and bubbles passing lightning between them, growing as it is made, with a ghost
 of the part flickering in; when it is there the bubbles fly apart and pop, then it all starts again for the next part
