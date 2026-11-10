@@ -372,6 +372,19 @@ A warning ring shows its reach and its cracks glow hotter as the fuse runs down.
 recharge after the let-go. The computer holds it, turns its right side to you and lets go when the asteroid lines up.
 In a duel the other phone sees the asteroid and the cables (`bt`) and the blast (`btx`).
 
+**STRATA**, the vertical-shift ship (`art/ships/strata/`: two views, top and bank, each a body and two fork wings on one
+shared canvas, from the STRATA-Vertical-Shift package; drawn by `drawStrata`, a port of its renderer). The wings slide
+forward in little pulses with the thrust. Button 1: fork bolts, one from each fork tip at once (6 each). Button 2: a rift
+seeker, a slow orb that turns after the enemy (16). Magic, vertical shift (`vshift` in `MAGIC`, `updateShift`, 18 s
+recharge): it tips its nose, the front engine fires a jet down, and it rises into the upper dimension: drawn high above
+its grey shadow, which stays on the arena where the ship really is. Up there nothing touches it (shots pass under, no
+crashes, no star) and it cannot fire, but it still flies. Keep the middle of its shadow on the enemy for a quarter of a
+second (counted only once it is all the way up; it starts again if they slip out) and the sight closes and a laser fires
+straight down: the enemy ship is destroyed, spare tanks and all (`slay`; set it false for `dmg` instead). Then it comes
+down; with no lock by 4.6 s it comes down anyway. The shadow hides while a ship is over it. The computer uses it when
+close, and flies its shadow onto you (braking as it gets there). In a duel the other phone sees it all (`sv`); the kill
+is sent as `slay`.
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

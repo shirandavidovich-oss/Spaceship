@@ -991,7 +991,17 @@ const SHIPS = [
     body: [], wing: [], nozzles: [-0.082, 0.082], engineY: 0.41, cockpit: [0, 0, 0.05, 0.1],
     weapons: ["railslug", "sinker"],
     guns: { railslug: [[0, -0.42]], sinker: [[-0.36, -0.18]] },
-    anim: { dir: "ballast", size: 1.2, idle: "idle.webp" } }
+    anim: { dir: "ballast", size: 1.2, idle: "idle.webp" } },
+  // STRATA, the vertical-shift ship (art/ships/strata/, the STRATA-Vertical-Shift package): two views (top, bank), each
+  // a body and two fork wings on one shared canvas; drawn in code by drawStrata (the wings slide forward with the thrust).
+  // 0.62 ship-lengths wide (STRATA_W), nose up. Button 1: fork bolts, one from each fork tip at once. Button 2: a rift
+  // seeker, a slow orb that turns after the enemy. Magic: vertical shift (MAGIC.vshift, updateShift)
+  { id: "strata", name: "STRATA", rarity: "legendary", mass: 1.0, fuel: 30, refill: 15, sfx: null, magic: "vshift", strata: true,
+    hull: "#4a3a8a", wingC: "#1c1438", trim: "#c86bff", flame: "#c86bff", noFlame: true,
+    body: [], wing: [], nozzles: [-0.075, 0.075], engineY: 0.54, cockpit: [0, 0, 0.05, 0.1],
+    weapons: ["forkbolt", "riftseeker"],
+    guns: { forkbolt: [[-0.18, -0.56], [0.18, -0.56]], riftseeker: [[0, -0.26]] },
+    anim: { dir: "strata", size: 1.16, idle: "idle.webp" } }
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1022,7 +1032,8 @@ const HANDLING = {
   gimbal:   { size: 1,    speed: 1,    accel: 1,    turn: 1.5  },   // a gyroscope: spins round fastest
   lariat:   { size: 1.05, speed: 0.9,  accel: 0.85, turn: 0.85 },   // a tug
   bloom:    { size: 1,    speed: 1.05, accel: 0.9,  turn: 1.15 },   // a drifting flower
-  ballast:  { size: 1.05, speed: 0.8,  accel: 0.85, turn: 0.8  }    // a heavy tug
+  ballast:  { size: 1.05, speed: 0.8,  accel: 0.85, turn: 0.8  },   // a heavy tug
+  strata:   { size: 1,    speed: 1.1,  accel: 1.05, turn: 1.05 }    // a sleek fork
 };
 function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1192,6 +1203,9 @@ const WEAPONS = {
   //   pulls it (gravity, like TALUS's boulder), so it can be curved round the star
   railslug: { name: "קליע מסילה", dmg: 8,  speed: 2.8, life: 1.1, cool: 0.32, ammo: 20, refill: 7,  r: 0.022, color: "#9fe9d2" },
   sinker:   { name: "משקולת שוקעת", dmg: 24, speed: 1.1, life: 3.0, cool: 1.1, ammo: 4, refill: 9, r: 0.06,  color: "#ffb21e", gravity: true },
+  // STRATA. forkbolt: from both fork tips at once. riftseeker: a slow orb that turns after the enemy (homing)
+  forkbolt:   { name: "חץ מזלג",   dmg: 6,  speed: 2.6, life: 1.0, cool: 0.3, ammo: 24, refill: 7, r: 0.022, color: "#c86bff", both: true },
+  riftseeker: { name: "זרע שכבות", dmg: 16, speed: 1.4, life: 3.0, cool: 1.2, ammo: 5,  refill: 9, r: 0.045, color: "#e3c5ff", homing: 2.2 },
   laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -1296,6 +1310,15 @@ const MAGIC = {
   //   blows up: `dmg` at its middle, down to `edge` at `blast` ship-lengths, and a shove (`knock`). It blows up sooner
   //   if the enemy comes within `near` ship-lengths of its rim, or it reaches the body in the middle.
   //   `rock`: its radius in ship-lengths. Held `max` s, it is let go by itself. `cool` s from the let-go
+  // STRATA's vertical shift (its package: strata-magic.mjs). It tips its nose, the front engine fires down, and it
+  //   rises into the upper dimension (up by `rise`[1] s): drawn high above its grey shadow, which stays where it is on
+  //   the arena. Up there nothing touches it and it cannot fire; it still flies (its shadow is where it really is).
+  //   Keep the shadow's middle on the enemy (within `lock` ship-lengths of its middle) for `hold` s and the sight
+  //   closes and a laser fires straight down: the enemy ship is destroyed, spare tanks and all (`slay`; set it false
+  //   and the laser does `dmg` instead). Then it comes down. If no lock by
+  //   `stay` s, it comes down anyway (`fall` s). `cool` s to recharge, counted from the press
+  vshift:  { name: "מעבר לממד הגובה", look: "vshift", rise: [0.49, 1.66], stay: 4.6, fall: 1.11, lock: 0.3, hold: 0.25, slay: true, dmg: 60,
+             cool: 18, color: "#c86bff" },
   tow:     { name: "גרירת אסטרואיד", look: "tow", stop: 1.43, reel: [1.46, 4.15], rock: 0.6, rest: [2.3, -0.25], kick: 0.35,
              fling: 0.9, throw: 1.4, fuse: 5, blast: 3.2, dmg: 70, edge: 30, near: 0.9, knock: 2.2, max: 14, cool: 12, miss: 2, color: "#7fdbc9" },
   // GIMBAL's momentum flip: at `cue` s the way it moves turns right round (same speed; the nose stays). Only when it is
@@ -1326,7 +1349,28 @@ const MAGIC = {
 // it was let go (null while held), T.miss: let go before the cables latched. Returns 0..1 for each moving part:
 //   wing (opening), weight (out on its rail), impact (the jolt's sparks), leads (each cable's way to the asteroid),
 //   taut (cables pulled straight), reel (how far the asteroid has come in)
-const BALLAST_UNIT = 1 / 170;   // one unit of the package, in ship-lengths
+const BALLAST_UNIT = 1 / 170;
+// STRATA through its vertical shift (the package's curves). T.t seconds since the press, T.fall: when it started down
+// (null until then), T.fire: when the laser fired (null), T.lockT: seconds the shadow has stayed on the enemy.
+// Returns 0..1: z (height), bank (nose tipped), jet (front engine), rise (the hull's mechanism open), lock (the
+// sight closing), beam (the laser), and up: high enough to be out of the arena (nothing touches it)
+const STRATA_W = 0.62;   // its width in ship-lengths (the package's `size`)
+function stratPose(T, M) {
+  const range = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a))), between = (t, a, b) => smoothStep(range(t, a, b));
+  if (!T) return { z: 0, bank: 0, jet: 0, rise: 0, lock: 0, beam: 0, up: false, top: false };
+  const t = T.t, fa = T.fall != null ? T.fall : 1e9, fi = T.fire != null ? T.fire : -1;
+  const fall = between(t, fa, fa + M.fall), z = between(t, M.rise[0], M.rise[1]) * (1 - fall);
+  return {
+    z,
+    bank: between(t, 0.24, 0.65) * (1 - between(t, 1.12, 1.79)) + 0.25 * between(t, fa + 0.02, fa + 0.35) * (1 - between(t, fa + 0.45, fa + 0.92)),
+    jet: between(t, 0.46, 0.70) * (1 - between(t, 1.23, 1.72)),
+    rise: between(t, 0.36, 0.68) * (1 - between(t, 1.46, 1.98)),
+    lock: fi >= 0 ? (1 - between(t, fi, fi + 0.11)) : Math.min(1, (T.lockT || 0) / M.hold),
+    beam: fi >= 0 ? between(t, fi, fi + 0.065) * (1 - between(t, fi + 0.29, fi + 0.49)) : 0,
+    up: z > 0.35,
+    top: t >= M.rise[1] && fall === 0   // all the way up: the lock can count
+  };
+}   // one unit of the package, in ship-lengths
 function towRig(T, M) {
   const range = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a))), between = (t, a, b) => smoothStep(range(t, a, b));
   const t = T ? T.t : 0, rel = T && T.rel != null ? T.rel : -1, back = rel < 0 ? 1 : 1 - between(rel, 0.15, 0.6);
@@ -1931,7 +1975,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -2839,7 +2883,7 @@ function chemSmoke(dt) {
 // touching a hot one: health goes, a little at a time (the red flash only every few points)
 function touchBurn(dt) {
   const B = body();
-  if (!B.burn || game.dead) return;
+  if (!B.burn || game.dead || stratAloft(game)) return;   // (STRATA up high: out of reach)
   cosmos.burn += B.burn * dt;
   if (Math.random() < dt * 20) burstAt(game.x, game.y, 3, [B.color, "#ffffff"], 0.2, 0.4, game.vx, game.vy);
   if (cosmos.burn >= 5) { damageShip(Math.floor(cosmos.burn)); cosmos.burn -= Math.floor(cosmos.burn); }
@@ -3008,7 +3052,8 @@ function useMagicNow(which = 0) {
     audio.beam(); audio.sfx(S.sfx, "latches_unlock", 0.75); buzz(60);
     return;
   }
-  if (M.look === "tow") { startTow(M); return; }   // BALLAST: held, it tows an asteroid in (updateTow)
+  if (M.look === "tow") { startTow(M); return; }   
+  if (M.look === "vshift") { startShift(M); return; }   // STRATA: up into the upper dimension (updateShift)   // BALLAST: held, it tows an asteroid in (updateTow)
   if (M.look === "tail") {   // the stinger tail grows out behind the ship, stays out, and comes back by itself
     if (game.tail) return;
     game.magicCool = M.out + M.hold + M.back + M.cool;
@@ -3304,6 +3349,181 @@ function drawTowButton(b, M, ready, k) {
   if (img) { ctx.save(); ctx.rotate(time * 0.3); ctx.drawImage(img, -b.r * 0.62, -b.r * 0.6, b.r * 1.24, b.r * 1.2); ctx.restore(); }
   ctx.strokeStyle = "#7fdbc9"; ctx.lineWidth = Math.max(2, b.r * 0.07); ctx.lineCap = "round";
   ctx.beginPath(); ctx.moveTo(-b.r * 0.85, b.r * 0.5); ctx.quadraticCurveTo(-b.r * 0.5, b.r * 0.55, -b.r * 0.35, b.r * 0.15); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.strokeStyle = M.color; ctx.lineWidth = Math.max(3, b.r * 0.1);
+  ctx.beginPath(); ctx.arc(0, 0, b.r * 0.95, -Math.PI / 2, -Math.PI / 2 + TAU * (ready ? 1 : k)); ctx.stroke();
+  ctx.restore();
+}
+// ---------- STRATA's magic: the vertical shift (MAGIC.vshift) ----------
+// game.strata: { t, fall (when it started down, or null), fire (when the laser fired, or null), lockT, ax, ay }
+// duel.strata: the same, for their STRATA (from their phone; their phone decides the hit)
+function startShift(M) {
+  if (game.strata) return;
+  game.strata = { t: 0, fall: null, fire: null, lockT: 0, ax: game.x, ay: game.y };
+  game.magicCool = M.cool;
+  audio.tone(180, 1.3, "sawtooth", 0.05, 3.2, 0.4); audio.noise(1.0, 0.1, 3000); buzz(40);   // the front engine, rising
+}
+// high enough to be out of the arena: shots, crashes and the star do not touch it
+function stratAloft(o) { const T = o === game ? game.strata : enemy.remote ? duel.strata : null; return !!T && stratPose(T, MAGIC.vshift).up; }
+// the whole enemy ship is gone at once (spare tanks too): STRATA's laser
+function slayEnemy() {
+  if (!enemy.on || enemyAloft()) return;
+  if (enemy.remote) { link.send({ t: "slay" }); duel.outDmg += 1; return; }   // (their phone blows it up)
+  enemy.hp = 0; destroyEnemy();
+}
+function enemyAloft() { return enemy.on && stratAloft(enemy); }
+function updateShift(dt) {
+  const T = game.strata, M = MAGIC.vshift;
+  if (!T) return;
+  if (game.dead || game.ship !== "strata") { game.strata = null; return; }
+  T.t += dt;
+  const P = stratPose(T, M);
+  if (T.fall == null) {
+    // its shadow's middle on the enemy's: the sight closes; held `hold` s, the laser fires down
+    const on = P.top && enemy.on && enemy.warp < 0.5 && !enemyAloft() &&
+      Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < M.lock * shipSize() * Math.max(1, enemyScale());
+    if (on) {
+      if (T.lockT === 0) audio.tone(1300, 0.08, "square", 0.03, 0.2);
+      T.lockT += dt; T.ax = enemy.x; T.ay = enemy.y;
+      if (T.lockT >= M.hold) {
+        T.fire = T.t; T.fall = T.t + 0.5;
+        if (M.slay) slayEnemy(); else harmEnemy(M.dmg);
+        enemy.hurt = 0.5;
+        burstAt(enemy.x, enemy.y, 40, ["#ffffff", "#fcecff", "#ba7afd", "#a456fb"], 0.7, 1.1);
+        rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.5, r: shipSize() * 1.2, c: "#ba7afd" });
+        audio.tone(2200, 0.5, "sawtooth", 0.08, 0.1); audio.tone(110, 0.6, "square", 0.08, 0.5); audio.noise(0.5, 0.2, 5000); shake(0.6); buzz(160);
+      }
+    } else T.lockT = 0;   // they slipped out: it starts again
+    if (T.fall == null && T.t >= M.stay) { T.fall = T.t; audio.tone(600, 0.9, "sine", 0.04, 0.4); }
+  } else if (T.t > T.fall + M.fall + 0.2) game.strata = null;
+}
+// ---- drawing STRATA (a port of the package's strata-rig.mjs and strata-magic.mjs) ----
+const STRATA_ANCHORS = { top: [[0.26, 0.69], [0.74, 0.69]], bank: [[0.19, 0.65], [0.74, 0.70]] };
+function strataArt() {
+  const im = (n) => artImage(framePath("strata", n + ".webp")), A = { top: im("top"), bank: im("bank"), rigs: {} };
+  for (const v of ["top", "bank"]) A.rigs[v] = { left: im(v + "-left"), right: im(v + "-right"), body: im(v + "-body") };
+  const all = [A.top, A.bank, ...Object.values(A.rigs.top), ...Object.values(A.rigs.bank)];
+  return all.every(Boolean) ? A : null;
+}
+function strataRig(t, forward, rise, jet, bank) {
+  const c = (x) => Math.max(0, Math.min(1, x)), lift = c(Math.max(rise, jet, bank * 0.7)), sweep = c(forward) * (0.75 + 0.25 * Math.sin(t * 12));
+  return { advance: sweep * 0.098 - lift * 0.047, spread: lift * 0.205 - sweep * 0.063, door: c(Math.max(lift, jet)), cycle: t * 13 };
+}
+function strataHull(g, A, key, width, m, silhouette) {
+  const base = A[key], height = width * base.height / base.width, rig = A.rigs[key], part = (img) => g.drawImage(img, -width / 2, -height / 2, width, height);
+  for (let i = 0; i < 2; i++) {
+    const [ax, ay] = STRATA_ANCHORS[key][i], side = i === 0 ? -1 : 1, x = (ax - 0.5) * width, y = (ay - 0.5) * height;
+    const ty = -m.advance * width, tx = side * m.spread * width * 0.13;
+    g.save(); g.strokeStyle = silhouette ? "#fff" : "#323954"; g.lineWidth = width * 0.095; g.lineCap = "round";
+    g.beginPath(); g.moveTo(x * 0.72, y); g.lineTo(x + tx, y + ty); g.stroke();
+    g.translate(x + tx, y + ty); g.rotate(side * m.spread); g.translate(-x, -y);
+    part(rig[i === 0 ? "left" : "right"]); g.restore();
+  }
+  part(rig.body);
+  if (silhouette || m.door <= 0.01) return;
+  // the hull's shutters open over rails, a piston and pulsing energy bars
+  const s = width / 105, [axx, ayy] = key === "top" ? [0, 0.188] : [-0.125, 0.205];
+  g.save(); g.translate(axx * width, ayy * height); g.scale(s, s); g.rotate(key === "bank" ? 0.27 : 0); g.globalAlpha *= Math.min(1, m.door * 2.2);
+  g.fillStyle = "#100f25"; g.fillRect(-13, -23, 26, 42); g.strokeStyle = "#71668d"; g.lineWidth = 1.6; g.strokeRect(-13, -23, 26, 42);
+  g.fillStyle = "#7f72a7"; g.fillRect(-9, -17, 3, 30); g.fillRect(6, -17, 3, 30);
+  for (let i = 0; i < 4; i++) {
+    const p = -15 + i * 8; g.fillStyle = i % 2 ? "#4c357e" : "#584398"; g.fillRect(-6, p, 12, 5);
+    g.fillStyle = i === Math.floor((m.cycle / 2) % 4) ? "#fff0ff" : "#b48ae6"; g.fillRect(-4, p + 1, 8, 2);
+  }
+  g.fillStyle = "#d8c3ff"; g.fillRect(-3, -21 + (6 + 4 * Math.sin(m.cycle)) * m.door, 6, 3);
+  for (const side of [-1, 1]) {
+    g.save(); g.translate(side * (6 + 10 * m.door), -2); g.rotate(side * 0.27 * m.door);
+    g.fillStyle = "#343055"; g.fillRect(-5, -17, 10, 33); g.strokeStyle = "#9984c0"; g.strokeRect(-5, -17, 10, 33);
+    g.fillStyle = "#d4b3fa"; g.fillRect(side === 1 ? -4 : 2, -14, 2, 21); g.restore();
+  }
+  g.restore();
+}
+const strataMasks = {};   // one shadow canvas per STRATA on screen (mine, theirs)
+function strataShadow(key, A, size, heading, z, energy, m) {
+  const c = strataMasks[key] || (strataMasks[key] = document.createElement("canvas")), g = c.getContext("2d");
+  const height = size * A.top.height / A.top.width, alt = Math.max(0, Math.min(1, z / (1.26 * size)));
+  const gray = Math.round(58 + 74 * alt + 46 * energy), scale = 1 + 0.15 * alt, ext = Math.ceil(Math.hypot(size, height) * 1.5 + 32);
+  if (c.width !== ext || c.height !== ext) { c.width = ext; c.height = ext; }
+  g.clearRect(0, 0, ext, ext); g.save(); g.translate(ext / 2, ext / 2); g.rotate(heading); g.scale(scale, scale);
+  strataHull(g, A, "top", size, m, true); g.restore();
+  g.globalCompositeOperation = "source-in"; g.fillStyle = `rgb(${gray},${gray},${gray})`; g.fillRect(0, 0, ext, ext); g.globalCompositeOperation = "source-over";
+  ctx.save(); ctx.globalAlpha *= 0.57 + (0.45 - 0.57) * alt; ctx.filter = `blur(${1 + 4 * alt}px)`;
+  ctx.drawImage(c, -ext / 2, -ext / 2 + 4 * (1 - alt)); ctx.restore();
+}
+// STRATA, in screen pixels round its spot on the arena (inside drawShip: called with the ship's turn undone).
+// o.strata: { key, T (its shift or null), aim: { x, y } (pixels from the ship), covered (a ship over its shadow) };
+// without o.strata (the hangar, icons) it is drawn plain, no shadow
+function drawStrata(o, size, heading, power) {
+  const A = strataArt();
+  if (!A) return false;
+  const M = MAGIC.vshift, so = o.strata || null, T = so && so.T, P = stratPose(T, M), t = time, s = size / 132;
+  const forward = Math.max(0, Math.min(1, (power - 0.12) / 0.88)), z = P.z * 1.04 * size, bank = P.bank, jet = P.jet;
+  const m = strataRig(t, forward, P.rise, jet, bank);
+  if (so && !so.covered) strataShadow(so.key, A, size, heading, z, Math.max(jet, P.rise), m);
+  const airY = -z, angle = heading - bank * 0.07, persp = 1 + 0.075 * Math.min(1, z / (105 * s));
+  const sx = persp * (1 - 0.07 * bank), sy = persp * (1 - 0.12 * bank), blend = smoothStep((bank - 0.1) / 0.9);
+  const portX = -0.16 * size * sx * blend, portY = (0.405 * size * A.top.height / A.top.width * (1 - blend) + 0.407 * size * 1.04 * A.bank.height / A.bank.width * blend) * sy;
+  const ex = portX * Math.cos(angle) - portY * Math.sin(angle), ey = airY + portX * Math.sin(angle) + portY * Math.cos(angle);
+  ctx.save();
+  if (z > 10 && so && !so.covered) { ctx.strokeStyle = "rgba(187,150,255,.22)"; ctx.lineWidth = s; ctx.beginPath(); ctx.moveTo(0, airY + 26 * s); ctx.lineTo(0, 0); ctx.stroke(); }
+  if (jet > 0) {   // the rising jet: wide, spreading down to the arena, with sparks and a ripple where it lands
+    ctx.globalAlpha = jet;
+    const len = Math.max(57 * s, -ey + 17 * s), px = ex * 0.72;
+    const cone = ctx.createLinearGradient(ex, ey, px, ey + len);
+    cone.addColorStop(0, "rgba(236,221,255,.97)"); cone.addColorStop(0.23, "rgba(159,111,255,.78)"); cone.addColorStop(1, "rgba(110,75,236,0)");
+    ctx.fillStyle = cone; ctx.beginPath(); ctx.moveTo(ex - 7 * s, ey); ctx.lineTo(ex + 7 * s, ey); ctx.lineTo(px + 31 * s, ey + len); ctx.lineTo(px - 31 * s, ey + len); ctx.closePath(); ctx.fill();
+    for (let i = 0; i < 21; i++) {
+      const f = (t * 2.35 + i * 0.171) % 1;
+      ctx.globalAlpha = jet * (1 - f) * 0.8; ctx.fillStyle = i % 3 === 0 ? "#fff1ff" : "#be96ff";
+      ctx.fillRect(ex + (px - ex) * f + Math.sin(i * 8.1) * (3 + 21 * f) * s, ey + f * len, (1 + (i % 3)) * s, 3.6 * s);
+    }
+    ctx.globalAlpha = jet; const rp = (t * 2.8) % 1;
+    ctx.beginPath(); ctx.ellipse(0, 0, (14 + 38 * rp) * s, (6 + 18 * rp) * s, 0, 0, TAU); ctx.strokeStyle = `rgba(166,133,255,${0.66 * (1 - rp)})`; ctx.lineWidth = s; ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  const aim = so && so.aim;
+  if (aim && P.lock > 0) {   // the sight closing on them
+    const r = (49 - 23 * P.lock) * s; ctx.strokeStyle = "#ffe1ff"; ctx.lineWidth = 2 * s;
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + t * 0.9; ctx.beginPath(); ctx.arc(aim.x, aim.y, r, a, a + 0.77); ctx.stroke(); }
+  }
+  if (aim && P.beam > 0) {   // the laser, straight down
+    ctx.globalAlpha = P.beam;
+    for (const [c, w] of [["rgba(164,86,251,.27)", 45], ["#ba7afd", 22], ["#fcecff", 8]]) { ctx.strokeStyle = c; ctx.lineWidth = w * s; ctx.beginPath(); ctx.moveTo(0, airY + 6 * s); ctx.lineTo(aim.x, aim.y); ctx.stroke(); }
+    const g = ctx.createRadialGradient(aim.x, aim.y, 0, aim.x, aim.y, 74 * s); g.addColorStop(0, "rgba(254,235,255,.8)"); g.addColorStop(1, "rgba(178,100,250,0)");
+    ctx.fillStyle = g; ctx.fillRect(aim.x - 74 * s, aim.y - 74 * s, 148 * s, 148 * s); ctx.globalAlpha = 1;
+  }
+  ctx.save(); ctx.translate(0, airY); ctx.rotate(angle); ctx.scale(sx, sy);
+  ctx.globalAlpha = 1 - blend * 0.94; strataHull(ctx, A, "top", size, m, false);
+  if (blend > 0.01) { ctx.globalAlpha = blend; strataHull(ctx, A, "bank", size * 1.04, m, false); }
+  ctx.restore();
+  if (jet > 0) {   // the front engine's port, glowing
+    ctx.globalAlpha = jet * 0.86;
+    const g = ctx.createRadialGradient(ex, ey, 0, ex, ey, 21 * s); g.addColorStop(0, "rgba(255,247,255,.96)"); g.addColorStop(1, "rgba(165,91,250,0)");
+    ctx.fillStyle = g; ctx.fillRect(ex - 21 * s, ey - 21 * s, 42 * s, 42 * s);
+    ctx.fillStyle = "#201a46"; ctx.strokeStyle = "#e3c5ff"; ctx.lineWidth = 1.6 * s; ctx.beginPath(); ctx.ellipse(ex, ey, 10 * s, (4 + 2 * bank) * s, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#f8efff"; ctx.beginPath(); ctx.ellipse(ex, ey, 6.5 * s, (2.5 + bank) * s, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  if (T && T.fall != null && T.t > T.fall && z < 13 * s && z > 0) {   // touching down: a ring on the arena
+    ctx.beginPath(); ctx.ellipse(0, 0, (36 - z / s) * s, (18 - z / s) * s, 0, 0, TAU); ctx.strokeStyle = `rgba(192,159,255,${0.55 * z / (13 * s)})`; ctx.lineWidth = 2 * s; ctx.stroke();
+  }
+  ctx.restore();
+  return true;
+}
+// what drawShip needs for a STRATA: who `o` is, its shift, where the enemy is (in pixels), and if a ship covers its shadow
+function strataOpts(o, other, T, key) {
+  const size = shipSize(), dx = wrapDelta(other.x - o.x, WW), dy = wrapDelta(other.y - o.y, WH), otherOn = other === game ? !game.dead : enemy.on;
+  const aimW = T && T.fire != null ? { x: wrapDelta(T.ax - o.x, WW), y: wrapDelta(T.ay - o.y, WH) } : { x: dx, y: dy };
+  return { key, T, aim: aimW, covered: otherOn && !stratAloft(other) && Math.hypot(dx, dy) < size * 0.55 };
+}
+// STRATA's magic button: a fork rising out of its shadow
+function drawShiftButton(b, M, ready, k) {
+  const on = !!game.strata;
+  ctx.save(); ctx.translate(b.x, b.y);
+  ctx.fillStyle = on ? "rgba(200,107,255,0.35)" : "rgba(10,14,30,0.75)"; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.globalAlpha = ready || on ? 1 : 0.45;
+  ctx.fillStyle = "rgba(160,160,170,0.6)"; ctx.beginPath(); ctx.ellipse(0, b.r * 0.5, b.r * 0.4, b.r * 0.13, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = "#c86bff";
+  for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * b.r * 0.12, b.r * 0.25); ctx.lineTo(sx * b.r * 0.36, -b.r * 0.62); ctx.lineTo(sx * b.r * 0.3, b.r * 0.2); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = "#e3c5ff"; ctx.beginPath(); ctx.moveTo(0, -b.r * 0.35); ctx.lineTo(b.r * 0.16, b.r * 0.28); ctx.lineTo(-b.r * 0.16, b.r * 0.28); ctx.closePath(); ctx.fill();
   ctx.globalAlpha = 1; ctx.strokeStyle = M.color; ctx.lineWidth = Math.max(3, b.r * 0.1);
   ctx.beginPath(); ctx.arc(0, 0, b.r * 0.95, -Math.PI / 2, -Math.PI / 2 + TAU * (ready ? 1 : k)); ctx.stroke();
   ctx.restore();
@@ -4775,6 +4995,7 @@ function updateEnemy(dt) {
 }
 // ships bounce off each other (the heavier one is pushed less)
 function bumpShips(a, A, b, B) {
+  if (stratAloft(game) || enemyAloft()) return;   // a STRATA up high passes over
   const dx = wrapDelta(b.x - a.x, WW), dy = wrapDelta(b.y - a.y, WH), d = Math.hypot(dx, dy) || 1;
   const touch = shipSize() * 0.62;
   if (d >= touch) return;
@@ -4828,7 +5049,7 @@ function blowUpShip() {
   }
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
   game.zombie = false; game.pollen = null;   // (a zombie is cured only by blowing up)
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; if (game.tow && game.tow.phase !== "fly") game.tow = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -4880,7 +5101,7 @@ function updateWeapons(dt) {
   updateRift(dt); updateRiftBursts(dt); updateCrosses(dt);
   if (!game.dead) updateDash(dt);
   updateThread(dt); updateFlail(dt);
-  enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt); updateTow(dt);
+  enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt); updateTow(dt); updateShift(dt);
   for (let i = 0; i < 3; i++) {
     game.cool[i] = Math.max(0, game.cool[i] - dt * (game.lassoed ? ELASSO.fire : 1) * (game.zombie ? ZOMBIE.rate : 1));   // held by LARIAT's rope: half the fire rate; a zombie: a fifth
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].converge) { crossHold(dt); continue; }
@@ -4940,7 +5161,7 @@ function updateWeapons(dt) {
       burstAt(s.x, s.y, 8, ["#ff8a5a", "#ffffff"], 0.2, 0.4); shots.splice(k, 1); continue;
     }
     // into the enemy
-    if (enemy.on && enemy.warp < 0.5) {
+    if (enemy.on && enemy.warp < 0.5 && !enemyAloft()) {   // (their STRATA up high: shots pass under it)
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
       if (Math.hypot(dx, dy) < size * 0.42 * enemyScale() + Wp.r * shotScale(s, Wp) * size) {
         if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
@@ -4974,7 +5195,8 @@ function updateWeapons(dt) {
 //  primary (button 1): each shot jumps to the frame where that barrel flashes, then the frames settle back to idle
 //  secondary (button 2): the iris winds up first; the shot leaves at the "fire" frame (the big flash)
 function shoot(i) {
-  if (game.dive) return;   // BORER in its dive: no firing
+  if (game.dive) return;
+  if (game.strata) return;   // STRATA in its vertical shift: no firing   // BORER in its dive: no firing
   if (game.puff && game.puff.st === "full") { if (game.puff.armed) puffBurst(); return; }   // PUFF: this press lets the spines go
   const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
   if (Wp.gate && (gateAlive(game.gate) || game.gateWait != null)) return;   // GIMBAL: one gate at a time
@@ -5352,7 +5574,7 @@ function shipFrame(S, a) {
 
 // the enemy loses health. In a duel the other phone decides: the damage is sent there
 function harmEnemy(n) {
-  if (n <= 0 || !enemy.on) return;
+  if (n <= 0 || !enemy.on || enemyAloft()) return;   // (their STRATA up in the upper dimension: nothing touches it)
   if (game.zombie && n < 9999) n *= ZOMBIE.dmg;   // a zombie's weapons hit at 20%
   enemy.hurt = 0.15;
   if (enemy.remote) { duel.outDmg += n; return; }
@@ -5360,6 +5582,7 @@ function harmEnemy(n) {
   if (enemy.hp <= 0) destroyEnemy();
 }
 function hitEnemy(s, Wp) {
+  if (enemyAloft()) return;
   const E = shipById(enemy.ship);
   // the hit nudges the enemy (heavier ships less)
   const sp = Math.hypot(s.vx - enemy.vx, s.vy - enemy.vy) || 1, push = Wp.dmg * U * 0.004 / E.mass;
@@ -6036,7 +6259,12 @@ function drawShip(S, x, y, size, o = {}) {
   // turned into a zombie by BLOOM's pollen: its zombie art, moving (ZOMBIE_ART). BLOOM: its petals and stamens moving
   if (o.zombie && drawZombieShip(S)) { ctx.restore(); return; }
   if (S.bloom && drawBloomMoving(S, power)) { ctx.restore(); return; }
-  if (S.ballast && drawBallastRig(o.tow)) { ctx.restore(); return; }   // BALLAST: its parts, moving with the tow
+  if (S.ballast && drawBallastRig(o.tow)) { ctx.restore(); return; }
+  if (S.strata) {   // STRATA: drawn by its package's renderer in screen pixels, so undo the turn and scale first
+    ctx.save(); ctx.scale(1 / (size * Math.cos(bank * 0.9)), 1 / size); ctx.rotate(-(ang + bank * 0.15));
+    const done = drawStrata(o, size * STRATA_W, ang, power); ctx.restore();
+    if (done) { ctx.restore(); return; }
+  }   // BALLAST: its parts, moving with the tow
   // a real drawing of the ship, once there is one
   let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep, o.cin || { power: o.power }, o.power);
   if (o.frame && S.anim) img = artImage(framePath(S.anim.dir, o.frame)) || img;   // PUFF: puffed / crumpled
@@ -8598,7 +8826,7 @@ function draw() {
       const dug = shown === S && game.dive;
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
-        { tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && game.zombie, power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
+        { strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && game.zombie, power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
@@ -8867,7 +9095,7 @@ function drawEnemy() {
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (enemy.remote && duel.net && duel.net.bb) drawHeldBubble(enemy, duel.net.bb);
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
+    drawShip(E, p.x, p.y, size * esc, { strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null });
     if (dv) ctx.restore();
@@ -9182,6 +9410,19 @@ function drawShots(list = shots) {
       ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, 11, 26, 0, 0, TAU); ctx.fill();
       ctx.fillStyle = "#fff8cd"; ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(3, -1); ctx.lineTo(0, 12); ctx.lineTo(-3, -1); ctx.closePath(); ctx.fill();
       ctx.restore();
+    } else if (s.w === "forkbolt") {
+      // STRATA's fork bolt: a violet blade of light, pointing where it flies
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(uy, ux)); const l = size * 0.14;
+      ctx.fillStyle = "rgba(200,107,255,0.4)"; ctx.beginPath(); ctx.ellipse(-l * 0.3, 0, l * 0.75, l * 0.15, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#f3e2ff"; ctx.beginPath(); ctx.moveTo(l * 0.45, 0); ctx.lineTo(-l * 0.1, l * 0.06); ctx.lineTo(-l * 0.45, 0); ctx.lineTo(-l * 0.1, -l * 0.06); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    } else if (s.w === "riftseeker") {
+      // STRATA's rift seeker: a pale orb in a turning ring, a violet glow
+      const r = Wp.r * size * 1.3, g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.6);
+      g.addColorStop(0, "rgba(252,236,255,0.95)"); g.addColorStop(0.35, "rgba(186,122,253,0.6)"); g.addColorStop(1, "rgba(164,86,251,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.6, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#e3c5ff"; ctx.lineWidth = Math.max(1.5, r * 0.18);
+      for (let i = 0; i < 3; i++) { const a = s.life * 5 + i * TAU / 3; ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.4, a, a + 1.2); ctx.stroke(); }
     } else if (s.w === "railslug") {
       // BALLAST's rail slug: a short mint streak with a white core, pointing where it flies
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(uy, ux)); const l = size * 0.13;
@@ -9408,6 +9649,13 @@ function weaponIcon(w, x, y, r, color) {
     for (let i = 0; i < n; i++) { ctx.fillStyle = "#ff8a5a"; ctx.beginPath(); ctx.arc((i - (n - 1) / 2) * r * 0.32, r * 0.78, r * 0.11, 0, TAU); ctx.fill(); }
   } else if (w === "bolt") {   // a spark of light
     ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.25, -r * 0.1); ctx.lineTo(0, r); ctx.lineTo(-r * 0.25, -r * 0.1); ctx.closePath(); ctx.fill();
+  } else if (w === "forkbolt") {   // STRATA: two blades from a fork
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * r * 0.35, -r * 0.9); ctx.lineTo(sx * r * 0.5, r * 0.1); ctx.lineTo(sx * r * 0.35, r * 0.5); ctx.lineTo(sx * r * 0.2, r * 0.1); ctx.closePath(); ctx.fill(); }
+    ctx.beginPath(); ctx.moveTo(-r * 0.35, r * 0.5); ctx.lineTo(0, r * 0.85); ctx.lineTo(r * 0.35, r * 0.5); ctx.lineWidth = Math.max(1.5, r * 0.1); ctx.stroke();
+  } else if (w === "riftseeker") {   // STRATA: an orb with a curving trail
+    ctx.beginPath(); ctx.arc(r * 0.25, -r * 0.3, r * 0.32, 0, TAU); ctx.fill();
+    ctx.lineWidth = Math.max(1.5, r * 0.12); ctx.setLineDash([r * 0.14, r * 0.12]);
+    ctx.beginPath(); ctx.moveTo(-r * 0.8, r * 0.8); ctx.quadraticCurveTo(-r * 0.6, -r * 0.1, r * 0.0, -r * 0.2); ctx.stroke(); ctx.setLineDash([]);
   } else if (w === "railslug") {   // BALLAST: a slug between two rails
     ctx.fillRect(-r * 0.5, -r * 0.85, r * 0.14, r * 1.7); ctx.fillRect(r * 0.36, -r * 0.85, r * 0.14, r * 1.7);
     ctx.beginPath(); ctx.moveTo(0, -r * 0.75); ctx.lineTo(r * 0.2, -r * 0.35); ctx.lineTo(r * 0.2, r * 0.3); ctx.lineTo(-r * 0.2, r * 0.3); ctx.lineTo(-r * 0.2, -r * 0.35); ctx.closePath(); ctx.fill();
@@ -9532,6 +9780,7 @@ function drawMagicButton(b, M, ready, k) {
   }
   if (M.look === "tail") drawTailButton(b, M, ready, k);
   if (M.look === "tow") drawTowButton(b, M, ready, k);
+  if (M.look === "vshift") drawShiftButton(b, M, ready, k);
   if (M.look === "grinder") drawGrinderButton(b, M, ready, k);
   if (M.look === "shatter") drawShatterButton(b, M, ready, k);
   if (M.look === "sun") drawSunButton(b, M, ready, k);
@@ -9984,7 +10233,7 @@ function endDuel(tellThem) {
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   game.zombie = false; game.pollen = null; enemy.zombie = false;
-  duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
+  duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
   for (let k = hunters.length - 1; k >= 0; k--) if (hunters[k].remote) hunters.splice(k, 1);
@@ -10012,7 +10261,7 @@ function duelLink(event, data) {
       setTimeout(() => { if (realDuel()) openPicker("start"); }, 0);
     }
     duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.outDmg = 0; eshots.length = 0; duel.roundStart = game.t + 3;
-    duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.net = null; duel.gate = null;
+    duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.net = null; duel.gate = null;
     for (let k = eggs.length - 1; k >= 0; k--) eggs.splice(k, 1);
     hunters.length = 0; shots.length = 0; crate.on = false;
     game.hp = SHIP_HP; game.tanks = TANKS; game.dead = 0; game.tail = null; game.anim = null; fillAmmo(); duelPlace();
@@ -10055,6 +10304,8 @@ function duelLink(event, data) {
     game.starMine = null; game.magicCool = MAGIC.starmine.cool; shatterAt(m.x * WW, m.y * WH, shipById(enemy.ship));
   } else if (m.t === "sp") {   // their DRAKON came apart: its bomb is here
     bombs.length = 0; bombs.push({ x: m.x * WW, y: m.y * WH, ang: m.a, vx: 0, vy: 0, t: 0 }); audio.sfx("drakon", "rift_charge", 0, 0.6);
+  } else if (m.t === "slay") {   // their STRATA's laser: my ship is destroyed, spare tanks and all
+    if (!game.dead && !stratAloft(game)) { game.tanks = 0; damageShip(SHIP_HP * 100); }
   } else if (m.t === "btx") {   // their BALLAST's asteroid went off (their phone sends the damage and the shove)
     if (duel.tow) duel.tow.phase = "gone"; towBlast({ x: m.x * WW, y: m.y * WH });
   } else if (m.t === "bx") {   // their bomb went off (their phone sends the damage and the shove)
@@ -10186,6 +10437,15 @@ function updateRival(dt) {
     const kk = 1 - Math.exp(-dt * 15); R.x += wrapDelta(n.fl[0] * WW - R.x, WW) * kk; R.y += wrapDelta(n.fl[1] * WH - R.y, WH) * kk; R.swing = n.fl[2] ? 0 : -1; R.spin += dt * (n.fl[2] ? 12 : 3); }
   else duel.flail = null;
   // their SKARN's jaw on chains: shown here; while it bites, my ship is held in it (their phone sends the damage)
+  // their STRATA's vertical shift (their phone decides the lock and sends the damage)
+  if (n.sv) {
+    const [st, sf, sx, sl, sax, say] = n.sv, D = duel.strata, fresh = !D || st + age < D.t - 0.5;
+    if (fresh) duel.strata = { t: st + age, fall: null, fire: null, lockT: 0, ax: 0, ay: 0 };
+    const Q = duel.strata; Q.t += fresh ? 0 : dt; if (Math.abs(Q.t - (st + age)) > 0.25) Q.t = st + age;
+    Q.fall = sf >= 0 ? sf : null; Q.lockT = sl; Q.ax = sax * WW; Q.ay = say * WH;
+    if (sx >= 0 && Q.fire == null) { audio.tone(2200, 0.5, "sawtooth", 0.08, 0.1); audio.noise(0.5, 0.2, 5000); shake(0.6); buzz(200); }   // its laser on me
+    Q.fire = sx >= 0 ? sx : null;
+  } else duel.strata = null;
   // their BALLAST's asteroid and cables (their phone decides what the blast does)
   if (n.bt) {
     const [ph, bx, by, ba, bt, br] = n.bt, P = ["reach", "tow", "fly", "miss", "gone"][ph], D = duel.tow;
@@ -10242,7 +10502,7 @@ function updateDuel(dt) {
     if (vShieldUp(game) && inFrontV(game, s.x, s.y)) { vBat(s); duel.shots.splice(k, 1); continue; }   // my V (their phone sees it too)
     if (trapOpen()) suckShot(game, shipById(game.ship), s, dt);   // (their phone pulls it the same way)
     if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it and tells me: "caught")
-    const near = !game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shotScale(s, Wp) * shipSize();
+    const near = !game.dead && !stratAloft(game) && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shotScale(s, Wp) * shipSize();
     const inPlanet = Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
     if (near || inPlanet || s.life > Wp.life) {
       if (Wp.blast && !inPlanet) torpedoBlast(s, Wp, false);   // their torpedo going off (their phone counts it)
@@ -10268,6 +10528,7 @@ function updateDuel(dt) {
       kn: game.trap ? game.trap.stored : 0, kc: trapOpen() ? 1 : 0,
       fl: game.flail ? [+(game.flail.x / WW).toFixed(5), +(game.flail.y / WH).toFixed(5), game.flail.swing >= 0 ? 1 : 0] : 0, ik: game.inked > 0 ? +game.inked.toFixed(1) : 0,
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
+      sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
       gr: game.grind ? [game.grind.phase, +game.grind.spin.toFixed(2), +game.grind.teeth.toFixed(2), +game.grind.nx.toFixed(3), +game.grind.ny.toFixed(3)] : 0 });
@@ -10406,6 +10667,12 @@ function botThink(dt) {
   } else if (d < U * 1.8) {   // near: turn to aim, close in only when lined up and not too close
     botAI.head = aim; botKey(" ", d > U * 0.75 && off < 0.4 && !game.locked);
   } else { botAI.head = c.target; botKey(" ", c.thrust); }   // far: chase (the old enemy's way)
+  // STRATA up in the upper dimension: fly its shadow onto them and stay there
+  if (S.id === "strata" && game.strata && stratPose(game.strata, MAGIC.vshift).z > 0.2) {
+    // (it steers toward the speed it wants, so it brakes as it gets there instead of overshooting)
+    const wx = dx * 1.6 + prey.vx - game.vx, wy = dy * 1.6 + prey.vy - game.vy;
+    botAI.head = Math.atan2(wx, -wy); botKey(" ", Math.hypot(wx, wy) > U * 0.08 && Math.abs(wrapAngle(botAI.head - game.ang)) < 0.5 && !game.locked);
+  }
   // BALLAST towing: it turns its right side (where the asteroid swings) to them, and lets go when the asteroid lines up
   if (S.id === "ballast" && game.tow && game.tow.phase === "tow" && !botAI.danger) {
     botAI.head = wrapAngle(aim - Math.PI / 2);
@@ -10423,7 +10690,7 @@ function botThink(dt) {
   // the magic (and a split button's second magic), now and then when near; sometimes held, sometimes tapped twice
   botAI.tM -= dt;
   if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S) && (S.id !== "lariat" || game.tether || game.elasso) &&
-      (S.id !== "bloom" || d < shipSize() * MAGIC.pollen.range * 0.8)) {   // (BLOOM: only with them close enough for its pollen)
+      (S.id !== "bloom" || d < shipSize() * MAGIC.pollen.range * 0.8) && (S.id !== "strata" || d < U * 1.2)) {   // (STRATA: close enough to reach them up there)   // (BLOOM: only with them close enough for its pollen)
     botTap("v", S.id === "ballast" ? 7 + Math.random() * 4 : Math.random() < 0.5 ? 0.1 : 0.4 + Math.random() * 2.4);   // (BALLAST: held for its tow) botAI.tM = L.magic * (0.6 + Math.random() * 0.8);
   }
   botAI.tB -= dt;
@@ -10819,7 +11086,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id; game.zombie = false; game.pollen = null;
-  if (game.tow && game.tow.phase !== "fly") game.tow = null;   // (BALLAST's asteroid already flying goes on)
+  if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null;   // (BALLAST's asteroid already flying goes on)
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
   game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];

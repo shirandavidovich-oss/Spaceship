@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{towRig,BALLAST_UNIT,HOLD_ANGLE,palInteract,palCarrier,PAL,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,levelStats,cablePull,cableRelease,gimbalTurn,gateSweep,quarterTurn,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,talusForge,bubbleCharge,vexarEggPose,vexarEggFlight,borerThrust,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
-const { towRig, BALLAST_UNIT, HOLD_ANGLE, SHIPS, palInteract, palCarrier, PAL, starMinePose, starMineCheck, talusForge, bubbleCharge, vexarEggPose, vexarEggFlight, borerThrust, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, levelStats, cablePull, cableRelease, gimbalTurn, gateSweep, quarterTurn, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{stratPose,STRATA_W,towRig,BALLAST_UNIT,HOLD_ANGLE,palInteract,palCarrier,PAL,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,levelStats,cablePull,cableRelease,gimbalTurn,gateSweep,quarterTurn,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,talusForge,bubbleCharge,vexarEggPose,vexarEggFlight,borerThrust,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward});", { box, Math, Object, parseInt });
+const { stratPose, STRATA_W, towRig, BALLAST_UNIT, HOLD_ANGLE, SHIPS, palInteract, palCarrier, PAL, starMinePose, starMineCheck, talusForge, bubbleCharge, vexarEggPose, vexarEggFlight, borerThrust, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, levelStats, cablePull, cableRelease, gimbalTurn, gateSweep, quarterTurn, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("thirty-five ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 35);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 35);
+ok("thirty-six ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 36);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 36);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -619,5 +619,17 @@ ok("BALLAST's tow: wing, then three cables, then the weight's stop, then the ree
   assert(at(1.0, 0.05, true).leads[0] > 0 && at(1.2, 0.35, true).leads.every((v) => v === 0));
   assert(M.blast > 2 && M.dmg > M.edge && M.fuse === 5);
   assert(SHIP_HP > 0 && BALLAST_UNIT * 139 < 1);   // the hull is under a ship-length long
+});
+ok("STRATA's vertical shift: tips, jets, rises; only all the way up does the lock count; the laser, then down", () => {
+  const M = MAGIC.vshift, S = shipById("strata"); assert(S && S.magic === "vshift" && S.anim && S.strata);
+  assert.strictEqual(weaponsOf(S).join(), "forkbolt,riftseeker");
+  const P = (t, o = {}) => stratPose({ t, fall: null, fire: null, lockT: 0, ...o }, M);
+  assert(!P(0.2).up && P(0.5).bank > 0.5 && P(0.6).jet > 0.5);
+  assert(!P(1.5).top && P(1.7).top && P(1.7).up && P(1.7).z === 1 && P(2).jet === 0);
+  assert.strictEqual(P(2, { lockT: M.hold / 2 }).lock, 0.5);
+  const f = P(3.3, { fire: 3.2, fall: 3.7 }); assert(f.beam > 0.9 && f.up);   // the beam opens only after the lock
+  assert(P(3.75, { fire: 3.2, fall: 3.7 }).beam === 0 && !P(3.7 + M.fall, { fire: 3.2, fall: 3.7 }).up);
+  assert(P(4.0, { fall: 3.7 }).bank > 0 && stratPose(null, M).z === 0);
+  assert(M.hold === 0.25 && M.lock < 0.55 && STRATA_W > 0.5);
 });
 console.log(n + " checks passed");
