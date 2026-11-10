@@ -426,18 +426,20 @@ the surgery, the spot, the parts and the creature (`fk`); the creature's shots g
 **LABYRINTH**, the iron foundry (`art/ships/labyrinth/`: the LABYRINTH package's atlases cut into 512 px frames: a
 24-frame flight loop, the rivet burst, the slag fan and the soldering-iron melt; `crown.webp` is the Iron Crown spire;
 its buttons are in `art/hud/labyrinth/`, its BLOOM zombie in `art/bloom/zombie-labyrinth-top.webp`). Heavy and slow.
-Button 1, Rivet Burst: three rivets a press, left / right / left from the two arms, 0.075 s apart, 0.5 s rest after.
-Button 2, Slag Fan: five hot fragments in a short fan (weaker each). Magic, Starforge (`starforge` in `MAGIC`,
+Button 1: a steady stream of rivets while held (about 8 a second), the two arms taking turns.
+Button 2, the forge ball: a big iron ball that hunts the enemy (`homing`), bounces off the maze walls (up to 20 times),
+and blows up when it gets near it (`prox`; a blast of 24 at its middle and a shove) or at the end of its 5 s flight. Magic, Starforge (`starforge` in `MAGIC`,
 `updateMaze`): an iron crown rises round the star for 4.5 s (the star still burns and pulls), then its jaws close and the
 star goes out (no pull, no heat, nothing to hit): the light dips, and iron walls spread out from it as an outline
 (0.65 s), then turn solid. The whole arena is a maze for **60 s** (a countdown at the top), then the walls dissolve and
 the same star comes back (a ship sitting where it will be is moved out first). The maze wraps round like the arena:
-cells about a screen wide (`cell`), every corridor joined, a fifth of the extra walls opened for loops, open round the
+cells half a screen wide (`cell`: narrow corridors, hard to fly without hitting the walls), walls drawn as solid
+iron plates with rivets (no glow), every corridor joined, a fifth of the extra walls opened for loops, open round the
 star. In the maze:
 - **LABYRINTH flies through the walls**: its soldering iron heats and reaches out, the wall glows white-hot and opens a
   passage with a cyan seam just for it, which closes behind it.
-- **Its shots bounce off the walls** (the same speed, mirror-like, so the angle decides where they go; up to 6 bounces,
-  each giving 0.35 s more flight), so they can find the other ship round corners.
+- **Its shots bounce off the walls** (the same speed, mirror-like, so the angle decides where they go; rivets up to 6
+  bounces, the ball 20, each giving 0.35 s more flight), so they can find the other ship round corners.
 - **The other ship's shots are stopped by the walls** (they splash on the iron), and the other ship is stopped by them
   too: flying into a wall bounces it lightly, it slides along, and it loses 4 health (at most every 0.5 s).
   A STRATA up in its vertical shift passes over them.
@@ -448,11 +450,15 @@ clock (`mz`), and the other phone builds the same one; if both press at once the
 **BOILER**, the copper diving bell (`art/ships/boiler/`: the BOILER Flood Hunt package's 384 px frames, re-centred on
 its pivot: a 32-frame idle (water churning in the glass, the gauge, the piston collars), a 32-frame high-pressure loop
 while the water fills, and the launch flash; buttons in `art/hud/boiler/`, its BLOOM zombie in
-`art/bloom/zombie-boiler-top.webp`). Button 1: a pressure torpedo, straight (12, 0.8 s apart, 4 s): bubbles behind it
-under water, a crown splash where it crosses the surface, a blue trail in space. Button 2: a steam pulse out of both
-sides that shoves a ship it touches (2 s). Magic, **Flood Hunt** (`flood` in `MAGIC`, `updateFlood`): water rises from
+`art/bloom/zombie-boiler-top.webp`). Button 1: a pressure torpedo (12, 0.8 s apart, 4 s): straight under water
+(bubbles behind it), a crown splash where it crosses the surface, and out of the water it turns after the enemy, slowly
+(`homing` 1.2, `dry`): a ship far from the water has to turn hard to shake it off. Button 2: a floating can, let out
+underneath: it rises through the water trailing bubbles and blows up as it reaches the surface (26 at its middle, a
+1.4 ship-length blast), so it hits the ship riding the surface; out of water it drifts and blows up near the enemy or
+after 6 s. (Its button picture is still the old steam one.) Magic, **Flood Hunt** (`flood` in `MAGIC`, `updateFlood`): water rises from
 the bottom of the arena up to the star's middle in 2 s, stays for a **60 s** hunt (a countdown at the top), then drains
 in 1 s. While it is up:
+- Under water BOILER (and its torpedoes and cans) passes through the star's lower half.
 - BOILER is drawn down under the water and kept there; the enemy is pushed up and kept above it (the arena does not
   wrap top to bottom then). **In the water there is no gravity**, and the water drags (`drag`).
 - **The enemy cannot hurt BOILER**: its shots splash on the surface, and any other damage only splashes. BOILER's

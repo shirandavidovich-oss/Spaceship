@@ -1023,30 +1023,31 @@ const SHIPS = [
     guns: { scalpel: [[0, -0.48]], suture: [[0, -0.45]] },
     anim: { dir: "frankenstein", size: 1.2, idle: "idle.webp" } },
   // LABYRINTH, the iron foundry (art/ships/labyrinth/, the LABYRINTH package: 512 px frames sliced from its atlases,
-  // nose up). Button 1: Rivet Burst, three rivets per press, left / right / left from the two arms (0.075 s apart).
-  // Button 2: Slag Fan, five hot fragments in a short fan. Magic: Starforge (MAGIC.starforge): an iron spire closes
+  // nose up). Button 1: a steady stream of rivets while held, from the two arms in turn. Button 2: a forge ball, a
+  // big iron ball that hunts the enemy, bounces off the maze walls, and blows up near it. Magic: Starforge (MAGIC.starforge): an iron spire closes
   // over the star, puts it out, and the whole arena becomes a maze of iron walls for 60 s. LABYRINTH flies through
   // the walls (it melts a passage with its soldering iron) and its shots bounce off them; the other ship's shots are
   // stopped by them, and it is hurt by flying into them (STRATA up high passes over)
   { id: "labyrinth", name: "LABYRINTH", rarity: "legendary", mass: 1.35, fuel: 30, refill: 15, sfx: null, magic: "starforge", labyrinth: true,
     hull: "#e6d2b4", wingC: "#3a2a22", trim: "#ff9a2e", flame: "#5ee7ff",
     body: [], wing: [], nozzles: [-0.066, 0.066], engineY: 0.45, cockpit: [0, 0, 0.05, 0.1],
-    weapons: ["rivet", "slagfan"],
-    guns: { rivet: [[-0.139, -0.361], [0.137, -0.361]], slagfan: [[0, -0.36]] },
+    weapons: ["rivet", "forgeball"],
+    guns: { rivet: [[-0.139, -0.361], [0.137, -0.361]], forgeball: [[0, -0.36]] },
     anim: { dir: "labyrinth", size: 1.25, idle: "idle.webp",
       idleLoop: frames("fly", 24, () => 50).map((f) => f[0]),   // the magazine shuttles, the jaw pistons pump, the exhausts pulse
       primary: frames("main", 22, () => 25, { 4: "left", 7: "right" }),   // the rivets at 75 / 150 / 225 ms (left, right, left)
-      secondary: frames("slag", 14, () => 40, { 6: "fire" }),            // the fan leaves at 200 ms
+      secondary: frames("slag", 14, () => 40, { 6: "fire" }),            // the ball leaves at 200 ms
       melt: frames("melt", 22, () => 40) } },                             // the iron heats and extends to melt through a wall
   // BOILER, the copper diving bell (art/ships/boiler/, the BOILER Flood Hunt package: 384 px frames re-centred on its
   // pivot, nose up; water churns in its glass, the gauge swings, the piston collars slide). Button 1: a pressure torpedo
-  // from the top launcher. Button 2: a steam pulse out of both sides that shoves a ship it touches.
+  // from the top launcher (it hunts a little out of the water). Button 2: a floating can that rises and blows up at the
+  // surface.
   // Magic: Flood Hunt (MAGIC.flood): water fills the arena from the bottom up to the star's middle for 60 s
   { id: "boiler", name: "BOILER", rarity: "legendary", mass: 1.4, fuel: 30, refill: 15, sfx: null, magic: "flood", boiler: true,
     hull: "#c8763a", wingC: "#2a2f3a", trim: "#7fd8ff", flame: "#9fe8ff",
     body: [], wing: [], nozzles: [-0.23, 0.23], engineY: 0.32, cockpit: [0, 0, 0.05, 0.1],   // (the two copper fins)
-    weapons: ["ptorp", "steampulse"],
-    guns: { ptorp: [[0, -0.4]], steampulse: [[-0.4, -0.03], [0.4, -0.03]] },
+    weapons: ["ptorp", "fcan"],
+    guns: { ptorp: [[0, -0.4]], fcan: [[0, 0.3]] },   // (the can is let out underneath)
     anim: { dir: "boiler", size: 1.2, idle: "idle.webp",
       idleLoop: frames("idle", 32, () => 50).map((f) => f[0]),          // bubbles, the gauge, the collars, a wisp of steam
       primary: frames("fire", 16, () => 50),                           // the cold-blue launch flash (0.8 s)
@@ -1271,15 +1272,21 @@ const WEAPONS = {
   // STRATA. forkbolt: from both fork tips at once. riftseeker: a slow orb that turns after the enemy (homing)
   forkbolt:   { name: "חץ מזלג",   dmg: 6,  speed: 2.6, life: 1.0, cool: 0.3, ammo: 24, refill: 7, r: 0.022, color: "#c86bff", both: true },
   riftseeker: { name: "זרע שכבות", dmg: 16, speed: 1.4, life: 3.0, cool: 1.2, ammo: 5,  refill: 9, r: 0.045, color: "#e3c5ff", homing: 2.2 },
-  // LABYRINTH. rivet: a burst of 3 (`burst`, `gap` s apart), taking turns from the two arms (`alt`); cool counts from the
-  //   press, so 0.5 s rest after the last rivet. slagfan: five fragments in a short fan. lab: in its own maze these bounce
-  //   off the walls (each bounce gives `ext` s more flight, up to MAGIC.starforge.extMax)
-  rivet:    { name: "פרץ מסמרות", dmg: 5, speed: 2.6, life: 1.0, cool: 0.65, ammo: 12, refill: 7, r: 0.022, color: "#ffb36b", burst: 3, gap: 0.075, alt: true, lab: true },
-  slagfan:  { name: "מניפת סיגים", dmg: 3, speed: 2.0, life: 0.6, cool: 1.1, ammo: 6, refill: 8, r: 0.026, color: "#ff7a2e", pellets: 5, fan: 0.7, lab: true },
-  // BOILER. ptorp: a pressure torpedo, straight, 12% of a bar; under water it trails bubbles, in space a blue trail.
-  //   steampulse: a puff out of each side (`splay`: a quarter turn from the nose), short, that shoves (`knock`)
-  ptorp:      { name: "טורפדו לחץ", dmg: 12, speed: 1.6, life: 4.0, cool: 0.8, ammo: 8, refill: 8, r: 0.035, color: "#7fd8ff", ptorp: true },
-  steampulse: { name: "פעימת קיטור", dmg: 4, speed: 1.7, life: 0.35, cool: 2.0, ammo: 3, refill: 6, r: 0.09, color: "#e8f6ff", both: true, splay: Math.PI / 2, knock: 1.1 },
+  // LABYRINTH. rivet: a steady stream while held, the two arms taking turns. forgeball: a big iron ball that turns after
+  //   the enemy (homing) and blows up when it gets within `prox` ship-lengths of it (or at the end of its flight):
+  //   `blastDmg` at the middle of a `blast` ship-length blast, and a shove. lab: in LABYRINTH's own maze these bounce off
+  //   the walls (`bounces` times at most; each bounce gives MAGIC.starforge.ext s more flight, up to its extMax)
+  rivet:     { name: "זרם מסמרות", dmg: 4, speed: 2.6, life: 1.0, cool: 0.12, ammo: 40, refill: 8, r: 0.022, color: "#ffb36b", lab: true },
+  forgeball: { name: "כדור יציקה", dmg: 0, speed: 1.3, life: 5.0, cool: 2.4, ammo: 3, refill: 10, r: 0.17, color: "#ff8a2e", homing: 2.0, prox: 0.4,
+               blast: 1.2, blastDmg: 24, push: 1.2, lab: true, bounces: 20 },
+  // BOILER. ptorp: a pressure torpedo, 12% of a bar; under water it runs straight (bubbles behind it), out of the water it
+  //   turns after the enemy, but slowly (`homing`, only `dry`), so a ship can dodge it by turning hard.
+  //   fcan: a floating can: let out slowly, it rises in the water (`buoy` screens/s²) and blows up as it reaches the
+  //   surface (a `blast` ship-length blast, `blastDmg` at its middle: it hits the ship riding the surface); in space it
+  //   drifts and blows up near the enemy or at the end. boilerW: under water BOILER's weapons pass through the star
+  ptorp:      { name: "טורפדו לחץ", dmg: 12, speed: 1.6, life: 4.0, cool: 0.8, ammo: 8, refill: 8, r: 0.035, color: "#7fd8ff", ptorp: true, homing: 1.2, dry: true, boilerW: true },
+  fcan:       { name: "מכל צף", dmg: 0, speed: 0.45, life: 6.0, cool: 1.6, ammo: 4, refill: 9, r: 0.07, color: "#c8763a", buoy: 1.4, prox: 0.25,
+                blast: 1.4, blastDmg: 26, push: 1.4, boilerW: true },
   laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -1408,7 +1415,7 @@ const MAGIC = {
   //   of the other walls opened too; wall: thickness (screen-widths); clear: open space round the star (its radii);
   //   hit: health lost flying into a wall (4% of a bar, at most every `hitCool` s); bounces: a LABYRINTH shot's most
   //   bounces; ext / extMax: flight time each bounce adds; cool: recharge after the maze is gone
-  starforge: { name: "כור הכוכבים", look: "starforge", build: 4.5, wave: 0.65, last: 60, cell: 1.0, loops: 0.2, wall: 0.13, clear: 1.25,
+  starforge: { name: "כור הכוכבים", look: "starforge", build: 4.5, wave: 0.65, last: 60, cell: 0.5, loops: 0.2, wall: 0.11, clear: 1.25,
                hit: 4, hitCool: 0.5, bounces: 6, ext: 0.35, extMax: 1.4, cool: 20, color: "#5ee7ff" },
   // BOILER's Flood Hunt: water rises from the arena's bottom to the star's middle (`fill` s), stays for the `hunt`, then
   //   drains (`drain` s). BOILER is kept under water and the enemy above it (a pull of `pull` screens/s² while it fills,
@@ -3003,7 +3010,7 @@ function moveShip(o, S, c, dt) {
 
   // 5. bounce off the planet. Stars, black holes and lava burn a ship that touches them (yours: health; see touchBurn)
   o.hitCool = Math.max(0, (o.hitCool || 0) - dt);
-  const d = starOut() ? Infinity : Math.hypot(dx, dy), touch = R + size * 0.32;   // (the star out: nothing to touch)
+  const d = starOut() || (o === game && game.ship === "boiler" && inWater(o)) ? Infinity : Math.hypot(dx, dy), touch = R + size * 0.32;   // (the star out, or BOILER under water: nothing to touch)
   if (o === game) {
     const touching = d < touch + size * 0.08;
     if (myStarTouch(touching)) return 0;   // a BORER's bomb was waiting in the star: shattered
@@ -3281,7 +3288,7 @@ function mazeShot(list, k, s, Wp, dt) {
   const h = mazeSweep(s.x, s.y, s.vx * dt, s.vy * dt, r);
   if (!h) return false;
   const cx = wrapX(s.x + s.vx * dt * h.t), cy = wrapY(s.y + s.vy * dt * h.t);
-  if (bounces && (s.bounces || 0) < M.bounces) {
+  if (bounces && (s.bounces || 0) < (Wp.bounces || M.bounces)) {
     const v = bounceOff(s.vx, s.vy, h.nx, h.ny); s.vx = v.vx; s.vy = v.vy;
     s.x = wrapX(cx + h.nx); s.y = wrapY(cy + h.ny); s.bounces = (s.bounces || 0) + 1; s.ext = Math.min(M.extMax, (s.ext || 0) + M.ext); s.bt = time;
     burstAt(cx, cy, 6, ["#ffffff", "#5ee7ff", Wp.color], 0.2, 0.35);
@@ -3351,14 +3358,19 @@ function drawMaze() {
     if (Math.hypot(wrapDelta(mx - WW / 2, WW), wrapDelta(my - WH / 2, WH)) > reach) return;
     const p = toScreen(mx, my), w = x1 - x0, h = y1 - y0, x = p.x - w / 2, y = p.y - h / 2;
     if (!solid) { ctx.strokeStyle = "rgba(94,231,255,0.7)"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 5]); ctx.strokeRect(x, y, w, h); ctx.setLineDash([]); return; }
-    ctx.fillStyle = "#2b231e"; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = "#4a3a2e"; if (horiz) ctx.fillRect(x, y, w, h * 0.22); else ctx.fillRect(x, y, w * 0.22, h);   // the lit edge
-    const glow = 0.55 + 0.25 * Math.sin(time * 1.7 + (mx + my) * 0.003);
-    ctx.fillStyle = `rgba(255,140,40,${glow * 0.35})`; if (horiz) ctx.fillRect(x, p.y - T * 0.22, w, T * 0.44); else ctx.fillRect(p.x - T * 0.22, y, T * 0.44, h);
-    ctx.fillStyle = `rgba(255,190,90,${glow})`; if (horiz) ctx.fillRect(x, p.y - T * 0.06, w, T * 0.12); else ctx.fillRect(p.x - T * 0.06, y, T * 0.12, h);
-    ctx.fillStyle = "#8a7258";   // rivets
-    const L = horiz ? w : h, n = Math.max(2, Math.floor(L / (T * 3)));
-    for (let q = 0; q <= n; q++) { const f = q / n; const rx = horiz ? x + w * f : x + w * 0.5, ry = horiz ? y + h * 0.5 : y + h * f; ctx.fillRect(rx - T * 0.08 + (horiz ? 0 : -T * 0.3), ry - T * 0.08 + (horiz ? -T * 0.3 : 0), T * 0.16, T * 0.16); }
+    // solid iron: a dark block, a lit bevel on top and left, a shadow on the bottom and right, plate seams and rivets (no glow)
+    const e = T * 0.16, L = horiz ? w : h, n = Math.max(1, Math.round(L / (T * 2.2)));
+    ctx.fillStyle = "#3b342e"; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#5d544b"; ctx.fillRect(x, y, w, e); ctx.fillRect(x, y, e, h);
+    ctx.fillStyle = "#1b1714"; ctx.fillRect(x, y + h - e, w, e); ctx.fillRect(x + w - e, y, e, h);
+    ctx.fillStyle = "#24201c";   // the seams between plates
+    for (let q = 1; q < n; q++) { if (horiz) ctx.fillRect(x + w * q / n - 1, y + e, 2, h - e * 2); else ctx.fillRect(x + e, y + h * q / n - 1, w - e * 2, 2); }
+    ctx.fillStyle = "#8a8076";   // two rivets on each plate
+    for (let q = 0; q < n; q++) for (const f of [0.25, 0.75]) {
+      const rx = horiz ? x + w * (q + f) / n : x + w * 0.5, ry = horiz ? y + h * 0.5 : y + h * (q + f) / n;
+      ctx.fillRect(rx - T * 0.07, ry - T * 0.07, T * 0.14, T * 0.14);
+    }
+    ctx.strokeStyle = "#0e0c0a"; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
   };
   for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
     const c = ((i % G.cols) + G.cols) % G.cols + (((j % G.rows) + G.rows) % G.rows) * G.cols;
@@ -3505,6 +3517,10 @@ function floodShot(list, k, s, Wp, dt) {
   const x = s.x + s.vx * dt * clamp((sy - y0) / ((y1 - y0) || 1), 0, 1);
   const owners = list === shots ? flood.owner === "me" : flood.owner === "them";
   const near = Math.abs(wrapDelta(x - game.x, WW)) < W && Math.abs(wrapDelta(sy - game.y, WH)) < H;
+  if (Wp.buoy && s.vy < 0) {   // BOILER's floating can reaches the surface: it blows up there
+    s.x = wrapX(x); s.y = wrapY(sy); splashAt(x, sy, 40, true);
+    torpedoBlast(s, Wp, list === shots); list.splice(k, 1); return true;
+  }
   if (owners || floodXeltar() || !floodHeld()) {
     if (!s.splashed) { s.splashed = true; splashAt(x, sy, Wp.ptorp ? 22 : 8, Wp.ptorp); if (near && Wp.ptorp) audio.noise(0.15, 0.06, 2500); }
     return false;
@@ -3597,6 +3613,40 @@ function drawFloodHud() {
   ctx.strokeText(left, W / 2, y); ctx.fillText(left, W / 2, y);
   ctx.font = `700 ${Math.round(s * 0.36)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#bff6ff";
   ctx.strokeText(tr("flood"), W / 2, y + s * 0.7); ctx.fillText(tr("flood"), W / 2, y + s * 0.7);
+  ctx.restore();
+}
+
+// BOILER's floating can: under water it rises (and slows in the water), trailing bubbles; in space it drifts to a stop
+function canStep(s, dt) {
+  const Wp = WEAPONS[s.w];
+  if (inWater(s)) {
+    s.vy -= Wp.buoy * U * dt; const k = Math.exp(-dt * 1.4); s.vx *= k; s.vy *= k;
+    if (Math.random() < 0.8) burstAt(s.x + (Math.random() - 0.5) * shipSize() * 0.1, s.y, 1, ["#bff6ff", "#ffffff", "#7fd8ff"], 0.08, 1.1, 0, -U * 0.35);
+  } else { const k = Math.exp(-dt * 0.9); s.vx *= k; s.vy *= k; }
+}
+// a copper can with a valve on top, bobbing as it rises
+function drawCan(s) {
+  const p = toScreen(s.x, s.y), L = shipSize() * 0.17, wob = Math.sin(time * 5 + s.x * 0.01) * 0.25;
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(wob);
+  ctx.fillStyle = "#8a4a22"; ctx.fillRect(-L * 0.42, -L * 0.5, L * 0.84, L);   // the body
+  ctx.fillStyle = "#c8763a"; ctx.fillRect(-L * 0.3, -L * 0.5, L * 0.28, L);     // a lit side
+  ctx.fillStyle = "#5a3018"; ctx.fillRect(-L * 0.46, -L * 0.18, L * 0.92, L * 0.1); ctx.fillRect(-L * 0.46, L * 0.22, L * 0.92, L * 0.1);   // the hoops
+  ctx.fillStyle = "#d8d0c0"; ctx.fillRect(-L * 0.08, -L * 0.68, L * 0.16, L * 0.2);   // the valve
+  const blink = Math.sin(time * 12) > 0;
+  ctx.fillStyle = blink ? "#ff4d3a" : "#5a1810"; ctx.beginPath(); ctx.arc(0, L * 0.02, L * 0.08, 0, TAU); ctx.fill();   // the fuse light
+  ctx.restore();
+}
+// LABYRINTH's forge ball: a big iron ball, hot cracks glowing, spinning as it flies
+function drawForgeBall(s) {
+  const Wp = WEAPONS.forgeball, p = toScreen(s.x, s.y), r = Wp.r * shipSize() * 1.25, a = time * 6 + (s.life || 0) * 3;
+  ctx.save(); ctx.translate(p.x, p.y);
+  const h = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 1.7); h.addColorStop(0, "rgba(255,120,40,0.35)"); h.addColorStop(1, "rgba(255,120,40,0)");
+  ctx.fillStyle = h; ctx.beginPath(); ctx.arc(0, 0, r * 1.7, 0, TAU); ctx.fill();
+  const g = ctx.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.1, 0, 0, r); g.addColorStop(0, "#8a8076"); g.addColorStop(0.6, "#3b342e"); g.addColorStop(1, "#14110e");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
+  ctx.rotate(a); ctx.strokeStyle = "#ffb347"; ctx.lineWidth = Math.max(1.5, r * 0.09); ctx.lineCap = "round";
+  for (let i = 0; i < 4; i++) { ctx.rotate(TAU / 4); ctx.beginPath(); ctx.moveTo(r * 0.15, 0); ctx.lineTo(r * 0.55, r * 0.18); ctx.lineTo(r * 0.85, r * 0.05); ctx.stroke(); }
+  ctx.strokeStyle = "rgba(94,231,255,0.8)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, r * 1.05, 0, TAU); ctx.stroke();   // the cyan of its maze
   ctx.restore();
 }
 
@@ -5246,7 +5296,7 @@ function updateEnemyShots(dt) {
     const s = eshots[k], Wp = WEAPONS[s.w];
     s.life += dt;
     if (Wp.magnet) magnetPull(s, Wp, dt);
-    if (Wp.homing && !game.dead && s.life > 0.12) { const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), Wp.homing * 0.6 * dt); s.vx = t.vx; s.vy = t.vy; }
+    if (Wp.homing && !game.dead && s.life > 0.12 && !(Wp.dry && inWater(s))) { const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), Wp.homing * 0.6 * dt); s.vx = t.vx; s.vy = t.vy; }
     if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), inWater(s) ? 0 : bodyPull()); s.vx += g.ax * dt; s.vy += g.ay * dt; }
     if (s.rw && enemy.rw) { s.life -= dt; if (!rewindShot(s, dt, enemy.rw.slow)) eshots.splice(k, 1); continue; }   // going back with it (harmless)
     s.rw = false;
@@ -6220,7 +6270,7 @@ function updateWeapons(dt) {
     if (s.rw && game.rw) { if (!rewindShot(s, dt, game.rw.slow)) shots.splice(k, 1); s.life -= dt; continue; }   // my shots go back with me
     s.rw = false;
     if (Wp.magnet) magnetPull(s, Wp, dt);
-    if (Wp.homing && enemy.on && s.life > 0.12) {
+    if (Wp.homing && enemy.on && s.life > 0.12 && !(Wp.dry && inWater(s))) {   // (dry: BOILER's torpedo runs straight under water)
       const t = steerShot(s.vx, s.vy, wrapDelta(enemy.x - s.x, WW), wrapDelta(enemy.y - s.y, WH), Wp.homing * dt);
       s.vx = t.vx; s.vy = t.vy;
     }
@@ -6229,11 +6279,12 @@ function updateWeapons(dt) {
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (s.w === "missile" && Math.random() < 0.6) burstAt(s.x, s.y, 1, ["#b8fff0", "#ffffff"], 0.05, 0.6);
     if (Wp.ptorp) ptorpTrail(s);
+    if (Wp.buoy) canStep(s, dt);
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;   // VANTA's drop inside the planet
     if (Wp.phase) phaseTrail(s);
     if (s.life > Wp.life + (s.ext || 0)) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); if (Wp.blast) torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }
     // into the planet: a puff, and it is gone
-    if (!starOut() && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
+    if (!starOut() && !(Wp.boilerW && inWater(s)) && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
       if (Wp.magnet) burstAt(s.x, s.y, 10, [Wp.colors[(s.ix || 0) % Wp.colors.length], "#ffffff"], 0.35, 0.7);
       burstAt(s.x, s.y, 5, ["#b8a3ff", "#ffffff"], 0.2, 0.6); shots.splice(k, 1); continue;
     }
@@ -6259,11 +6310,11 @@ function updateWeapons(dt) {
     // into the enemy
     if (enemy.on && enemy.warp < 0.5 && !enemyAloft()) {   // (their STRATA up high: shots pass under it)
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
-      if (Math.hypot(dx, dy) < size * 0.42 * enemyScale() + Wp.r * shotScale(s, Wp) * size) {
+      if (Math.hypot(dx, dy) < size * 0.42 * enemyScale() + (Wp.r * shotScale(s, Wp) + (Wp.prox || 0)) * size) {   // (prox: it goes off near it)
         if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
         const Hw = shotHit(s, Wp); hitEnemy(s, Hw); shots.splice(k, 1);
         if (Wp.tag) { enemy.markT = Wp.tag; audio.sfx("vanta", "mark_hit"); }   // VANTA's marking drop: the stain
-        if (Wp.knock && (s.w === "bubble" || s.w === "steampulse")) {   // PUFF's bubble pops / BOILER's steam: a shove
+        if (Wp.knock && s.w === "bubble") {   // PUFF's bubble pops: a shove
           const sp = Math.hypot(s.vx, s.vy) || 1, kn = Hw.knock;
           if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + s.vx / sp * kn, vy: enemy.vy / U + s.vy / sp * kn });
           else { enemy.vx += s.vx / sp * kn * U; enemy.vy += s.vy / sp * kn * U; }
@@ -10436,7 +10487,9 @@ function drawShots(list = shots) {
     if (s.w === "magnet") { drawMagnetBall(s); continue; }
     if (s.w === "bubble") { drawBubble(s); continue; }
     if (s.w === "torpedo") { drawTorpedo(s); continue; }
-    if (s.w === "ptorp") { drawPTorp(s); continue; }   // BOILER's   // VANTA's drop inside the planet: only the exit mark, at the end
+    if (s.w === "ptorp") { drawPTorp(s); continue; }   // BOILER's
+    if (s.w === "fcan") { drawCan(s); continue; }
+    if (s.w === "forgeball") { drawForgeBall(s); continue; }   // LABYRINTH's   // VANTA's drop inside the planet: only the exit mark, at the end
     const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
     if (s.gold) {   // turned by GIMBAL's gate: a gold ring round it
       ctx.save(); ctx.strokeStyle = "rgba(233,182,106,0.85)"; ctx.lineWidth = 2; ctx.shadowColor = "#e9b66a"; ctx.shadowBlur = 6;
@@ -11663,13 +11716,14 @@ function updateDuel(dt) {
     if (s.rw && enemy.rwShow > 0) { s.life -= dt; if (!rewindShot(s, dt, MAGIC.reassemble.slow)) duel.shots.splice(k, 1); continue; }   // sent back by my REPRISE
     s.rw = false;
     if (Wp.magnet) magnetPull(s, Wp, dt);
-    if (Wp.homing && !game.dead && s.life > 0.12) {
+    if (Wp.homing && !game.dead && s.life > 0.12 && !(Wp.dry && inWater(s))) {
       const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), Wp.homing * dt);
       s.vx = t.vx; s.vy = t.vy;
     }
     if (shotFx(duel.shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (Wp.ptorp) ptorpTrail(s);
+    if (Wp.buoy) canStep(s, dt);
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;   // their VANTA drop inside the planet (the exit mark warns me)
     if (Wp.phase) phaseTrail(s);
     if (threadBlocks(game.thread, s, dt)) { threadSpark(s); duel.shots.splice(k, 1); continue; }
@@ -11677,8 +11731,8 @@ function updateDuel(dt) {
     if (vShieldUp(game) && inFrontV(game, s.x, s.y)) { vBat(s); duel.shots.splice(k, 1); continue; }   // my V (their phone sees it too)
     if (trapOpen()) suckShot(game, shipById(game.ship), s, dt);   // (their phone pulls it the same way)
     if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it and tells me: "caught")
-    const near = !game.dead && !stratAloft(game) && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + Wp.r * shotScale(s, Wp) * shipSize();
-    const inPlanet = !starOut() && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
+    const near = !game.dead && !stratAloft(game) && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + (Wp.r * shotScale(s, Wp) + (Wp.prox || 0)) * shipSize();
+    const inPlanet = !starOut() && !(Wp.boilerW && inWater(s)) && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
     if (near || inPlanet || s.life > Wp.life + (s.ext || 0)) {
       if (Wp.blast && !inPlanet) torpedoBlast(s, Wp, false);   // their torpedo going off (their phone counts it)
       if (near) burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 5, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);

@@ -657,13 +657,13 @@ ok("the four new ships have kit buttons in the HUD, all five of them", () => {
     assert(fs.existsSync(path.join(__dirname, "../app/src/main/assets/art/hud", id, slot + "-plate.webp")), id + " " + slot);
   assert(/bloom: \{ a: "#8ff5d8", b: "#ff9ad8", face: true, round: true \}/.test(html), "BLOOM's buttons are as they were");
 });
-ok("LABYRINTH: rivets in a burst of 3 taking turns from both arms, a fan of five; Starforge builds, then 60 s of maze", () => {
+ok("LABYRINTH: a steady stream of rivets from both arms; a big homing ball that bounces and blows up near the target; Starforge, then 60 s of maze", () => {
   const S = shipById("labyrinth"), M = MAGIC.starforge; assert(S && S.magic === "starforge" && S.anim && S.labyrinth);
-  assert.strictEqual(weaponsOf(S).join(), "rivet,slagfan");
-  const R = WEAPONS.rivet; assert(R.burst === 3 && R.gap === 0.075 && R.alt && gunsOf(S, "rivet").length === 2 && Math.abs(R.cool - (R.gap * 2 + 0.5)) < 1e-9);
-  assert(WEAPONS.slagfan.pellets === 5 && WEAPONS.slagfan.dmg < R.dmg && WEAPONS.rivet.lab && WEAPONS.slagfan.lab);
-  assert(M.build === 4.5 && M.wave === 0.65 && M.last === 60 && M.hit === 4 && M.hitCool === 0.5 && M.loops === 0.2);
-  const A = S.anim; assert(seqFrame(A.primary, cueTime(A.primary, "left")) === 3 && cueTime(A.primary, "right") - cueTime(A.primary, "left") === 75);
+  assert.strictEqual(weaponsOf(S).join(), "rivet,forgeball");
+  const R = WEAPONS.rivet; assert(!R.burst && R.cool <= 0.15 && gunsOf(S, "rivet").length === 2 && R.lab);
+  const B = WEAPONS.forgeball; assert(B.homing > 0 && B.blast > 0 && B.blastDmg > R.dmg && B.prox > 0 && B.lab && B.bounces > M.bounces && B.r > R.r * 3);
+  assert(M.build === 4.5 && M.wave === 0.65 && M.last === 60 && M.hit === 4 && M.hitCool === 0.5 && M.loops === 0.2 && M.cell === 0.5);
+  const A = S.anim; assert(cueTime(A.primary, "right") - cueTime(A.primary, "left") === 75);
   assert(cueTime(A.secondary, "fire") === 200 && A.idleLoop.length === 24 && A.melt.length === 22);
 });
 ok("the maze: every cell joined (it wraps round), the same for the same seed, open round the star, a way through", () => {
@@ -684,11 +684,11 @@ ok("against a wall: a shot meets the face it flies into, and bounces off it at t
   const v = bounceOff(3, 4, -1, 0); assert(v.vx === -3 && v.vy === 4);
   const w = bounceOff(3, 4, -1, 0, 0.3); assert(Math.abs(w.vx + 0.9) < 1e-9 && w.vy === 4);   // a ship: a light rebound, the slide kept
 });
-ok("BOILER: a straight torpedo (12% of a bar, 0.8 s apart, 4 s), a side steam pulse that shoves; Flood Hunt 2 s + 60 s + 1 s", () => {
+ok("BOILER: a torpedo that hunts only out of the water; a floating can that rises and blows up at the surface; Flood Hunt 2 s + 60 s + 1 s", () => {
   const S = shipById("boiler"), M = MAGIC.flood; assert(S && S.magic === "flood" && S.anim && S.boiler);
-  assert.strictEqual(weaponsOf(S).join(), "ptorp,steampulse");
-  const T = WEAPONS.ptorp; assert(T.dmg === 12 && T.cool === 0.8 && T.life === 4 && !T.homing && T.ptorp);
-  const P = WEAPONS.steampulse; assert(P.cool === 2 && P.knock > 0 && P.both && Math.abs(P.splay - Math.PI / 2) < 1e-9 && gunsOf(S, "steampulse").length === 2);
+  assert.strictEqual(weaponsOf(S).join(), "ptorp,fcan");
+  const T = WEAPONS.ptorp; assert(T.dmg === 12 && T.cool === 0.8 && T.life === 4 && T.ptorp && T.homing > 0 && T.homing < WEAPONS.missile.homing && T.dry);
+  const C = WEAPONS.fcan; assert(C.buoy > 0 && C.blast > 0 && C.blastDmg > 0 && C.boilerW && T.boilerW);
   assert(M.fill === 2 && M.hunt === 60 && M.drain === 1 && M.xeltar > 1 && M.dragXeltar < M.drag && M.top < M.bottom);
   assert(S.anim.idleLoop.length === 32 && S.anim.pressure.length === 32 && S.anim.primary.length === 16);
   for (const id of ["labyrinth", "boiler"]) for (const slot of ["thrust", "primary", "secondary", "pickup", "magic"])
