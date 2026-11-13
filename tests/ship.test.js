@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("forty-five ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 45);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 45);
+ok("forty-six ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 46);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 46);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -694,18 +694,19 @@ ok("BOILER: a torpedo that hunts only out of the water; a floating can that rise
   for (const id of ["labyrinth", "boiler"]) for (const slot of ["thrust", "primary", "secondary", "pickup", "magic"])
     assert(require("fs").existsSync(require("path").join(__dirname, "../app/src/main/assets/art/hud", id, slot + "-plate.webp")), id + " " + slot);
 });
-ok("the station: its pictures exist, the docking point is in the bay and clear of the solid parts; the shop's art and prices", () => {
+ok("the two stores (weapons: KIP, shields: BRASS): pictures and idle animations exist, the docking point is in the bay and clear of the solid parts; the shop's art and prices", () => {
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
-  const looks = eval(html.slice(html.indexOf("const STATION_LOOKS = ["), html.indexOf("];", html.indexOf("const STATION_LOOKS = [")) + 1).replace("const STATION_LOOKS = ", "(") + ")");
-  assert(looks.length >= 1 && looks.length <= 5);
+  const i0 = html.indexOf("const STORE_LOOKS = {"), byKind = eval("(" + html.slice(i0 + 19, html.indexOf("\n};", i0) + 2) + ")"), looks = Object.values(byKind);
+  assert(byKind.weapon.merchant === "kip" && byKind.shield.merchant === "brass" && byKind.weapon.goods.includes("weapon") && byKind.shield.goods.includes("shield"));
   for (const L of looks) {
-    assert(fs.existsSync(path.join(A, L.file)), L.file);
+    assert(fs.existsSync(path.join(A, L.file)) && fs.existsSync(path.join(A, L.idle)), L.file);
     const [bx0, by0, bx1, by1] = L.bay, [dx, dy] = L.dock;
     assert(dx > bx0 && dx < bx1 && dy > by0 && dy < by1, "dock in the bay");
     for (const [x0, y0, x1, y1] of L.solid) { assert(!(dx > x0 && dx < x1 && dy > y0 && dy < y1), "dock not inside a solid part"); assert(!(bx0 >= x0 && bx1 <= x1 && by0 >= y0 && by1 <= y1)); }
     assert(by1 > 0.8, "the bay opens downward");
   }
-  for (const f of ["life", "shield", "ammo", "ship", "alien/idle", "alien/wave-up", "alien/wave-out", "alien/present-closed", "alien/present-open", "alien/present-round"])
+  for (const f of ["life", "shield", "ammo", "ship", "alien/idle", "alien/wave-up", "alien/wave-out", "alien/present-closed", "alien/present-open", "alien/present-round",
+    ...["kip", "brass"].flatMap((m) => ["idle", "greet", "present", "return", "idle-01", "idle-08", "face-neutral", "face-ah", "face-ee", "face-o", "face-m", "face-f", "face-blink", "face-smile"].map((q) => m + "/" + q))])
     assert(fs.existsSync(path.join(A, "art/ui/shop", f + ".webp")), f);
   const shop = eval("(" + html.slice(html.indexOf("const SHOP = {") + 13, html.indexOf("\n};", html.indexOf("const SHOP = {")) + 2) + ")");
   for (const k of ["pasPrice", "actPrice"]) assert(shop[k][1] < shop[k][2] && shop[k][2] < shop[k][3], k + " rises with the level");
@@ -818,5 +819,22 @@ ok("the shop's seller: a line goes away 4 s after he starts (a long one a little
   const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
   assert(html.includes("life: Math.max(4, text.length / 32 + 1.2)") && html.includes("if (shop.say && shop.say.t > shop.say.life + SAY_FADE) shop.say = null;"));
   for (const m of ["closed", "open", "round"]) assert(fs.existsSync(path.join(__dirname, "../app/src/main/assets/art/ui/shop/alien/closeup-" + m + ".webp")));
+});
+ok("HUSK: shop only; twin cannons in turn, an engine parasite; breach and deliver (bite, hold, deliver to the alien by the star)", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  const S = SHIPS.find((q) => q.id === "husk");
+  assert(S && S.shopOnly && S.huskArt && S.magic === "breach" && S.weapons.join() === "huskcannon,parasite" && S.guns.huskcannon.length === 2 && WEAPONS.parasite.parasite);
+  for (const [n, k] of [["idle", 32], ["open", 2], ["ext", 28], ["sway", 32], ["thrust", 28], ["bite", 24]]) for (const i of [1, k]) assert(fs.existsSync(path.join(A, "art/ships/husk", n + "_" + String(i).padStart(2, "0") + ".webp")), n + i);
+  for (const f of ["creature-burst", "creature-wait", "bolt", "capsule", "grip", "flash"]) assert(fs.existsSync(path.join(A, "art/ships/husk", f + ".webp")), f);
+  assert(fs.existsSync(path.join(A, "art/bloom/zombie-husk-top.webp")) && fs.existsSync(path.join(A, "art/ships3d/husk.webp")));
+  const i = html.indexOf("  breach: { name:"), M = eval("(" + html.slice(html.indexOf("{", i), html.indexOf("},", i) + 1) + ")");
+  assert(Math.abs(M.bite - 0.63) < 1e-9 && M.grab >= M.reach && M.paraCut === 0.35 && M.paraLast === 2.5 && M.last > 0 && M.deliver > 0);
+  assert(html.includes("if ((game.husk && game.husk.cap) || game.hcap) return;") && html.includes("blowUpShip();   // delivered"));
+});
+ok("the ship shop is on the main menu (its banner and SHOP button) and sells only the ships not in the fleet", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  assert(fs.existsSync(path.join(A, "art/ui/shop-button.webp")) && fs.existsSync(path.join(A, "art/ui/menu-shop-bg.webp")));
+  assert(html.includes('hitMenuShop(e.clientX, e.clientY)) { menuShop.press') && html.includes("hangarShips().filter((S) => S.shopOnly && !(bank.owned || {})[S.id])"));
+  assert(html.includes('if (shop.open && shop.kind === "ship") { shopExit(); return true; }'));
 });
 console.log(n + " checks passed");

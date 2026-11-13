@@ -447,7 +447,7 @@
   }
   return {config,roots,phase,load,draw};
 });
-const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"},"boiler":{"kind":"still","sprite":"zombie-boiler-top.webp"},"flipper":{"kind":"still","sprite":"zombie-flipper-top.webp"},"courier":{"kind":"still","sprite":"zombie-courier-top.webp"},"fresnel":{"kind":"still","sprite":"zombie-fresnel-top.webp"},"vault":{"kind":"still","sprite":"zombie-vault-top.webp"},"corsair":{"kind":"still","sprite":"zombie-corsair-top.webp"}};
+const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"},"boiler":{"kind":"still","sprite":"zombie-boiler-top.webp"},"flipper":{"kind":"still","sprite":"zombie-flipper-top.webp"},"courier":{"kind":"still","sprite":"zombie-courier-top.webp"},"fresnel":{"kind":"still","sprite":"zombie-fresnel-top.webp"},"vault":{"kind":"still","sprite":"zombie-vault-top.webp"},"corsair":{"kind":"still","sprite":"zombie-corsair-top.webp"},"husk":{"kind":"still","sprite":"zombie-husk-top.webp"}};
 </script>
 <script>
 "use strict";
@@ -1126,7 +1126,21 @@ const SHIPS = [
       magic: frames("magic", 24, () => 40),                          // teal light runs up the planks: the ghost ship
       unmagic: frames("magic", 24, () => 40).reverse(),              // and back
       haunted: ["h_idle.webp", ...frames("magic", 24, () => 0).map((f) => f[0]),
-        ...["normal", "haunted", "bloom"].flatMap((v) => ["body", "sail1", "sail2", ...[1, 2, 3, 4, 5].flatMap((n) => ["left-" + n, "right-" + n])].map((q) => "rig/" + v + "-" + q + ".webp"))] } }
+        ...["normal", "haunted", "bloom"].flatMap((v) => ["body", "sail1", "sail2", ...[1, 2, 3, 4, 5].flatMap((n) => ["left-" + n, "right-" + n])].map((q) => "rig/" + v + "-" + q + ".webp"))] } },
+  // HUSK, the alien carrier (art/ships/husk/: the HUSK package's frames, all on one 512 canvas, the hull's middle in the
+  // middle; picked by huskFrame from its state, husk part). Sold only in the shop, and in the test hangar. Button 1: twin
+  // cannons, left and right in turn. Button 2: an engine parasite that grips a ship's engine and weakens its thrust.
+  // Magic: breach and deliver (MAGIC.breach)
+  { id: "husk", name: "HUSK", rarity: "legendary", mass: 1.3, fuel: 30, refill: 15, sfx: null, magic: "breach", shopOnly: true, huskArt: true,
+    hull: "#d8c8a8", wingC: "#ff9a2e", trim: "#ffb347", flame: "#ffb347",
+    body: [], wing: [], nozzles: [-0.241, 0.241], engineY: 0.43, cockpit: [0, 0, 0.05, 0.1],
+    weapons: ["huskcannon", "parasite"],
+    guns: { huskcannon: [[-0.049, -0.5], [0.049, -0.5]], parasite: [[0, -0.42]] },
+    anim: { dir: "husk", size: 1.2, idle: "idle_01.webp",
+      primary: [["idle_01.webp", 120]], secondary: [["idle_01.webp", 120]], magic: [["idle_01.webp", 400]],   // (the frames: huskFrame)
+      shotArt: { huskcannon: { file: "bolt.webp", size: 0.16 }, parasite: { file: "capsule.webp", size: 0.2 } },
+      haunted: [...frames("idle", 32, () => 0), ...frames("open", 2, () => 0), ...frames("ext", 28, () => 0), ...frames("sway", 32, () => 0), ...frames("thrust", 28, () => 0), ...frames("bite", 24, () => 0)].map((f) => f[0])
+        .concat(["creature-burst.webp", "creature-wait.webp", "grip.webp", "flash.webp"]) } }
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1167,7 +1181,8 @@ const HANDLING = {
   courier:  { size: 0.95, speed: 1.15, accel: 1.1,  turn: 1.05 },  // a quick mail ship
   fresnel:  { size: 1.05, speed: 0.95, accel: 0.95, turn: 0.95 },  // a lighthouse
   vault:    { size: 1.0,  speed: 0.85, accel: 0.9,  turn: 0.85 },   // a heavy safe
-  corsair:  { size: 1.05, speed: 1.0,  accel: 0.95, turn: 0.9  }    // a sailing ship
+  corsair:  { size: 1.05, speed: 1.0,  accel: 0.95, turn: 0.9  },   // a sailing ship
+  husk:     { size: 1.05, speed: 0.95, accel: 0.95, turn: 0.9  }    // an alien carrier
 };
 function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1392,6 +1407,10 @@ const WEAPONS = {
   chainshot:  { name: "כדורי שרשרת", dmg: 20, speed: 1.8, life: 1.1, cool: 1.3, ammo: 3, refill: 8, r: 0.09, color: "#9a9aa2", chain: true, gravity: true, pirate: true },
   ghostshot:  { name: "מטח רפאים", dmg: 9, speed: 1.8, life: 1.4, cool: 0.9, ammo: 4, refill: 7, r: 0.03, color: "#5ef0ff", broadside: true, pirate: true, ghost: true, homing: 4.5 },
   ghostchain: { name: "שרשרת רפאים", dmg: 20, speed: 1.7, life: 1.5, cool: 1.3, ammo: 3, refill: 8, r: 0.09, color: "#5ef0ff", chain: true, pirate: true, ghost: true, homing: 3.5 },
+  // HUSK. huskcannon: amber bolts from its two cannons in turn. parasite: a capsule that grips the engine of a ship it
+  //   hits: that ship's thrust weakened (MAGIC.breach.paraCut) for paraLast s (a new hit starts it again)
+  huskcannon: { name: "תותחים תאומים", dmg: 7, speed: 2.6, life: 0.8, cool: 0.22, ammo: 14, refill: 7, r: 0.025, color: "#ffb347" },
+  parasite:   { name: "טפיל מנוע", dmg: 4, speed: 1.9, life: 1.1, cool: 1.2, ammo: 3, refill: 8, r: 0.05, color: "#ff9a2e", parasite: true },
   laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -1552,6 +1571,10 @@ const MAGIC = {
   //   `rad` screens in `wave` s and takes `dmg` health from the other ship inside it. fireShow: the solar fire's aurora (s)
   // CORSAIR's ghost ship: `last` s with homing shots (after the change, which takes its frames' time)
   haunt: { name: "ספינת רפאים", look: "haunt", last: 12, cool: 24, color: "#5ef0ff" },
+  // HUSK: the window `last` s (from the arm out); reach: the jaws start a bite with a ship this near the mouth
+  //   (ship-lengths), grab: still this near at the snap (`bite` s): caught; deliver: within this of the alien:
+  //   delivered; crR: the alien's size (ship-lengths, a radius). paraCut / paraLast: the parasite (button 2)
+  breach: { name: "פריצה ומסירה", look: "breach", last: 20, cool: 40, reach: 0.9, grab: 1.0, bite: 0.63, deliver: 1.0, crR: 1.1, paraCut: 0.35, paraLast: 2.5, color: "#ff9a2e" },
   vault: { name: "הכוכב בכספת", look: "vault", suck: 1.4, hold: 30, free: 1.4, door: 0.35, near: 0.715, reach: 1.95, pull: 0.5,
            pulse: 2.5, rad: 0.8, wave: 0.45, dmg: 10, fireShow: 0.55, cool: 50, color: "#ffb347" },
   orbitmine: { name: "מוקש מסלול", look: "orbitmine", speed: 0.8, hit: 1.5, r: 0.13, cool: 10, color: "#ffb347" },
@@ -2326,7 +2349,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake", vault: "Star in the vault", haunt: "Ghost ship" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake", vault: "Star in the vault", haunt: "Ghost ship", breach: "Breach and deliver" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -2776,6 +2799,8 @@ let swipe = null;
 cv.addEventListener("pointerdown", (e) => {
   audio.wake();
   if (game.stage === "title") {   // the title screen: the language, the dials, else start
+    if (shop.open) { shopTap(e.clientX, e.clientY); return; }   // (the ship shop, opened from here)
+    if (!BOT && hitMenuShop(e.clientX, e.clientY)) { menuShop.press = 0.18; audio.pop(); buzz(15); setTimeout(() => shopOpen("ship"), 120); return; }   // the ship shop
     if (hitLang(e.clientX, e.clientY)) { setLang(LANG === "he" ? "en" : "he"); audio.pop(); buzz(10); return; }
     if (!BOT && server.on && hitAccount(e.clientX, e.clientY)) { showAccount(); audio.pop(); buzz(10); return; }   // the account: money on the server
     if (dialDown(e)) return;
@@ -2861,6 +2886,7 @@ addEventListener("keyup", (e) => {
 
 // Android back: close the bubble or card first, then leave
 window.shipBack = () => {
+  if (shop.open && shop.kind === "ship") { shopExit(); return true; }   // the ship shop: back to the main menu
   if (hangar.open) { hangar.open = false; return true; }
   if (fleet.open && profile && profile.active) { fleetClose(); return true; }
   if (trade.stage && trade.stage !== "swapping") { if (trade.stage === "offer" || trade.stage === "waiting") link.send({ t: "no" }); endTrade(); return true; }
@@ -2966,6 +2992,7 @@ function update(dt) {
   pipeDrain();
   updateKitFx(dt); if (HUD_KIT && !BOT) { kitPreloadFx(game.ship); if (enemy.ship) kitPreloadFx(enemy.ship); }
   tintStep();
+  if (game.stage === "title" && shop.open) updateShop(dt);   // the ship shop, opened from the main menu
   if (game.scramble > 0 && game.scramble - dt <= 0) game.scrambleSafe = MAGIC.resonance.immune;   // it just ended: a rest from it
   game.scrambleSafe = Math.max(0, (game.scrambleSafe || 0) - (game.scramble > 0 ? 0 : dt));
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
@@ -3008,10 +3035,10 @@ function update(dt) {
         else respawnShip();
       }
     }
-    else if (game.docked) { const L = stationLook(), P = stationWorld(L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
+    else if (game.docked) { const DS = dockedStation(), L = stationLook(DS), P = stationWorld(DS, L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
-    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateVault(dt); updateCorsair(dt); updatePaddles(dt); updateLightFx(dt);
+    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateVault(dt); updateCorsair(dt); updatePaddles(dt); updateLightFx(dt); updateHusk(dt);
   }
   updateTrade(dt);
   updateDuel(dt);
@@ -3103,6 +3130,7 @@ function moveShip(o, S, c, dt) {
   const st = shipStats(S), size = shipSize();
   if (o === game && game.soak && game.soak.boost) { const M = magicOf(S); st.push *= M.boost; st.top *= M.boost; }   // ORIAN charged: twice as fast
   if (o === game && game.lassoed) st.turn *= ELASSO.turn;
+  if (o === game && game.paraT > 0) st.push *= 1 - MAGIC.breach.paraCut;   // HUSK's parasite on my engine
   if (o === game && game.ship === "xeltar" && floodXeltar() && inWater(o)) { const k = MAGIC.flood.xeltar; st.push *= k; st.top *= k; st.turn *= k; }   // XELTAR in BOILER's water: at home   // held by LARIAT's rope: turning takes twice as long
   // the fuller the tank, the stronger the engine and the faster the ship: worth waiting for a full (white) button
   const tank = clamp((o.fuel == null ? st.fuel : o.fuel) / st.fuel, 0, 1);
@@ -3815,14 +3843,20 @@ function drawForgeBall(s) {
 //  In a duel, while one player is docked the other fights practice ships (computer ships that cannot hurt it): money
 //  for each, and its weapons refill faster.
 // ======================================================================
-// a look: its picture, its size (ship-lengths across), its solid parts and its bay as boxes [x0, y0, x1, y1] in the
-// picture's own units (0..1 from the top-left; not the whole picture: the bay between the arms is open), the docking
-// point. The bay always opens downward. (More looks: add their pictures and shapes here; one is picked at random)
-const STATION_LOOKS = [
-  { file: "art/station/station-1.webp", size: 3.4,
-    solid: [[0.28, 0.08, 0.72, 0.16], [0.10, 0.15, 0.90, 0.40], [0.03, 0.40, 0.26, 0.78], [0.74, 0.40, 0.97, 0.78], [0.11, 0.78, 0.28, 0.90], [0.72, 0.78, 0.89, 0.90]],
-    bay: [0.29, 0.42, 0.71, 0.88], dock: [0.5, 0.6] }
-];
+// the two stores (the Docking Stores package): the weapon store (KIP sells ammo and an extra weapon) and the shield
+// store (BRASS sells the shields and a spare tank). Each: its picture (`w` x `h` ship-lengths), its idle animation (36
+// frames of 200 ms, a 6 x 6 atlas of the picture squeezed square: drawn back into the same rectangle; `clock` puts the
+// two out of step), its solid parts and its bay as boxes [x0, y0, x1, y1] in the picture's own units (0..1 from the
+// top-left; the bay between the arms is open), the docking point. Both bays open downward. Ships are bought in the ship
+// shop, from the main menu (shopOpen("ship")).
+const STORE_LOOKS = {
+  weapon: { file: "art/station/weapon-store.webp", idle: "art/station/weapon-store-idle.webp", w: 3.6, h: 3.6 * 871 / 845, clock: 0,
+    solid: [[0.12, 0.04, 0.31, 0.3], [0.03, 0.25, 0.97, 0.62], [0.03, 0.62, 0.28, 0.95], [0.72, 0.62, 0.95, 0.95]],
+    bay: [0.29, 0.63, 0.71, 0.97], dock: [0.5, 0.8], merchant: "kip", goods: ["ammo", "weapon"] },
+  shield: { file: "art/station/shield-store.webp", idle: "art/station/shield-store-idle.webp", w: 3.6, h: 3.6 * 874 / 850, clock: 1.0,
+    solid: [[0.38, 0.03, 0.62, 0.15], [0.03, 0.12, 0.97, 0.62], [0.05, 0.62, 0.3, 0.97], [0.7, 0.62, 0.95, 0.97]],
+    bay: [0.3, 0.64, 0.7, 0.97], dock: [0.5, 0.8], merchant: "brass", goods: ["shield", "life"] }
+};
 // prices and the like (balance: change freely). dockSpeed: slow enough to dock (screens/s). welcome: what a ship gets
 // the first time it docks. computerPay: share of a win's reward against the computer. pas*: the passive shield per
 // level (what it absorbs, its refill per second, the wait after a hit before it refills). act*: the active shield
@@ -3852,7 +3886,12 @@ const SHOP_TXT = {
     sayWeapon: "נשק נוסף מחללית אחרת, עם כפתור משלו ליד כפתור הירי. תבחר טוב!", sayShip: "חלליות חדשות לצי של המשחק הזה. תבחר אחת, ואז תאשר.",
     thanks: ["עסקה מצוינת!", "תהנה מזה, טייס!", "בחירה חכמה!"], cant: "אוי… חסרים לך עוד", coins: "מטבעות",
     soon: "בקרוב", once: "לקרב הזה", week: "שבוע", own: "לתמיד", ownedForever: "שלך לתמיד", rented: "מושכרת", days: "ימים", inFleet: "כבר בצי",
-    saySoon: "את זו עוד בונים במספנה. בקרוב אצלי!", sayModes: "לקרב הזה, השכרה לשבוע, או לתמיד: אז היא בצי שלך בכל משחק." },
+    saySoon: "את זו עוד בונים במספנה. בקרוב אצלי!", sayModes: "לקרב הזה, השכרה לשבוע, או לתמיד: אז היא בצי שלך בכל משחק.",
+    shipShop: "חנות חלליות", shopBtn: "חנות", noShips: "קנית את כולן! חלליות חדשות בדרך.",
+    hello_weapon: ["ברוך הבא לחנות הנשק! תחמושת ונשקים, הכל טרי.", "אה, טייס! בוא, יש לי משהו שיורה חזק.", "שלום! תחמושת? נשק נוסף? תבחר."],
+    hello_shield: ["ברוך הבא לחנות המגנים. פה שומרים עליך.", "שלום, טייס! מגן חזק, מיכל חיים נוסף. מה צריך?", "בוא בוא. השריון שלי הכי עבה בגלקסיה."],
+    hello_ship: ["ברוך הבא לחנות החלליות! כאן רק חלליות שאין בצי.", "אה, טייס! יש לי חלליות מיוחדות, רק אצלי.", "שלום! תבחר חללית חדשה, ואז תאשר."],
+    sayShip: "חלליות שאין בצי: רק כאן אפשר לקנות אותן. תבחר אחת, ואז תאשר." },
   en: { dock: "⚓ DOCK", shop: "Trading Station", exit: "Exit", buy: "Buy", total: "Total", minerals: "minerals", metals: "metals",
     life: "Life", shield: "Shield", ammo: "Ammo", ship: "Ship", weapon: "Weapon",
     lifeOpt: "+1 health tank", ammoOpt: "Refill all ammo", pas: "Passive shield", act: "Active shield", lvl: "Level", max: "Max", full: "Full", owned: "Yours",
@@ -3863,7 +3902,12 @@ const SHOP_TXT = {
     sayWeapon: "An extra weapon from another ship, with its own button by the fire button. Choose well!", sayShip: "New ships for this game's fleet. Pick one, then confirm.",
     thanks: ["Excellent deal!", "Enjoy it, pilot!", "Smart choice!"], cant: "Oh… you still need", coins: "coins",
     soon: "Coming soon", once: "This game", week: "A week", own: "Forever", ownedForever: "Yours forever", rented: "Rented", days: "days", inFleet: "In your fleet",
-    saySoon: "That one is still in the shipyard. Coming soon!", sayModes: "For this game, rented for a week, or forever: then it is in your fleet every game." }
+    saySoon: "That one is still in the shipyard. Coming soon!", sayModes: "For this game, rented for a week, or forever: then it is in your fleet every game.",
+    shipShop: "Ship shop", shopBtn: "Shop", noShips: "You bought them all! New ships are on the way.",
+    hello_weapon: ["Welcome to the weapon store! Ammo and guns, all fresh.", "Ah, a pilot! Come, I have something that hits hard.", "Hello! Ammo? An extra weapon? Pick one."],
+    hello_shield: ["Welcome to the shield store. Here we keep you alive.", "Hello, pilot! A strong shield, a spare tank. What do you need?", "Come in. My armour is the thickest in the galaxy."],
+    hello_ship: ["Welcome to the ship shop! Only ships your fleet does not have.", "Ah, a pilot! I have special ships, only here.", "Hello! Pick a new ship, then confirm."],
+    sayShip: "Ships not in your fleet: only here can you buy them. Pick one, then confirm." }
 };
 function st(k) { return (SHOP_TXT[LANG] || SHOP_TXT.he)[k]; }
 
@@ -4149,89 +4193,100 @@ function drawShieldBubble(x, y, size, kind, t) {
   ctx.restore();
 }
 
-// ---- the station in the arena ----
-const station = { seed: 1, look: 0, nx: 0.5, ny: 0.72 };
-function setStation(seed) {
-  const rnd = mazeRng(seed), a = rnd() * TAU, d = 0.17 + rnd() * 0.06;
-  station.seed = seed; station.look = Math.floor(rnd() * STATION_LOOKS.length) % STATION_LOOKS.length;
-  station.nx = 0.5 + Math.cos(a) * d; station.ny = 0.5 + Math.sin(a) * d;
+// ---- the stores in the arena (both phones the same: the seed travels in the duel's "hi") ----
+const stations = [{ kind: "weapon", nx: 0.5, ny: 0.28 }, { kind: "shield", nx: 0.5, ny: 0.72 }];
+const station = { seed: 1 };
+function setStation(seed) {   // the two on opposite sides of the star, at a random angle
+  const rnd = mazeRng(seed), a = rnd() * TAU;
+  station.seed = seed;
+  stations.forEach((S, i) => { const b = a + i * Math.PI + (rnd() - 0.5) * 0.7, d = 0.19 + rnd() * 0.05; S.nx = 0.5 + Math.cos(b) * d; S.ny = 0.5 + Math.sin(b) * d; });
 }
 setStation(Math.floor(Math.random() * 2147483647));
-function stationLook() { return STATION_LOOKS[station.look] || STATION_LOOKS[0]; }
-function stationPos() { return { x: station.nx * WW, y: station.ny * WH }; }
-function stationSize() { return shipSize() * stationLook().size; }
-// a point in the picture's own units (0..1 from the top-left)
-function stationLocal(x, y) { const P = stationPos(), u = stationSize(); return { x: wrapDelta(x - P.x, WW) / u + 0.5, y: wrapDelta(y - P.y, WH) / u + 0.5 }; }
-function stationWorld(lx, ly) { const P = stationPos(), u = stationSize(); return { x: wrapX(P.x + (lx - 0.5) * u), y: wrapY(P.y + (ly - 0.5) * u) }; }
-function inBay(o) { const p = stationLocal(o.x, o.y), b = stationLook().bay; return p.x > b[0] && p.x < b[2] && p.y > b[1] && p.y < b[3]; }
-// my ship against the station's solid parts: pushed out, a bounce, sparks (no damage)
-function stationShip(o) {
-  if (game.docked) return;
-  const L = stationLook(), u = stationSize(), rr = shipSize() * 0.3 / u;
-  let p = stationLocal(o.x, o.y);
+function stationLook(S) { return STORE_LOOKS[S.kind]; }
+function stationPos(S) { return { x: S.nx * WW, y: S.ny * WH }; }
+function stationSize(S) { const L = stationLook(S), u = shipSize(); return { w: L.w * u, h: L.h * u }; }
+// a point in the picture's own units (0..1 from the top-left), and back
+function stationLocal(S, x, y) { const P = stationPos(S), z = stationSize(S); return { x: wrapDelta(x - P.x, WW) / z.w + 0.5, y: wrapDelta(y - P.y, WH) / z.h + 0.5 }; }
+function stationWorld(S, lx, ly) { const P = stationPos(S), z = stationSize(S); return { x: wrapX(P.x + (lx - 0.5) * z.w), y: wrapY(P.y + (ly - 0.5) * z.h) }; }
+function inBay(S, o) { const p = stationLocal(S, o.x, o.y), b = stationLook(S).bay; return p.x > b[0] && p.x < b[2] && p.y > b[1] && p.y < b[3]; }
+function dockedStation() { return game.docked ? stations[game.docked.k] || stations[0] : null; }
+// my ship against the stores' solid parts: pushed out, a bounce, sparks (no damage)
+function stationShip(o) { if (!game.docked) for (const S of stations) stationShipOne(S, o); }
+function stationShipOne(S, o) {
+  const L = stationLook(S), z = stationSize(S), rx = shipSize() * 0.3 / z.w, ry = shipSize() * 0.3 / z.h;
+  let p = stationLocal(S, o.x, o.y);
   if (p.x < -0.3 || p.x > 1.3 || p.y < -0.3 || p.y > 1.3) return;
   for (const [x0, y0, x1, y1] of L.solid) {
-    const cx = clamp(p.x, x0, x1), cy = clamp(p.y, y0, y1), dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy);
-    if (d >= rr) continue;
-    let nx, ny, pen;
-    if (d > 1e-6) { nx = dx / d; ny = dy / d; pen = rr - d; }
-    else { const l = p.x - x0, r = x1 - p.x, t = p.y - y0, b = y1 - p.y, m = Math.min(l, r, t, b); nx = m === l ? -1 : m === r ? 1 : 0; ny = nx ? 0 : m === t ? -1 : 1; pen = m + rr; }
-    o.x = wrapX(o.x + nx * pen * u); o.y = wrapY(o.y + ny * pen * u); p = stationLocal(o.x, o.y);
+    const cx = clamp(p.x, x0, x1), cy = clamp(p.y, y0, y1), dx = (p.x - cx) / rx, dy = (p.y - cy) / ry, d = Math.hypot(dx, dy);
+    if (d >= 1) continue;
+    let nx, ny, pen;   // (in the ship's radius: the push, back in the picture's units)
+    if (d > 1e-6) { nx = dx / d; ny = dy / d; pen = 1 - d; }
+    else { const l = p.x - x0, r = x1 - p.x, t = p.y - y0, b = y1 - p.y, m = Math.min(l / rx, r / rx, t / ry, b / ry); nx = m === l / rx ? -1 : m === r / rx ? 1 : 0; ny = nx ? 0 : m === t / ry ? -1 : 1; pen = m + 1; }
+    o.x = wrapX(o.x + nx * pen * rx * z.w); o.y = wrapY(o.y + ny * pen * ry * z.h); p = stationLocal(S, o.x, o.y);
     const vn = o.vx * nx + o.vy * ny;
     if (vn < 0) {
       o.vx -= 1.4 * vn * nx; o.vy -= 1.4 * vn * ny;
-      if (-vn > U * 0.25) { burstAt(o.x - nx * rr * u, o.y - ny * rr * u, 10, ["#ffffff", "#ffd27a", "#5ee7ff"], 0.3, 0.5); audio.tone(200, 0.08, "square", 0.04, 0.5); buzz(30); }
+      if (-vn > U * 0.25) { burstAt(o.x - nx * shipSize() * 0.3, o.y - ny * shipSize() * 0.3, 10, ["#ffffff", "#ffd27a", "#5ee7ff"], 0.3, 0.5); audio.tone(200, 0.08, "square", 0.04, 0.5); buzz(30); }
     }
   }
 }
-// a shot into the station's solid parts: it stops there
+// a shot into a store's solid parts: it stops there
 function stationShot(list, k, s) {
-  const L = stationLook(), p = stationLocal(s.x, s.y);
-  if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) return false;
-  for (const [x0, y0, x1, y1] of L.solid) if (p.x > x0 && p.x < x1 && p.y > y0 && p.y < y1) {
-    burstAt(s.x, s.y, 5, ["#ffd27a", "#5ee7ff", "#ffffff"], 0.15, 0.35); list.splice(k, 1); return true;
+  for (const S of stations) {
+    const L = stationLook(S), p = stationLocal(S, s.x, s.y);
+    if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) continue;
+    for (const [x0, y0, x1, y1] of L.solid) if (p.x > x0 && p.x < x1 && p.y > y0 && p.y < y1) {
+      burstAt(s.x, s.y, 5, ["#ffd27a", "#5ee7ff", "#ffffff"], 0.15, 0.35); list.splice(k, 1); return true;
+    }
   }
   return false;
 }
+// the store whose bay I am in, slow enough to dock (or null)
 function canDock() {
-  return game.stage === "fly" && !game.dead && !game.docked && !result.mode && !trade.stage && !BOT && inBay(game)
-    && Math.hypot(game.vx, game.vy) < SHOP.dockSpeed * U && !game.lassoed && !game.strata && !game.dive;
+  if (!(game.stage === "fly" && !game.dead && !game.docked && !result.mode && !trade.stage && !BOT && Math.hypot(game.vx, game.vy) < SHOP.dockSpeed * U && !game.lassoed && !game.strata && !game.dive)) return null;
+  return stations.find((S) => inBay(S, game)) || null;
 }
 function dockButton() { const r = U * 0.11; return { x: W / 2, y: H * 0.6, w: r * 2.6, h: r * 0.95 }; }
 function hitDock(x, y) { if (!canDock()) return false; const b = dockButton(); return Math.abs(x - b.x) < b.w / 2 && Math.abs(y - b.y) < b.h / 2; }
-function dock() {
-  const L = stationLook(), P = stationWorld(L.dock[0], L.dock[1]);
-  game.docked = { t: 0 }; game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.ang = 0;
+function dock(S) {
+  S = S || canDock() || stations[0];
+  const L = stationLook(S), P = stationWorld(S, L.dock[0], L.dock[1]);
+  game.docked = { t: 0, k: stations.indexOf(S) }; game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.ang = 0;
   game.thrust = null; game.stick = null; game.fire = [null, null, null, null];
   if (!bank.welcomed[game.ship]) { bank.welcomed[game.ship] = 1; walletAdd(game.ship, SHOP.welcome); }   // a first visit: a welcome gift
-  saveBank(); shopOpen();
+  saveBank(); shopOpen(S.kind);
   audio.tone(220, 0.3, "sine", 0.06, 1.5); audio.tone(330, 0.3, "sine", 0.05, 1.5, 0.15); audio.noise(0.4, 0.05, 1500); buzz(60);
 }
 function undock() {
-  const L = stationLook(), P = stationWorld(L.dock[0], L.bay[3] + 0.06);
+  const S = dockedStation(); if (!S) { shop.open = false; return; }
+  const L = stationLook(S), P = stationWorld(S, L.dock[0], L.bay[3] + 0.06);
   game.docked = null; shop.open = false; game.x = P.x; game.y = P.y; game.vx = 0; game.vy = U * 0.9; game.ang = Math.PI; game.undockT = 1;
   audio.whoosh(); buzz(40);
 }
 function drawStation() {
   if (game.stage === "gift" || game.stage === "opening" || game.stage === "title") return;
-  const L = stationLook(), img = artImage(L.file), u = stationSize(), P = stationPos(), p = toScreen(P.x, P.y);
-  const z = game.zoom || 1, m = u;
-  if (Math.abs(p.x - W / 2) > W / 2 / z + m || Math.abs(p.y - H / 2) > H / 2 / z + m) return;
-  // the docking point's beacon, and a guide light when I am in the bay
-  const D = toScreen(...Object.values(stationWorld(L.dock[0], L.dock[1]))), lit = canDock();
-  ctx.save();
-  const g = ctx.createRadialGradient(D.x, D.y, 0, D.x, D.y, u * 0.22);
-  g.addColorStop(0, `rgba(94,231,255,${lit ? 0.5 : 0.18 + 0.08 * Math.sin(time * 3)})`); g.addColorStop(1, "rgba(94,231,255,0)");
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(D.x, D.y, u * 0.22, 0, TAU); ctx.fill();
-  if (img) ctx.drawImage(img, p.x - u / 2, p.y - u / 2, u, u);
-  ctx.restore();
+  const lit = canDock(), z = game.zoom || 1;
+  for (const S of stations) {
+    const L = stationLook(S), sz = stationSize(S), P = stationPos(S), p = toScreen(P.x, P.y);
+    if (Math.abs(p.x - W / 2) > W / 2 / z + sz.w || Math.abs(p.y - H / 2) > H / 2 / z + sz.h) continue;
+    // the docking point's beacon (bright when I am in this bay, slow enough)
+    const D = toScreen(...Object.values(stationWorld(S, L.dock[0], L.dock[1]))), on = lit === S, col = S.kind === "shield" ? "94,231,255" : "255,176,72";
+    ctx.save();
+    const g = ctx.createRadialGradient(D.x, D.y, 0, D.x, D.y, sz.w * 0.22);
+    g.addColorStop(0, `rgba(${col},${on ? 0.5 : 0.18 + 0.08 * Math.sin(time * 3)})`); g.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(D.x, D.y, sz.w * 0.22, 0, TAU); ctx.fill();
+    const A = artImage(L.idle), x0 = p.x - sz.w / 2, y0 = p.y - sz.h / 2;
+    if (A) { const f = Math.floor((time + L.clock) / 0.2) % 36, c = A.width / 6; ctx.drawImage(A, (f % 6) * c, Math.floor(f / 6) * c, c, c, x0, y0, sz.w, sz.h); }   // its lights, blinking
+    else { const img = artImage(L.file); if (img) ctx.drawImage(img, x0, y0, sz.w, sz.h); }
+    ctx.restore();
+  }
 }
 function drawDockPrompt() {
-  if (!canDock()) return;
-  const b = dockButton(), s = 1 + 0.04 * Math.sin(time * 6);
+  const S = canDock(); if (!S) return;
+  const b = dockButton(), s = 1 + 0.04 * Math.sin(time * 6), col = S.kind === "shield" ? "#5ee7ff" : "#ffb048";
   ctx.save(); ctx.translate(b.x, b.y); ctx.scale(s, s);
   ctx.fillStyle = "rgba(8,20,40,0.85)"; roundRect(-b.w / 2, -b.h / 2, b.w, b.h, b.h / 2); ctx.fill();
-  ctx.strokeStyle = "#5ee7ff"; ctx.lineWidth = 3; roundRect(-b.w / 2, -b.h / 2, b.w, b.h, b.h / 2); ctx.stroke();
+  ctx.strokeStyle = col; ctx.lineWidth = 3; roundRect(-b.w / 2, -b.h / 2, b.w, b.h, b.h / 2); ctx.stroke();
   ctx.fillStyle = "#e8fbff"; ctx.font = `900 ${Math.round(b.h * 0.45)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillText(st("dock"), 0, 0);
   ctx.restore();
@@ -4339,14 +4394,26 @@ function drawWallet() {
 // shop: { open, sel (the product), opt (its chosen option), say { text, t }, alien { seq, t }, hits (tap boxes), busy,
 //   offers (this visit's weapons and ships) }
 const shop = { open: false, sel: null, opt: 0, say: null, alien: { seq: "idle", t: 0 }, hits: [], busy: false, offers: null, mode: "once", page: 0 };
-function shopOpen() {
-  const others = Object.keys(SHOP.weapons).filter((w) => !weaponsOf(shipById(game.ship)).includes(w));
-  const ships = hangarShips().map((S) => S.id).filter((id) => !(bank.owned || {})[id] && id !== game.ship);
-  const only = ships.filter((id) => shipById(id).shopOnly), rest = ships.filter((id) => !shipById(id).shopOnly);
-  shop.offers = { weapons: shuffled(others).slice(0, SHOP.offers), ships: only.concat(shuffled(rest).slice(0, SHOP.shipOffers)).concat(SOON_SHIPS.map((q) => q.id)) };   // (shop-only ships first, then others, then the ships still being made)
-  Object.assign(shop, { open: true, sel: null, opt: 0, busy: false, alien: { seq: "wave", t: 0 }, say: null, mode: "once", page: 0 });
-  shop.helloLine = st("hello")[Math.floor(Math.random() * st("hello").length)];
+// kind: "weapon" / "shield" (a store in the arena, docked) or "ship" (the ship shop, from the main menu). Each has its
+// own goods (STORE_LOOKS[kind].goods; the ship shop only ships) and its own seller (KIP, BRASS; the grey alien for ships)
+function shopOpen(kind) {
+  kind = kind || "weapon";
+  const others = Object.keys(SHOP.weapons).filter((w) => !weaponsOf(shipById(game.ship) || SHIPS[0]).includes(w));
+  const ships = hangarShips().filter((S) => S.shopOnly && !(bank.owned || {})[S.id]).map((S) => S.id);   // only the ships that are not in the fleet: sold only here
+  shop.offers = { weapons: shuffled(others).slice(0, SHOP.offers), ships };
+  const merchant = kind === "ship" ? "alien" : STORE_LOOKS[kind].merchant;
+  Object.assign(shop, { open: true, kind, merchant, sel: kind === "ship" ? "ship" : null, opt: 0, busy: false, alien: { seq: merchant === "alien" ? "wave" : "greet", t: 0 }, say: null, mode: "once", page: 0 });
+  const lines = st("hello_" + kind) || st("hello"); shop.helloLine = shop.offers.ships.length || kind !== "ship" ? lines[Math.floor(Math.random() * lines.length)] : st("noShips");
 }
+function shopProducts() { return SHOP_PRODUCTS.filter(([id]) => shop.kind === "ship" ? id === "ship" : (STORE_LOOKS[shop.kind] || STORE_LOOKS.weapon).goods.includes(id)); }
+// the money this shop takes: the docked ship's own; the ship shop takes from all of them (the fullest first)
+function shopMoney() { return shop.kind === "ship" ? totalMoney() : wallet(game.ship); }
+function shopSpend(n) {
+  if (shop.kind !== "ship") { walletAdd(game.ship, -n); return; }
+  for (const id of Object.keys(bank.wallet).sort((a, b) => wallet(b) - wallet(a))) { const t = Math.min(n, wallet(id)); walletAdd(id, -t); n -= t; if (n <= 0) break; }
+}
+// leaving: undocking from a store, or back to the main menu from the ship shop
+function shopExit() { if (shop.kind === "ship") { shop.open = false; audio.whoosh(); } else undock(); }
 // a line said: it types out at 32 letters a second and goes away 4 s after he starts (a long one: 1.2 s after its last
 // letter), fading over SAY_FADE s, so it does not hide the ships for long. While it shows, the seller is seen close up
 const SAY_FADE = 0.3;
@@ -4390,11 +4457,11 @@ const SHOP_PRODUCTS = [["life", "art/ui/shop/life.webp", "sayLife"], ["shield", 
 function shopBuy() {
   if (shop.busy || !shop.sel) return;
   const o = shopOptions(shop.sel)[shop.opt]; if (!o) return;
-  const price = shopPrice(o), have = wallet(game.ship);
+  const price = shopPrice(o), have = shopMoney();
   if (!o.ok) { audio.nope(); return; }
   if (have < price) { shopSay(`${st("cant")} ${(price - have).toLocaleString("en-US")} ${st("coins")}`); audio.nope(); buzz(20); return; }
   shop.busy = true;   // (no paying twice: the button waits until this is done)
-  walletAdd(game.ship, -price);
+  shopSpend(price);
   if (o.kind === "life") { game.tanks = Math.min(TANKS, game.tanks + 1); game.tankT = 1; }
   else if (o.kind === "ammo") { fillAmmo(); const G = myGear(); if (G.xw) game.xammo = WEAPONS[G.xw].ammo; }
   else if (o.kind === "pas") { setGear(game.ship, "pas", myGear().pas + 1); game.pasHp = SHOP.pasCap[myGear().pas]; }
@@ -4403,7 +4470,8 @@ function shopBuy() {
   else if (o.kind === "ship") {
     if (shop.mode === "week") { bank.rent = bank.rent || {}; bank.rent[o.id] = Math.max(Date.now(), bank.rent[o.id] || 0) + WEEK_MS; }   // (a rental again: a week more)
     if (shop.mode === "own") { bank.owned = bank.owned || {}; bank.owned[o.id] = 1; }
-    const L = lostIds(), i = L.indexOf(o.id); if (i >= 0) L.splice(i, 1); else if (!myFleet().includes(o.id)) myFleet().push(o.id);   // in this game's fleet now
+    if (game.stage === "title") { if (shop.mode === "once") { bank.once = bank.once || {}; bank.once[o.id] = 1; } }   // (from the menu: one game = the next one)
+    else { const L = lostIds(), i = L.indexOf(o.id); if (i >= 0) L.splice(i, 1); else if (!myFleet().includes(o.id)) myFleet().push(o.id); }   // in this game's fleet now
   }
   saveBank();
   shopSay(st("thanks")[Math.floor(Math.random() * st("thanks").length)]);
@@ -4414,11 +4482,11 @@ function shopTap(x, y) {
   for (let i = shop.hits.length - 1; i >= 0; i--) {
     const h = shop.hits[i];
     if (x < h.x || x > h.x + h.w || y < h.y || y > h.y + h.h) continue;
-    if (h.act === "exit") { undock(); audio.pop(); return; }
+    if (h.act === "exit") { shopExit(); audio.pop(); return; }
     if (h.act === "buy") { shopBuy(); return; }
     if (h.act === "prod") {
       if (shop.sel === h.p) { shop.sel = null; shopSay(shop.helloLine); }   // (again: put it back)
-      else { shop.sel = h.p; shop.opt = 0; shop.page = 0; shopSay(st(SHOP_PRODUCTS.find((q) => q[0] === h.p)[2])); }
+      else { shop.sel = h.p; shop.opt = 0; shop.page = 0; shopSay(st(SHOP_PRODUCTS.find((q) => q[0] === h.p)[2])); if (shop.merchant !== "alien") shop.alien = { seq: "present", t: 0 }; }
       audio.pop(); buzz(10); return;
     }
     if (h.act === "opt") { shop.opt = h.i; audio.pop(); buzz(8); const o = shopOptions(shop.sel)[h.i]; if (o && o.soon) shopSay(st("saySoon")); return; }
@@ -4430,13 +4498,45 @@ function shopTap(x, y) {
 function updateShop(dt) {
   if (!shop.open) return;
   shop.alien.t += dt;
-  if (shop.alien.seq === "wave" && shop.alien.t > 0.68) { shop.alien = { seq: "idle", t: 0 }; shopSay(shop.helloLine); }
+  if ((shop.alien.seq === "wave" && shop.alien.t > 0.68) || (shop.alien.seq === "greet" && shop.alien.t > clipSec("greet"))) { shop.alien = { seq: "idle", t: 0 }; shopSay(shop.helloLine); }
+  if (shop.alien.seq === "present" && shop.alien.t > clipSec("present")) shop.alien = { seq: "idle", t: 0 };
   shop.zoom = clamp((shop.zoom || 0) + (shop.say ? 1 : -1) * dt / 0.35, 0, 1);   // close up while he talks, back out after
   if (shop.say && shop.say.t > shop.say.life + SAY_FADE) shop.say = null;
   if (shop.say) {
     const n0 = Math.floor(shop.say.t * 32); shop.say.t += dt; const n1 = Math.floor(shop.say.t * 32);
     if (n1 > n0 && n1 <= shop.say.text.length && n1 % 2 === 0 && /\S/.test(shop.say.text[n1 - 1] || "")) audio.tone(520 + Math.random() * 260, 0.035, "triangle", 0.018, 1);   // his voice
   }
+}
+// KIP and BRASS (the merchant packages): body poses (384 px, standing on `pivot`) and faces (close-up, mouth shapes).
+// greet on arrival, present when a product is chosen (an open hand held briefly), otherwise the breathing idle loop
+const MERCHANTS = { kip: { pivot: [192, 360] }, brass: { pivot: [153, 324] } };
+const MERCHANT_CLIPS = {
+  greet: [["idle", 130], ["greet", 490], ["return", 240], ["idle", 130]],
+  present: [["idle", 130], ["greet", 140], ["present", 660], ["return", 220], ["idle", 130]]
+};
+function clipSec(c) { return MERCHANT_CLIPS[c].reduce((a, f) => a + f[1], 0) / 1000; }
+function merchantBody() {
+  const A = shop.alien, clip = MERCHANT_CLIPS[A.seq];
+  if (clip) { let t = A.t * 1000; for (const [f, ms] of clip) { if (t < ms) return f; t -= ms; } }
+  return "idle-0" + (1 + Math.floor(time / 0.24) % 8);
+}
+// the mouth for a letter (no voice track: from the words as they appear): broad vowels AH, wide EE, rounded O, lips
+// closed M, lip-teeth F, a rest between words
+function visemeOf(ch) {
+  const c = (ch || " ").toLowerCase();
+  if (/[\s,.!?…:;"'״׳\-]/.test(c)) return "neutral";
+  if (/[aאהע]/.test(c)) return "ah";
+  if (/[eiyי]/.test(c)) return "ee";
+  if (/[ouו]/.test(c)) return "o";
+  if (/[mbpמםבפ]/.test(c)) return "m";
+  if (/[fvף]/.test(c)) return "f";
+  return ["ah", "ee", "o", "ah"][c.charCodeAt(0) % 4];
+}
+function merchantFace() {
+  const S = shop.say;
+  if (S && S.t * 32 < S.text.length) return visemeOf(S.text[Math.floor(Math.floor(S.t / 0.11) * 0.11 * 32)]);   // a new mouth every 110 ms
+  if ((time + 1.3) % 3.7 < 0.09 || (time + 0.2) % 5.3 < 0.09) return "blink";   // (blinking now and then)
+  return S ? "smile" : "neutral";
 }
 // the seller's picture now (the package's rules: wave on arrival; while a line is shown his mouth moves, with short
 // closed pauses; reaching toward the goods while one is chosen; resting otherwise)
@@ -4463,7 +4563,7 @@ function shopLayout() {
   // and showcase) gets what is left, so a near-square screen (the open Fold) keeps every part usable
   const m = Math.round(U * 0.03), top = Math.max(m, U * 0.05), cw = W - m * 2;
   const header = { x: m, y: top, w: cw, h: Math.min(U * 0.14, H * 0.09) };
-  const gap = m * 0.6, n = SHOP_PRODUCTS.length, cardW = (cw - gap * (n - 1)) / n, cardH = Math.min(cardW * 1.4, H * 0.14);
+  const gap = m * 0.6, n = shopProducts().length, cardW = Math.min((cw - gap * 4) / 5, (cw - gap * (n - 1)) / n), cardH = Math.min(cardW * 1.4, H * 0.14);
   const bottomH = Math.min(U * 0.15, H * 0.085), bottom = { y: H - bottomH - m * 1.2, h: bottomH };
   const optH = Math.min(U * 0.15, H * 0.08), detailH = optH * 3 + gap * 2;
   const stageY = header.y + header.h + m, stageH = clamp(bottom.y - m - detailH - m - cardH - m - stageY, H * 0.18, U * 0.85);
@@ -4492,8 +4592,8 @@ function drawShop() {
   const Hd = L.header; shopPanel(Hd.x, Hd.y, Hd.w, Hd.h, "rgba(255,209,102,0.7)");
   ctx.textBaseline = "middle"; ctx.direction = "ltr";
   ctx.font = `900 ${Math.round(f * 1.15)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.textAlign = "left";
-  ctx.fillText(S.name, Hd.x + f * 0.7, Hd.y + Hd.h * 0.32);
-  ctx.textAlign = "right"; ctx.fillText(`🪙 ${wallet(game.ship).toLocaleString("en-US")}`, Hd.x + Hd.w - f * 0.7, Hd.y + Hd.h * 0.32);
+  ctx.fillText(shop.kind === "ship" ? st("shipShop") : S.name, Hd.x + f * 0.7, Hd.y + Hd.h * 0.32);
+  ctx.textAlign = "right"; ctx.fillText(`🪙 ${shopMoney().toLocaleString("en-US")}`, Hd.x + Hd.w - f * 0.7, Hd.y + Hd.h * 0.32);
   // the second line: three parts, each a number and its word drawn apart (Hebrew and numbers do not mix well in one string)
   ctx.font = `700 ${Math.round(f * 0.72)}px Rubik, Arial, sans-serif`; ctx.textAlign = "left";
   const parts = [[`Σ ${totalMoney().toLocaleString("en-US")}`, st("total"), "#ffd166"], ...MINERALS.map((M) => [`◆${resOf(M.id)}`, "", M.color]), [`⬢ ${resOf("metals")}`, "", "#9fd8ff"]];
@@ -4540,17 +4640,20 @@ function drawShop() {
   if (carry) { ctx.direction = textDir(); ctx.fillText(carry, cx, Sh.y + Sh.h - f * 0.2, Sh.w); ctx.direction = "ltr"; }
   // the seller (his feet on the stage's floor); while he talks the view moves in to his face (the package's close-up,
   // its mouth matching his: closed, open or round), and back out to all of him once the bubble is gone
-  const A = L.alien, fr = alienFrame(), img = artImage("art/ui/shop/alien/" + fr + ".webp"), z = ease(shop.zoom || 0);
-  const ah = Math.min(A.h * 0.98, A.w * 1.1 * 480 / 384), aw = ah * 384 / 480;
-  const hx = A.x + A.w / 2, hy = A.y + A.h - ah * 0.78;   // his head: the view closes in on it
+  // (KIP and BRASS: their own poses and faces, the same way)
+  const A = L.alien, MC = MERCHANTS[shop.merchant], z = ease(shop.zoom || 0);
+  const fr = MC ? merchantBody() : alienFrame(), img = artImage(MC ? "art/ui/shop/" + shop.merchant + "/" + fr + ".webp" : "art/ui/shop/alien/" + fr + ".webp");
+  const ah = MC ? Math.min(A.h * 0.98 * 384 / MC.pivot[1], A.w * 1.25) : Math.min(A.h * 0.98, A.w * 1.1 * 480 / 384), aw = MC ? ah : ah * 384 / 480;
+  const ox = MC ? A.x + A.w / 2 - MC.pivot[0] / 384 * aw : A.x + A.w / 2 - aw / 2, oy = MC ? A.y + A.h - MC.pivot[1] / 384 * ah : A.y + A.h - ah;
+  const hx = A.x + A.w / 2, hy = MC ? oy + ah * 0.25 : A.y + A.h - ah * 0.78;   // the head: the view closes in on it
   if (z < 1) {
     ctx.save(); ctx.globalAlpha = 1 - z; ctx.translate(hx, hy); ctx.scale(1 + z * 0.8, 1 + z * 0.8); ctx.translate(-hx, -hy);
-    ctx.fillStyle = "rgba(94,231,255,0.15)"; ctx.beginPath(); ctx.ellipse(A.x + A.w / 2, A.y + A.h - ah * 0.02, aw * 0.4, ah * 0.04, 0, 0, TAU); ctx.fill();
-    if (img) ctx.drawImage(img, A.x + A.w / 2 - aw / 2, A.y + A.h - ah, aw, ah);
+    ctx.fillStyle = "rgba(94,231,255,0.15)"; ctx.beginPath(); ctx.ellipse(A.x + A.w / 2, A.y + A.h - A.h * 0.02, aw * 0.4, A.h * 0.04, 0, 0, TAU); ctx.fill();
+    if (img) ctx.drawImage(img, ox, oy, aw, ah);
     ctx.restore();
   }
   if (z > 0) {
-    const mouth = /open/.test(fr) ? "open" : /round/.test(fr) ? "round" : "closed", cu = artImage("art/ui/shop/alien/closeup-" + mouth + ".webp");
+    const mouth = /open/.test(fr) ? "open" : /round/.test(fr) ? "round" : "closed", cu = artImage(MC ? "art/ui/shop/" + shop.merchant + "/face-" + merchantFace() + ".webp" : "art/ui/shop/alien/closeup-" + mouth + ".webp");
     const cs = Math.min(A.w * 1.2, A.h) * (0.7 + 0.3 * z), cx0 = A.x + A.w / 2;
     if (cu) { ctx.save(); ctx.globalAlpha = z; ctx.beginPath(); ctx.rect(A.x - L.m, A.y, A.w + L.m * 2, A.h); ctx.clip(); ctx.drawImage(cu, cx0 - cs / 2, A.y + A.h - cs, cs, cs); ctx.restore(); }
   }
@@ -4570,8 +4673,9 @@ function drawShop() {
   }
   // the goods: five cards
   const C = L.cards;
-  SHOP_PRODUCTS.forEach(([id, file], i) => {
-    const x = (he ? W - L.m - C.w - i * (C.w + C.gap) : L.m + i * (C.w + C.gap)), y = C.y, sel = shop.sel === id;
+  const prods = shopProducts(), rowW = prods.length * C.w + (prods.length - 1) * C.gap, rx = (W - rowW) / 2;   // (centred)
+  prods.forEach(([id, file], i) => {
+    const x = (he ? rx + rowW - C.w - i * (C.w + C.gap) : rx + i * (C.w + C.gap)), y = C.y, sel = shop.sel === id;
     shopPanel(x, y, C.w, C.h, sel ? "#ffd166" : "rgba(94,231,255,0.5)", sel ? "rgba(60,46,10,0.9)" : "rgba(10,16,34,0.88)");
     if (sel) { ctx.save(); ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 5); ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 6; roundRect(x - 3, y - 3, C.w + 6, C.h + 6, C.w * 0.14); ctx.stroke(); ctx.restore(); }
     const isz = Math.min(C.w * 0.86, C.h * 0.62), ix = x + C.w / 2 - isz / 2, iy = y + C.h * 0.06;
@@ -4876,7 +4980,7 @@ const WEEK_MS = 7 * 24 * 3600 * 1000;
 function rentLeft(id) { return Math.max(0, ((bank.rent || {})[id] || 0) - Date.now()); }
 function ownedIds() { return hangarShips().map((S) => S.id).filter((id) => (bank.owned || {})[id] || rentLeft(id) > 0); }
 function has3d(id) { return SHIP3D.includes(id); }
-const SHIP3D = ["ballast", "boiler", "borer", "brass", "cantor", "cinder", "corsair", "courier", "drakon", "flipper", "frankenstein", "fresnel", "glitch", "kiln", "kraal", "labyrinth", "link", "lyth", "mirage", "nimbus", "orian", "puff", "rivet", "skarn", "strata", "talus", "vanta", "vault", "vexar", "xeltar", "zorian"];
+const SHIP3D = ["ballast", "boiler", "borer", "brass", "cantor", "cinder", "corsair", "courier", "drakon", "flipper", "frankenstein", "fresnel", "glitch", "husk", "kiln", "kraal", "labyrinth", "link", "lyth", "mirage", "nimbus", "orian", "puff", "rivet", "skarn", "strata", "talus", "vanta", "vault", "vexar", "xeltar", "zorian"];
 
 // ---------- FLIPPER's pinballs (MAGIC.pinballs) ----------
 // FLIPPER's phone sends "pb"; on the OTHER ship's phone three pinballs are let loose in a pinball table round that ship
@@ -5732,7 +5836,7 @@ function updatePaddles(dt) {
       audio.hit(); audio.tone(520, 0.12, "square", 0.05, 0.6); shake(0.5); buzz(120);
     }
   }
-  if ((P.ph === "strike" && P.s >= seqT("pstrike")) || (P.ph === "release" && P.s >= seqT("prelease"))) game.paddle = null;
+  if ((P.ph === "strike" && P.s >= seqT("pstrike")) || (P.ph === "release" && P.s >= seqT("prelease"))) game.paddle = null; huskRelease(); game.husk = null; game.hcap = false; huskCreature = null; game.paraT = 0;
 }
 // XELTAR's side fins: the frame with its fin band swapped for the moving fins' (the old fin edges gone), on a canvas
 let finCanvas = null;
@@ -5823,6 +5927,157 @@ function drawFresnelShot(s, Wp) {
     ctx.strokeStyle = `rgba(${c},${a})`; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(p.x - ux * L, p.y - uy * L); ctx.lineTo(p.x + ux * L * 0.15, p.y + uy * L * 0.15); ctx.stroke();
   }
   ctx.restore();
+}
+// ---------- HUSK: the tank, the parasite, breach and deliver (MAGIC.breach) ----------
+// HUSK carries an alien in an amber tank. Its frames (art/ships/husk/, all on one 512 canvas, the hull's middle in the
+// middle, so nothing jumps): idle (the closed tank, 32 x 120 ms), open (the locks, the tank opening), ext (the arm
+// coming out, ending with the jaws shut), sway (the arm out, swaying), thrust (the arm bending back under the throttle),
+// bite (the jaws spreading and snapping: contact at frame 19, 630 ms). huskFrame picks one from HUSK's state.
+// The magic: the tank opens and the arm comes out; at the same moment an alien hatches out of the star on HUSK's side
+// (creature burst, then wait: it stays there by the star). Out, the arm bites a ship that comes within reach of its
+// mouth; caught (decided once, on HUSK's phone: `hcap`), that ship hangs from the jaws (on its own phone it is held
+// there) and HUSK tows it; brought to the alien (within `deliver` of it, on the caught ship's phone), it is delivered:
+// destroyed, as if beaten (`hdel`). The window ends after `last` s, or when it is delivered, or HUSK is destroyed: the
+// arm goes back, the tank shuts, a caught ship goes free (`hrel`).
+// game.husk: { ph: "open" | "out" | "close", t (in this phase), life (since the magic), bite (s into a bite, or -1),
+//   thr (s into the throttle bend, or -1), held (the throttle last frame), cap (a ship caught) }
+// huskCreature: { a (its side of the star), t, own: "me" | "them" }. game.hcap: caught by their HUSK
+const HUSK_MOUTH = [0.141, -0.464], HUSK_OPEN = 1.77, HUSK_CLOSE = 1.72, HUSK_BURST = 25 * 0.0832;
+let huskCreature = null;
+const pad2 = (n) => String(n).padStart(2, "0");
+function huskFrame(H) {
+  if (!H) return "idle_" + pad2(1 + Math.floor(time / 0.12) % 32) + ".webp";
+  if (H.ph === "open") {
+    let t = H.t; if (t < 0.29) return "open_01.webp"; t -= 0.29; if (t < 0.32) return "open_02.webp"; t -= 0.32;
+    return "ext_" + pad2(t < 0.08 ? 1 : Math.min(28, 2 + Math.floor((t - 0.08) / 0.04))) + ".webp";
+  }
+  if (H.ph === "close") { const n = 28 - Math.floor(H.t / 0.04); if (n >= 1) return "ext_" + pad2(n) + ".webp"; return H.t - 1.12 < 0.3 ? "open_02.webp" : "open_01.webp"; }
+  if (H.bite >= 0 && H.bite < 0.84) return "bite_" + pad2(1 + Math.floor(H.bite / 0.035)) + ".webp";
+  if (H.thr >= 0 && H.thr < 1.4) return "thrust_" + pad2(1 + Math.floor(H.thr / 0.05)) + ".webp";
+  return "sway_" + pad2(1 + Math.floor(time / 0.08) % 32) + ".webp";
+}
+const HUSK_PH = ["open", "out", "close"];
+function huskNet() { const H = game.husk; return H ? [HUSK_PH.indexOf(H.ph), +H.t.toFixed(2), +H.bite.toFixed(2), +H.thr.toFixed(2)] : 0; }
+function huskOf(o) {
+  if (o === game) return game.husk || null;
+  if (o === enemy && enemy.remote && duel.net && Array.isArray(duel.net.hk)) { const h = duel.net.hk; return { ph: HUSK_PH[h[0]] || "out", t: h[1], bite: h[2], thr: h[3] }; }
+  return null;
+}
+// the jaws in the world, for ship o (HUSK)
+function huskMouth(o) {
+  const S = shipById("husk"), sz = shipSize() * (o === game ? shipScale() : enemyScale()), m = rotatePt(HUSK_MOUTH[0] * sz, HUSK_MOUTH[1] * sz, o.ang);
+  return { x: wrapX(o.x + m.x), y: wrapY(o.y + m.y) };
+}
+// where the alien waits: on HUSK's side of the star, out of it (it rises out of the star while hatching)
+function creaturePos(C) {
+  const k = ease(clamp(C.t / HUSK_BURST, 0, 1)), r = planetR() * (0.55 + 0.45 * k) + shipSize() * MAGIC.breach.crR * 0.42 * k;
+  return { x: wrapX(WW / 2 + Math.cos(C.a) * r), y: wrapY(WH / 2 + Math.sin(C.a) * r) };
+}
+function startBreach(M) {
+  if (game.husk || game.dead) { audio.nope(); return; }
+  game.husk = { ph: "open", t: 0, life: 0, bite: -1, thr: -1, held: game.thrust !== null, cap: false };
+  game.magicCool = M.cool;
+  const a = Math.atan2(wrapDelta(game.y - WH / 2, WH), wrapDelta(game.x - WW / 2, WW));
+  huskCreature = { a, t: 0, own: "me" }; if (enemy.remote) link.send({ t: "hcr", a: +a.toFixed(4) });
+  audio.tone(90, 0.6, "square", 0.05, 0.5); audio.tone(400, 0.25, "triangle", 0.03, 1.6, 0.3); audio.noise(0.5, 0.06, 900); buzz(60);   // the locks, the tank
+  audio.tone(60, 1.6, "sawtooth", 0.05, 1.8, 0.2);   // something stirring in the star
+}
+function huskRelease() { const H = game.husk; if (H && H.cap) { H.cap = false; if (enemy.remote) link.send({ t: "hrel" }); } }
+function huskClose() {
+  const H = game.husk; if (!H || H.ph === "close") return;
+  huskRelease(); H.ph = "close"; H.t = 0; audio.tone(140, 0.5, "square", 0.04, 0.6);
+}
+function updateHusk(dt) {
+  const M = MAGIC.breach, size = shipSize();
+  if (huskCreature) {
+    huskCreature.t += dt;
+    if (huskCreature.t < 1.2 && Math.random() < dt * 30) { const P = creaturePos(huskCreature); burstAt(P.x, P.y, 1, ["#ffffff", "#ffd27a", "#ff7ad9"], 0.3, 0.6); }   // the star splitting, sparks
+  }
+  if (game.paraT > 0) game.paraT -= dt;
+  if (enemy.paraT > 0) enemy.paraT -= dt;
+  const H = game.husk;
+  if (H) {
+    H.t += dt; H.life += dt;
+    if (game.dead || game.ship !== "husk" || (!duel.stage && game.stage !== "fly")) { huskRelease(); game.husk = null; huskGone(); }
+    else if (H.ph === "open" && H.t >= HUSK_OPEN) { H.ph = "out"; H.t = 0; }
+    else if (H.ph === "out") {
+      const held = game.thrust !== null;
+      if (held && !H.held && H.bite < 0) H.thr = 0; H.held = held;   // a press of the throttle: the arm bends back
+      if (H.thr >= 0) { H.thr += dt; if (H.thr >= 1.4) H.thr = -1; }
+      const mo = huskMouth(game), reachD = (q) => Math.hypot(wrapDelta(enemy.x - q.x, WW), wrapDelta(enemy.y - q.y, WH));
+      const can = enemy.on && !enemyDocked() && !enemyAloft() && enemy.warp < 0.5;
+      if (H.bite < 0 && !H.cap && can && reachD(mo) < M.reach * size) { H.bite = 0; H.thr = -1; audio.tone(260, 0.3, "sawtooth", 0.04, 1.6); }   // in reach: the jaws spread
+      if (H.bite >= 0) {
+        const before = H.bite; H.bite += dt;
+        if (before < M.bite && H.bite >= M.bite) {   // the snap (frame 19): caught, if still there
+          audio.tone(160, 0.08, "square", 0.07, 0.4); shake(0.4); buzz(80);
+          if (can && reachD(mo) < M.grab * size) { H.cap = true; if (enemy.remote) link.send({ t: "hcap" }); burstAt(mo.x, mo.y, 16, ["#ff7a9a", "#ffd27a", "#ffffff"], 0.4, 0.6); audio.tone(90, 0.5, "sawtooth", 0.06, 0.5); }
+        }
+        if (H.bite >= 0.84) H.bite = -1;
+      }
+      if (H.cap) { if (!enemy.on) H.cap = false; else { enemy.x = mo.x; enemy.y = mo.y; } }   // (it hangs from the jaws, here too)
+      if (H.life >= M.last + HUSK_OPEN) huskClose();
+    }
+    else if (H.ph === "close" && H.t >= HUSK_CLOSE) { game.husk = null; huskGone(); }
+  }
+  // caught by their HUSK: held at its jaws (my phone moves my ship); brought to their alien: delivered
+  if (game.hcap) {
+    const T = huskOf(enemy);
+    if (game.dead || !enemy.on || !T || T.ph === "close") game.hcap = false;
+    else {
+      const mo = huskMouth(enemy); game.x = mo.x; game.y = mo.y; game.vx = enemy.vx || 0; game.vy = enemy.vy || 0;
+      const C = huskCreature;
+      if (C && C.own === "them" && Math.hypot(wrapDelta(game.x - creaturePos(C).x, WW), wrapDelta(game.y - creaturePos(C).y, WH)) < M.deliver * size) {
+        game.hcap = false; if (enemy.remote) link.send({ t: "hdel" });
+        const P = creaturePos(C); burstAt(P.x, P.y, 40, ["#ff7ad9", "#5ee7c0", "#ffd27a", "#ffffff"], 0.8, 0.9); audio.boom();
+        blowUpShip();   // delivered: as if beaten
+      }
+    }
+  }
+}
+function huskGone() { if (huskCreature && huskCreature.own === "me") { huskCreature = null; if (enemy.remote) link.send({ t: "hcr", off: 1 }); } }
+function huskMsg(m) {
+  if (m.t === "hcr") { huskCreature = m.off ? null : { a: m.a, t: 0, own: "them" }; if (!m.off) audio.tone(60, 1.6, "sawtooth", 0.05, 1.8); }
+  else if (m.t === "hcap") { if (!game.dead && game.stage === "fly" && !game.docked) { game.hcap = true; buzz(150); shake(0.5); audio.tone(90, 0.5, "sawtooth", 0.06, 0.5); } }
+  else if (m.t === "hrel") game.hcap = false;
+  else if (m.t === "hdel") { const H = game.husk; if (H) { H.cap = false; huskClose(); } audio.boom(); }
+  else if (m.t === "para") { game.paraT = MAGIC.breach.paraLast; buzz(60); audio.tone(300, 0.2, "square", 0.04, 0.5); }
+}
+// the alien by the star: hatching (the burst frames, rising out of it, the star flaring where it splits), then waiting;
+// a faint ring where a caught ship is delivered
+function drawHuskCreature() {
+  const C = huskCreature; if (!C) return;
+  const P = creaturePos(C), p = toScreen(P.x, P.y), size = shipSize(), d = size * MAGIC.breach.crR * 2;
+  if (C.t < 1.4) {   // the flare where the star splits
+    const S = toScreen(WW / 2 + Math.cos(C.a) * planetR(), WH / 2 + Math.sin(C.a) * planetR()), k = 1 - C.t / 1.4;
+    const g = ctx.createRadialGradient(S.x, S.y, 0, S.x, S.y, size * 1.4);
+    g.addColorStop(0, `rgba(255,255,240,${0.9 * k})`); g.addColorStop(0.3, `rgba(255,170,90,${0.5 * k})`); g.addColorStop(1, "rgba(255,120,200,0)");
+    ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(S.x, S.y, size * 1.4, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  const burst = C.t < HUSK_BURST, img = artImage(framePath("husk", burst ? "creature-burst.webp" : "creature-wait.webp"));
+  if (img) {
+    const cols = burst ? 5 : 7, n = burst ? Math.min(24, Math.floor(C.t / 0.0832)) : Math.floor((C.t - HUSK_BURST) / 0.0832) % 44;
+    ctx.drawImage(img, (n % cols) * 256, Math.floor(n / cols) * 256, 256, 256, p.x - d / 2, p.y - d / 2, d, d);
+  }
+  if ((game.husk && game.husk.cap) || game.hcap) {
+    ctx.save(); ctx.strokeStyle = `rgba(255,122,217,${0.35 + 0.25 * Math.sin(time * 6)})`; ctx.lineWidth = 2; ctx.setLineDash([8, 8]); ctx.lineDashOffset = -time * 30;
+    ctx.beginPath(); ctx.arc(p.x, p.y, MAGIC.breach.deliver * size, 0, TAU); ctx.stroke(); ctx.restore();
+  }
+}
+// the parasite gripping a ship's engine (theirs, or mine), and HUSK's cannon flashes
+function drawParasites() {
+  const g = artImage(framePath("husk", "grip.webp")); if (!g) return;
+  for (const o of [game, enemy]) {
+    if (!(o.paraT > 0) || (o === enemy && !enemy.on) || (o === game && game.dead)) continue;
+    const S = shipById(o === game ? game.ship : enemy.ship), sz = shipSize() * (o === game ? shipScale() : enemyScale()), m = rotatePt(0, (S.engineY || 0.4) * sz, o.ang), p = toScreen(o.x + m.x, o.y + m.y);
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(o.ang + Math.sin(time * 12) * 0.08); const w = sz * 0.42; ctx.drawImage(g, -w / 2, -w / 2, w, w * 88 / 96); ctx.restore();
+  }
+}
+function drawHuskFlash(o, S) {   // in the ship's own frame: the flash at the barrel that just fired
+  const F = o.huskFlash; if (!F || time - F.at > 0.1) return;
+  const img = artImage(framePath("husk", "flash.webp")); if (!img) return;
+  const G = S.guns.huskcannon[F.side], k = 1 - (time - F.at) / 0.1, w = 0.22 * (0.7 + 0.3 * k);
+  ctx.save(); ctx.globalAlpha = k; ctx.globalCompositeOperation = "lighter"; ctx.drawImage(img, G[0] - w / 2, G[1] - w * 0.6, w, w); ctx.restore();
 }
 // ---------- magic: the gear button ----------
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
@@ -5981,7 +6236,8 @@ function useMagicNow(which = 0) {
   if (M.look === "pinballs") { game.paddle = null; startPinballs(M); return; }   // (the magic lets cocked paddles go)
   if (M.look === "orbitmine") { startOrbitMine(M); return; }
   if (M.look === "vault") { startVault(M); return; }
-  if (M.look === "haunt") { startHaunt(M); return; }   // CORSAIR: the ghost ship   // VAULT: the star into the vault
+  if (M.look === "haunt") { startHaunt(M); return; }
+  if (M.look === "breach") { startBreach(M); return; }   // HUSK: the tank opens, the alien hatches   // CORSAIR: the ghost ship   // VAULT: the star into the vault
   if (M.look === "snake") { startSnake(M); return; }   // FRESNEL: the light portal's snake   // COURIER: one more mine round the star   // FLIPPER: three pinballs round them   // BOILER: the water (updateFlood)   // LABYRINTH: the spire, then the maze (updateMaze)
   if (M.look === "surgery") { surgeryPress(M); return; }   // FRANKENSTEIN: surgery, then a part a press (updateSurgery)   // KILN: the body pushes the enemy away (updateReverse)   // STRATA: up into the upper dimension (updateShift)   // BALLAST: held, it tows an asteroid in (updateTow)
   if (M.look === "tail") {   // the stinger tail grows out behind the ship, stays out, and comes back by itself
@@ -8324,6 +8580,7 @@ function updateEnemy(dt) {
 }
 // ships bounce off each other (the heavier one is pushed less)
 function bumpShips(a, A, b, B) {
+  if ((game.husk && game.husk.cap) || game.hcap) return;   // HUSK holding a ship in its jaws: no bumping into it
   if (stratAloft(game) || enemyAloft()) return;   // a STRATA up high passes over
   const dx = wrapDelta(b.x - a.x, WW), dy = wrapDelta(b.y - a.y, WH), d = Math.hypot(dx, dy) || 1;
   const touch = shipSize() * 0.62;
@@ -8607,7 +8864,8 @@ function spawnShots(w, g, rot) {
   spawnShots.rot = hk;
   const m = rotatePt(g[0] * size, g[1] * size, game.ang);
   const x = game.x + m.x, y = game.y + m.y;
-  if (w === "lensflash" || w === "lightshard") fresnelFlash(x, y, w);   // FRESNEL: a burst of light as it leaves
+  if (w === "lensflash" || w === "lightshard") fresnelFlash(x, y, w);
+  if (w === "huskcannon") game.huskFlash = { at: time, side: g && g[0] > 0 ? 1 : 0 };   // HUSK: this barrel's flash   // FRESNEL: a burst of light as it leaves
   if (w === "solarfire") { game.vaultFireT = MAGIC.vault.fireShow; audio.noise(0.4, 0.08, 1800); audio.tone(120, 0.35, "sawtooth", 0.04, 2); }   // the doors open, the aurora
   if (Wp.egg) { layEgg(x, y, Wp, S); return; }
   if (Wp.rail) { startRail(w); return; }      // RIVET's rail
@@ -8953,7 +9211,8 @@ function hitEnemy(s, Wp) {
   if (Wp.dmg > 15) rings.push({ x: s.x, y: s.y, t: 0, max: 0.4, r: shipSize() * 0.6, c: Wp.color });
   audio.hit();
   harmEnemy(Wp.dmg * (s.pow ? 1 + POWER_STEP * s.pow : 1));
-  if (Wp.pirate) corsairHit(Wp, Wp.dmg);   // CORSAIR: a ghost over them, health for it
+  if (Wp.pirate) corsairHit(Wp, Wp.dmg);
+  if (Wp.parasite) { enemy.paraT = MAGIC.breach.paraLast; if (enemy.remote) link.send({ t: "para" }); }   // HUSK: it grips their engine   // CORSAIR: a ghost over them, health for it
 }
 
 // ---------- kills and money ----------
@@ -9474,7 +9733,8 @@ const KIT = {
   courier: { a: "#ffb347", b: "#6dffd8", fx: "none", face: true },
   fresnel: { a: "#ffd86b", b: "#ff5ea8", fx: "none", face: true },
   vault: { a: "#ffb347", b: "#5ef0ff", fx: "none", face: true },
-  corsair: { a: "#ffb347", b: "#5ef0ff", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
+  corsair: { a: "#ffb347", b: "#5ef0ff", fx: "none", face: true },
+  husk: { a: "#ffb347", b: "#ff7ad9", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
 function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
@@ -9653,7 +9913,8 @@ function drawShip(S, x, y, size, o = {}) {
   // a real drawing of the ship, once there is one
   let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep, o.cin || { power: o.power }, o.power);
   if (o.frame && S.anim) img = artImage(framePath(S.anim.dir, o.frame)) || img;   // PUFF: puffed / crumpled
-  if (img && S.anim && S.anim.fins && !(o.anim && o.anim.seq === "smoke")) img = finComposite(S, img);   // XELTAR's side fins
+  if (img && S.anim && S.anim.fins && !(o.anim && o.anim.seq === "smoke")) img = finComposite(S, img);
+  if (S.huskArt) img = artImage(framePath(S.anim.dir, huskFrame(o.vt ? huskOf(o.vt) : null))) || img;   // HUSK: the tank, the arm   // XELTAR's side fins
   if (o.haunt && S.haunt && S.anim) { const f = shipFrame(S, o.anim); if (f && !f.startsWith("magic")) img = artImage(framePath(S.anim.dir, "h_" + f)) || img; }   // CORSAIR, a ghost ship
   if (o.drill && S.anim && S.anim.spin && o.drill.mix > 0.5) img = artImage(framePath(S.anim.dir, S.anim.spin[o.drill.frame])) || img;   // BORER's drill turning
   // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
@@ -9682,7 +9943,8 @@ function drawShip(S, x, y, size, o = {}) {
       ctx.save(); ctx.translate(-img.width * k / 2, -img.height * k / 2); ctx.scale(img.width * k / 512, img.height * k / 512);
       FresnelBeacon.draw(ctx, img, time * 1000); ctx.restore();
     } else ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
-    if (S.vaultDoors && o.vt) drawVaultDoors(o.vt, S);   // VAULT's doors (and the star in it)
+    if (S.vaultDoors && o.vt) drawVaultDoors(o.vt, S);
+    if (S.huskArt && o.vt) drawHuskFlash(o.vt, S);   // VAULT's doors (and the star in it)
     if (o.gear && o.gear[1] && !S.clockwork) drawUpgrade(S, "cannon");   // the shop's extra cannon, over the hull
     if (halfClip) ctx.restore();
     if (S.winch && o.winch) drawWinch(S, o.winch);   // LARIAT's winch turning
@@ -9940,6 +10202,37 @@ function drawTitle() {
   ctx.font = `700 ${Math.round(f * 0.36)}px Rubik, Arial, sans-serif`; ctx.fillStyle = `rgba(143,245,216,${0.6 + 0.4 * Math.sin(time * 3)})`;
   ctx.fillText(tr("tapStart"), W / 2, H * 0.36 + s * 0.62 + f * 1.1);
   ctx.restore();
+}
+// the main menu's way into the ship shop (the Shop Entry package): the weapon store's picture as a wide banner under
+// the title (fitted between the words and the dials, its right side kept: the store and its sign), and its SHOP
+// button on it, bottom left (pressed: a little smaller, with a warm glow)
+const menuShop = { press: 0 };
+function menuShopLayout() {
+  const s = Math.min(W, H) * 0.42, f = Math.round(Math.min(W * 0.13, H * 0.08)), d = U * 0.16;
+  const top = H * 0.36 + s * 0.62 + f * 1.75, bottom = H - d * 1.9 - d * 0.7, room = Math.max(0, bottom - top);
+  const bw = Math.min(W * 0.98, room * 1672 / 941, U * 1.5), bh = bw * 941 / 1672, x = (W - bw) / 2, y = top + (room - bh) / 2;
+  const btnW = bw * 0.34, btnH = btnW * 211 / 744;
+  return { x, y, w: bw, h: bh, btn: { x: x + bw * 0.06, y: y + bh * 0.7, w: btnW, h: btnH } };
+}
+function hitMenuShop(x, y) { const L = menuShopLayout(), b = L.btn; return L.h > U * 0.2 && x > b.x - 8 && x < b.x + b.w + 8 && y > b.y - 8 && y < b.y + b.h + 8; }
+function drawMenuShop() {
+  if (BOT || shop.open) return;
+  const L = menuShopLayout(); if (L.h < U * 0.2) return;   // (no room: a very wide screen)
+  const bg = artImage("art/ui/menu-shop-bg.webp"), bt = artImage("art/ui/shop-button.webp");
+  menuShop.press = Math.max(0, menuShop.press - frameDt);
+  ctx.save();
+  roundRect(L.x, L.y, L.w, L.h, U * 0.03); ctx.clip();
+  if (bg) ctx.drawImage(bg, L.x, L.y, L.w, L.h);
+  const fade = ctx.createLinearGradient(L.x, 0, L.x + L.w * 0.35, 0); fade.addColorStop(0, "rgba(5,6,15,0.55)"); fade.addColorStop(1, "rgba(5,6,15,0)");
+  ctx.fillStyle = fade; ctx.fillRect(L.x, L.y, L.w, L.h);
+  ctx.restore();
+  ctx.save(); ctx.strokeStyle = "rgba(255,176,72,0.45)"; ctx.lineWidth = 1.5; roundRect(L.x, L.y, L.w, L.h, U * 0.03); ctx.stroke(); ctx.restore();
+  if (bt) {
+    const b = L.btn, k = menuShop.press > 0 ? 0.94 : 1 + 0.02 * Math.sin(time * 3), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(k, k);
+    ctx.shadowColor = "rgba(255,170,60,0.9)"; ctx.shadowBlur = menuShop.press > 0 ? b.h * 0.8 : b.h * 0.25;
+    ctx.drawImage(bt, -b.w / 2, -b.h / 2, b.w, b.h); ctx.restore();
+  }
 }
 function startFromTitle() {
   audio.wake(); preloadSounds();
@@ -12219,7 +12512,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawLightFx(); drawGhosts(); drawCorsairAim();
+    drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawHuskCreature(); drawParasites(); drawLightFx(); drawGhosts(); drawCorsairAim();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -12311,7 +12604,7 @@ function draw() {
   drawPicker();
   drawResultButtons();
   drawShop();   // the station's shop: over everything
-  if (game.stage === "title") { drawTitle(); drawDials(); drawLangBtn(); drawAccountBtn(); }
+  if (game.stage === "title" && !shop.open) { drawTitle(); drawMenuShop(); drawDials(); drawLangBtn(); drawAccountBtn(); }   // (the ship shop covers it)
   if (picker.open || camp.over) drawLangBtn();   // (switch the language while choosing a ship, too)
   if (hangar.open && !picker.open && !camp.over) { if (THREE_SHIPS) drawFleetBtn(); }   // in the hangar's second header row (the language button left the hangar: title and ship picker only)
 }
@@ -12582,7 +12875,7 @@ function drawRadar() {
   if (crate.on) { ctx.fillStyle = WEAPONS[crate.w].color; ctx.fillRect(x0 + crate.x * kx - 2.5, y0 + crate.y * ky - 2.5, 5, 5); }
   for (const m of orbitMines) { const P = orbitPos(m); ctx.fillStyle = m.own === "them" ? "#ff4d3a" : "#ffb347"; ctx.fillRect(x0 + P.x * kx - 2, y0 + P.y * ky - 2, 4, 4); }   // the orbit mines
   for (const c of comets) { ctx.fillStyle = c.kind === "gold" ? "#ffd166" : mineralById(c.mineral).color; ctx.beginPath(); ctx.arc(x0 + c.x * kx, y0 + c.y * ky, 3, 0, TAU); ctx.fill(); }   // the comets
-  { const P = stationPos(); ctx.strokeStyle = "#5ee7ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x0 + P.x * kx, y0 + P.y * ky, 4, Math.PI * 0.75, Math.PI * 2.25); ctx.stroke(); }   // the station
+  for (const SS of stations) { const P = stationPos(SS); ctx.strokeStyle = SS.kind === "shield" ? "#5ee7ff" : "#ffb048"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x0 + P.x * kx, y0 + P.y * ky, 4, Math.PI * 0.75, Math.PI * 2.25); ctx.stroke(); }   // the station
   ctx.translate(sx, sy); ctx.rotate(game.ang);
   ctx.fillStyle = shipById(game.ship).hull;
   ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 4); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
@@ -13751,7 +14044,8 @@ function duelLink(event, data) {
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
     if (duel.shots.length < 60) audio.shot(m.w);
     if (m.w === "solarfire") enemy.vaultFireT = MAGIC.vault.fireShow;
-    if (m.w === "lensflash" || m.w === "lightshard") fresnelFlash(m.x * WW, m.y * WH, m.w);   // their FRESNEL's light   // their VAULT's doors open for it
+    if (m.w === "lensflash" || m.w === "lightshard") fresnelFlash(m.x * WW, m.y * WH, m.w);
+    if (m.w === "huskcannon") enemy.huskFlash = { at: time, side: enemy.huskFlash ? 1 - enemy.huskFlash.side : 0 };   // their FRESNEL's light   // their VAULT's doors open for it
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, fl: 0, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
   } else if (m.t === "cv" && shipById(m.s) && Array.isArray(m.p)) {   // their KRAAL's crossing bolts (their phone counts the blast)
@@ -13784,6 +14078,7 @@ function duelLink(event, data) {
   } else if (m.t === "cm" || m.t === "cmh" || m.t === "cmk") { cometMsg(m);   // the resource comets
   } else if (m.t === "pb") { pinballsArrive();   // their FLIPPER's pinballs, round me
   } else if (m.t === "om" || m.t === "omk") { orbitMsg(m);   // COURIER's orbit mines
+  } else if (m.t === "hcr" || m.t === "hcap" || m.t === "hrel" || m.t === "hdel" || m.t === "para") { huskMsg(m);   // HUSK
   } else if (m.t === "gh") { addGhost(game, m.v);   // their CORSAIR hit me: a ghost over me
   } else if (m.t === "sn") { snakeArrive(m);   // their FRESNEL's snake, after me
   } else if (m.t === "wk") {   // their LYTH's ring / BALLAST's asteroid got my BOILER under water: it blows up
@@ -14033,7 +14328,7 @@ function updateDuel(dt) {
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
         ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2), creatureLeft(game.surg.c), +(game.surg.c.hp / MAGIC.surgery.hp).toFixed(3)] : [])] : 0,
-      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), vt: vaultNet(), ht: hauntOn() ? 1 : 0, ca: corsairNet(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
+      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), vt: vaultNet(), ht: hauntOn() ? 1 : 0, ca: corsairNet(), hk: huskNet(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
@@ -14246,6 +14541,8 @@ function newCampaign() {
   const all = shuffled(hangarShips().filter((S) => !S.shopOnly).map((S) => S.id)), half = Math.ceil(all.length / 2);   // (shop-only ships: only bought)
   camp.mine = all.slice(0, half); camp.theirs = all.slice(half);
   for (const id of ownedIds()) if (!camp.mine.includes(id)) { camp.mine.push(id); camp.theirs = camp.theirs.filter((x) => x !== id); }   // bought for good / rented: always mine
+  for (const id of Object.keys(bank.once || {})) if (shipById(id) && !camp.mine.includes(id)) camp.mine.push(id);   // bought for one game (in the ship shop): this one
+  if (bank.once && Object.keys(bank.once).length) { bank.once = {}; saveBank(); }
   filmNewGame(all);   // this game's surprise film
   camp.lvl = 1; camp.lost = []; camp.left = camp.theirs.slice(); camp.over = false; camp.wait = 1.5; camp.banner = 0;
   openPicker("start");

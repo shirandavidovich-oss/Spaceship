@@ -552,34 +552,31 @@ ghost ship's shot (one every 0.3 s at most per ship); and gives CORSAIR health, 
 ghost ship's shot). Health past full fills a spare tank, up to two more than usual. The state goes as `ht`, ghosts
 as `gh`.
 
-**The station and its shop** (the Orbit Break Docking package: `art/station/`, `art/ui/shop/`, the alien seller in
-`art/ui/shop/alien/`). A docking station floats in the arena, one of `STATION_LOOKS` picked at random (one picture so far;
-up to five, each with its own solid parts and bay as boxes in its picture), somewhere around the star. Both phones have
-it in the same place (its seed travels in the duel's `hi`). Only its ring is solid (ships bounce off it, shots stop on
-it); the bay between its arms is open and faces down. Fly into the bay slowly and a ⚓ dock button shows; docked, the
-shop opens over everything, and the ship is safe there. **Exit** sends it out through the bay's mouth (safe for 1 s).
-- **Money:** every ship has its own wallet (`bank` on the phone, `spaceship.bank`): a win pays the winning ship
-  `killReward` (against the computer `SHOP.computerPay` = 40% of it), and a ship gets 300 the first time it docks. The
-  total (Σ) is the sum of all wallets; a ship spends only its own. Rare-earth minerals (◆) and metals (⬢) are counted
-  for things still to come. The money shows under the fleet row (this ship's, and the total).
-- **The shop page** (on the canvas, like the other pages; it fits the tall phone and the open Fold): the ship, its
-  money, the total, minerals and metals at the top; the alien seller (waves when you come in, then talks: a speech
-  bubble with the words appearing, his mouth moving, pausing at spaces; he reaches toward the goods while one is
-  chosen); the docked ship turning on a hologram stand (to be swapped for its 3D art); five goods on a shelf; the
-  chosen one's options; **Buy** (it checks the money first, and waits a moment after paying so one press never pays
-  twice) and **Exit**.
-- **The goods** (prices in `SHOP`): a spare health tank (+1, up to the 5); a full ammo refill; a **passive shield**
-  (absorbs 15 / 25 / 40 of the hits, refills 6 a second 3 s after the last hit) and an **active shield** (its own
-  button right of the thrust button: nothing gets through for 2.5 / 3.5 / 4.5 s, then 16 / 14 / 12 s to recharge),
-  3 levels each, bought one level at a time; an **extra weapon** from other ships (4 on offer each visit; button 4,
-  left of fire button 1; it refills by itself), and **ships** for this game's fleet (6 on offer, a lost one can be
-  bought back; priced by rarity). Shields and the extra weapon stay with the ship that bought them.
-- **In a duel, while one player is docked** the other fights practice ships: three computer ships that circle and
-  shoot but cannot hurt it (no health lost at all then), 20 for each one shot down, and its weapons refill three times
-  faster, until the other comes out. The seller's speech bubble goes away 4 s after he starts talking (a long line: just after its last letter), fading
-out, so it does not hide the ships for long; while it shows, the view closes in on his face (the Docking package's
-close-up frames, `art/ui/shop/alien/closeup-*`, its mouth closed, open or round as he talks), and moves back out to all
-of him once it is gone.
+**HUSK**, the alien carrier (`art/ships/husk/`: the HUSK package's frames, all redrawn on one 512 canvas with the
+hull's middle in the middle so nothing jumps: the closed tank's idle loop, the tank opening, the arm coming out, its
+sway, its bend under the throttle, its bite; picked by `huskFrame`). Sold only in the shop, and in the test hangar.
+Button 1: twin cannons, left and right in turn, each with its flash. Button 2: an **engine parasite**: a capsule that
+grips the engine of a ship it hits and weakens its thrust by 35% for 2.5 s (again on a new hit; `para`). Magic,
+**breach and deliver** (`breach` in `MAGIC`): the tank opens and the arm comes out, and an alien hatches out of the
+star on HUSK's side and waits there. For 20 s the arm bites a ship that comes near its jaws (the snap at 630 ms);
+caught (`hcap`, decided on HUSK's phone), that ship hangs from the jaws (on its own phone it is held there) and HUSK
+tows it; brought to the alien (within a ship-length of it), it is delivered: destroyed, as if beaten (`hdel`). When the
+window ends, or HUSK is destroyed, a caught ship goes free (`hrel`) and the tank shuts. BLOOM's infected HUSK:
+`zombie-husk-top`.
+
+**The stores and the ship shop** (the Docking Stores, KIP, BRASS and Shop Entry packages). Two stores float in the
+arena on opposite sides of the star (`stations`, placed from the seed both phones share): the **weapon store**
+(`art/station/weapon-store`) and the **shield store** (`shield-store`), each with its looping idle animation (36 frames,
+a 6 x 6 atlas, drawn into the picture's own rectangle; the two clocks a second apart), solid walls, and a bay that
+opens downward. Fly slowly into a bay and the dock button shows; docked, that store's shop opens. The weapon store's
+seller is **KIP** (ammo, an extra weapon), the shield store's **BRASS** (the passive and active shields, a spare
+tank). Each greets you with a wave, holds out an open hand when you choose something, breathes at rest; while one
+talks the view closes in on its face, the mouth shaped by the words as they appear (AH, EE, O, M, F; resting and
+blinking between). **Ships are bought in the ship shop**, from the main menu: under the title, the weapon store's
+picture as a banner with its SHOP button; it opens the shop with the grey alien, selling only the ships that are not
+in the fleet (the shop-only ones), paid from all the ships' money together (the fullest wallet first). Bought for one
+game from the menu, a ship joins the next game (`bank.once`); for a week or for good, every game. Back returns to the
+menu.
 
 **The shop's looks on the ships** (the Orbit Break Fleet Upgrades package: `art/upgrades/<ship>/`). A ship with a shield
 from the shop (passive or active) shows its own shield layer behind it, and with an extra weapon its own extra cannon on
