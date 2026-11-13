@@ -1574,7 +1574,8 @@ const MAGIC = {
   // HUSK: the window `last` s (from the arm out); reach: the jaws start a bite with a ship this near the mouth
   //   (ship-lengths), grab: still this near at the snap (`bite` s): caught; deliver: within this of the alien:
   //   delivered; crR: the alien's size (ship-lengths, a radius). paraCut / paraLast: the parasite (button 2)
-  breach: { name: "פריצה ומסירה", look: "breach", last: 20, cool: 40, reach: 0.9, grab: 1.0, bite: 0.63, deliver: 1.0, crR: 1.1, paraCut: 0.35, paraLast: 2.5, color: "#ff9a2e" },
+  //   seek: s to touch a store with the jaws (it is infected, and the alien comes out of it); last counts from then
+  breach: { name: "פריצה ומסירה", look: "breach", seek: 30, last: 20, cool: 40, reach: 0.9, grab: 1.0, bite: 0.63, deliver: 1.0, crR: 1.1, paraCut: 0.35, paraLast: 2.5, color: "#ff9a2e" },
   vault: { name: "הכוכב בכספת", look: "vault", suck: 1.4, hold: 30, free: 1.4, door: 0.35, near: 0.715, reach: 1.95, pull: 0.5,
            pulse: 2.5, rad: 0.8, wave: 0.45, dmg: 10, fireShow: 0.55, cool: 50, color: "#ffb347" },
   orbitmine: { name: "מוקש מסלול", look: "orbitmine", speed: 0.8, hit: 1.5, r: 0.13, cool: 10, color: "#ffb347" },
@@ -3850,10 +3851,10 @@ function drawForgeBall(s) {
 // top-left; the bay between the arms is open), the docking point. Both bays open downward. Ships are bought in the ship
 // shop, from the main menu (shopOpen("ship")).
 const STORE_LOOKS = {
-  weapon: { file: "art/station/weapon-store.webp", idle: "art/station/weapon-store-idle.webp", brk: "art/station/weapon-store-break.webp", closed: "art/station/weapon-store-closed.webp", w: 3.6, h: 3.6 * 871 / 845, clock: 0,
+  weapon: { file: "art/station/weapon-store.webp", idle: "art/station/weapon-store-idle.webp", brk: "art/station/weapon-store-break.webp", huskIn: "art/station/weapon-store-husk-in.webp", huskLoop: "art/station/weapon-store-husk-loop.webp", closed: "art/station/weapon-store-closed.webp", w: 3.6, h: 3.6 * 871 / 845, clock: 0,
     solid: [[0.12, 0.04, 0.31, 0.3], [0.03, 0.25, 0.97, 0.62], [0.03, 0.62, 0.28, 0.95], [0.72, 0.62, 0.95, 0.95]],
     bay: [0.29, 0.63, 0.71, 0.97], dock: [0.5, 0.8], merchant: "kip", goods: ["ammo", "weapon"] },
-  shield: { file: "art/station/shield-store.webp", idle: "art/station/shield-store-idle.webp", brk: "art/station/shield-store-break.webp", closed: "art/station/shield-store-closed.webp", w: 3.6, h: 3.6 * 874 / 850, clock: 1.0,
+  shield: { file: "art/station/shield-store.webp", idle: "art/station/shield-store-idle.webp", brk: "art/station/shield-store-break.webp", huskIn: "art/station/shield-store-husk-in.webp", huskLoop: "art/station/shield-store-husk-loop.webp", closed: "art/station/shield-store-closed.webp", w: 3.6, h: 3.6 * 874 / 850, clock: 1.0,
     solid: [[0.38, 0.03, 0.62, 0.15], [0.03, 0.12, 0.97, 0.62], [0.05, 0.62, 0.3, 0.97], [0.7, 0.62, 0.95, 0.97]],
     bay: [0.3, 0.64, 0.7, 0.97], dock: [0.5, 0.8], merchant: "brass", goods: ["shield", "life"] }
 };
@@ -4212,12 +4213,17 @@ function setStation(seed) {
 // both phones in a duel see the same breaks. open / away: seconds, from-to (balance: change freely) ----
 const STORE_BREAK = { open: [90, 160], away: [30, 45], fps: 12, frames: 37, cols: 7 };
 function breakPick(S, r) { return r[0] + (S.rnd ? S.rnd() : Math.random()) * (r[1] - r[0]); }
-function storeOpen(S) { return !S.st || S.st === "open"; }
+function storeOpen(S) { return (!S.st || S.st === "open") && !S.inf; }
 function updateStoreBreaks(dt) {
   const len = STORE_BREAK.frames / STORE_BREAK.fps;
   for (const S of stations) {
+    if (S.inf) {   // HUSK's infection: in, the loop; cleaning (the infection backwards), then the store as it was
+      S.inf.t += dt;
+      if (S.inf.clean >= 0 && (S.inf.clean += dt) >= HUSK_INF) S.inf = null;
+    }
     if (!S.st) continue;
     S.msg = Math.max(0, S.msg - dt);
+    if (S.inf) continue;   // (no break while infected)
     if (S.st === "open") {
       if (time >= S.at && !(game.docked && dockedStation() === S)) { S.st = "leave"; S.a = 0; }   // (a customer inside: he finishes first)
       else if (time >= S.at - 10) { artImage(stationLook(S).brk); artImage(stationLook(S).closed); }   // (load the frames in time)
@@ -4293,6 +4299,7 @@ function undock() {
 }
 function drawStation() {
   if (game.stage === "gift" || game.stage === "opening" || game.stage === "title") return;
+  if (game.ship === "husk" || (enemy.on && enemy.ship === "husk")) for (const S of stations) { artImage(stationLook(S).huskIn); artImage(stationLook(S).huskLoop); }   // (HUSK about: its infection's frames)
   const lit = canDock(), z = game.zoom || 1;
   for (const S of stations) {
     const L = stationLook(S), sz = stationSize(S), P = stationPos(S), p = toScreen(P.x, P.y);
@@ -4304,11 +4311,22 @@ function drawStation() {
     g.addColorStop(0, `rgba(${col},${on ? 0.5 : 0.18 + 0.08 * Math.sin(time * 3)})`); g.addColorStop(1, `rgba(${col},0)`);
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(D.x, D.y, sz.w * 0.22, 0, TAU); ctx.fill();
     const A = artImage(L.idle), x0 = p.x - sz.w / 2, y0 = p.y - sz.h / 2;
-    if (!storeOpen(S)) { drawStoreBreak(S, L, x0, y0, sz); ctx.restore(); continue; }
+    if (S.inf && drawStoreHusk(S, L, x0, y0, sz)) { ctx.restore(); continue; }
+    if (!storeOpen(S) && !S.inf) { drawStoreBreak(S, L, x0, y0, sz); ctx.restore(); continue; }
     if (A) { const f = Math.floor((time + L.clock) / 0.2) % 36, c = A.width / 6; ctx.drawImage(A, (f % 6) * c, Math.floor(f / 6) * c, c, c, x0, y0, sz.w, sz.h); }   // its lights, blinking
     else { const img = artImage(L.file); if (img) ctx.drawImage(img, x0, y0, sz.w, sz.h); }
     ctx.restore();
   }
+}
+// a store HUSK infected: the infection (37 frames, 7 x 6), then the creature moving inside (72, 9 x 8, looping); cleaning:
+// the infection backwards. Both atlases are in the store's own rectangle. False: not loaded yet (the store as it is)
+function drawStoreHusk(S, L, x0, y0, sz) {
+  const I = S.inf, n = HUSK_INF_N - 1, loop = I.clean < 0 && I.t >= HUSK_INF, A = artImage(loop ? L.huskLoop : L.huskIn);
+  if (!A) return false;
+  const cols = loop ? 9 : 7, f = loop ? Math.floor((I.t - HUSK_INF) * 12) % 72 : I.clean >= 0 ? n - Math.min(n, Math.floor(I.clean * 12)) : Math.min(n, Math.floor(I.t * 12));
+  const cw = A.width / cols, ch = cw * 363 / 352;
+  ctx.drawImage(A, (f % cols) * cw, Math.floor(f / cols) * ch, cw, ch, x0, y0, sz.w, sz.h);
+  return true;
 }
 // a store on its break: the frames (into the store's own rectangle, 490/440 as tall), and "On break" over it
 function drawStoreBreak(S, L, x0, y0, sz) {
@@ -5883,7 +5901,7 @@ function updatePaddles(dt) {
       audio.hit(); audio.tone(520, 0.12, "square", 0.05, 0.6); shake(0.5); buzz(120);
     }
   }
-  if ((P.ph === "strike" && P.s >= seqT("pstrike")) || (P.ph === "release" && P.s >= seqT("prelease"))) game.paddle = null; huskRelease(); game.husk = null; game.hcap = false; huskCreature = null; game.paraT = 0;
+  if ((P.ph === "strike" && P.s >= seqT("pstrike")) || (P.ph === "release" && P.s >= seqT("prelease"))) game.paddle = null;
 }
 // XELTAR's side fins: the frame with its fin band swapped for the moving fins' (the old fin edges gone), on a canvas
 let finCanvas = null;
@@ -5990,6 +6008,9 @@ function drawFresnelShot(s, Wp) {
 //   thr (s into the throttle bend, or -1), held (the throttle last frame), cap (a ship caught) }
 // huskCreature: { a (its side of the star), t, own: "me" | "them" }. game.hcap: caught by their HUSK
 const HUSK_MOUTH = [0.141, -0.464], HUSK_OPEN = 1.77, HUSK_CLOSE = 1.72, HUSK_BURST = 25 * 0.0832;
+// a store's infection (the HUSK store packages): HUSK_INF_N frames at 12 fps, then the creature inside for HUSK_LOOP s
+// (one turn of the inside loop) before it breaks out of the store
+const HUSK_INF_N = 37, HUSK_INF = HUSK_INF_N / 12, HUSK_LOOP = 6;
 let huskCreature = null;
 const pad2 = (n) => String(n).padStart(2, "0");
 function huskFrame(H) {
@@ -6015,8 +6036,15 @@ function huskMouth(o) {
   const S = shipById("husk"), sz = shipSize() * (o === game ? shipScale() : enemyScale()), m = rotatePt(HUSK_MOUTH[0] * sz, HUSK_MOUTH[1] * sz, o.ang);
   return { x: wrapX(o.x + m.x), y: wrapY(o.y + m.y) };
 }
-// where the alien waits: on HUSK's side of the star, out of it (it rises out of the star while hatching)
+// where the alien waits: out of the store it infected, in front of its bay (it comes out of the bay while hatching);
+// (no store: on HUSK's side of the star, rising out of it)
 function creaturePos(C) {
+  const S = C.s != null ? stations[C.s] : null;
+  if (S) {
+    const L = stationLook(S), k = ease(clamp(C.t / HUSK_BURST, 0, 1)), A = stationWorld(S, L.dock[0], L.dock[1]), B = stationWorld(S, L.dock[0], 1);
+    const out = wrapDelta(B.y - A.y, WH) + shipSize() * MAGIC.breach.crR * 0.75;
+    return { x: A.x, y: wrapY(A.y + out * k) };
+  }
   const k = ease(clamp(C.t / HUSK_BURST, 0, 1)), r = planetR() * (0.55 + 0.45 * k) + shipSize() * MAGIC.breach.crR * 0.42 * k;
   return { x: wrapX(WW / 2 + Math.cos(C.a) * r), y: wrapY(WH / 2 + Math.sin(C.a) * r) };
 }
@@ -6024,11 +6052,25 @@ function startBreach(M) {
   if (game.husk || game.dead) { audio.nope(); return; }
   game.husk = { ph: "open", t: 0, life: 0, bite: -1, thr: -1, held: game.thrust !== null, cap: false };
   game.magicCool = M.cool;
-  const a = Math.atan2(wrapDelta(game.y - WH / 2, WH), wrapDelta(game.x - WW / 2, WW));
-  huskCreature = { a, t: 0, own: "me" }; if (enemy.remote) link.send({ t: "hcr", a: +a.toFixed(4) });
   audio.tone(90, 0.6, "square", 0.05, 0.5); audio.tone(400, 0.25, "triangle", 0.03, 1.6, 0.3); audio.noise(0.5, 0.06, 900); buzz(60);   // the locks, the tank
-  audio.tone(60, 1.6, "sawtooth", 0.05, 1.8, 0.2);   // something stirring in the star
 }
+// the jaws touching a store (its body or its bay)
+function huskTouches(S, mo) {
+  const p = stationLocal(S, mo.x, mo.y), L = stationLook(S);
+  return L.solid.concat([L.bay]).some(([x0, y0, x1, y1]) => p.x > x0 - 0.02 && p.x < x1 + 0.02 && p.y > y0 - 0.02 && p.y < y1 + 0.02);
+}
+// a store infected (on both phones: "hinf"): its infection starts, and the alien inside it, out after HUSK_INF + HUSK_LOOP s
+function huskInfect(k, own) {
+  const S = stations[k]; if (!S) return;
+  S.inf = { t: 0, own, clean: -1 };
+  if (S.st && S.st !== "open") { S.st = "open"; S.at = time + breakPick(S, STORE_BREAK.open); }   // (a merchant on his break: back at once)
+  else if (S.st) S.at = Math.max(S.at, time + 30);
+  huskCreature = { s: k, t: -(HUSK_INF + HUSK_LOOP), own };
+  const P = stationWorld(S, 0.5, 0.45); burstAt(P.x, P.y, 24, ["#ff9a2e", "#ffd27a", "#ffffff"], 0.6, 0.8);
+  audio.tone(110, 0.5, "sawtooth", 0.05, 0.6); audio.noise(0.6, 0.06, 600); buzz(100);
+  audio.tone(60, 1.6, "sawtooth", 0.05, 1.8, 0.4);   // something stirring inside
+}
+function huskCleanStores(own) { for (const S of stations) if (S.inf && S.inf.own === own && S.inf.clean < 0) S.inf.clean = 0; }
 function huskRelease() { const H = game.husk; if (H && H.cap) { H.cap = false; if (enemy.remote) link.send({ t: "hrel" }); } }
 function huskClose() {
   const H = game.husk; if (!H || H.ph === "close") return;
@@ -6038,7 +6080,7 @@ function updateHusk(dt) {
   const M = MAGIC.breach, size = shipSize();
   if (huskCreature) {
     huskCreature.t += dt;
-    if (huskCreature.t < 1.2 && Math.random() < dt * 30) { const P = creaturePos(huskCreature); burstAt(P.x, P.y, 1, ["#ffffff", "#ffd27a", "#ff7ad9"], 0.3, 0.6); }   // the star splitting, sparks
+    if (huskCreature.t >= 0 && huskCreature.t < 1.2 && Math.random() < dt * 30) { const P = creaturePos(huskCreature); burstAt(P.x, P.y, 1, ["#ffffff", "#ffd27a", "#ff7ad9"], 0.3, 0.6); }   // the star splitting, sparks
   }
   if (game.paraT > 0) game.paraT -= dt;
   if (enemy.paraT > 0) enemy.paraT -= dt;
@@ -6053,6 +6095,10 @@ function updateHusk(dt) {
       if (H.thr >= 0) { H.thr += dt; if (H.thr >= 1.4) H.thr = -1; }
       const mo = huskMouth(game), reachD = (q) => Math.hypot(wrapDelta(enemy.x - q.x, WW), wrapDelta(enemy.y - q.y, WH));
       const can = enemy.on && !enemyDocked() && !enemyAloft() && enemy.warp < 0.5;
+      if (!H.inf) {   // the jaws on a store: it is infected (one per magic)
+        const k = stations.findIndex((S) => !S.inf && huskTouches(S, mo));
+        if (k >= 0) { H.inf = true; huskInfect(k, "me"); if (enemy.remote) link.send({ t: "hinf", k }); }
+      }
       if (H.bite < 0 && !H.cap && can && reachD(mo) < M.reach * size) { H.bite = 0; H.thr = -1; audio.tone(260, 0.3, "sawtooth", 0.04, 1.6); }   // in reach: the jaws spread
       if (H.bite >= 0) {
         const before = H.bite; H.bite += dt;
@@ -6063,7 +6109,8 @@ function updateHusk(dt) {
         if (H.bite >= 0.84) H.bite = -1;
       }
       if (H.cap) { if (!enemy.on) H.cap = false; else { enemy.x = mo.x; enemy.y = mo.y; } }   // (it hangs from the jaws, here too)
-      if (H.life >= M.last + HUSK_OPEN) huskClose();
+      // the window: `seek` s to reach a store; then `last` s from when the alien comes out
+      if (!H.inf ? H.life >= M.seek + HUSK_OPEN : !huskCreature || huskCreature.t >= M.last) huskClose();
     }
     else if (H.ph === "close" && H.t >= HUSK_CLOSE) { game.husk = null; huskGone(); }
   }
@@ -6074,7 +6121,7 @@ function updateHusk(dt) {
     else {
       const mo = huskMouth(enemy); game.x = mo.x; game.y = mo.y; game.vx = enemy.vx || 0; game.vy = enemy.vy || 0;
       const C = huskCreature;
-      if (C && C.own === "them" && Math.hypot(wrapDelta(game.x - creaturePos(C).x, WW), wrapDelta(game.y - creaturePos(C).y, WH)) < M.deliver * size) {
+      if (C && C.own === "them" && C.t >= 0 && Math.hypot(wrapDelta(game.x - creaturePos(C).x, WW), wrapDelta(game.y - creaturePos(C).y, WH)) < M.deliver * size) {
         game.hcap = false; if (enemy.remote) link.send({ t: "hdel" });
         const P = creaturePos(C); burstAt(P.x, P.y, 40, ["#ff7ad9", "#5ee7c0", "#ffd27a", "#ffffff"], 0.8, 0.9); audio.boom();
         blowUpShip();   // delivered: as if beaten
@@ -6082,9 +6129,10 @@ function updateHusk(dt) {
     }
   }
 }
-function huskGone() { if (huskCreature && huskCreature.own === "me") { huskCreature = null; if (enemy.remote) link.send({ t: "hcr", off: 1 }); } }
+function huskGone() { huskCleanStores("me"); if (huskCreature && huskCreature.own === "me") { huskCreature = null; if (enemy.remote) link.send({ t: "hcr", off: 1 }); } }
 function huskMsg(m) {
-  if (m.t === "hcr") { huskCreature = m.off ? null : { a: m.a, t: 0, own: "them" }; if (!m.off) audio.tone(60, 1.6, "sawtooth", 0.05, 1.8); }
+  if (m.t === "hcr") { if (m.off) huskCleanStores("them"); huskCreature = m.off ? null : { a: m.a, t: 0, own: "them" }; if (!m.off) audio.tone(60, 1.6, "sawtooth", 0.05, 1.8); }
+  else if (m.t === "hinf") huskInfect(m.k, "them");
   else if (m.t === "hcap") { if (!game.dead && game.stage === "fly" && !game.docked) { game.hcap = true; buzz(150); shake(0.5); audio.tone(90, 0.5, "sawtooth", 0.06, 0.5); } }
   else if (m.t === "hrel") game.hcap = false;
   else if (m.t === "hdel") { const H = game.husk; if (H) { H.cap = false; huskClose(); } audio.boom(); }
@@ -6093,10 +6141,11 @@ function huskMsg(m) {
 // the alien by the star: hatching (the burst frames, rising out of it, the star flaring where it splits), then waiting;
 // a faint ring where a caught ship is delivered
 function drawHuskCreature() {
-  const C = huskCreature; if (!C) return;
+  const C = huskCreature; if (!C || C.t < 0) return;   // (still inside the store)
   const P = creaturePos(C), p = toScreen(P.x, P.y), size = shipSize(), d = size * MAGIC.breach.crR * 2;
-  if (C.t < 1.4) {   // the flare where the star splits
-    const S = toScreen(WW / 2 + Math.cos(C.a) * planetR(), WH / 2 + Math.sin(C.a) * planetR()), k = 1 - C.t / 1.4;
+  if (C.t < 1.4) {   // the flare where it breaks out (the store's membrane, or the star)
+    const St = C.s != null ? stations[C.s] : null, L = St && stationLook(St);
+    const S = St ? toScreen(...Object.values(stationWorld(St, L.dock[0], L.dock[1]))) : toScreen(WW / 2 + Math.cos(C.a) * planetR(), WH / 2 + Math.sin(C.a) * planetR()), k = 1 - C.t / 1.4;
     const g = ctx.createRadialGradient(S.x, S.y, 0, S.x, S.y, size * 1.4);
     g.addColorStop(0, `rgba(255,255,240,${0.9 * k})`); g.addColorStop(0.3, `rgba(255,170,90,${0.5 * k})`); g.addColorStop(1, "rgba(255,120,200,0)");
     ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(S.x, S.y, size * 1.4, 0, TAU); ctx.fill(); ctx.restore();
@@ -14052,7 +14101,7 @@ function endDuel(tellThem) {
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   game.zombie = false; game.pollen = null; enemy.zombie = false;
-  mazeEnd(true); flood = null; game.pinball = null; game.snake = null; game.vault = null; flyMines.length = 0; game.haunt = null; game.broad = null; ghosts.length = 0; game.paddle = null;   // the match is over: no maze, the star back, no water, no pinballs
+  mazeEnd(true); flood = null; game.pinball = null; game.snake = null; game.vault = null; flyMines.length = 0; game.haunt = null; game.broad = null; ghosts.length = 0; game.paddle = null; huskRelease(); game.husk = null; game.hcap = false; huskCreature = null; game.paraT = 0; for (const S of stations) S.inf = null;   // the match is over: no maze, the star back, no water, no pinballs
   if (game.docked) undock();
   duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
@@ -14140,7 +14189,7 @@ function duelLink(event, data) {
   } else if (m.t === "cm" || m.t === "cmh" || m.t === "cmk") { cometMsg(m);   // the resource comets
   } else if (m.t === "pb") { pinballsArrive();   // their FLIPPER's pinballs, round me
   } else if (m.t === "om" || m.t === "omk") { orbitMsg(m);   // COURIER's orbit mines
-  } else if (m.t === "hcr" || m.t === "hcap" || m.t === "hrel" || m.t === "hdel" || m.t === "para") { huskMsg(m);   // HUSK
+  } else if (m.t === "hcr" || m.t === "hinf" || m.t === "hcap" || m.t === "hrel" || m.t === "hdel" || m.t === "para") { huskMsg(m);   // HUSK
   } else if (m.t === "gh") { addGhost(game, m.v);   // their CORSAIR hit me: a ghost over me
   } else if (m.t === "sn") { snakeArrive(m);   // their FRESNEL's snake, after me
   } else if (m.t === "wk") {   // their LYTH's ring / BALLAST's asteroid got my BOILER under water: it blows up
@@ -14549,6 +14598,18 @@ function botThink(dt) {
         botKey(" ", Math.hypot(wx, wy) > U * 0.08 && Math.abs(wrapAngle(botAI.head - game.ang)) < 0.5 && !game.locked);
       } else botKey(" ", false);
       if (G.cur < 0 && inSurgZone(game, G) && !botAI.keys.v) botTap("v", 0.08);
+    }
+  }
+  // HUSK: the arm out and no store infected yet: to the nearest store, jaws first; one caught and the alien out: to the alien
+  if (S.id === "husk") {
+    const H = game.husk, C = huskCreature;
+    if (!H && game.magicCool <= 0 && !botAI.keys.v && Math.random() < dt * 0.3) botTap("v", 0.08);
+    let T = null;
+    if (H && H.ph === "out" && !H.inf) { let best = 1e9; for (const St of stations) { const P = stationWorld(St, 0.5, 0.45), dd = Math.hypot(wrapDelta(P.x - game.x, WW), wrapDelta(P.y - game.y, WH)); if (dd < best) { best = dd; T = P; } } }
+    else if (H && H.cap && C && C.own === "me" && C.t >= 0) T = creaturePos(C);
+    if (T) {
+      const wx = wrapDelta(T.x - game.x, WW) * 1.2 - game.vx, wy = wrapDelta(T.y - game.y, WH) * 1.2 - game.vy;
+      botAI.head = Math.atan2(wx, -wy); botKey(" ", Math.hypot(wx, wy) > U * 0.08 && Math.abs(wrapAngle(botAI.head - game.ang)) < 0.5 && !game.locked);
     }
   }
   // STRATA up in the upper dimension: fly its shadow onto them and stay there

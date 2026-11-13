@@ -579,6 +579,14 @@ game from the menu, a ship joins the next game (`bank.once`); for a week or for 
 menu. On a wide or square screen (the Fold opened, a phone on its side) the title is two columns above the dials (`titleLayout`):
 the name on the left, the shop banner on the right.
 
+**HUSK infects a store** (the HUSK store packages: `art/station/<store>-store-husk-in.webp`, the infection, 37 frames
+at 12 fps, and `-husk-loop.webp`, the creature moving inside, 72 frames looping; both resampled into the store's own
+rectangle). HUSK's magic opens the tank and the arm comes out, and it has `MAGIC.breach.seek` s to touch a store with its
+jaws. That store is infected (`hinf`, on both phones): the infection plays, then the inside loop once, then the alien
+breaks out of the store's bay and waits in front of it. From then on the window is `last` s, and a caught ship is
+delivered to the alien there. An infected store is sealed (no docking, the bay solid); when the window ends it cleans
+(the infection backwards). The computer's HUSK flies to the nearest store with the arm out.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

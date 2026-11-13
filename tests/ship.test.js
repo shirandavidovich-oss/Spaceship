@@ -843,4 +843,11 @@ ok("the merchants' breaks: break frames and closed pictures exist; a store on it
   assert(html.includes("stations.find((S) => storeOpen(S) && inBay(S, game))") && html.includes("L.solid.concat([L.bay])"));
   assert(html.includes("!(game.docked && dockedStation() === S)"));
 });
+ok("HUSK infects a store with its jaws: the infection and inside-loop atlases exist, the alien comes out of that store, an infected store cannot be docked", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  for (const k of ["weapon", "shield"]) for (const f of ["in", "loop"]) assert(fs.existsSync(path.join(A, `art/station/${k}-store-husk-${f}.webp`)), k + f);
+  assert(html.includes("stations.findIndex((S) => !S.inf && huskTouches(S, mo))") && html.includes('link.send({ t: "hinf", k })'));
+  assert(html.includes("huskCreature = { s: k, t: -(HUSK_INF + HUSK_LOOP), own }") && html.includes("&& !S.inf; }"));
+  assert(!html.includes("game.paddle = null; huskRelease();"));   // (FLIPPER's paddles no longer clear HUSK's state)
+});
 console.log(n + " checks passed");
