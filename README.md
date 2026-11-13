@@ -576,7 +576,8 @@ blinking between). **Ships are bought in the ship shop**, from the main menu: un
 picture as a banner with its SHOP button; it opens the shop with the grey alien, selling only the ships that are not
 in the fleet (the shop-only ones), paid from all the ships' money together (the fullest wallet first). Bought for one
 game from the menu, a ship joins the next game (`bank.once`); for a week or for good, every game. Back returns to the
-menu.
+menu. On a wide or square screen (the Fold opened, a phone on its side) the title is two columns above the dials (`titleLayout`):
+the name on the left, the shop banner on the right.
 
 **The shop's looks on the ships** (the Orbit Break Fleet Upgrades package: `art/upgrades/<ship>/`). A ship with a shield
 from the shop (passive or active) shows its own shield layer behind it, and with an extra weapon its own extra cannon on

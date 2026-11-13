@@ -10190,17 +10190,27 @@ function playShipFilm(id) {
   return true;
 }
 // ---- the title screen (the main menu): the game's name, VEXAR, tap to start ----
+// where the title's parts go. A tall screen (a phone held upright, a folded Fold): one column, the name, then the shop
+// banner, then the dials. A wide or square screen (an opened Fold, a phone on its side): two columns above the dials,
+// the name on the left and the shop banner on the right (one column left the banner no room, so it was hidden)
+function titleLayout() {
+  const d = U * 0.16, dialTop = H - d * 1.9;
+  if (W <= H * 0.75) return { cx: W / 2, cy: H * 0.36, s: Math.min(W, H) * 0.42, f: Math.round(Math.min(W * 0.13, H * 0.08)), wide: false, d, dialTop };
+  const top = U * 0.17, bottom = dialTop - U * 0.03, room = Math.max(0, bottom - top), colW = W * 0.46;
+  const s = Math.min(colW * 0.7, room * 0.62), f = Math.round(Math.min(colW * 0.13, H * 0.08)), block = s * 1.12 + f * 1.6;
+  return { cx: W * 0.27, cy: top + (room - block) / 2 + s / 2, s, f, wide: true, d, dialTop, top, room, colW };
+}
 function drawTitle() {
   if (game.stage !== "title") return;
-  const icon = artImage("art/ui/title-icon.webp"), s = Math.min(W, H) * 0.42, f = Math.round(Math.min(W * 0.13, H * 0.08));
+  const T = titleLayout(), icon = artImage("art/ui/title-icon.webp"), s = T.s, f = T.f;
   ctx.save();
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
-  if (icon) { ctx.save(); ctx.translate(W / 2, H * 0.36 + Math.sin(time * 1.6) * U * 0.012); ctx.drawImage(icon, -s / 2, -s / 2, s, s); ctx.restore(); }
+  if (icon) { ctx.save(); ctx.translate(T.cx, T.cy + Math.sin(time * 1.6) * U * 0.012); ctx.drawImage(icon, -s / 2, -s / 2, s, s); ctx.restore(); }
   ctx.font = `900 ${f}px Rubik, Arial, sans-serif`; ctx.shadowColor = "#c86bff"; ctx.shadowBlur = f * 0.5;
-  ctx.fillStyle = "#f2e8ff"; ctx.fillText("ORBIT BREAK", W / 2, H * 0.36 + s * 0.62);
+  ctx.fillStyle = "#f2e8ff"; ctx.fillText("ORBIT BREAK", T.cx, T.cy + s * 0.62);
   ctx.shadowBlur = 0; ctx.direction = textDir();
   ctx.font = `700 ${Math.round(f * 0.36)}px Rubik, Arial, sans-serif`; ctx.fillStyle = `rgba(143,245,216,${0.6 + 0.4 * Math.sin(time * 3)})`;
-  ctx.fillText(tr("tapStart"), W / 2, H * 0.36 + s * 0.62 + f * 1.1);
+  ctx.fillText(tr("tapStart"), T.cx, T.cy + s * 0.62 + f * 1.1);
   ctx.restore();
 }
 // the main menu's way into the ship shop (the Shop Entry package): the weapon store's picture as a wide banner under
@@ -10208,9 +10218,14 @@ function drawTitle() {
 // button on it, bottom left (pressed: a little smaller, with a warm glow)
 const menuShop = { press: 0 };
 function menuShopLayout() {
-  const s = Math.min(W, H) * 0.42, f = Math.round(Math.min(W * 0.13, H * 0.08)), d = U * 0.16;
-  const top = H * 0.36 + s * 0.62 + f * 1.75, bottom = H - d * 1.9 - d * 0.7, room = Math.max(0, bottom - top);
-  const bw = Math.min(W * 0.98, room * 1672 / 941, U * 1.5), bh = bw * 941 / 1672, x = (W - bw) / 2, y = top + (room - bh) / 2;
+  const T = titleLayout(), s = T.s, f = T.f, d = T.d;
+  let bw, bh, x, y;
+  if (T.wide) {   // (the right column, beside the name)
+    bw = Math.min(T.colW, T.room * 1672 / 941, U * 1.5); bh = bw * 941 / 1672; x = W * 0.52 + (T.colW - bw) / 2; y = T.top + (T.room - bh) / 2;
+  } else {
+    const top = T.cy + s * 0.62 + f * 1.75, bottom = T.dialTop - d * 0.7, room = Math.max(0, bottom - top);
+    bw = Math.min(W * 0.98, room * 1672 / 941, U * 1.5); bh = bw * 941 / 1672; x = (W - bw) / 2; y = top + (room - bh) / 2;
+  }
   const btnW = bw * 0.34, btnH = btnW * 211 / 744;
   return { x, y, w: bw, h: bh, btn: { x: x + bw * 0.06, y: y + bh * 0.7, w: btnW, h: btnH } };
 }
