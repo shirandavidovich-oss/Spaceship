@@ -694,4 +694,23 @@ ok("BOILER: a torpedo that hunts only out of the water; a floating can that rise
   for (const id of ["labyrinth", "boiler"]) for (const slot of ["thrust", "primary", "secondary", "pickup", "magic"])
     assert(require("fs").existsSync(require("path").join(__dirname, "../app/src/main/assets/art/hud", id, slot + "-plate.webp")), id + " " + slot);
 });
+ok("the station: its pictures exist, the docking point is in the bay and clear of the solid parts; the shop's art and prices", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  const looks = eval(html.slice(html.indexOf("const STATION_LOOKS = ["), html.indexOf("];", html.indexOf("const STATION_LOOKS = [")) + 1).replace("const STATION_LOOKS = ", "(") + ")");
+  assert(looks.length >= 1 && looks.length <= 5);
+  for (const L of looks) {
+    assert(fs.existsSync(path.join(A, L.file)), L.file);
+    const [bx0, by0, bx1, by1] = L.bay, [dx, dy] = L.dock;
+    assert(dx > bx0 && dx < bx1 && dy > by0 && dy < by1, "dock in the bay");
+    for (const [x0, y0, x1, y1] of L.solid) { assert(!(dx > x0 && dx < x1 && dy > y0 && dy < y1), "dock not inside a solid part"); assert(!(bx0 >= x0 && bx1 <= x1 && by0 >= y0 && by1 <= y1)); }
+    assert(by1 > 0.8, "the bay opens downward");
+  }
+  for (const f of ["life", "shield", "ammo", "ship", "alien/idle", "alien/wave-up", "alien/wave-out", "alien/present-closed", "alien/present-open", "alien/present-round"])
+    assert(fs.existsSync(path.join(A, "art/ui/shop", f + ".webp")), f);
+  const shop = eval("(" + html.slice(html.indexOf("const SHOP = {") + 13, html.indexOf("\n};", html.indexOf("const SHOP = {")) + 2) + ")");
+  for (const k of ["pasPrice", "actPrice"]) assert(shop[k][1] < shop[k][2] && shop[k][2] < shop[k][3], k + " rises with the level");
+  assert(shop.pasCap[3] > shop.pasCap[1] && shop.actTime[3] > shop.actTime[1] && shop.actCool[3] < shop.actCool[1]);
+  assert(shop.computerPay > 0 && shop.computerPay < 1 && shop.welcome > 0);
+  for (const w of Object.keys(shop.weapons)) assert(WEAPONS[w], w);
+});
 console.log(n + " checks passed");

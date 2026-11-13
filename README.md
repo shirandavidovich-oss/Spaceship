@@ -475,6 +475,32 @@ in 1 s. While it is up:
 The flood ends at once if BOILER is destroyed. LABYRINTH's walls stay in the water, and the flood never relights a
 star the maze put out. In a duel the owner's phone sends its clock (`fd`); a blow-up is sent as `wk`.
 
+**The station and its shop** (the Orbit Break Docking package: `art/station/`, `art/ui/shop/`, the alien seller in
+`art/ui/shop/alien/`). A docking station floats in the arena, one of `STATION_LOOKS` picked at random (one picture so far;
+up to five, each with its own solid parts and bay as boxes in its picture), somewhere around the star. Both phones have
+it in the same place (its seed travels in the duel's `hi`). Only its ring is solid (ships bounce off it, shots stop on
+it); the bay between its arms is open and faces down. Fly into the bay slowly and a ⚓ dock button shows; docked, the
+shop opens over everything, and the ship is safe there. **Exit** sends it out through the bay's mouth (safe for 1 s).
+- **Money:** every ship has its own wallet (`bank` on the phone, `spaceship.bank`): a win pays the winning ship
+  `killReward` (against the computer `SHOP.computerPay` = 40% of it), and a ship gets 300 the first time it docks. The
+  total (Σ) is the sum of all wallets; a ship spends only its own. Rare-earth minerals (◆) and metals (⬢) are counted
+  for things still to come. The money shows under the fleet row (this ship's, and the total).
+- **The shop page** (on the canvas, like the other pages; it fits the tall phone and the open Fold): the ship, its
+  money, the total, minerals and metals at the top; the alien seller (waves when you come in, then talks: a speech
+  bubble with the words appearing, his mouth moving, pausing at spaces; he reaches toward the goods while one is
+  chosen); the docked ship turning on a hologram stand (to be swapped for its 3D art); five goods on a shelf; the
+  chosen one's options; **Buy** (it checks the money first, and waits a moment after paying so one press never pays
+  twice) and **Exit**.
+- **The goods** (prices in `SHOP`): a spare health tank (+1, up to the 5); a full ammo refill; a **passive shield**
+  (absorbs 15 / 25 / 40 of the hits, refills 6 a second 3 s after the last hit) and an **active shield** (its own
+  button right of the thrust button: nothing gets through for 2.5 / 3.5 / 4.5 s, then 16 / 14 / 12 s to recharge),
+  3 levels each, bought one level at a time; an **extra weapon** from other ships (4 on offer each visit; button 4,
+  left of fire button 1; it refills by itself), and **ships** for this game's fleet (6 on offer, a lost one can be
+  bought back; priced by rarity). Shields and the extra weapon stay with the ship that bought them.
+- **In a duel, while one player is docked** the other fights practice ships: three computer ships that circle and
+  shoot but cannot hurt it (no health lost at all then), 20 for each one shot down, and its weapons refill three times
+  faster, until the other comes out.
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

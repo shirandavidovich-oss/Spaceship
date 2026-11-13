@@ -2566,8 +2566,8 @@ const game = {
   card: 0,          // seconds left to show the ship's name card
   hitCool: 0,
   ammo: [0, 0],     // shots left in weapons 1 and 2
-  cool: [0, 0, 0],  // seconds until each button can fire again
-  fire: [null, null, null],   // the finger holding each fire button (pointer id), or null
+  cool: [0, 0, 0, 0],  // seconds until each button can fire again (4: the shop's extra weapon)
+  fire: [null, null, null, null],   // the finger holding each fire button (pointer id), or null
   barrel: [0, 0, 0],          // which barrel fires next (the twin cannon takes turns)
   loot: null,       // weapon 3, picked up from a destroyed enemy: { w, ammo, show }
   kills: 0,
@@ -2587,7 +2587,7 @@ const game = {
   magicWait: false, // the gear was tapped during the cannon shot: the smoke follows right after
   anim: null        // the ship's drawings playing now: { seq: "primary" | "secondary" | "smoke", t: ms, pending, release }
 };
-function fillAmmo() { const S = shipById(game.ship); game.ammo = weaponsOf(S, game.flipMode || 0).map((w) => WEAPONS[w].ammo); }
+function fillAmmo() { const S = shipById(game.ship); game.ammo = weaponsOf(S, game.flipMode || 0).map((w) => WEAPONS[w].ammo); gearReset(); }
 // start: just above the planet, so its pull is felt at once
 function placeShip() {
   game.x = WW / 2; game.y = WH / 2 - U * 1.6; game.vx = game.vy = 0; game.ang = 0; game.lx = game.ly = 0;
@@ -2640,6 +2640,7 @@ cv.addEventListener("pointerdown", (e) => {
   }
   if (result.mode) { resultTap(e.clientX, e.clientY); return; }   // YOU WIN / GAME OVER: its buttons, and the gas kicks a letter
   if (trade.stage && tradeTap(e.clientX, e.clientY)) return;
+  if (shop.open) { shopTap(e.clientX, e.clientY); return; }   // the station's shop
   if (dialDown(e)) return;   // the sound dials catch the finger first (no firing with it)
   if ((hangar.open || picker.open || camp.over) && hitLang(e.clientX, e.clientY)) { setLang(LANG === "he" ? "en" : "he"); audio.pop(); buzz(10); return; }   // עב / EN
   if (picker.open || camp.over) { pickerTap(e.clientX, e.clientY); return; }   // choosing a ship / the fleet is gone
@@ -2647,6 +2648,8 @@ cv.addEventListener("pointerdown", (e) => {
   if (hangar.open) { hangarTap(e.clientX, e.clientY); return; }
   if (game.stage === "fly" && !trade.stage && hitDuel(e.clientX, e.clientY)) { duel.pressAt = performance.now(); duelButton(); return; }
   if (game.stage === "fly" && !trade.stage && !realDuel() && hitHangar(e.clientX, e.clientY)) { hangar.open = true; hangar.t = 0; audio.pop(); return; }
+  if (game.stage === "fly" && hitDock(e.clientX, e.clientY)) { dock(); return; }   // in the station's bay, slow: dock
+  if (game.stage === "fly" && !game.dead && hitShieldBtn(e.clientX, e.clientY)) { useShield(); return; }   // the active shield
   // the left thumb on the thrust button (another finger can still swipe at the same time)
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
     game.thrust = e.pointerId; buzz(12);
@@ -2691,12 +2694,13 @@ function fingerUp(e) {
 }
 cv.addEventListener("pointerup", fingerUp);
 cv.addEventListener("pointercancel", fingerUp);
-addEventListener("blur", () => { game.magicFinger = null; game.thrust = null; game.stick = null; game.fire = [null, null, null]; });
+addEventListener("blur", () => { game.magicFinger = null; game.thrust = null; game.stick = null; game.fire = [null, null, null, null]; });
 // on a computer: the space bar is the thrust button; Z, X, C are fire buttons 1, 2, 3
-const FIRE_KEYS = ["z", "x", "c"];
+const FIRE_KEYS = ["z", "x", "c", "v"];   // (V: the extra weapon; B: the active shield)
 addEventListener("keydown", (e) => {
   if (result.mode) { if (e.key === " " && !e.repeat) kickLetter(); return; }   // YOU WIN / GAME OVER: a new press of the gas kicks a letter
   if (e.key === " " && game.stage === "fly" && !game.locked) game.thrust = "key";
+  if (e.key.toLowerCase() === "b" && game.stage === "fly") useShield();
   const f = FIRE_KEYS.indexOf(e.key.toLowerCase());
   if (f >= 0 && game.stage === "fly") game.fire[f] = "key";
   if (e.key.toLowerCase() === "v" && game.stage === "fly" && !e.repeat) { game.magicFinger = "key"; useMagic(); }   // V = the magic button
@@ -2852,14 +2856,16 @@ function update(dt) {
   if (BOT) botThink(dt); else campTick(dt);
   if (game.stage === "fly" && trade.stage !== "swapping") {
     if (game.dead) {
-      game.dead -= dt; game.thrust = null; game.stick = null; game.fire = [null, null, null];
+      game.dead -= dt; game.thrust = null; game.stick = null; game.fire = [null, null, null, null];
       if (game.dead <= 0) {
         if (game.pick && !BOT) { game.dead = 0.01; if (!picker.open && !camp.over) openPicker("lost"); }   // choose the next ship first
         else respawnShip();
       }
     }
+    else if (game.docked) { const L = stationLook(), P = stationWorld(L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
+    updateGear(dt); updatePractice(dt); updateShop(dt);
   }
   updateTrade(dt);
   updateDuel(dt);
@@ -3006,7 +3012,7 @@ function moveShip(o, S, c, dt) {
   const px = o.x, py = o.y;
   o.x += o.vx * dt; o.y += o.vy * dt;
   o.x = ((o.x % WW) + WW) % WW; o.y = ((o.y % WH) + WH) % WH;
-  if (o === game) mazeShip(o, px, py);   // LABYRINTH's maze: the iron walls stop my ship
+  if (o === game) { mazeShip(o, px, py); stationShip(o); }   // LABYRINTH's maze: the iron walls stop my ship; the station too
 
   // 5. bounce off the planet. Stars, black holes and lava burn a ship that touches them (yours: health; see touchBurn)
   o.hitCool = Math.max(0, (o.hitCool || 0) - dt);
@@ -3650,6 +3656,577 @@ function drawForgeBall(s) {
   ctx.restore();
 }
 
+// ======================================================================
+//  THE STATION AND ITS SHOP (the Orbit Break Docking package)
+//  A docking station floats in the arena (one of STATION_LOOKS, at random; both phones the same: the seed travels in
+//  the duel's "hi"). Fly slowly into its bay and a dock button shows; docked, the shop opens: an alien seller and the
+//  goods. Money: every ship keeps its own wallet (profile.wallet[id], earned by its own wins: SHOP.computerPay of the
+//  reward against the computer, all of it against a player); the total is the sum. Rare-earth minerals and metals
+//  (profile.res) are kept for things to come. A ship spends only its own money.
+//  Goods (kept per ship in profile.gear[id]): a spare health tank, a full ammo refill, a passive shield (absorbs hits,
+//  refills) and an active shield (a button: nothing gets through for a few seconds), 3 levels each, an extra weapon
+//  (from other ships, button 4, left of fire button 1), and new ships for the fleet of this game.
+//  In a duel, while one player is docked the other fights practice ships (computer ships that cannot hurt it): money
+//  for each, and its weapons refill faster.
+// ======================================================================
+// a look: its picture, its size (ship-lengths across), its solid parts and its bay as boxes [x0, y0, x1, y1] in the
+// picture's own units (0..1 from the top-left; not the whole picture: the bay between the arms is open), the docking
+// point. The bay always opens downward. (More looks: add their pictures and shapes here; one is picked at random)
+const STATION_LOOKS = [
+  { file: "art/station/station-1.webp", size: 3.4,
+    solid: [[0.28, 0.08, 0.72, 0.16], [0.10, 0.15, 0.90, 0.40], [0.03, 0.40, 0.26, 0.78], [0.74, 0.40, 0.97, 0.78], [0.11, 0.78, 0.28, 0.90], [0.72, 0.78, 0.89, 0.90]],
+    bay: [0.29, 0.42, 0.71, 0.88], dock: [0.5, 0.6] }
+];
+// prices and the like (balance: change freely). dockSpeed: slow enough to dock (screens/s). welcome: what a ship gets
+// the first time it docks. computerPay: share of a win's reward against the computer. pas*: the passive shield per
+// level (what it absorbs, its refill per second, the wait after a hit before it refills). act*: the active shield
+// (seconds on, recharge). ship: a new ship by rarity. weapons: the extra weapons on offer and their prices.
+// drones: practice ships at once; droneHp, dronePay: their health and the money each; practiceRefill: ammo refills
+// this many times faster while practising
+const SHOP = {
+  dockSpeed: 0.5, welcome: 300, computerPay: 0.4,
+  life: 150, ammo: 80,
+  pasPrice: [0, 400, 900, 1600], pasCap: [0, 15, 25, 40], pasRegen: 6, pasWait: 3,
+  actPrice: [0, 500, 1100, 1900], actTime: [0, 2.5, 3.5, 4.5], actCool: [0, 16, 14, 12],
+  ship: { common: 800, rare: 1500, epic: 2500, legendary: 4000 },
+  weapons: { twin: [500, "Twin cannon"], pulse: [550, "Pulse"], bolt: [650, "Light bolt"], ice: [600, "Ice shards"], hammer: [750, "Hammer"],
+    blaster: [650, "Blaster"], torpedo: [1000, "Blast torpedo"], neon: [700, "Neon burst"], prism: [800, "Prism shard"], ricochet: [700, "Ricochet"],
+    railslug: [950, "Rail slug"], missile: [1100, "Missiles"], laser: [900, "Laser"], spread: [600, "Fan"] },
+  offers: 4, shipOffers: 6,
+  drones: 3, droneHp: 40, dronePay: 20, practiceRefill: 3
+};
+const SHOP_TXT = {
+  he: { dock: "⚓ עגינה", shop: "תחנת מסחר", exit: "יציאה", buy: "קנייה", total: "סה״כ", minerals: "מינרלים", metals: "מתכות",
+    life: "חיים", shield: "מגן", ammo: "תחמושת", ship: "חללית", weapon: "נשק",
+    lifeOpt: "+1 מיכל חיים", ammoOpt: "מילוי כל התחמושת", pas: "מגן פסיבי", act: "מגן אקטיבי", lvl: "רמה", max: "מקסימום", full: "מלא", owned: "שלך",
+    poor: "חסר", practice: "היריב בתחנה · אימון מול ספינות מחשב: בלי פגיעה בחיים, 🪙 על כל הפלה",
+    hello: ["ברוך הבא לתחנה, טייס! הכל כאן בשבילך. מה נביא היום?", "אה, לקוח! תתרווח. יש לי בדיוק מה שהחללית שלך צריכה.", "שלום שלום! מגנים, נשקים, חלליות. תבחר, אני כבר מראה."],
+    sayLife: "מיכל חיים נוסף: עוד בר שלם לפני שאתה נופל. קלאסיקה!", sayAmmo: "תחמושת מלאה בכל הנשקים. בום, בום, בום.",
+    sayShield: "פסיבי סופג פגיעות לבד ומתמלא שוב. אקטיבי: כפתור, ושום דבר לא עובר לכמה שניות.",
+    sayWeapon: "נשק נוסף מחללית אחרת, עם כפתור משלו ליד כפתור הירי. תבחר טוב!", sayShip: "חלליות חדשות לצי של המשחק הזה. תבחר אחת, ואז תאשר.",
+    thanks: ["עסקה מצוינת!", "תהנה מזה, טייס!", "בחירה חכמה!"], cant: "אוי… חסרים לך עוד", coins: "מטבעות" },
+  en: { dock: "⚓ DOCK", shop: "Trading Station", exit: "Exit", buy: "Buy", total: "Total", minerals: "minerals", metals: "metals",
+    life: "Life", shield: "Shield", ammo: "Ammo", ship: "Ship", weapon: "Weapon",
+    lifeOpt: "+1 health tank", ammoOpt: "Refill all ammo", pas: "Passive shield", act: "Active shield", lvl: "Level", max: "Max", full: "Full", owned: "Yours",
+    poor: "Need", practice: "Enemy docked · practice vs computer ships: no health lost, 🪙 for each kill",
+    hello: ["Welcome aboard, pilot! What can I get you today?", "Ah, a customer! I have just what your ship needs.", "Hello hello! Shields, weapons, ships. Pick one, I'll show you."],
+    sayLife: "A spare health tank: one more full bar before you go down. A classic!", sayAmmo: "All your weapons, full again. Boom, boom, boom.",
+    sayShield: "Passive soaks hits by itself and refills. Active: a button, and nothing gets through for a few seconds.",
+    sayWeapon: "An extra weapon from another ship, with its own button by the fire button. Choose well!", sayShip: "New ships for this game's fleet. Pick one, then confirm.",
+    thanks: ["Excellent deal!", "Enjoy it, pilot!", "Smart choice!"], cant: "Oh… you still need", coins: "coins" }
+};
+function st(k) { return (SHOP_TXT[LANG] || SHOP_TXT.he)[k]; }
+
+// ---- money ----
+// bank: kept on the phone (BANK_KEY): { wallet: { ship: coins }, gear: { ship: { pas, act, xw } }, res: { minerals, metals },
+//   welcomed: { ship: 1 } }. (The bot keeps its own, in memory only.)
+const BANK_KEY = "spaceship.bank";
+if (params.has("reset")) { try { LS.removeItem(BANK_KEY); } catch (e) {} }
+const bank = (() => { try { const b = JSON.parse(LS.getItem(BANK_KEY)); if (b && typeof b === "object") return b; } catch (e) {} return {}; })();
+bank.wallet = bank.wallet || {}; bank.gear = bank.gear || {}; bank.res = bank.res || { minerals: 0, metals: 0 }; bank.welcomed = bank.welcomed || {};
+function saveBank() { try { LS.setItem(BANK_KEY, JSON.stringify(bank)); } catch (e) {} if (profile) { profile.money = totalMoney(); saveProfile(); } }
+function wallet(id) { return bank.wallet[id] || 0; }
+function totalMoney() { return Object.values(bank.wallet).reduce((a, b) => a + b, 0); }
+function walletAdd(id, n) { if (!id) return; bank.wallet[id] = Math.max(0, wallet(id) + n); }
+function resOf(k) { return bank.res[k] || 0; }
+// a won fight pays the winning ship (against the computer: SHOP.computerPay of it)
+function payWin(r, player) {
+  const amount = player ? r.total : Math.round(r.total * SHOP.computerPay / 5) * 5;
+  walletAdd(game.ship, amount); saveBank();
+  bounty.r = Object.assign({}, r, { total: amount }); bounty.t = 3.2;
+  audio.coins && audio.coins(); for (let i = 0; i < 6; i++) audio.tone(1200 + i * 180, 0.06, "triangle", 0.05, 1, i * 0.06);
+}
+
+// ---- gear ----
+function gearOf(id) { const g = bank.gear[id]; return { pas: (g && g.pas) || 0, act: (g && g.act) || 0, xw: (g && g.xw && WEAPONS[g.xw]) ? g.xw : null }; }
+function myGear() { return gearOf(game.ship); }
+function setGear(id, k, v) { bank.gear[id] = Object.assign(gearOf(id), { [k]: v }); }
+// a new ship / a new life: the shields full, the extra weapon full
+function gearReset() {
+  const G = myGear();
+  game.pasHp = SHOP.pasCap[G.pas]; game.pasWait = 0; game.actOn = 0; game.actCool = 0; game.shieldFx = 0;
+  game.xammo = G.xw ? WEAPONS[G.xw].ammo : 0; game.cool[3] = 0;
+}
+function xAmmoStep(dt) {
+  const w = myGear().xw; if (!w) return;
+  const W0 = WEAPONS[w]; game.xammo = ammoStep(game.xammo || 0, { ammo: W0.ammo, refill: W0.refill || 10 }, dt);
+}
+function updateGear(dt) {
+  const G = myGear();
+  game.shieldFx = Math.max(0, (game.shieldFx || 0) - dt);
+  game.actOn = Math.max(0, (game.actOn || 0) - dt); game.actCool = Math.max(0, (game.actCool || 0) - dt);
+  if (G.pas) { if (game.pasWait > 0) game.pasWait -= dt; else game.pasHp = Math.min(SHOP.pasCap[G.pas], (game.pasHp || 0) + SHOP.pasRegen * dt); }
+  xAmmoStep(dt * (practiceOn() ? SHOP.practiceRefill : 1));
+  game.undockT = Math.max(0, (game.undockT || 0) - dt);
+}
+// a hit on my ship: what is left of it after the shields (0: none got through)
+function shieldsTake(n) {
+  if (game.actOn > 0) { game.shieldFx = 0.3; audio.tone(1500, 0.06, "sine", 0.03, 0.5); return 0; }
+  const G = myGear();
+  if (G.pas && game.pasHp > 0) {
+    const a = Math.min(game.pasHp, n); game.pasHp -= a; game.pasWait = SHOP.pasWait; game.shieldFx = 0.3;
+    audio.tone(900, 0.05, "sine", 0.025, 0.6); return n - a;
+  }
+  return n;
+}
+function useShield() {
+  const G = myGear();
+  if (!G.act || game.dead || game.docked) return;
+  if (game.actCool > 0 || game.actOn > 0) { audio.nope(); buzz(15); return; }
+  game.actOn = SHOP.actTime[G.act]; game.actCool = SHOP.actTime[G.act] + SHOP.actCool[G.act];
+  audio.tone(500, 0.25, "sine", 0.05, 2.5); audio.noise(0.3, 0.06, 4000); buzz(40);
+}
+// the active-shield button: to the right of the thrust button (left thumb); the extra weapon: left of fire button 1
+function shieldButton() { const t = thrustButton(); return { x: t.x + t.r * ARC, y: t.y, r: t.r * 0.72 }; }
+function hitShieldBtn(x, y) { if (!myGear().act) return false; const b = shieldButton(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.2; }
+function drawShieldBtn() {
+  const G = myGear(); if (!G.act) return;
+  const b = shieldButton(), on = game.actOn > 0, total = SHOP.actTime[G.act] + SHOP.actCool[G.act], ready = game.actCool <= 0;
+  ctx.save();
+  ctx.fillStyle = on ? "rgba(90,220,255,0.45)" : "rgba(10,14,34,0.72)"; octagonPath(b.x, b.y, b.r, 1); ctx.fill();
+  ctx.strokeStyle = ready ? "#5ee7ff" : "rgba(94,231,255,0.35)"; ctx.lineWidth = 3; octagonPath(b.x, b.y, b.r, 1); ctx.stroke();
+  if (!ready && !on) { ctx.strokeStyle = "#5ee7ff"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 1.08, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - game.actCool / total)); ctx.stroke(); }
+  // a shield, and its level as dots
+  const r = b.r * 0.5; ctx.fillStyle = ready || on ? "#bff6ff" : "#5a6a80";
+  ctx.beginPath(); ctx.moveTo(b.x, b.y - r); ctx.lineTo(b.x + r * 0.8, b.y - r * 0.6); ctx.lineTo(b.x + r * 0.7, b.y + r * 0.3); ctx.lineTo(b.x, b.y + r); ctx.lineTo(b.x - r * 0.7, b.y + r * 0.3); ctx.lineTo(b.x - r * 0.8, b.y - r * 0.6); ctx.closePath(); ctx.fill();
+  for (let i = 0; i < G.act; i++) { ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.arc(b.x + (i - (G.act - 1) / 2) * r * 0.5, b.y + b.r * 0.72, r * 0.12, 0, TAU); ctx.fill(); }
+  ctx.restore();
+}
+// a bubble round a shielded ship (mine, or theirs from their state's `sh`)
+function drawShieldBubble(x, y, size, kind, t) {
+  const R = size * 0.62, a = kind === 1 ? 0.55 + 0.15 * Math.sin(time * 9) : Math.min(1, t / 0.3) * 0.6;
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha = a;
+  const g = ctx.createRadialGradient(x, y, R * 0.6, x, y, R);
+  g.addColorStop(0, "rgba(94,231,255,0)"); g.addColorStop(0.85, kind === 1 ? "rgba(94,231,255,0.35)" : "rgba(160,200,255,0.25)"); g.addColorStop(1, "rgba(220,250,255,0.9)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
+// ---- the station in the arena ----
+const station = { seed: 1, look: 0, nx: 0.5, ny: 0.72 };
+function setStation(seed) {
+  const rnd = mazeRng(seed), a = rnd() * TAU, d = 0.17 + rnd() * 0.06;
+  station.seed = seed; station.look = Math.floor(rnd() * STATION_LOOKS.length) % STATION_LOOKS.length;
+  station.nx = 0.5 + Math.cos(a) * d; station.ny = 0.5 + Math.sin(a) * d;
+}
+setStation(Math.floor(Math.random() * 2147483647));
+function stationLook() { return STATION_LOOKS[station.look] || STATION_LOOKS[0]; }
+function stationPos() { return { x: station.nx * WW, y: station.ny * WH }; }
+function stationSize() { return shipSize() * stationLook().size; }
+// a point in the picture's own units (0..1 from the top-left)
+function stationLocal(x, y) { const P = stationPos(), u = stationSize(); return { x: wrapDelta(x - P.x, WW) / u + 0.5, y: wrapDelta(y - P.y, WH) / u + 0.5 }; }
+function stationWorld(lx, ly) { const P = stationPos(), u = stationSize(); return { x: wrapX(P.x + (lx - 0.5) * u), y: wrapY(P.y + (ly - 0.5) * u) }; }
+function inBay(o) { const p = stationLocal(o.x, o.y), b = stationLook().bay; return p.x > b[0] && p.x < b[2] && p.y > b[1] && p.y < b[3]; }
+// my ship against the station's solid parts: pushed out, a bounce, sparks (no damage)
+function stationShip(o) {
+  if (game.docked) return;
+  const L = stationLook(), u = stationSize(), rr = shipSize() * 0.3 / u;
+  let p = stationLocal(o.x, o.y);
+  if (p.x < -0.3 || p.x > 1.3 || p.y < -0.3 || p.y > 1.3) return;
+  for (const [x0, y0, x1, y1] of L.solid) {
+    const cx = clamp(p.x, x0, x1), cy = clamp(p.y, y0, y1), dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy);
+    if (d >= rr) continue;
+    let nx, ny, pen;
+    if (d > 1e-6) { nx = dx / d; ny = dy / d; pen = rr - d; }
+    else { const l = p.x - x0, r = x1 - p.x, t = p.y - y0, b = y1 - p.y, m = Math.min(l, r, t, b); nx = m === l ? -1 : m === r ? 1 : 0; ny = nx ? 0 : m === t ? -1 : 1; pen = m + rr; }
+    o.x = wrapX(o.x + nx * pen * u); o.y = wrapY(o.y + ny * pen * u); p = stationLocal(o.x, o.y);
+    const vn = o.vx * nx + o.vy * ny;
+    if (vn < 0) {
+      o.vx -= 1.4 * vn * nx; o.vy -= 1.4 * vn * ny;
+      if (-vn > U * 0.25) { burstAt(o.x - nx * rr * u, o.y - ny * rr * u, 10, ["#ffffff", "#ffd27a", "#5ee7ff"], 0.3, 0.5); audio.tone(200, 0.08, "square", 0.04, 0.5); buzz(30); }
+    }
+  }
+}
+// a shot into the station's solid parts: it stops there
+function stationShot(list, k, s) {
+  const L = stationLook(), p = stationLocal(s.x, s.y);
+  if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) return false;
+  for (const [x0, y0, x1, y1] of L.solid) if (p.x > x0 && p.x < x1 && p.y > y0 && p.y < y1) {
+    burstAt(s.x, s.y, 5, ["#ffd27a", "#5ee7ff", "#ffffff"], 0.15, 0.35); list.splice(k, 1); return true;
+  }
+  return false;
+}
+function canDock() {
+  return game.stage === "fly" && !game.dead && !game.docked && !result.mode && !trade.stage && !BOT && inBay(game)
+    && Math.hypot(game.vx, game.vy) < SHOP.dockSpeed * U && !game.lassoed && !game.strata && !game.dive;
+}
+function dockButton() { const r = U * 0.11; return { x: W / 2, y: H * 0.6, w: r * 2.6, h: r * 0.95 }; }
+function hitDock(x, y) { if (!canDock()) return false; const b = dockButton(); return Math.abs(x - b.x) < b.w / 2 && Math.abs(y - b.y) < b.h / 2; }
+function dock() {
+  const L = stationLook(), P = stationWorld(L.dock[0], L.dock[1]);
+  game.docked = { t: 0 }; game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.ang = 0;
+  game.thrust = null; game.stick = null; game.fire = [null, null, null, null];
+  if (!bank.welcomed[game.ship]) { bank.welcomed[game.ship] = 1; walletAdd(game.ship, SHOP.welcome); }   // a first visit: a welcome gift
+  saveBank(); shopOpen();
+  audio.tone(220, 0.3, "sine", 0.06, 1.5); audio.tone(330, 0.3, "sine", 0.05, 1.5, 0.15); audio.noise(0.4, 0.05, 1500); buzz(60);
+}
+function undock() {
+  const L = stationLook(), P = stationWorld(L.dock[0], L.bay[3] + 0.06);
+  game.docked = null; shop.open = false; game.x = P.x; game.y = P.y; game.vx = 0; game.vy = U * 0.9; game.ang = Math.PI; game.undockT = 1;
+  audio.whoosh(); buzz(40);
+}
+function drawStation() {
+  if (game.stage === "gift" || game.stage === "opening" || game.stage === "title") return;
+  const L = stationLook(), img = artImage(L.file), u = stationSize(), P = stationPos(), p = toScreen(P.x, P.y);
+  const z = game.zoom || 1, m = u;
+  if (Math.abs(p.x - W / 2) > W / 2 / z + m || Math.abs(p.y - H / 2) > H / 2 / z + m) return;
+  // the docking point's beacon, and a guide light when I am in the bay
+  const D = toScreen(...Object.values(stationWorld(L.dock[0], L.dock[1]))), lit = canDock();
+  ctx.save();
+  const g = ctx.createRadialGradient(D.x, D.y, 0, D.x, D.y, u * 0.22);
+  g.addColorStop(0, `rgba(94,231,255,${lit ? 0.5 : 0.18 + 0.08 * Math.sin(time * 3)})`); g.addColorStop(1, "rgba(94,231,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(D.x, D.y, u * 0.22, 0, TAU); ctx.fill();
+  if (img) ctx.drawImage(img, p.x - u / 2, p.y - u / 2, u, u);
+  ctx.restore();
+}
+function drawDockPrompt() {
+  if (!canDock()) return;
+  const b = dockButton(), s = 1 + 0.04 * Math.sin(time * 6);
+  ctx.save(); ctx.translate(b.x, b.y); ctx.scale(s, s);
+  ctx.fillStyle = "rgba(8,20,40,0.85)"; roundRect(-b.w / 2, -b.h / 2, b.w, b.h, b.h / 2); ctx.fill();
+  ctx.strokeStyle = "#5ee7ff"; ctx.lineWidth = 3; roundRect(-b.w / 2, -b.h / 2, b.w, b.h, b.h / 2); ctx.stroke();
+  ctx.fillStyle = "#e8fbff"; ctx.font = `900 ${Math.round(b.h * 0.45)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(st("dock"), 0, 0);
+  ctx.restore();
+}
+
+// ---- practice: while they are docked, computer ships to fight (they cannot hurt me) ----
+const drones = [], droneShots = [];
+function enemyDocked() { return enemy.remote && duel.net && !!duel.net.dk; }
+function practiceOn() { return !BOT && !game.docked && enemyDocked() && game.stage === "fly"; }
+function spawnDrone() {
+  const pool = hangarShips().filter((S) => S.id !== game.ship), S = pool[Math.floor(Math.random() * pool.length)], a = Math.random() * TAU, d = U * (1.4 + Math.random() * 0.6);
+  drones.push({ id: S.id, x: wrapX(game.x + Math.cos(a) * d), y: wrapY(game.y + Math.sin(a) * d), vx: 0, vy: 0, ang: 0, hp: SHOP.droneHp, cool: 1 + Math.random(), hurt: 0, orbit: Math.random() < 0.5 ? 1 : -1, t: 0 });
+  burstAt(drones[drones.length - 1].x, drones[drones.length - 1].y, 12, ["#5ee7ff", "#ffffff"], 0.3, 0.6);
+}
+function updatePractice(dt) {
+  if (!practiceOn()) { if (drones.length) { for (const d of drones) burstAt(d.x, d.y, 10, ["#5ee7ff", "#ffffff"], 0.3, 0.5); drones.length = 0; droneShots.length = 0; } return; }
+  if (!game.dead) weaponsOf(shipById(game.ship), game.flipMode || 0).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt * (SHOP.practiceRefill - 1)); });   // weapons refill faster
+  practice.spawn -= dt;
+  if (drones.length < SHOP.drones && practice.spawn <= 0) { spawnDrone(); practice.spawn = 1.2; }
+  for (const d of drones) {
+    d.t += dt; d.hurt = Math.max(0, d.hurt - dt);
+    const dx = wrapDelta(game.x - d.x, WW), dy = wrapDelta(game.y - d.y, WH), dist = Math.hypot(dx, dy) || 1;
+    const want = U * 1.0, tx = dx / dist, ty = dy / dist, rad = (dist - want) / want;   // keep about a screen away, circling
+    const gx = tx * rad * U * 0.9 - ty * d.orbit * U * 0.6, gy = ty * rad * U * 0.9 + tx * d.orbit * U * 0.6, k = 1 - Math.exp(-dt * 1.5);
+    d.vx += (gx - d.vx) * k; d.vy += (gy - d.vy) * k;
+    d.x = wrapX(d.x + d.vx * dt); d.y = wrapY(d.y + d.vy * dt); d.ang = Math.atan2(dx, -dy);
+    d.cool -= dt;
+    if (d.cool <= 0 && dist < U * 2 && !game.dead) {
+      d.cool = 1.2 + Math.random() * 0.8; const sp = U * 1.6;
+      droneShots.push({ x: d.x, y: d.y, vx: tx * sp, vy: ty * sp, life: 0 }); audio.tone(700, 0.04, "square", 0.015, 0.5);
+    }
+  }
+  for (let k = droneShots.length - 1; k >= 0; k--) {
+    const s = droneShots[k]; s.life += dt; s.x = wrapX(s.x + s.vx * dt); s.y = wrapY(s.y + s.vy * dt);
+    if (!game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.4) {   // a hit: only a flash, no health lost
+      burstAt(s.x, s.y, 6, ["#5ee7ff", "#ffffff"], 0.15, 0.35); game.shieldFx = 0.25; droneShots.splice(k, 1); continue;
+    }
+    if (s.life > 1.6) droneShots.splice(k, 1);
+  }
+  for (let k = coinPops.length - 1; k >= 0; k--) { coinPops[k].t += dt; if (coinPops[k].t > 1.2) coinPops.splice(k, 1); }
+}
+const practice = { spawn: 0 };
+const coinPops = [];   // "+20" floating up where a practice ship went down
+// one of my shots into a practice ship (true: the shot is used up)
+function droneHit(s, Wp) {
+  const size = shipSize();
+  for (let i = 0; i < drones.length; i++) {
+    const d = drones[i];
+    if (Math.hypot(wrapDelta(d.x - s.x, WW), wrapDelta(d.y - s.y, WH)) > size * 0.36 + ((Wp.r || 0) + (Wp.prox || 0)) * size) continue;
+    d.hp -= Wp.blast ? Wp.blastDmg : (shotHit(s, Wp).dmg || Wp.dmg || 8); d.hurt = 0.15;
+    burstAt(s.x, s.y, 6, [Wp.color, "#ffffff"], 0.2, 0.4); audio.hit();
+    if (d.hp <= 0) {
+      burstAt(d.x, d.y, 30, ["#ffffff", "#5ee7ff", "#ffd166", Wp.color], 0.7, 0.9); rings.push({ x: d.x, y: d.y, t: 0, max: 0.4, r: size * 0.8, c: "#5ee7ff" });
+      audio.boom(); walletAdd(game.ship, SHOP.dronePay); saveBank(); coinPops.push({ x: d.x, y: d.y, n: SHOP.dronePay, t: 0 });
+      drones.splice(i, 1);
+    }
+    return true;
+  }
+  return false;
+}
+function drawPractice() {
+  if (!drones.length && !droneShots.length && !coinPops.length) return;
+  const size = shipSize();
+  for (const d of drones) {
+    const p = toScreen(d.x, d.y);
+    ctx.save(); ctx.globalAlpha = 0.85; drawShip(shipById(d.id), p.x, p.y, size * 0.8, { ang: d.ang, power: 0.3 }); ctx.restore();
+    ctx.save(); ctx.strokeStyle = d.hurt > 0 ? "#ffffff" : "rgba(94,231,255,0.6)"; ctx.setLineDash([5, 5]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.48, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(p.x - size * 0.3, p.y - size * 0.6, size * 0.6, 5);
+    ctx.fillStyle = "#5ee7ff"; ctx.fillRect(p.x - size * 0.3, p.y - size * 0.6, size * 0.6 * Math.max(0, d.hp / SHOP.droneHp), 5);
+    ctx.restore();
+  }
+  ctx.save(); ctx.fillStyle = "#5ee7ff";
+  for (const s of droneShots) { const p = toScreen(s.x, s.y); ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.04, 0, TAU); ctx.fill(); }
+  ctx.font = `900 ${Math.round(size * 0.3)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = "ltr";
+  for (const c of coinPops) { const p = toScreen(c.x, c.y); ctx.globalAlpha = 1 - c.t / 1.2; ctx.fillStyle = "#ffd166"; ctx.fillText("+" + c.n + " 🪙", p.x, p.y - c.t * size); }
+  ctx.restore();
+}
+function drawPracticeNote() {
+  if (!practiceOn()) return;
+  const f = Math.round(U * 0.032), y = H * 0.19;
+  ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
+  const t = st("practice"), w = Math.min(W * 0.94, ctx.measureText(t).width + f * 1.4);
+  ctx.fillStyle = "rgba(8,20,40,0.8)"; roundRect(W / 2 - w / 2, y - f, w, f * 2, f); ctx.fill();
+  ctx.fillStyle = "#bff6ff"; ctx.fillText(t, W / 2, y, W * 0.9);
+  ctx.restore();
+}
+// the money under my fleet row: this ship's, and the total
+function drawWallet() {
+  if (BOT) return;
+  const L = fleetRowLayout(), f = Math.round(U * 0.03);
+  const ys = L.pos.filter(Boolean).map((p) => p.y), y = (ys.length ? Math.max(...ys) + L.sz : U * 0.12) + f * 1.1, x = L.pos[0] ? L.pos[0].x : U * 0.03;
+  const txt = `🪙 ${wallet(game.ship).toLocaleString("en-US")}   ·   Σ ${totalMoney().toLocaleString("en-US")}`;
+  ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = "ltr";
+  const w = ctx.measureText(txt).width + f * 1.2;
+  ctx.fillStyle = "rgba(10,12,32,0.65)"; roundRect(x, y - f * 0.75, w, f * 1.5, f * 0.5); ctx.fill();
+  ctx.fillStyle = bounty.t > 2.6 ? "#ffffff" : "#ffd166"; ctx.fillText(txt, x + f * 0.6, y);
+  ctx.restore();
+}
+
+// ---- the shop page (drawn on the canvas, like the other pages) ----
+// shop: { open, sel (the product), opt (its chosen option), say { text, t }, alien { seq, t }, hits (tap boxes), busy,
+//   offers (this visit's weapons and ships) }
+const shop = { open: false, sel: null, opt: 0, say: null, alien: { seq: "idle", t: 0 }, hits: [], busy: false, offers: null };
+function shopOpen() {
+  const others = Object.keys(SHOP.weapons).filter((w) => !weaponsOf(shipById(game.ship)).includes(w));
+  const ships = hangarShips().map((S) => S.id).filter((id) => !myFleet().includes(id) || lostIds().includes(id));
+  shop.offers = { weapons: shuffled(others).slice(0, SHOP.offers), ships: shuffled(ships).slice(0, SHOP.shipOffers) };
+  Object.assign(shop, { open: true, sel: null, opt: 0, busy: false, alien: { seq: "wave", t: 0 }, say: null });
+  shop.helloLine = st("hello")[Math.floor(Math.random() * st("hello").length)];
+}
+function shopSay(text) { shop.say = { text, t: 0, blip: 0 }; }
+function shopPrice(p) {
+  const G = myGear();
+  if (p.kind === "life") return SHOP.life;
+  if (p.kind === "ammo") return SHOP.ammo;
+  if (p.kind === "pas") return SHOP.pasPrice[G.pas + 1] || 0;
+  if (p.kind === "act") return SHOP.actPrice[G.act + 1] || 0;
+  if (p.kind === "xw") return SHOP.weapons[p.w][0];
+  if (p.kind === "ship") return SHOP.ship[shipById(p.id).rarity] || SHOP.ship.common;
+  return 0;
+}
+function ammoFull() {
+  const S = shipById(game.ship), full = weaponsOf(S, game.flipMode || 0).every((w, i) => game.ammo[i] >= WEAPONS[w].ammo - 0.01);
+  const G = myGear(); return full && (!G.xw || game.xammo >= WEAPONS[G.xw].ammo - 0.01);
+}
+// the options of a product: { kind, label, sub, ok (can be bought now), why (if not) }
+function shopOptions(sel) {
+  const G = myGear();
+  if (sel === "life") return [{ kind: "life", label: st("lifeOpt"), sub: `${game.tanks}/${TANKS}`, ok: game.tanks < TANKS, why: st("full") }];
+  if (sel === "ammo") return [{ kind: "ammo", label: st("ammoOpt"), sub: "", ok: !ammoFull(), why: st("full") }];
+  if (sel === "shield") return [
+    { kind: "pas", label: st("pas"), sub: G.pas < 3 ? `${st("lvl")} ${G.pas + 1}` : st("max"), lvl: G.pas, ok: G.pas < 3, why: st("max") },
+    { kind: "act", label: st("act"), sub: G.act < 3 ? `${st("lvl")} ${G.act + 1}` : st("max"), lvl: G.act, ok: G.act < 3, why: st("max") }];
+  if (sel === "weapon") return shop.offers.weapons.map((w) => ({ kind: "xw", w, label: LANG === "he" ? WEAPONS[w].name : SHOP.weapons[w][1], sub: G.xw === w ? st("owned") : "", ok: G.xw !== w, why: st("owned") }));
+  if (sel === "ship") return shop.offers.ships.map((id) => ({ kind: "ship", id, label: shipById(id).name, sub: (LANG === "he" ? { common: "רגילה", rare: "נדירה", epic: "אפית", legendary: "אגדית" } : {})[shipById(id).rarity] || shipById(id).rarity, ok: !myFleet().includes(id) || lostIds().includes(id), why: st("owned") }));
+  return [];
+}
+const SHOP_PRODUCTS = [["life", "art/ui/shop/life.webp", "sayLife"], ["shield", "art/ui/shop/shield.webp", "sayShield"], ["ammo", "art/ui/shop/ammo.webp", "sayAmmo"],
+  ["weapon", null, "sayWeapon"], ["ship", "art/ui/shop/ship.webp", "sayShip"]];
+function shopBuy() {
+  if (shop.busy || !shop.sel) return;
+  const o = shopOptions(shop.sel)[shop.opt]; if (!o) return;
+  const price = shopPrice(o), have = wallet(game.ship);
+  if (!o.ok) { audio.nope(); return; }
+  if (have < price) { shopSay(`${st("cant")} ${(price - have).toLocaleString("en-US")} ${st("coins")}`); audio.nope(); buzz(20); return; }
+  shop.busy = true;   // (no paying twice: the button waits until this is done)
+  walletAdd(game.ship, -price);
+  if (o.kind === "life") { game.tanks = Math.min(TANKS, game.tanks + 1); game.tankT = 1; }
+  else if (o.kind === "ammo") { fillAmmo(); const G = myGear(); if (G.xw) game.xammo = WEAPONS[G.xw].ammo; }
+  else if (o.kind === "pas") { setGear(game.ship, "pas", myGear().pas + 1); game.pasHp = SHOP.pasCap[myGear().pas]; }
+  else if (o.kind === "act") { setGear(game.ship, "act", myGear().act + 1); game.actCool = 0; }
+  else if (o.kind === "xw") { setGear(game.ship, "xw", o.w); game.xammo = WEAPONS[o.w].ammo; game.cool[3] = 0; }
+  else if (o.kind === "ship") { const L = lostIds(), i = L.indexOf(o.id); if (i >= 0) L.splice(i, 1); else myFleet().push(o.id); }
+  saveBank();
+  shopSay(st("thanks")[Math.floor(Math.random() * st("thanks").length)]);
+  audio.coins && audio.coins(); for (let i = 0; i < 5; i++) audio.tone(900 + i * 220, 0.07, "triangle", 0.05, 1, i * 0.05); buzz(50);
+  setTimeout(() => { shop.busy = false; }, 450);
+}
+function shopTap(x, y) {
+  for (let i = shop.hits.length - 1; i >= 0; i--) {
+    const h = shop.hits[i];
+    if (x < h.x || x > h.x + h.w || y < h.y || y > h.y + h.h) continue;
+    if (h.act === "exit") { undock(); audio.pop(); return; }
+    if (h.act === "buy") { shopBuy(); return; }
+    if (h.act === "prod") {
+      if (shop.sel === h.p) { shop.sel = null; shopSay(shop.helloLine); }   // (again: put it back)
+      else { shop.sel = h.p; shop.opt = 0; shopSay(st(SHOP_PRODUCTS.find((q) => q[0] === h.p)[2])); }
+      audio.pop(); buzz(10); return;
+    }
+    if (h.act === "opt") { shop.opt = h.i; audio.pop(); buzz(8); return; }
+    return;
+  }
+}
+function updateShop(dt) {
+  if (!shop.open) return;
+  shop.alien.t += dt;
+  if (shop.alien.seq === "wave" && shop.alien.t > 0.68) { shop.alien = { seq: "idle", t: 0 }; shopSay(shop.helloLine); }
+  if (shop.say) {
+    const n0 = Math.floor(shop.say.t * 32); shop.say.t += dt; const n1 = Math.floor(shop.say.t * 32);
+    if (n1 > n0 && n1 <= shop.say.text.length && n1 % 2 === 0 && /\S/.test(shop.say.text[n1 - 1] || "")) audio.tone(520 + Math.random() * 260, 0.035, "triangle", 0.018, 1);   // his voice
+  }
+}
+// the seller's picture now (the package's rules: wave on arrival; while a line is shown his mouth moves, with short
+// closed pauses; reaching toward the goods while one is chosen; resting otherwise)
+function alienFrame() {
+  const A = shop.alien;
+  if (A.seq === "wave") return ["wave-up", "wave-out", "wave-up", "wave-out"][Math.min(3, Math.floor(A.t / 0.17))];
+  const S = shop.say;
+  if (S && S.t * 32 < S.text.length) {
+    const ch = S.text[Math.floor(S.t * 32)] || " ";
+    if (/[\s,.!?…]/.test(ch)) return "present-closed";
+    return ["present-closed", "present-open", "present-round", "present-open"][Math.floor(S.t / 0.135) % 4];
+  }
+  return shop.sel ? "present-closed" : "idle";
+}
+// text wrapped to a width (each line as a string)
+function wrapLines(text, maxW) {
+  const words = text.split(" "), lines = []; let line = "";
+  for (const w of words) { const t = line ? line + " " + w : w; if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; }
+  if (line) lines.push(line);
+  return lines;
+}
+function shopLayout() {
+  // fixed parts first (the header, the cards, room for three rows of options, the bottom buttons); the stage (seller
+  // and showcase) gets what is left, so a near-square screen (the open Fold) keeps every part usable
+  const m = Math.round(U * 0.03), top = Math.max(m, U * 0.05), cw = W - m * 2;
+  const header = { x: m, y: top, w: cw, h: Math.min(U * 0.14, H * 0.09) };
+  const gap = m * 0.6, n = SHOP_PRODUCTS.length, cardW = (cw - gap * (n - 1)) / n, cardH = Math.min(cardW * 1.4, H * 0.14);
+  const bottomH = Math.min(U * 0.15, H * 0.085), bottom = { y: H - bottomH - m * 1.2, h: bottomH };
+  const optH = Math.min(U * 0.15, H * 0.08), detailH = optH * 3 + gap * 2;
+  const stageY = header.y + header.h + m, stageH = clamp(bottom.y - m - detailH - m - cardH - m - stageY, H * 0.18, U * 0.85);
+  const alien = { x: m, y: stageY, w: cw * 0.4, h: stageH }, show = { x: m + cw * 0.4, y: stageY + stageH * 0.3, w: cw * 0.6, h: stageH * 0.7 };
+  const bubble = { x: m + cw * 0.33, y: stageY, w: cw * 0.67, h: stageH * 0.3 };
+  const cardsY = stageY + stageH + m;
+  const detail = { x: m, y: cardsY + cardH + m, w: cw, h: bottom.y - (cardsY + cardH + m) - m };
+  return { m, header, alien, show, bubble, cards: { y: cardsY, w: cardW, h: cardH, gap }, detail, bottom, optH };
+}
+function shopPanel(x, y, w, h, edge, fill) {
+  ctx.fillStyle = fill || "rgba(10,16,34,0.88)"; roundRect(x, y, w, h, Math.min(w, h) * 0.12); ctx.fill();
+  ctx.strokeStyle = edge || "rgba(94,231,255,0.55)"; ctx.lineWidth = 2; roundRect(x, y, w, h, Math.min(w, h) * 0.12); ctx.stroke();
+}
+function drawShop() {
+  if (!shop.open) return;
+  const L = shopLayout(), S = shipById(game.ship), G = myGear(), he = LANG === "he", f = Math.round(U * 0.034);
+  shop.hits = [];
+  ctx.save();
+  // the station's inside: deep blue, a floor grid, neon strips
+  const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#070b1c"); bg.addColorStop(0.55, "#0d1430"); bg.addColorStop(1, "#05070f");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(94,231,255,0.07)"; ctx.lineWidth = 1;
+  for (let x = (time * 8) % 40 - 40; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  // the header: the ship, its money, the total, minerals and metals
+  const Hd = L.header; shopPanel(Hd.x, Hd.y, Hd.w, Hd.h, "rgba(255,209,102,0.7)");
+  ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  ctx.font = `900 ${Math.round(f * 1.15)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.textAlign = "left";
+  ctx.fillText(S.name, Hd.x + f * 0.7, Hd.y + Hd.h * 0.32);
+  ctx.textAlign = "right"; ctx.fillText(`🪙 ${wallet(game.ship).toLocaleString("en-US")}`, Hd.x + Hd.w - f * 0.7, Hd.y + Hd.h * 0.32);
+  // the second line: three parts, each a number and its word drawn apart (Hebrew and numbers do not mix well in one string)
+  ctx.font = `700 ${Math.round(f * 0.72)}px Rubik, Arial, sans-serif`; ctx.textAlign = "left";
+  const parts = [[`Σ ${totalMoney().toLocaleString("en-US")}`, st("total"), "#ffd166"], [`◆ ${resOf("minerals")}`, st("minerals"), "#c9a8ff"], [`⬢ ${resOf("metals")}`, st("metals"), "#9fd8ff"]];
+  const slot = (Hd.w - f * 1.4) / 3;
+  (he ? parts.slice().reverse() : parts).forEach(([v, word, c], i) => {
+    const x = Hd.x + f * 0.7 + i * slot, y = Hd.y + Hd.h * 0.74;
+    ctx.fillStyle = c; ctx.fillText(v, x, y); const vw = ctx.measureText(v).width;
+    ctx.fillStyle = "#9fb4d8"; ctx.fillText(word, x + vw + f * 0.35, y, slot - vw - f * 0.5);
+  });
+  // the showcase: the docked ship turning on a hologram stand (to be replaced by its 3D art when it comes)
+  const Sh = L.show, cx = Sh.x + Sh.w / 2, cy = Sh.y + Sh.h * 0.48, sz = Math.min(Sh.w, Sh.h) * 0.62;
+  const pg = ctx.createRadialGradient(cx, cy + sz * 0.55, 0, cx, cy + sz * 0.55, sz * 0.75);
+  pg.addColorStop(0, "rgba(94,231,255,0.45)"); pg.addColorStop(1, "rgba(94,231,255,0)");
+  ctx.fillStyle = pg; ctx.beginPath(); ctx.ellipse(cx, cy + sz * 0.55, sz * 0.75, sz * 0.2, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "rgba(94,231,255,0.7)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(cx, cy + sz * 0.55, sz * 0.6, sz * 0.14, 0, 0, TAU); ctx.stroke();
+  for (let i = 0; i < 3; i++) { const k = ((time * 0.6 + i / 3) % 1); ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.ellipse(cx, cy + sz * 0.55 - k * sz * 0.9, sz * 0.6 * (1 - k * 0.3), sz * 0.14 * (1 - k * 0.3), 0, 0, TAU); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  drawShip(S, cx, cy, sz, { ang: Math.sin(time * 0.5) * 0.5, bank: Math.sin(time * 0.8) * 0.9, power: 0.35 });
+  if (game.actOn > 0 || G.pas) drawShieldBubble(cx, cy, sz, 2, 0.3 + 0.15 * Math.sin(time * 2));
+  // what it carries: its shields and extra weapon, under it
+  ctx.font = `800 ${Math.round(f * 0.62)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "#bff6ff";
+  const carry = [G.pas ? `🛡 ${st("pas")} ${G.pas}` : "", G.act ? `⚡🛡 ${st("act")} ${G.act}` : "", G.xw ? `✦ ${he ? WEAPONS[G.xw].name : SHOP.weapons[G.xw] ? SHOP.weapons[G.xw][1] : G.xw}` : ""].filter(Boolean).join("   ");
+  if (carry) { ctx.direction = textDir(); ctx.fillText(carry, cx, Sh.y + Sh.h - f * 0.2, Sh.w); ctx.direction = "ltr"; }
+  // the seller (his feet on the stage's floor)
+  const A = L.alien, img = artImage("art/ui/shop/alien/" + alienFrame() + ".webp");
+  const ah = Math.min(A.h * 0.98, A.w * 1.1 * 480 / 384), aw = ah * 384 / 480;
+  ctx.fillStyle = "rgba(94,231,255,0.15)"; ctx.beginPath(); ctx.ellipse(A.x + A.w / 2, A.y + A.h - ah * 0.02, aw * 0.4, ah * 0.04, 0, 0, TAU); ctx.fill();
+  if (img) ctx.drawImage(img, A.x + A.w / 2 - aw / 2, A.y + A.h - ah, aw, ah);
+  // his speech bubble, the words appearing as he speaks
+  if (shop.say) {
+    const B = L.bubble, ff = Math.round(f * 0.78);
+    ctx.font = `700 ${ff}px Rubik, Arial, sans-serif`; ctx.direction = textDir();
+    const lines = wrapLines(shop.say.text, B.w - ff * 1.6), shown = Math.floor(shop.say.t * 32);
+    const bh = Math.min(B.h * 1.5, lines.length * ff * 1.3 + ff * 1.2);
+    ctx.fillStyle = "rgba(240,250,255,0.96)"; roundRect(B.x, B.y, B.w, bh, ff * 0.8); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(B.x + ff * 1.2, B.y + bh - 1); ctx.lineTo(B.x - ff * 0.4, B.y + bh + ff * 1.1); ctx.lineTo(B.x + ff * 2.6, B.y + bh - 1); ctx.fill();   // the tail, to his head
+    ctx.fillStyle = "#0b1430"; ctx.textAlign = he ? "right" : "left"; ctx.textBaseline = "top";
+    let left = shown;
+    lines.forEach((ln, i) => { if (left <= 0) return; const part = ln.slice(0, left); left -= ln.length + 1; ctx.fillText(part, he ? B.x + B.w - ff * 0.8 : B.x + ff * 0.8, B.y + ff * 0.6 + i * ff * 1.3); });
+    ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  }
+  // the goods: five cards
+  const C = L.cards;
+  SHOP_PRODUCTS.forEach(([id, file], i) => {
+    const x = (he ? W - L.m - C.w - i * (C.w + C.gap) : L.m + i * (C.w + C.gap)), y = C.y, sel = shop.sel === id;
+    shopPanel(x, y, C.w, C.h, sel ? "#ffd166" : "rgba(94,231,255,0.5)", sel ? "rgba(60,46,10,0.9)" : "rgba(10,16,34,0.88)");
+    if (sel) { ctx.save(); ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 5); ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 6; roundRect(x - 3, y - 3, C.w + 6, C.h + 6, C.w * 0.14); ctx.stroke(); ctx.restore(); }
+    const isz = Math.min(C.w * 0.86, C.h * 0.62), ix = x + C.w / 2 - isz / 2, iy = y + C.h * 0.06;
+    if (file) { const im = artImage(file); if (im) ctx.drawImage(im, ix, iy, isz, isz); }
+    else weaponIcon(G.xw || "missile", x + C.w / 2, iy + isz / 2, isz * 0.32, "#ffd166");
+    ctx.fillStyle = sel ? "#ffd166" : "#e8f6ff"; ctx.font = `800 ${Math.round(Math.min(f * 0.7, C.w * 0.2))}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = textDir();
+    ctx.fillText(st(id), x + C.w / 2, y + C.h * 0.82, C.w * 0.92); ctx.direction = "ltr";
+    shop.hits.push({ x, y, w: C.w, h: C.h, act: "prod", p: id });
+  });
+  // the chosen product's options
+  const D = L.detail;
+  if (!shop.sel) {   // nothing chosen yet: a hint
+    ctx.fillStyle = "rgba(159,180,216,0.6)"; ctx.font = `700 ${Math.round(f * 0.8)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = textDir();
+    ctx.fillText(he ? "⬆ בחרו מוצר מהמדף" : "⬆ Pick something from the shelf", W / 2, D.y + Math.min(D.h, U * 0.3) / 2); ctx.direction = "ltr";
+  }
+  if (shop.sel) {
+    const opts = shopOptions(shop.sel), cols = opts.length > 2 ? 2 : opts.length, rows = Math.ceil(opts.length / cols), gap = L.m * 0.6;
+    const ow = (D.w - gap * (cols - 1)) / cols, oh = Math.min(L.optH * 1.1, (D.h - gap * (rows - 1)) / rows);
+    opts.forEach((o, i) => {
+      const c = i % cols, r = Math.floor(i / cols), x = he ? D.x + D.w - ow - c * (ow + gap) : D.x + c * (ow + gap), y = D.y + r * (oh + gap), on = shop.opt === i;
+      const price = shopPrice(o), afford = wallet(game.ship) >= price;
+      shopPanel(x, y, ow, oh, on ? "#ffd166" : "rgba(94,231,255,0.4)", on ? "rgba(40,34,12,0.92)" : "rgba(10,16,34,0.85)");
+      const ic = oh * 0.62, icx = he ? x + ow - oh * 0.5 : x + oh * 0.5, icy = y + oh / 2;
+      if (o.kind === "xw") weaponIcon(o.w, icx, icy, ic * 0.4, o.ok ? "#ffffff" : "#7a8090");
+      else if (o.kind === "ship") drawShip(shipById(o.id), icx, icy, ic * 0.95, { power: 0.3 });
+      else if (o.kind === "pas" || o.kind === "act") { const im = artImage("art/ui/shop/shield.webp"); if (im) ctx.drawImage(im, icx - ic / 2, icy - ic / 2, ic, ic); }
+      else { const im = artImage(o.kind === "life" ? "art/ui/shop/life.webp" : "art/ui/shop/ammo.webp"); if (im) ctx.drawImage(im, icx - ic / 2, icy - ic / 2, ic, ic); }
+      const tx = he ? x + ow - oh : x + oh, tw = ow - oh - L.m;
+      ctx.direction = textDir(); ctx.textAlign = he ? "right" : "left";
+      ctx.font = `800 ${Math.round(Math.min(f * 0.72, oh * 0.24))}px Rubik, Arial, sans-serif`; ctx.fillStyle = o.ok ? "#e8f6ff" : "#7a8090";
+      ctx.fillText(o.label, tx, y + oh * 0.3, tw);
+      ctx.font = `700 ${Math.round(Math.min(f * 0.62, oh * 0.2))}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#9fb4d8";
+      if (o.sub) ctx.fillText(o.sub, tx, y + oh * 0.55, tw);
+      if (o.kind === "pas" || o.kind === "act") {   // its levels: filled / still to buy
+        for (let k = 0; k < 3; k++) { ctx.fillStyle = k < o.lvl ? "#ffd166" : "rgba(255,209,102,0.25)"; const dx = (he ? -1 : 1) * k * oh * 0.16; ctx.beginPath(); ctx.arc(tx + dx + (he ? -oh * 0.06 : oh * 0.06), y + oh * 0.8, oh * 0.06, 0, TAU); ctx.fill(); }
+      }
+      ctx.direction = "ltr"; ctx.textAlign = he ? "left" : "right"; ctx.font = `900 ${Math.round(Math.min(f * 0.72, oh * 0.24))}px Rubik, Arial, sans-serif`;
+      ctx.fillStyle = !o.ok ? "#7a8090" : afford ? "#ffd166" : "#ff6b8a";
+      ctx.fillText(o.ok ? `🪙 ${price.toLocaleString("en-US")}` : o.why, he ? x + L.m * 0.6 : x + ow - L.m * 0.6, y + oh * (o.kind === "pas" || o.kind === "act" ? 0.8 : 0.78));
+      shop.hits.push({ x, y, w: ow, h: oh, act: "opt", i });
+    });
+  }
+  // the bottom: leave the station; buy
+  const Bt = L.bottom, bw = (W - L.m * 3) / 2;
+  const ex = he ? W - L.m - bw * 0.8 : L.m, bx = he ? L.m : W - L.m - bw * 1.2;
+  shopPanel(ex, Bt.y, bw * 0.8, Bt.h, "rgba(255,107,138,0.8)", "rgba(40,10,20,0.9)");
+  ctx.fillStyle = "#ffb3c4"; ctx.font = `900 ${Math.round(f * 0.95)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = textDir();
+  ctx.fillText(`⏏ ${st("exit")}`, ex + bw * 0.4, Bt.y + Bt.h / 2);
+  shop.hits.push({ x: ex, y: Bt.y, w: bw * 0.8, h: Bt.h, act: "exit" });
+  const o = shop.sel ? shopOptions(shop.sel)[shop.opt] : null, price = o ? shopPrice(o) : 0, can = o && o.ok && wallet(game.ship) >= price && !shop.busy;
+  shopPanel(bx, Bt.y, bw * 1.2, Bt.h, can ? "#ffd166" : "rgba(120,130,150,0.6)", can ? "rgba(70,52,8,0.95)" : "rgba(20,24,36,0.9)");
+  ctx.fillStyle = can ? "#ffd166" : "#6a7488"; ctx.font = `900 ${Math.round(f * 1.0)}px Rubik, Arial, sans-serif`;
+  ctx.fillText(o ? `${st("buy")} · 🪙 ${price.toLocaleString("en-US")}` : st("buy"), bx + bw * 0.6, Bt.y + Bt.h / 2, bw * 1.1);
+  shop.hits.push({ x: bx, y: Bt.y, w: bw * 1.2, h: Bt.h, act: "buy" });
+  ctx.restore();
+}
+
 // ---------- magic: the gear button ----------
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
 function useMagic(which = 0) {
@@ -4130,6 +4707,7 @@ function tankEnemy() {
 function loseTank() {
   if (game.dead || stratAloft(game)) return;
   if (floodSafe()) { floodShield(); return; }
+  if (game.docked || game.undockT > 0 || practiceOn() || game.actOn > 0) return;   // docked / practising / the active shield
   if (game.tanks > 0) { game.tanks--; game.tankT = 1; game.hurt = 0.35; shake(0.6); buzz(200); }
   else damageShip(SHIP_HP * 100);
 }
@@ -6165,6 +6743,8 @@ function shake(k) { game.shakeT = Math.min(1.2, Math.max(game.shakeT, k * SHAKE)
 function damageShip(n, src) {
   if (game.dead || game.stage !== "fly" || n <= 0) return;
   if (src !== "env" && floodSafe()) { floodShield(); return; }   // BOILER in its flood: the enemy cannot hurt it (src "env": walls, the star)
+  if (game.docked || game.undockT > 0 || practiceOn()) return;   // in the station, just out of it, or practising: safe
+  if (src !== "env") { n = shieldsTake(n); if (n <= 0) return; }   // the station's shields
   game.hp = Math.max(0, game.hp - n); game.hurt = 0.35;
   shake(0.25 + n / 40); audio.hurt(); buzz(60 + n * 3);
   if (game.hp <= 0 && game.tanks > 0) {   // a spare tank empties and fills the bar again
@@ -6216,9 +6796,10 @@ const crate = { on: false, w: null, x: 0, y: 0, vx: 0, vy: 0, t: 0 };
 // which weapon each button fires right now (null = no such button now)
 function slotWeapon(i) {
   if (i < 2) return weaponsOf(shipById(game.ship), game.flipMode || 0)[i];
+  if (i === 3) return myGear().xw;   // the extra weapon bought at the station
   return game.loot ? game.loot.w : null;
 }
-function slotAmmo(i) { return i < 2 ? game.ammo[i] : game.loot ? game.loot.ammo : 0; }
+function slotAmmo(i) { return i < 2 ? game.ammo[i] : i === 3 ? game.xammo || 0 : game.loot ? game.loot.ammo : 0; }
 
 function updateWeapons(dt) {
   const S = shipById(game.ship);
@@ -6240,8 +6821,8 @@ function updateWeapons(dt) {
   if (!game.dead) updateDash(dt);
   updateThread(dt); updateFlail(dt);
   enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt); updateTow(dt); updateShift(dt); updateReverse(dt); updateSurgery(dt);
-  for (let i = 0; i < 3; i++) {
-    game.cool[i] = Math.max(0, game.cool[i] - dt * (game.lassoed ? ELASSO.fire : 1) * (game.zombie ? ZOMBIE.rate : 1));   // held by LARIAT's rope: half the fire rate; a zombie: ZOMBIE.rate (60%)
+  for (let i = 0; i < 4; i++) {
+    game.cool[i] = Math.max(0, (game.cool[i] || 0) - dt * (game.lassoed ? ELASSO.fire : 1) * (game.zombie ? ZOMBIE.rate : 1));   // held by LARIAT's rope: half the fire rate; a zombie: ZOMBIE.rate (60%)
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].converge) { crossHold(dt); continue; }
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].blow) { bubbleHold(dt); continue; }   // PUFF: hold to blow, let go to fire
     // (not `hold`: NIMBUS's storm has a `hold` too, how long its cloud stays)
@@ -6307,8 +6888,9 @@ function updateWeapons(dt) {
       link.send({ t: "chit", n: +n.toFixed(1) }); TC.hurt = 0.15;
       burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 6, [Wp.color, "#ffffff", "#c86bff"], 0.3, 0.6); audio.hit(); shots.splice(k, 1); continue;
     }
+    if (drones.length && droneHit(s, Wp)) { shots.splice(k, 1); continue; }   // a practice ship (while they are docked)
     // into the enemy
-    if (enemy.on && enemy.warp < 0.5 && !enemyAloft()) {   // (their STRATA up high: shots pass under it)
+    if (enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked()) {   // (docked in the station: out of reach)   // (their STRATA up high: shots pass under it)
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
       if (Math.hypot(dx, dy) < size * 0.42 * enemyScale() + (Wp.r * shotScale(s, Wp) + (Wp.prox || 0)) * size) {   // (prox: it goes off near it)
         if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
@@ -6349,7 +6931,7 @@ function shoot(i) {
   if (Wp.gate && (gateAlive(game.gate) || game.gateWait != null)) return;   // GIMBAL: one gate at a time
   if (Wp.harpoon && (game.hook || game.tether || game.elasso || game.hookWait != null)) return;   // LARIAT: one hook or cable at a time
   game.cool[i] = Wp.cool;
-  if (i < 2) game.ammo[i] -= 1; else game.loot.ammo -= 1;
+  if (i < 2) game.ammo[i] -= 1; else if (i === 3) game.xammo -= 1; else game.loot.ammo -= 1;
   if (Wp.ring) { startRing(w, S); return; }
   if (Wp.palWall) { startWall(S); return; }   // PALISADE: the arms carry a wall out
   if (Wp.gate) { gateStart(); return; }   // GIMBAL: the quarter gate (set 0.31 s later)
@@ -6746,13 +7328,13 @@ const bounty = { t: 0, r: null };
 function scoreKill(player) {
   // every win fills one spare health tank again (it flashes)
   if (game.tanks < TANKS) { game.tanks++; game.tankT = 1; audio.tone(660, 0.12, "triangle", 0.05, 1.5); audio.tone(990, 0.16, "triangle", 0.05, 1.3, 0.1); }
-  if (!profile) return;
-  profile.kills = (profile.kills || 0) + 1; game.streak = (game.streak || 0) + 1;
-  if (player && COINS) {
+  game.streak = (game.streak || 0) + 1;
+  if (!BOT) {   // the winning ship's wallet (against the computer: SHOP.computerPay of it)
     const E = shipById(enemy.ship), r = killReward(game.t - (duel.roundStart || game.t), game.hp, E ? E.rarity : "common", game.streak);
-    profile.money = (profile.money || 0) + r.total; bounty.r = r; bounty.t = 3.2;
-    audio.coins && audio.coins(); for (let i = 0; i < 6; i++) audio.tone(1200 + i * 180, 0.06, "triangle", 0.05, 1, i * 0.06);
+    payWin(r, player);
   }
+  if (!profile) return;
+  profile.kills = (profile.kills || 0) + 1;
   saveProfile();
 }
 // the meter under the health bar: kills and money
@@ -6825,6 +7407,7 @@ function fireButtons() {
   const list = [{ i: 0, x: x1, y: y1, r }, { i: 1, x: x1 - d, y: y1 - d, r: r * 0.85 }];
   // button 3: on the arc straight above button 1, against the right edge
   if (game.loot) { const r3 = r * 0.85; list.push({ i: 2, x: Math.min(x1 + r * 0.15, W - r3 - PAD_IN * MM), y: y1 - r * ARC, r: r3 * ease(game.loot.show) }); }
+  if (myGear().xw) list.push({ i: 3, x: x1 - r * ARC, y: y1, r: r * 0.72 });   // button 4: the station's extra weapon, left of button 1
   return list;
 }
 function hitFire(x, y) {
@@ -7684,7 +8267,7 @@ function playShipFilm(id) {
     v.addEventListener("ended", done); v.addEventListener("error", done);
     v.addEventListener("pointerdown", (e) => { e.preventDefault(); done(); });   // a tap skips it
     document.body.appendChild(v); cine.el = v; cine.on = true;
-    game.thrust = null; game.stick = null; game.fire = [null, null, null];
+    game.thrust = null; game.stick = null; game.fire = [null, null, null, null];
     v.play().catch(() => { v.muted = true; v.play().catch(done); });   // (sound blocked: play it silent)
   }, 650);
   return true;
@@ -7715,7 +8298,7 @@ function startFromTitle() {
 function toTitle() {
   if (duel.stage && !duel.bot) { endDuel(true); duel.stage = null; } duel.fleet = null;
   stopMatch(); result.mode = null; picker.open = false; camp.over = false; camp.mine = []; camp.lost = [];
-  game.stage = "title"; game.dead = 0; game.pick = false; game.thrust = null; game.stick = null; game.fire = [null, null, null];
+  game.stage = "title"; game.dead = 0; game.pick = false; game.thrust = null; game.stick = null; game.fire = [null, null, null, null];
   enemy.on = false;
 }
 
@@ -7724,7 +8307,7 @@ const result = { mode: null, t0: 0, kicks: [], held: false };
 function openResult(mode) {
   if (BOT) return;
   result.mode = mode; result.t0 = performance.now(); result.kicks = []; result.held = game.thrust !== null;   // (a gas held from before does not count)
-  game.thrust = null; game.stick = null; game.fire = [null, null, null];
+  game.thrust = null; game.stick = null; game.fire = [null, null, null, null];
   playClip(mode === "win" ? "audio/result/you-win.ogg" : "audio/result/game-over.ogg", true);
 }
 // a new press of the gas: the next letter jumps up, spins and lands back in its place (for fun)
@@ -8317,7 +8900,8 @@ function updateLenses(dt) {
 // each moment, for a shot on its way: pulled by every false star; a seed due to split becomes three shards (true: it is gone)
 function shotFx(list, k, s, Wp, dt) {
   if (maze && mazeShot(list, k, s, Wp, dt)) return true;
-  if (flood && floodShot(list, k, s, Wp, dt)) return true;   // BOILER's water: the enemy's shots stop at it   // LABYRINTH's maze: its own shots bounce, the rest are stopped
+  if (flood && floodShot(list, k, s, Wp, dt)) return true;   // BOILER's water: the enemy's shots stop at it
+  if (stationShot(list, k, s)) return true;   // the station's hull   // LABYRINTH's maze: its own shots bounce, the rest are stopped
   if ((game.palWall || duel.palWall) && palShot(list, k, s, Wp, dt)) return true;
   if (lenses.length && !(Wp.speed === 0)) {
     const size = shipSize();
@@ -9963,7 +10547,7 @@ function draw() {
     if (sk > 0.2) ctx.translate((Math.random() - 0.5) * sk, (Math.random() - 0.5) * sk);
     ctx.translate(W / 2, H / 2); ctx.scale(game.zoom, game.zoom); ctx.translate(-W / 2, -H / 2);
   }
-  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); drawDeadStar(); drawSpire(); drawMaze(); drawFlood(); }   // (LABYRINTH's Starforge)
+  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); drawDeadStar(); drawSpire(); drawMaze(); drawFlood(); drawStation(); }   // (LABYRINTH's Starforge)
 
   if (flying) {
     const p = shipScreen();
@@ -9974,7 +10558,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawEnemy();
+    drawEnemy(); drawPractice();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -10035,6 +10619,8 @@ function draw() {
     drawChips(); drawPieces();
     drawKitFx("above");
     drawFloodFront();
+    if (!game.dead && (game.actOn > 0 || game.shieldFx > 0)) { const q = shipScreen(); drawShieldBubble(q.x, q.y, shipSize() * shipScale(), game.actOn > 0 ? 1 : 2, game.shieldFx); }   // my shields
+    if (enemyShown() && duel.net && duel.net.sh) { const q = toScreen(enemy.x, enemy.y); drawShieldBubble(q.x, q.y, shipSize() * enemyScale(), duel.net.sh, 0.3); }   // theirs
     drawParts();
     drawRings();
     ctx.restore();
@@ -10048,11 +10634,11 @@ function draw() {
     drawHealth();
     drawScrambleNote(); drawHackNote(); drawZombieNote();
     if (game.flash > 0) { ctx.save(); ctx.globalAlpha = Math.min(0.7, game.flash * 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
-    if (!game.dead && !result.mode) { drawThrust(); drawFire(); drawMagic(); }
+    if (!game.dead && !result.mode && !game.docked) { drawThrust(); drawFire(); drawMagic(); drawShieldBtn(); drawDockPrompt(); }
     else if (result.mode) drawThrust();   // (the gas, to kick the letters)
     drawDuel(); drawDials();
     drawHangarButton(); drawFleetRow(); drawLevel();   // ("my ships" and the language: in the hangar)
-    if (COINS) { drawScore(); drawBounty(); }
+    drawWallet(); drawBounty(); drawPracticeNote();   // the money: this ship's and the total
     drawBodyLabel();
     drawNova();
   } else drawParts();
@@ -10062,6 +10648,7 @@ function draw() {
   drawFleet();
   drawPicker();
   drawResultButtons();
+  drawShop();   // the station's shop: over everything
   if (game.stage === "title") { drawTitle(); drawDials(); drawLangBtn(); }
   if (picker.open || camp.over) drawLangBtn();   // (switch the language while choosing a ship, too)
   if (hangar.open && !picker.open && !camp.over) { if (THREE_SHIPS) drawFleetBtn(); drawLangBtn(); }   // in the hangar's second header row
@@ -10246,7 +10833,7 @@ function drawBodyLabel() {
 
 // the enemy: drawn like any ship, with a red ring under it; off screen, a red arrow at the edge points to it
 function drawEnemy() {
-  if (!enemy.on) return;
+  if (!enemy.on || enemyDocked()) return;   // (docked: inside the station)
   const E = shipById(enemy.ship), p = toScreen(enemy.x, enemy.y), size = shipSize();
   const z = zoomed(p), m = size * 0.6 * game.zoom;
   if (z.x > -m && z.x < W + m && z.y > -m && z.y < H + m) {
@@ -10330,6 +10917,7 @@ function drawRadar() {
   ctx.strokeRect(x0 + (game.x + game.lx - vw / 2) * kx, y0 + (game.y + game.ly - vh / 2) * ky, vw * kx, vh * ky);
   if (enemyShown()) { ctx.fillStyle = "#ff4d6d"; ctx.beginPath(); ctx.arc(x0 + enemy.x * kx, y0 + enemy.y * ky, 3, 0, TAU); ctx.fill(); }
   if (crate.on) { ctx.fillStyle = WEAPONS[crate.w].color; ctx.fillRect(x0 + crate.x * kx - 2.5, y0 + crate.y * ky - 2.5, 5, 5); }
+  { const P = stationPos(); ctx.strokeStyle = "#5ee7ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x0 + P.x * kx, y0 + P.y * ky, 4, Math.PI * 0.75, Math.PI * 2.25); ctx.stroke(); }   // the station
   ctx.translate(sx, sy); ctx.rotate(game.ang);
   ctx.fillStyle = shipById(game.ship).hull;
   ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 4); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
@@ -10902,8 +11490,8 @@ function drawFire() {
     const w = slotWeapon(b.i), Wp = WEAPONS[w], ammo = slotAmmo(b.i), ready = ammo >= 1, pressed = game.fire[b.i] !== null;
     // the kit's buttons: the plate and icon, the ammo as a ring. Button 3 shows the weapon it carries (drawn in code)
     if (kit) {
-      const slot = ["primary", "secondary", "pickup"][b.i];
-      const extra = b.i === 2 ? (x, y, r) => weaponIcon(w, x, y, r * 0.42, ready ? "#ffffff" : "#9a9aa8")
+      const slot = ["primary", "secondary", "pickup", "pickup"][b.i];
+      const extra = b.i >= 2 ? (x, y, r) => weaponIcon(w, x, y, r * 0.42, ready ? "#ffffff" : "#9a9aa8")
         : w === "spike" && game.trap && game.trap.power > 0 ? (x, y, r) => {   // SKARN's powered-up shards: ember dots
           const n = game.trap.power; ctx.save(); ctx.globalAlpha = Math.min(1, game.trap.powerT / 3) * (0.75 + 0.25 * Math.sin(time * 6));
           for (let j = 0; j < n; j++) { ctx.fillStyle = "#ff8a5a"; ctx.beginPath(); ctx.arc(x + (j - (n - 1) / 2) * r * 0.24, y + r * 0.72, r * 0.08, 0, TAU); ctx.fill(); }
@@ -11403,7 +11991,7 @@ const DUEL_RATE = 20;   // messages per second about your ship
 const duel = { stage: null, t: 0, me: 0, side: 0, sendT: 0, won: 0, lost: 0, outDmg: 0, shots: [], tail: null, net: null, smokeT: 0 };
 function netPos(o) { return { x: o.x / WW, y: o.y / WH, vx: o.vx / WW, vy: o.vy / WH }; }
 function duelSend(m) { if (duel.stage === "on" || duel.stage === "count") link.send(m); }
-function enemyShown() { return enemy.on && !(enemy.remote && enemy.hidden); }
+function enemyShown() { return enemy.on && !(enemy.remote && enemy.hidden) && !enemyDocked(); }
 // ---- the two fleets in a game against another phone (CONNECT): like against the computer, the hangar's ships are split
 // at random, half each, a lost ship is out, and losing them all is GAME OVER (the other phone: YOU WIN). Both phones
 // work out the same split from the two random numbers they swap when they connect ("hi"): no extra messages
@@ -11434,6 +12022,7 @@ function endDuel(tellThem) {
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   game.zombie = false; game.pollen = null; enemy.zombie = false;
   mazeEnd(true); flood = null;   // the match is over: no maze, the star back, no water
+  if (game.docked) undock();
   duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
@@ -11447,7 +12036,7 @@ function duelPlace() {
   game.ang = duel.side ? Math.PI : 0; game.vx = game.vy = 0; game.lx = game.ly = 0;
 }
 function duelLink(event, data) {
-  if (event === "connected") { link.send({ t: "hi", s: game.ship, r: duel.me, b: cosmos.body }); return; }
+  if (event === "connected") { setStation(Math.floor(Math.random() * 2147483647)); link.send({ t: "hi", s: game.ship, r: duel.me, b: cosmos.body, st: station.seed }); return; }
   if (event === "lost" || event === "error" || event === "denied") { if (duel.stage !== "over") endDuel(false); return; }
   if (event !== "message") return;
   let m = null; try { m = JSON.parse(data); } catch (e) { return; }
@@ -11455,6 +12044,7 @@ function duelLink(event, data) {
     // the bigger random number takes the bottom side
     duel.side = duel.me > m.r ? 1 : 0;
     if (duel.side === 1 && BODIES[m.b]) setBody(m.b);   // both fight around the same body: the top player's
+    if (duel.side === 1 && m.st) setStation(m.st);      // and the same station
     if (!duel.bot) {   // a real phone: the fleets are split (the bottom player gets the first half), and I choose my first ship
       const sp = duelSplit(duel.me, m.r);
       duel.fleet = { mine: sp[duel.side ? 0 : 1], lost: [] };
@@ -11759,7 +12349,7 @@ function updateDuel(dt) {
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
         ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2), creatureLeft(game.surg.c), +(game.surg.c.hp / MAGIC.surgery.hp).toFixed(3)] : [])] : 0,
-      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
+      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
@@ -12347,7 +12937,7 @@ function tryShip(id) {
   if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; game.kiln = null; if (game.surg && game.surg.c) creatureFalls(game.surg.c); game.surg = null;   // (BALLAST's asteroid already flying goes on)
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
   game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
-  game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null];
+  game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };
   game.fuel = shipStats(shipById(id)).fuel; game.locked = false; game.hp = SHIP_HP; game.tanks = TANKS; game.tankT = 0; fillAmmo();
   game.card = 3; game.arriveT = 1; audio.whoosh(); buzz(30);
