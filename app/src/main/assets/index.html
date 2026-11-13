@@ -4347,7 +4347,10 @@ function shopOpen() {
   Object.assign(shop, { open: true, sel: null, opt: 0, busy: false, alien: { seq: "wave", t: 0 }, say: null, mode: "once", page: 0 });
   shop.helloLine = st("hello")[Math.floor(Math.random() * st("hello").length)];
 }
-function shopSay(text) { shop.say = { text, t: 0, blip: 0 }; }
+// a line said: it types out at 32 letters a second and goes away 4 s after he starts (a long one: 1.2 s after its last
+// letter), fading over SAY_FADE s, so it does not hide the ships for long. While it shows, the seller is seen close up
+const SAY_FADE = 0.3;
+function shopSay(text) { shop.say = { text, t: 0, blip: 0, life: Math.max(4, text.length / 32 + 1.2) }; }
 function shopPrice(p) {
   const G = myGear();
   if (p.kind === "life") return SHOP.life;
@@ -4428,6 +4431,8 @@ function updateShop(dt) {
   if (!shop.open) return;
   shop.alien.t += dt;
   if (shop.alien.seq === "wave" && shop.alien.t > 0.68) { shop.alien = { seq: "idle", t: 0 }; shopSay(shop.helloLine); }
+  shop.zoom = clamp((shop.zoom || 0) + (shop.say ? 1 : -1) * dt / 0.35, 0, 1);   // close up while he talks, back out after
+  if (shop.say && shop.say.t > shop.say.life + SAY_FADE) shop.say = null;
   if (shop.say) {
     const n0 = Math.floor(shop.say.t * 32); shop.say.t += dt; const n1 = Math.floor(shop.say.t * 32);
     if (n1 > n0 && n1 <= shop.say.text.length && n1 % 2 === 0 && /\S/.test(shop.say.text[n1 - 1] || "")) audio.tone(520 + Math.random() * 260, 0.035, "triangle", 0.018, 1);   // his voice
@@ -4533,14 +4538,26 @@ function drawShop() {
   ctx.font = `800 ${Math.round(f * 0.62)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "#bff6ff";
   const carry = [G.pas ? `🛡 ${st("pas")} ${G.pas}` : "", G.act ? `⚡🛡 ${st("act")} ${G.act}` : "", G.xw ? `✦ ${he ? WEAPONS[G.xw].name : SHOP.weapons[G.xw] ? SHOP.weapons[G.xw][1] : G.xw}` : ""].filter(Boolean).join("   ");
   if (carry) { ctx.direction = textDir(); ctx.fillText(carry, cx, Sh.y + Sh.h - f * 0.2, Sh.w); ctx.direction = "ltr"; }
-  // the seller (his feet on the stage's floor)
-  const A = L.alien, img = artImage("art/ui/shop/alien/" + alienFrame() + ".webp");
+  // the seller (his feet on the stage's floor); while he talks the view moves in to his face (the package's close-up,
+  // its mouth matching his: closed, open or round), and back out to all of him once the bubble is gone
+  const A = L.alien, fr = alienFrame(), img = artImage("art/ui/shop/alien/" + fr + ".webp"), z = ease(shop.zoom || 0);
   const ah = Math.min(A.h * 0.98, A.w * 1.1 * 480 / 384), aw = ah * 384 / 480;
-  ctx.fillStyle = "rgba(94,231,255,0.15)"; ctx.beginPath(); ctx.ellipse(A.x + A.w / 2, A.y + A.h - ah * 0.02, aw * 0.4, ah * 0.04, 0, 0, TAU); ctx.fill();
-  if (img) ctx.drawImage(img, A.x + A.w / 2 - aw / 2, A.y + A.h - ah, aw, ah);
+  const hx = A.x + A.w / 2, hy = A.y + A.h - ah * 0.78;   // his head: the view closes in on it
+  if (z < 1) {
+    ctx.save(); ctx.globalAlpha = 1 - z; ctx.translate(hx, hy); ctx.scale(1 + z * 0.8, 1 + z * 0.8); ctx.translate(-hx, -hy);
+    ctx.fillStyle = "rgba(94,231,255,0.15)"; ctx.beginPath(); ctx.ellipse(A.x + A.w / 2, A.y + A.h - ah * 0.02, aw * 0.4, ah * 0.04, 0, 0, TAU); ctx.fill();
+    if (img) ctx.drawImage(img, A.x + A.w / 2 - aw / 2, A.y + A.h - ah, aw, ah);
+    ctx.restore();
+  }
+  if (z > 0) {
+    const mouth = /open/.test(fr) ? "open" : /round/.test(fr) ? "round" : "closed", cu = artImage("art/ui/shop/alien/closeup-" + mouth + ".webp");
+    const cs = Math.min(A.w * 1.2, A.h) * (0.7 + 0.3 * z), cx0 = A.x + A.w / 2;
+    if (cu) { ctx.save(); ctx.globalAlpha = z; ctx.beginPath(); ctx.rect(A.x - L.m, A.y, A.w + L.m * 2, A.h); ctx.clip(); ctx.drawImage(cu, cx0 - cs / 2, A.y + A.h - cs, cs, cs); ctx.restore(); }
+  }
   // his speech bubble, the words appearing as he speaks
   if (shop.say) {
     const B = L.bubble, ff = Math.round(f * 0.78);
+    ctx.save(); ctx.globalAlpha = clamp((shop.say.life + SAY_FADE - shop.say.t) / SAY_FADE, 0, 1);   // (fading away at its end)
     ctx.font = `700 ${ff}px Rubik, Arial, sans-serif`; ctx.direction = textDir();
     const lines = wrapLines(shop.say.text, B.w - ff * 1.6), shown = Math.floor(shop.say.t * 32);
     const bh = Math.min(B.h * 1.5, lines.length * ff * 1.3 + ff * 1.2);
@@ -4549,7 +4566,7 @@ function drawShop() {
     ctx.fillStyle = "#0b1430"; ctx.textAlign = he ? "right" : "left"; ctx.textBaseline = "top";
     let left = shown;
     lines.forEach((ln, i) => { if (left <= 0) return; const part = ln.slice(0, left); left -= ln.length + 1; ctx.fillText(part, he ? B.x + B.w - ff * 0.8 : B.x + ff * 0.8, B.y + ff * 0.6 + i * ff * 1.3); });
-    ctx.textBaseline = "middle"; ctx.direction = "ltr";
+    ctx.textBaseline = "middle"; ctx.direction = "ltr"; ctx.restore();
   }
   // the goods: five cards
   const C = L.cards;

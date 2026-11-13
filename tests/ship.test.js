@@ -814,4 +814,9 @@ ok("balance round: VEXAR's tail hurts (its ball twice), PALISADE's wall sends sh
   const V = mag("vault"); assert(Math.abs(V.near - 0.55 * 1.3) < 1e-9 && Math.abs(V.reach - 1.5 * 1.3) < 1e-9 && html.includes("drawVaultAurora(ps, V.t, size)"));
   assert(html.includes("FresnelBeacon.draw(ctx, img, time * 1000)") && html.includes("img = finComposite(S, img)"));
 });
+ok("the shop's seller: a line goes away 4 s after he starts (a long one a little after its end); close up while he talks", () => {
+  const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(html.includes("life: Math.max(4, text.length / 32 + 1.2)") && html.includes("if (shop.say && shop.say.t > shop.say.life + SAY_FADE) shop.say = null;"));
+  for (const m of ["closed", "open", "round"]) assert(fs.existsSync(path.join(__dirname, "../app/src/main/assets/art/ui/shop/alien/closeup-" + m + ".webp")));
+});
 console.log(n + " checks passed");

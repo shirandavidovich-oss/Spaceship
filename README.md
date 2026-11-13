@@ -576,7 +576,10 @@ shop opens over everything, and the ship is safe there. **Exit** sends it out th
   bought back; priced by rarity). Shields and the extra weapon stay with the ship that bought them.
 - **In a duel, while one player is docked** the other fights practice ships: three computer ships that circle and
   shoot but cannot hurt it (no health lost at all then), 20 for each one shot down, and its weapons refill three times
-  faster, until the other comes out.
+  faster, until the other comes out. The seller's speech bubble goes away 4 s after he starts talking (a long line: just after its last letter), fading
+out, so it does not hide the ships for long; while it shows, the view closes in on his face (the Docking package's
+close-up frames, `art/ui/shop/alien/closeup-*`, its mouth closed, open or round as he talks), and moves back out to all
+of him once it is gone.
 
 **The shop's looks on the ships** (the Orbit Break Fleet Upgrades package: `art/upgrades/<ship>/`). A ship with a shield
 from the shop (passive or active) shows its own shield layer behind it, and with an extra weapon its own extra cannon on
