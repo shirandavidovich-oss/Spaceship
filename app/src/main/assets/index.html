@@ -447,7 +447,7 @@
   }
   return {config,roots,phase,load,draw};
 });
-const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"},"boiler":{"kind":"still","sprite":"zombie-boiler-top.webp"},"flipper":{"kind":"still","sprite":"zombie-flipper-top.webp"},"courier":{"kind":"still","sprite":"zombie-courier-top.webp"},"fresnel":{"kind":"still","sprite":"zombie-fresnel-top.webp"}};
+const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"},"boiler":{"kind":"still","sprite":"zombie-boiler-top.webp"},"flipper":{"kind":"still","sprite":"zombie-flipper-top.webp"},"courier":{"kind":"still","sprite":"zombie-courier-top.webp"},"fresnel":{"kind":"still","sprite":"zombie-fresnel-top.webp"},"vault":{"kind":"still","sprite":"zombie-vault-top.webp"}};
 </script>
 <script>
 "use strict";
@@ -1088,7 +1088,20 @@ const SHIPS = [
     anim: { dir: "fresnel", size: 1.1, idle: "idle.webp",
       primary: frames("fire", 24, () => 24),                         // the lens draws back and returns with a golden pulse
       secondary: frames("shards", 24, () => 30, { 6: "fire" }),      // the shutters open: the shards go
-      magic: frames("magic", 24, () => 90) } }                       // the lighthouse beam: the triangle is thrown
+      magic: frames("magic", 24, () => 90) } },                      // the lighthouse beam: the triangle is thrown
+  // VAULT, the art-deco safe (art/ships/vault/: the VAULT package's top-down drawing, the cube 384 px in the 512 canvas;
+  // its two doors cut from it, door-up / door-dn, slide open in code: drawVaultDoors). Sold only in the shop, and in the
+  // test hangar. Button 1: a brass burst from both ports. Button 2: the spring piston's shove; while the star is held,
+  // solar fire from the vault's mouth. Magic: the star in the vault (MAGIC.vault)
+  { id: "vault", name: "VAULT", rarity: "legendary", mass: 1.5, fuel: 30, refill: 15, sfx: null, magic: "vault", shopOnly: true, vaultDoors: true,
+    hull: "#1f5a5a", wingC: "#c8913a", trim: "#ffb347", flame: "#5ef0ff",
+    body: [], wing: [], nozzles: [-0.169, 0.159], engineY: 0.35, cockpit: [0, 0, 0.05, 0.1],
+    weapons: ["brassburst", "piston"],
+    guns: { brassburst: [[-0.244, -0.253], [0.244, -0.253]], piston: [[0, -0.181]], solarfire: [[0, -0.181]] },
+    anim: { dir: "vault", size: 1.25, idle: "idle.webp",
+      primary: [["idle.webp", 90]],
+      secondary: [["idle.webp", 140], ["idle.webp", 40, "fire"], ["idle.webp", 160]],   // the spring winds, then lets go
+      magic: [["idle.webp", 1400]] } }                                                   // (the doors and the star: in code)
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1127,7 +1140,8 @@ const HANDLING = {
   boiler:   { size: 1.05, speed: 0.85, accel: 0.9,  turn: 0.9  },   // a heavy diving bell
   flipper:  { size: 1,    speed: 1.05, accel: 1.1,  turn: 1.1  },   // a nimble pinball table
   courier:  { size: 0.95, speed: 1.15, accel: 1.1,  turn: 1.05 },  // a quick mail ship
-  fresnel:  { size: 1.05, speed: 0.95, accel: 0.95, turn: 0.95 }    // a lighthouse
+  fresnel:  { size: 1.05, speed: 0.95, accel: 0.95, turn: 0.95 },  // a lighthouse
+  vault:    { size: 1.0,  speed: 0.85, accel: 0.9,  turn: 0.85 }    // a heavy safe
 };
 function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1337,6 +1351,11 @@ const WEAPONS = {
   // FRESNEL. lensflash: a narrow golden pulse. lightshard: two shards aimed to cross `aimAt` ship-lengths ahead, then on
   lensflash:  { name: "הבזק ממוקד", dmg: 8, speed: 3.0, life: 0.7, cool: 0.35, ammo: 12, refill: 6, r: 0.02, color: "#ffd86b" },
   lightshard: { name: "רסיסי אור", dmg: 7, speed: 2.4, life: 0.9, cool: 0.7, ammo: 8, refill: 7, r: 0.025, color: "#ff5ea8", colors: ["#ff5ea8", "#5ee7ff"], both: true, aimAt: 2.0 },
+  // VAULT. brassburst: a brass bullet from each port. piston: a short, heavy brass punch that shoves (`knock`).
+  //   solarfire: button 2 while the star is in the vault: a short spray of flame from the mouth
+  brassburst: { name: "צרור פליז", dmg: 7, speed: 2.8, life: 0.75, cool: 0.4, ammo: 10, refill: 6, r: 0.022, color: "#e8b04a", both: true },
+  piston:     { name: "בוכנת הדף", dmg: 14, speed: 2.4, life: 0.34, cool: 1.1, ammo: 4, refill: 6, r: 0.06, color: "#ffcf6a", knock: 1.6 },
+  solarfire:  { name: "אש שמש", dmg: 4, speed: 2.1, life: 0.48, cool: 0.5, ammo: 4, refill: 6, r: 0.05, color: "#ffb02e", pellets: 7, fan: 0.4 },
   laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -1490,6 +1509,12 @@ const MAGIC = {
 //   tightens by `tighten` screens/s down to `tightest`: sitting still gets it squeezed; fly out through a gap
   snake: { name: "נחש האור", look: "snake", ahead: 1.1, open: 1.0, last: 30, speed: 1.0, turn: 2.0, start: 8, grow: 1.6, most: 70, gap: 0.07, ring: 0.45,
            r: 0.11, hit: 1.5, spare: 3, back: 2.5, tighten: 0.05, tightest: 0.08, cool: 60, color: "#ffd86b" },
+  // VAULT's held star (vault.js part: startVault). suck: doors open and the star flies in (s); hold: kept (s); free:
+  //   it flies back (s); door: the doors' slide (s). While held its pull (screens/s each second, below every engine's
+  //   push) is full within `near` screens of VAULT and gone by `reach`; every `pulse` s a radiation wave goes out to
+  //   `rad` screens in `wave` s and takes `dmg` health from the other ship inside it. fireShow: the solar fire's aurora (s)
+  vault: { name: "הכוכב בכספת", look: "vault", suck: 1.4, hold: 30, free: 1.4, door: 0.35, near: 0.55, reach: 1.5, pull: 0.5,
+           pulse: 2.5, rad: 0.8, wave: 0.45, dmg: 10, fireShow: 0.55, cool: 50, color: "#ffb347" },
   orbitmine: { name: "מוקש מסלול", look: "orbitmine", speed: 0.8, hit: 1.5, r: 0.13, cool: 10, color: "#ffb347" },
   pinballs: { name: "כדורי פליפר", look: "pinballs", balls: 3, box: 2.4, follow: 0.7, speed: 0.8, last: 60, hit: 0.5, r: 0.1, cool: 75, color: "#ff4d6d" },
   reverse: { name: "היפוך כבידה", look: "reverse", at: 0.65, last: 4, push: 0.55, swirl: 1.1, reach: 1.5, cool: 16, color: "#7fb6ff" },
@@ -2249,7 +2274,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake", vault: "Star in the vault" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -2707,7 +2732,7 @@ cv.addEventListener("pointerdown", (e) => {
   if (trade.stage && tradeTap(e.clientX, e.clientY)) return;
   if (shop.open) { shopTap(e.clientX, e.clientY); return; }   // the station's shop
   if (dialDown(e)) return;   // the sound dials catch the finger first (no firing with it)
-  if ((hangar.open || picker.open || camp.over) && hitLang(e.clientX, e.clientY)) { setLang(LANG === "he" ? "en" : "he"); audio.pop(); buzz(10); return; }   // עב / EN
+  if ((picker.open || camp.over) && hitLang(e.clientX, e.clientY)) { setLang(LANG === "he" ? "en" : "he"); audio.pop(); buzz(10); return; }   // עב / EN
   if (picker.open || camp.over) { pickerTap(e.clientX, e.clientY); return; }   // choosing a ship / the fleet is gone
   if (fleet.open) { fleetDown(e); return; }
   if (hangar.open) { hangarTap(e.clientX, e.clientY); return; }
@@ -2930,7 +2955,7 @@ function update(dt) {
     else if (game.docked) { const L = stationLook(), P = stationWorld(L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
-    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt);
+    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateVault(dt);
   }
   updateTrade(dt);
   updateDuel(dt);
@@ -3063,7 +3088,7 @@ function moveShip(o, S, c, dt) {
   // 3. the planet in the middle pulls (nearest way round, since space wraps)
   const R = planetR();
   const dx = wrapDelta(o.x - WW / 2, WW), dy = wrapDelta(o.y - WH / 2, WH);
-  const g = gravityAt(dx, dy, U, R, inWater(o) ? 0 : bodyPull());   // (none in BOILER's water)   // (bodyPull: none while LABYRINTH's maze keeps the star out)
+  const g = inWater(o) ? { ax: 0, ay: 0 } : starPull(o.x, o.y, o);   // (from VAULT while it holds the star)   // (none in BOILER's water)   // (bodyPull: none while LABYRINTH's maze keeps the star out)
   const rk = reverseOn(o);   // KILN's reverse gravity: this ship is pushed away and round instead of pulled
   if (rk > 0) {
     const RV = o === game ? game.reversed : game.kiln, ra = revAccel(dx, dy, o === game ? RV.t : RV.t - MAGIC.reverse.at, RV.seed, MAGIC.reverse, U);
@@ -3081,7 +3106,7 @@ function moveShip(o, S, c, dt) {
 
   // 5. bounce off the planet. Stars, black holes and lava burn a ship that touches them (yours: health; see touchBurn)
   o.hitCool = Math.max(0, (o.hitCool || 0) - dt);
-  const d = starOut() || (o === game && game.ship === "boiler" && inWater(o)) ? Infinity : Math.hypot(dx, dy), touch = R + size * 0.32;   // (the star out, or BOILER under water: nothing to touch)
+  const d = starGone() || (o === game && game.ship === "boiler" && inWater(o)) ? Infinity : Math.hypot(dx, dy), touch = R + size * 0.32;   // (the star out, or BOILER under water: nothing to touch)
   if (o === game) {
     const touching = d < touch + size * 0.08;
     if (myStarTouch(touching)) return 0;   // a BORER's bomb was waiting in the star: shattered
@@ -3174,7 +3199,7 @@ function chemSmoke(dt) {
 // touching a hot one: health goes, a little at a time (the red flash only every few points)
 function touchBurn(dt) {
   const B = body();
-  if (!B.burn || game.dead || stratAloft(game) || starOut() || (flood && flood.owner === "me" && game.ship === "boiler")) return;   // (STRATA up high: out of reach)
+  if (!B.burn || game.dead || stratAloft(game) || starGone() || (flood && flood.owner === "me" && game.ship === "boiler")) return;   // (STRATA up high: out of reach)
   cosmos.burn += B.burn * dt;
   if (Math.random() < dt * 20) burstAt(game.x, game.y, 3, [B.color, "#ffffff"], 0.2, 0.4, game.vx, game.vy);
   if (cosmos.burn >= 5) { damageShip(Math.floor(cosmos.burn), "env"); cosmos.burn -= Math.floor(cosmos.burn); }
@@ -3237,7 +3262,7 @@ function wallPass() { return (maze.owner === "me" && game.ship === "labyrinth") 
 function wallBound() { return mazeSolid() && !game.dead && !wallPass(); }
 
 function startForge(M) {
-  if (maze) { audio.nope(); buzz(20); return; }   // one Starforge at a time (theirs too)
+  if (maze || vaultBusy()) { audio.nope(); buzz(20); return; }   // one Starforge at a time (theirs too); not with the star in a VAULT
   const cols = Math.max(4, Math.round(WW / (U * M.cell))), rows = Math.max(4, Math.round(WH / (U * M.cell))), r = planetR() * M.clear + shipSize();
   const clear = [+(r / (WW / cols)).toFixed(4), +(r / (WH / rows)).toFixed(4)], seed = Math.floor(Math.random() * 2147483647);
   if (!mazeBegin("me", seed, cols, rows, clear, 0)) { audio.nope(); return; }   // (a layout that does not join up: none)
@@ -4561,6 +4586,7 @@ const UPGRADE_FIT = {
   strata: [-0.9518, -0.9518, 1.9036, 0.2417, -0.3867],
   talus: [-0.7459, -0.7444, 1.4893, 0.1035, -0.2994],
   vanta: [-0.8051, -0.8016, 1.5962, 0.2517, -0.3277],
+  vault: [-0.5849, -0.5801, 1.1699, 0.3427, -0.2327],
   vexar: [-0.7827, -0.7862, 1.5654, 0.3913, -0.3215],
   xeltar: [-0.8265, -0.8316, 1.6538, 0.2136, -0.3406],
   zorian: [-0.7788, -0.7777, 1.5577, 0.2099, -0.3152]
@@ -4573,7 +4599,7 @@ function drawUpgrade(S, which) {
 // the ships still being made: shown in the shop ("coming soon"), not for sale yet (their pictures: art/upgrades/<id>/body.webp
 // from above, art/ships3d/<id>.webp in 3D where there is one)
 const SOON_SHIPS = [["corsair", "CORSAIR"], ["gravity-sail", "GRAVITY SAIL"],
-  ["knuckle", "KNUCKLE"], ["link", "LINK"], ["vault", "VAULT"]].map(([id, name]) => ({ id, name, soon: true }));
+  ["knuckle", "KNUCKLE"], ["link", "LINK"]].map(([id, name]) => ({ id, name, soon: true }));
 // ships for good and ships rented (bank.owned[id] = 1; bank.rent[id] = when the rental ends, ms): they join my fleet in
 // every game. SHIP_BUY: the three ways to buy a ship, and the price of each against the ship's price (SHOP.ship)
 const SHIP_BUY = { once: 1, week: 2.5, own: 8 };
@@ -4674,7 +4700,7 @@ function drawPinballs() {
 }
 // FLIPPER's steel ball: it bounces once off the star (pinball-style), then it is like any shot
 function starBounceFx(s, Wp, dt) {
-  if (s.bounced || starOut()) return;
+  if (s.bounced || starGone()) return;
   const R = planetR() + (Wp.r || 0) * shipSize(), dx = wrapDelta(s.x + s.vx * dt - WW / 2, WW), dy = wrapDelta(s.y + s.vy * dt - WH / 2, WH), d = Math.hypot(dx, dy);
   if (d >= R || d < 1) return;
   const v = bounceOff(s.vx, s.vy, dx / d, dy / d); s.vx = v.vx; s.vy = v.vy; s.bounced = true;
@@ -4904,6 +4930,248 @@ function drawSnakes() {
   }
 }
 
+// ---------- VAULT: the star in the vault (MAGIC.vault) ----------
+// The magic opens the vault's doors, the star flies into it, shrinking, and is caught (`suck` s). While it is held
+// (`hold` s) the star's gravity comes from VAULT (it follows VAULT; VAULT itself is not pulled), strong within `near`
+// screens and fading out by `reach`; the middle is empty (nothing to hit, nothing to bounce off). The held star sends out
+// radiation: every `pulse` s a wave goes out to `rad` screens, and each wave takes `dmg` health from the other ship if
+// it is inside it. Button 2 is then solar fire from the vault's mouth (the doors open for it). At the end, or when VAULT
+// is destroyed, the doors open and the star flies back to the middle (`free` s). COURIER's orbit mines round the star
+// are flung out into space when it is taken. One held star at a time, and never with LABYRINTH's maze.
+// game.vault (mine): { ph: "suck" | "hold" | "free", t }. Theirs: their state's `vt` = [phase number, t]
+const VAULT_PH = ["suck", "hold", "free"];
+const VAULT_WIN = { x0: 160.77, x1: 351.85, y0: 156.48, ys: 197.82, y1: 207.31 };   // the doors' window in the 512 drawing
+const flyMines = [];   // orbit mines flung out: { x, y, vx, vy, own, t }
+function vaultOf(o) {
+  if (o === game) return game.vault || null;
+  if (o === enemy && enemy.remote && enemy.on && duel.stage && duel.net && Array.isArray(duel.net.vt)) return { ph: VAULT_PH[duel.net.vt[0]] || "hold", t: duel.net.vt[1] || 0 };
+  return null;
+}
+function vaultHolder() { return game.vault ? game : vaultOf(enemy) ? enemy : null; }
+function vaultBusy() { return !!vaultHolder(); }
+function starGone() { return starOut() || vaultBusy(); }   // the middle is empty (LABYRINTH's dark star, or the star in a vault)
+function vaultNet() { const V = game.vault; return V ? [VAULT_PH.indexOf(V.ph), +V.t.toFixed(2)] : 0; }
+function vaultScale(o) { return o === game ? shipScale() : enemyScale(); }
+// the vault's mouth (the middle of the doors' window), in the world
+function vaultMouth(o) {
+  const S = shipById(o === game ? game.ship : enemy.ship), k = S.anim.size / 512, sz = shipSize() * vaultScale(o);
+  const m = rotatePt(((VAULT_WIN.x0 + VAULT_WIN.x1) / 2 - 256) * k * sz, ((VAULT_WIN.y0 + VAULT_WIN.y1) / 2 - 256) * k * sz, o.ang);
+  return { x: o.x + m.x, y: o.y + m.y };
+}
+// the star's pull at (x, y): from the middle as always; while a VAULT holds it, from that VAULT (not on itself)
+function starPull(x, y, self) {
+  const H = vaultHolder();
+  if (!H) return gravityAt(wrapDelta(x - WW / 2, WW), wrapDelta(y - WH / 2, WH), U, planetR(), bodyPull());
+  const V = vaultOf(H);
+  if (V.ph !== "hold" || H === self) return { ax: 0, ay: 0 };
+  return vaultPullAt(wrapDelta(x - H.x, WW), wrapDelta(y - H.y, WH));
+}
+function vaultPullAt(dx, dy) {
+  const M = MAGIC.vault, d = Math.hypot(dx, dy) || 1, near = M.near * U, core = shipSize() * 0.6;
+  if (d > M.reach * U) return { ax: 0, ay: 0 };
+  const fade = d < near ? 1 : (near / d) * (near / d) * clamp((M.reach * U - d) / (U * 0.3), 0, 1);
+  const a = M.pull * U * fade * Math.min(1, d / core);   // (softer right at its middle, so nothing shakes there)
+  return { ax: -dx / d * a, ay: -dy / d * a };
+}
+function startVault(M) {
+  if (game.dead || vaultBusy() || maze) { audio.nope(); buzz(20); return; }   // one held star at a time (theirs too); not in the maze
+  game.vault = { ph: "suck", t: 0 }; game.magicCool = M.cool; game.anim = { seq: "magic", t: 0 };
+  audio.tone(140, 0.35, "square", 0.04, 0.6); audio.tone(95, 0.5, "sawtooth", 0.04, 0.5, 0.18); audio.noise(0.3, 0.05, 1200); buzz(40);   // the bolts, the doors
+  audio.tone(220, 1.2, "sine", 0.05, 4, 0.3);   // the star drawn in
+}
+// the star is caught: COURIER's orbit mines lose their star and fly out into space
+function vaultFling() {
+  for (const m of orbitMines) {
+    const P = orbitPos(m), ox = Math.cos(P.a), oy = Math.sin(P.a), tv = m.w * m.r * U;
+    flyMines.push({ x: P.x, y: P.y, vx: -oy * tv + ox * U * 1.6, vy: ox * tv + oy * U * 1.6, own: m.own, t: 0, a: P.a });
+  }
+  if (orbitMines.length) audio.tone(900, 0.4, "triangle", 0.04, 0.3);
+  orbitMines.length = 0;
+  shake(0.6); buzz(120); audio.boom();
+}
+function updateVault(dt) {
+  const M = MAGIC.vault;
+  for (let k = flyMines.length - 1; k >= 0; k--) { const f = flyMines[k]; f.t += dt; f.x = wrapX(f.x + f.vx * dt); f.y = wrapY(f.y + f.vy * dt); if (f.t > 2.5) flyMines.splice(k, 1); }
+  if (game.vaultFireT > 0) game.vaultFireT -= dt;
+  if (enemy.vaultFireT > 0) enemy.vaultFireT -= dt;
+  const V = game.vault;
+  if (V) {
+    V.t += dt;
+    if (!duel.stage && game.stage !== "fly") game.vault = null;
+    else if (game.dead && V.ph !== "free") { V.ph = "free"; V.t = 0; }   // VAULT destroyed: the star goes back
+    else if (V.ph === "suck" && V.t >= M.suck) { V.ph = "hold"; V.t = 0; vaultFling(); }
+    else if (V.ph === "hold" && V.t >= M.hold) { V.ph = "free"; V.t = 0; audio.tone(160, 0.6, "sawtooth", 0.04, 2); audio.noise(0.3, 0.05, 1200); }
+    else if (V.ph === "free" && V.t >= M.free) { game.vault = null; burstAt(WW / 2, WH / 2, 30, ["#ffffff", "#ffe08a", "#ffb347"], 0.8, 0.8); audio.tone(330, 0.5, "sine", 0.05, 2); }
+  }
+  // their VAULT: the mines fly when it catches the star; its radiation, here (my phone knows where I really am)
+  const T = vaultOf(enemy), ph = T ? T.ph : null;
+  if (ph === "hold" && duel.vtPh !== "hold") vaultFling();
+  duel.vtPh = ph;
+  if (ph === "hold") {
+    const n = Math.floor(T.t / M.pulse);
+    if (n > (game.vaultHit || 0)) {
+      game.vaultHit = n;
+      const d = Math.hypot(wrapDelta(game.x - enemy.x, WW), wrapDelta(game.y - enemy.y, WH));
+      if (d < M.rad * U && !game.dead && game.stage === "fly" && !stratAloft(game) && !game.docked) {
+        damageShip(M.dmg); burstAt(game.x, game.y, 26, ["#ffe08a", "#ffb347", "#7dffe0", "#ffffff"], 0.5, 0.7, game.vx, game.vy);
+        audio.tone(70, 0.3, "sawtooth", 0.06, 0.4); audio.noise(0.2, 0.08, 3000); shake(0.4); buzz(90);
+      }
+    }
+  } else game.vaultHit = 0;
+}
+// how open the doors are (0 closed .. 1 open)
+function vaultOpen(o, V) {
+  const M = MAGIC.vault, dr = M.door;
+  let k = 0;
+  if (V) {
+    if (V.ph === "suck") k = clamp(V.t / dr, 0, 1);
+    else if (V.ph === "hold") k = 1 - clamp(V.t / dr, 0, 1);
+    else k = Math.min(clamp(V.t / dr, 0, 1), clamp((M.free - V.t) / dr, 0, 1));
+    if (V.ph === "hold" && o === game && game.anim && game.anim.seq === "secondary") k = Math.max(k, clamp(game.anim.t / 120, 0, 1));   // opening for the solar fire
+  }
+  const f = o.vaultFireT || 0;
+  if (f > 0) k = Math.max(k, clamp((M.fireShow - f) / 0.08, 0, 1) * clamp(f / 0.2, 0, 1));
+  return k;
+}
+// where the star is between the middle and the vault (0: in the middle, 1: in the vault)
+function vaultStarK(V) {
+  const M = MAGIC.vault;
+  if (!V) return 0;
+  if (V.ph === "hold") return 1;
+  if (V.ph === "suck") return clamp((V.t - M.door * 0.8) / (M.suck - M.door * 0.8 - 0.05), 0, 1);
+  return 1 - clamp((V.t - M.door * 0.8) / (M.free - M.door * 2), 0, 1);
+}
+// the doors (drawn in the ship's own frame, over its drawing): the window opens onto a dark inside with the little star in
+// it; the upper door (the wheel) slides up and the lower one (the lights) down, into the frame. Closed on the star: amber
+// light leaking from the seams
+function drawVaultDoors(o, S) {
+  const V = vaultOf(o), open = vaultOpen(o, V), k = S.anim.size / 512, X = (p) => (p - 256) * k, Wn = VAULT_WIN;
+  const x0 = X(Wn.x0), x1 = X(Wn.x1), y0 = X(Wn.y0), ys = X(Wn.ys), y1 = X(Wn.y1), w = x1 - x0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const held = V && (V.ph === "hold" || vaultStarK(V) >= 0.97);
+  if (open > 0.002) {
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, w, y1 - y0); ctx.clip();
+    const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, "#120a06"); g.addColorStop(0.5, "#24140a"); g.addColorStop(1, "#0a0604");
+    ctx.fillStyle = g; ctx.fillRect(x0, y0, w, y1 - y0);
+    ctx.strokeStyle = "rgba(255,170,80,0.18)"; ctx.lineWidth = (y1 - y0) * 0.04;
+    for (let i = 1; i < 5; i++) { const yy = y0 + (y1 - y0) * i / 5; ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x1, yy); ctx.stroke(); }
+    if (held) {   // the star, small, in the vault
+      const r = (y1 - y0) * 0.36, pul = 1 + 0.06 * Math.sin(time * 9);
+      const h = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 3.2); h.addColorStop(0, "rgba(255,200,90,0.75)"); h.addColorStop(1, "rgba(255,140,40,0)");
+      ctx.fillStyle = h; ctx.fillRect(x0, y0, w, y1 - y0);
+      const s = ctx.createRadialGradient(cx - r * 0.2, cy - r * 0.2, 0, cx, cy, r * pul); s.addColorStop(0, "#ffffff"); s.addColorStop(0.35, "#fff1a8"); s.addColorStop(0.75, "#ffb02e"); s.addColorStop(1, "#ff6a1a");
+      ctx.fillStyle = s; ctx.beginPath(); ctx.arc(cx, cy, r * pul, 0, TAU); ctx.fill();
+    }
+    const up = artImage(framePath(S.anim.dir, "door-up.webp")), dn = artImage(framePath(S.anim.dir, "door-dn.webp")), e = ease(open);
+    if (up) ctx.drawImage(up, x0, y0 - e * (ys - y0), w, ys - y0);
+    if (dn) ctx.drawImage(dn, x0, ys + e * (y1 - ys), w, y1 - ys);
+    ctx.restore();
+  }
+  if (held && open < 0.6) {   // light leaking from the seams
+    const a = (0.55 + 0.35 * Math.sin(time * 6)) * (1 - open / 0.6);
+    ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+    for (const [yy, lw] of [[y0, 0.012], [ys, 0.016], [y1, 0.01]]) {
+      ctx.strokeStyle = `rgba(255,176,60,${a})`; ctx.lineWidth = lw * 2.4; ctx.beginPath(); ctx.moveTo(x0 + w * 0.04, yy); ctx.lineTo(x1 - w * 0.04, yy); ctx.stroke();
+      ctx.strokeStyle = `rgba(255,240,190,${a})`; ctx.lineWidth = lw * 0.8; ctx.stroke();
+    }
+    const h = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.7); h.addColorStop(0, `rgba(255,170,60,${a * 0.35})`); h.addColorStop(1, "rgba(255,170,60,0)");
+    ctx.fillStyle = h; ctx.beginPath(); ctx.arc(cx, cy, w * 0.7, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+}
+// in the world, over the ships: the star flying between the middle and the vault; the held star's pull (light drawn
+// in toward VAULT), its radiation waves, the countdown; the solar fire's aurora; the mines flung away
+function drawVaultFx() {
+  const M = MAGIC.vault, size = shipSize();
+  for (const f of flyMines) {
+    const p = toScreen(f.x, f.y), rs = MAGIC.orbitmine.r * size, a = clamp(2.5 - f.t, 0, 1);
+    const sp = Math.hypot(f.vx, f.vy) || 1;
+    ctx.save(); ctx.globalAlpha = a * 0.5; ctx.strokeStyle = "#ffb347"; ctx.lineWidth = rs * 0.5; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - f.vx / sp * size * 0.6, p.y - f.vy / sp * size * 0.6); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(p.x, p.y);
+    const g = ctx.createRadialGradient(-rs * 0.3, -rs * 0.3, rs * 0.1, 0, 0, rs); g.addColorStop(0, "#e8c27a"); g.addColorStop(0.6, "#8a5a24"); g.addColorStop(1, "#3a2410");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rs, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  for (const o of [game, enemy]) {
+    const V = vaultOf(o);
+    if (o === enemy && !(enemy.on && enemy.remote)) continue;
+    const S = shipById(o === game ? game.ship : enemy.ship);
+    if (!S || !S.vaultDoors) continue;
+    const mo = vaultMouth(o), pm = toScreen(mo.x, mo.y);
+    if ((o.vaultFireT || 0) > 0) drawAurora(pm, o.ang, o.vaultFireT / M.fireShow, size);
+    if (!V) continue;
+    const sk = vaultStarK(V);
+    if (V.ph !== "hold" && sk < 0.97) {   // the star on its way
+      const e = ease(sk), x = WW / 2 + wrapDelta(mo.x - WW / 2, WW) * e, y = WH / 2 + wrapDelta(mo.y - WH / 2, WH) * e, p = toScreen(x, y);
+      const R = lerp(planetR(), size * 0.06, e);
+      if (sk > 0.01) for (let i = 0; i < 3; i++) burstAt(x, y, 1, ["#ffe08a", "#ffb347"], 0.15, 0.5);
+      drawBody(body(), p, R, 1);
+    }
+    if (V.ph !== "hold") continue;
+    const ps = toScreen(o.x, o.y), z = game.zoom || 1;
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    // the pull: streaks of light falling in toward it
+    const near = M.near * U;
+    for (let i = 0; i < 18; i++) {
+      const a = i * 2.39996 + i * 0.7, ph = (time * 0.6 + i * 0.137) % 1, r0 = near * (1.1 - ph), r1 = r0 * 0.82;
+      ctx.strokeStyle = `rgba(255,${190 + (i % 3) * 20},${110 + (i % 2) * 90},${0.3 * Math.sin(ph * Math.PI)})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(ps.x + Math.cos(a) * r0, ps.y + Math.sin(a) * r0); ctx.lineTo(ps.x + Math.cos(a + 0.12) * r1, ps.y + Math.sin(a + 0.12) * r1); ctx.stroke();
+    }
+    // the radiation: each wave from the vault out to its reach (a hit, if it is still on you when it goes out)
+    const R = M.rad * U, q = (V.t % M.pulse) / M.wave, wn = Math.floor(V.t / M.pulse);
+    if (wn > 0 && q < 1) {
+      const r = R * ease(q), a = 1 - q;
+      const g = ctx.createRadialGradient(ps.x, ps.y, r * 0.75, ps.x, ps.y, r);
+      g.addColorStop(0, "rgba(255,170,60,0)"); g.addColorStop(0.8, `rgba(255,200,90,${0.22 * a})`); g.addColorStop(1, `rgba(125,255,224,${0.55 * a})`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ps.x, ps.y, r, 0, TAU); ctx.fill();
+    }
+    // its reach, faint, and getting brighter as the next wave comes
+    const next = (V.t % M.pulse) / M.pulse;
+    ctx.strokeStyle = `rgba(255,176,60,${0.12 + 0.25 * next * next})`; ctx.lineWidth = 2; ctx.setLineDash([10, 12]); ctx.lineDashOffset = -time * 30;
+    ctx.beginPath(); ctx.arc(ps.x, ps.y, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+    // how long it keeps the star
+    const left = Math.max(0, Math.ceil(M.hold - V.t)), f = Math.round(Math.max(14 / z, size * 0.28));
+    ctx.save(); ctx.font = `900 ${f}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+    ctx.lineWidth = f * 0.18; ctx.strokeStyle = "rgba(20,10,0,0.8)"; ctx.fillStyle = left <= 5 ? "#ff8a3a" : "#ffd27a";
+    const ty = ps.y - size * 0.85; ctx.strokeText("☀ " + left, ps.x, ty); ctx.fillText("☀ " + left, ps.x, ty); ctx.restore();
+  }
+}
+// the solar fire's aurora: translucent ribbons in turquoise, green and violet waving out ahead of the mouth (only a picture)
+function drawAurora(p, ang, k, size) {
+  const L = size * 2.2, cols = ["125,255,224", "120,255,140", "190,120,255", "90,220,255", "255,210,120"];
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+  for (let i = 0; i < 7; i++) {
+    const c = cols[i % cols.length], sp = (i - 3) * 0.07, ph = time * 7 + i * 1.3;
+    ctx.strokeStyle = `rgba(${c},${0.35 * k})`; ctx.lineWidth = size * (0.05 + 0.03 * (i % 3));
+    ctx.beginPath(); ctx.moveTo(0, 0);
+    for (let s = 1; s <= 12; s++) { const t = s / 12, y = -L * t, x = Math.sin(ph + t * 5) * L * 0.08 * t + Math.tan(sp) * L * t; ctx.lineTo(x, y); }
+    ctx.stroke();
+  }
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 0.35); g.addColorStop(0, `rgba(255,250,220,${0.9 * k})`); g.addColorStop(0.4, `rgba(255,190,60,${0.6 * k})`); g.addColorStop(1, "rgba(255,120,20,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, size * 0.35, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+// VAULT's shots: the piston's brass shock (a slug with a ring of pressure round it) and the solar fire (a flame that
+// swells, whitening to orange to red as it goes)
+function drawVaultShot(s) {
+  const p = toScreen(s.x, s.y), size = shipSize(), sp = Math.hypot(s.vx, s.vy) || 1, a = Math.atan2(s.vx / sp, -s.vy / sp);
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(a);
+  if (s.w === "piston") {
+    const r = size * 0.07;
+    ctx.strokeStyle = "rgba(255,220,150,0.6)"; ctx.lineWidth = r * 0.35; ctx.beginPath(); ctx.arc(0, r * 0.6, r * 2.2, Math.PI * 1.2, Math.PI * 1.8); ctx.stroke();
+    const g = ctx.createLinearGradient(-r, 0, r, 0); g.addColorStop(0, "#6a4418"); g.addColorStop(0.5, "#f2c46a"); g.addColorStop(1, "#6a4418");
+    ctx.fillStyle = g; roundRect(-r * 0.7, -r, r * 1.4, r * 2.2, r * 0.3); ctx.fill();
+    ctx.fillStyle = "#fff3c8"; ctx.beginPath(); ctx.arc(0, -r, r * 0.55, 0, TAU); ctx.fill();
+  } else {
+    const L = WEAPONS.solarfire.life, t = clamp((s.life || 0) / L, 0, 1), r = size * (0.06 + 0.14 * t);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+    g.addColorStop(0, `rgba(255,255,230,${1 - t * 0.6})`); g.addColorStop(0.35, `rgba(255,${210 - t * 80},60,${0.85 - t * 0.4})`); g.addColorStop(1, "rgba(255,70,20,0)");
+    ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.8, r * 1.2, 0, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+// their VAULT's pull and radiation: the computer keeps out of reach while it holds the star
+function botVaultNear(d) { const T = vaultOf(enemy); return !!T && T.ph !== "free" && d < MAGIC.vault.rad * U * 1.15; }
 // ---------- magic: the gear button ----------
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
 function useMagic(which = 0) {
@@ -5060,6 +5328,7 @@ function useMagicNow(which = 0) {
   if (M.look === "flood") { startFlood(M); return; }
   if (M.look === "pinballs") { startPinballs(M); return; }
   if (M.look === "orbitmine") { startOrbitMine(M); return; }
+  if (M.look === "vault") { startVault(M); return; }   // VAULT: the star into the vault
   if (M.look === "snake") { startSnake(M); return; }   // FRESNEL: the light portal's snake   // COURIER: one more mine round the star   // FLIPPER: three pinballs round them   // BOILER: the water (updateFlood)   // LABYRINTH: the spire, then the maze (updateMaze)
   if (M.look === "surgery") { surgeryPress(M); return; }   // FRANKENSTEIN: surgery, then a part a press (updateSurgery)   // KILN: the body pushes the enemy away (updateReverse)   // STRATA: up into the upper dimension (updateShift)   // BALLAST: held, it tows an asteroid in (updateTow)
   if (M.look === "tail") {   // the stinger tail grows out behind the ship, stays out, and comes back by itself
@@ -6555,14 +6824,14 @@ function updateEnemyShots(dt) {
     s.life += dt;
     if (Wp.magnet) magnetPull(s, Wp, dt);
     if (Wp.homing && !game.dead && s.life > 0.12 && !(Wp.dry && inWater(s))) { const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), Wp.homing * 0.6 * dt); s.vx = t.vx; s.vy = t.vy; }
-    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), inWater(s) ? 0 : bodyPull()); s.vx += g.ax * dt; s.vy += g.ay * dt; }
+    if (Wp.gravity) { const g = inWater(s) ? { ax: 0, ay: 0 } : starPull(s.x, s.y, null); s.vx += g.ax * dt; s.vy += g.ay * dt; }
     if (s.rw && enemy.rw) { s.life -= dt; if (!rewindShot(s, dt, enemy.rw.slow)) eshots.splice(k, 1); continue; }   // going back with it (harmless)
     s.rw = false;
     if (shotFx(eshots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;
     if (Wp.phase) phaseTrail(s);
-    if (s.life > Wp.life || (!starOut() && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR())) { eshots.splice(k, 1); continue; }
+    if (s.life > Wp.life || (!starGone() && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR())) { eshots.splice(k, 1); continue; }
     if (threadBlocks(game.thread, s, dt)) { threadSpark(s); eshots.splice(k, 1); continue; }   // my thread stops it
     if (vShieldUp(game) && inFrontV(game, s.x, s.y)) {   // GLITCH's V: batted back, now mine
       vBat(s); eshots.splice(k, 1); shots.push({ ...s, vx: -s.vx, vy: -s.vy, life: 0 }); continue;
@@ -7475,6 +7744,7 @@ const crate = { on: false, w: null, x: 0, y: 0, vx: 0, vy: 0, t: 0 };
 
 // which weapon each button fires right now (null = no such button now)
 function slotWeapon(i) {
+  if (i === 1 && game.vault && game.vault.ph === "hold" && game.ship === "vault") return "solarfire";   // VAULT holding the star
   if (i < 2) return weaponsOf(shipById(game.ship), game.flipMode || 0)[i];
   if (i === 3) return myGear().xw;   // the extra weapon bought at the station
   return game.loot ? game.loot.w : null;
@@ -7535,7 +7805,7 @@ function updateWeapons(dt) {
       const t = steerShot(s.vx, s.vy, wrapDelta(enemy.x - s.x, WW), wrapDelta(enemy.y - s.y, WH), Wp.homing * dt);
       s.vx = t.vx; s.vy = t.vy;
     }
-    if (Wp.gravity) { const g = gravityAt(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH), U, planetR(), inWater(s) ? 0 : bodyPull()); s.vx += g.ax * dt; s.vy += g.ay * dt; }
+    if (Wp.gravity) { const g = inWater(s) ? { ax: 0, ay: 0 } : starPull(s.x, s.y, null); s.vx += g.ax * dt; s.vy += g.ay * dt; }
     if (shotFx(shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (s.w === "missile" && Math.random() < 0.6) burstAt(s.x, s.y, 1, ["#b8fff0", "#ffffff"], 0.05, 0.6);
@@ -7545,7 +7815,7 @@ function updateWeapons(dt) {
     if (Wp.phase) phaseTrail(s);
     if (s.life > Wp.life + (s.ext || 0)) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); if (Wp.blast) torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }
     // into the planet: a puff, and it is gone
-    if (!starOut() && !(Wp.boilerW && inWater(s)) && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
+    if (!starGone() && !(Wp.boilerW && inWater(s)) && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
       if (Wp.magnet) burstAt(s.x, s.y, 10, [Wp.colors[(s.ix || 0) % Wp.colors.length], "#ffffff"], 0.35, 0.7);
       burstAt(s.x, s.y, 5, ["#b8a3ff", "#ffffff"], 0.2, 0.6); shots.splice(k, 1); continue;
     }
@@ -7577,7 +7847,7 @@ function updateWeapons(dt) {
         if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
         const Hw = shotHit(s, Wp); hitEnemy(s, Hw); shots.splice(k, 1);
         if (Wp.tag) { enemy.markT = Wp.tag; audio.sfx("vanta", "mark_hit"); }   // VANTA's marking drop: the stain
-        if (Wp.knock && (s.w === "bubble" || s.w === "plunger")) {   // PUFF's bubble pops / FLIPPER's plunger: a shove
+        if (Wp.knock && (s.w === "bubble" || s.w === "plunger" || s.w === "piston")) {   // PUFF's bubble pops / FLIPPER's plunger: a shove
           const sp = Math.hypot(s.vx, s.vy) || 1, kn = Hw.knock;
           if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + s.vx / sp * kn, vy: enemy.vy / U + s.vy / sp * kn });
           else { enemy.vx += s.vx / sp * kn * U; enemy.vy += s.vy / sp * kn * U; }
@@ -7659,6 +7929,7 @@ function spawnShots(w, g, rot) {
   spawnShots.rot = hk;
   const m = rotatePt(g[0] * size, g[1] * size, game.ang);
   const x = game.x + m.x, y = game.y + m.y;
+  if (w === "solarfire") { game.vaultFireT = MAGIC.vault.fireShow; audio.noise(0.4, 0.08, 1800); audio.tone(120, 0.35, "sawtooth", 0.04, 2); }   // the doors open, the aurora
   if (Wp.egg) { layEgg(x, y, Wp, S); return; }
   if (Wp.rail) { startRail(w); return; }      // RIVET's rail
   if (Wp.wave) { startWave(w, x, y); return; }   // RIVET's wave
@@ -7751,7 +8022,7 @@ function updateRing(dt) {
   if (was === "back" && R.phase !== "back") { audio.sfx(S.sfx, "ring_capture"); buzz(30); }
   if (!R.phase) { audio.sfx(S.sfx, "ring_lock"); game.ring = null; return; }
   if (R.phase === "out") {
-    const g = gravityAt(wrapDelta(R.x - WW / 2, WW), wrapDelta(R.y - WH / 2, WH), U, planetR(), inWater(R) ? 0 : bodyPull());
+    const g = inWater(R) ? { ax: 0, ay: 0 } : starPull(R.x, R.y, null);
     R.vx += g.ax * dt; R.vy += g.ay * dt;
     R.x = (((R.x + R.vx * dt) % WW) + WW) % WW; R.y = (((R.y + R.vy * dt) % WH) + WH) % WH;
     R.ang += 6.4 * dt;
@@ -8520,7 +8791,8 @@ const KIT = {
   boiler: { a: "#ffb36b", b: "#3fd6d0", fx: "none", face: true },
   flipper: { a: "#ff4d6d", b: "#ffd27a", fx: "none", face: true },
   courier: { a: "#ffb347", b: "#6dffd8", fx: "none", face: true },
-  fresnel: { a: "#ffd86b", b: "#ff5ea8", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
+  fresnel: { a: "#ffd86b", b: "#ff5ea8", fx: "none", face: true },
+  vault: { a: "#ffb347", b: "#5ef0ff", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
 function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
@@ -8544,6 +8816,12 @@ function drawKitButton(id, slot, b, o) {
   }
   if (!o.ready) ctx.globalAlpha *= 0.55;
   ctx.drawImage(plate, b.x - d / 2, b.y - d / 2, d, d);
+  if (id === "vault" && slot === "secondary" && game.vault && game.vault.ph === "hold") {   // solar fire ready: amber, with a turquoise edge
+    ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.25 + 0.12 * Math.sin(time * 5); ctx.fillStyle = "#ffb347";
+    ctx.beginPath(); ctx.arc(b.x, b.y, r * 0.95, 0, TAU); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = "#5ef0ff"; ctx.shadowColor = "#5ef0ff"; ctx.shadowBlur = r * 0.4; ctx.lineWidth = Math.max(2, r * 0.08);
+    octagonPath(b.x, b.y, r * 1.12, 1); ctx.stroke(); ctx.restore();
+  }
   if (press) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha *= 0.35; ctx.drawImage(plate, b.x - d / 2, b.y - d / 2, d, d); ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha /= 0.35; }
   if (icon) {
     ctx.save(); ctx.translate(b.x, b.y); if (o.iconAng) ctx.rotate(o.iconAng);
@@ -8716,6 +8994,7 @@ function drawShip(S, x, y, size, o = {}) {
       ctx.restore();
     }
     ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
+    if (S.vaultDoors && o.vt) drawVaultDoors(o.vt, S);   // VAULT's doors (and the star in it)
     if (o.gear && o.gear[1] && !S.clockwork) drawUpgrade(S, "cannon");   // the shop's extra cannon, over the hull
     if (halfClip) ctx.restore();
     if (S.winch && o.winch) drawWinch(S, o.winch);   // LARIAT's winch turning
@@ -11247,7 +11526,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes();
+    drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -11260,7 +11539,7 @@ function draw() {
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { prep: shown === S && surgPrep() ? game.surg.t : null, kiln: shown === S && game.kiln ? kilnRig(game.kiln.t) : null, strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && game.zombie, power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
-          ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null,
+          ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null, vt: shown === S ? game : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
           half: shown === S && game.splitUsed ? "rear" : null, glow: shown === S && S.grows ? talusGlow(game.talus.ring) : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
@@ -11341,11 +11620,12 @@ function draw() {
   drawShop();   // the station's shop: over everything
   if (game.stage === "title") { drawTitle(); drawDials(); drawLangBtn(); }
   if (picker.open || camp.over) drawLangBtn();   // (switch the language while choosing a ship, too)
-  if (hangar.open && !picker.open && !camp.over) { if (THREE_SHIPS) drawFleetBtn(); drawLangBtn(); }   // in the hangar's second header row
+  if (hangar.open && !picker.open && !camp.over) { if (THREE_SHIPS) drawFleetBtn(); }   // in the hangar's second header row (the language button left the hangar: title and ship picker only)
 }
 
 // the planet in the middle of space (Star Control's melee planet)
 function drawPlanet() {
+  if (vaultBusy()) return;   // the star is in a VAULT, or on its way (drawVaultFx)
   const p = toScreen(WW / 2, WH / 2);
   const k = ease(cosmos.morph);
   // changing: the old one shrinks and fades as the new one grows in
@@ -11537,7 +11817,7 @@ function drawEnemy() {
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
     drawShip(E, p.x, p.y, size * esc, { prep: enemy.remote && duel.surg && duel.surg.phase === "prep" ? duel.surg.t : null, kiln: enemy.remote && duel.kiln ? kilnRig(duel.kiln.t) : null, strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
-      grind: enemy.remote ? duel.grind : null, gear: enemy.remote && duel.net ? duel.net.gr : null });
+      grind: enemy.remote ? duel.grind : null, gear: enemy.remote && duel.net ? duel.net.gr : null, vt: enemy.remote ? enemy : null });
     if (dv) ctx.restore();
     if (enemy.remote && duel.net && duel.net.fg && E.grows) drawForge(enemy, duel.net.fg, p.x, p.y, E.anim.size / 512 * size * esc);   // their TALUS forging
     if (enemy.remote && duel.net) drawAttachedEgg(enemy, E, enemy.anim, duel.net.ek, p.x, p.y, size * esc);   // their VEXAR's egg forming
@@ -11770,7 +12050,8 @@ function drawShots(list = shots) {
     if (s.w === "ptorp") { drawPTorp(s); continue; }   // BOILER's
     if (s.w === "fcan") { drawCan(s); continue; }
     if (s.w === "mailcap") { drawCapsule(s); continue; }   // COURIER's
-    if (s.w === "forgeball") { drawForgeBall(s); continue; }   // LABYRINTH's   // VANTA's drop inside the planet: only the exit mark, at the end
+    if (s.w === "forgeball") { drawForgeBall(s); continue; }
+    if (s.w === "piston" || s.w === "solarfire") { drawVaultShot(s); continue; }   // VAULT's   // LABYRINTH's   // VANTA's drop inside the planet: only the exit mark, at the end
     const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
     if (s.gold) {   // turned by GIMBAL's gate: a gold ring round it
       ctx.save(); ctx.strokeStyle = "rgba(233,182,106,0.85)"; ctx.lineWidth = 2; ctx.shadowColor = "#e9b66a"; ctx.shadowBlur = 6;
@@ -12714,7 +12995,7 @@ function endDuel(tellThem) {
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   game.zombie = false; game.pollen = null; enemy.zombie = false;
-  mazeEnd(true); flood = null; game.pinball = null; game.snake = null;   // the match is over: no maze, the star back, no water, no pinballs
+  mazeEnd(true); flood = null; game.pinball = null; game.snake = null; game.vault = null; flyMines.length = 0;   // the match is over: no maze, the star back, no water, no pinballs
   if (game.docked) undock();
   duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
@@ -12767,6 +13048,7 @@ function duelLink(event, data) {
     duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
     if (duel.shots.length < 60) audio.shot(m.w);
+    if (m.w === "solarfire") enemy.vaultFireT = MAGIC.vault.fireShow;   // their VAULT's doors open for it
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, fl: 0, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
   } else if (m.t === "cv" && shipById(m.s) && Array.isArray(m.p)) {   // their KRAAL's crossing bolts (their phone counts the blast)
@@ -13019,7 +13301,7 @@ function updateDuel(dt) {
     if (trapOpen()) suckShot(game, shipById(game.ship), s, dt);   // (their phone pulls it the same way)
     if (trapOpen() && inMouth(game, shipById(game.ship), s, dt)) { duel.shots.splice(k, 1); continue; }   // into my open jaw (their phone counts it and tells me: "caught")
     const near = !game.dead && !stratAloft(game) && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < shipSize() * 0.42 + (Wp.r * shotScale(s, Wp) + (Wp.prox || 0)) * shipSize();
-    const inPlanet = !starOut() && !(Wp.boilerW && inWater(s)) && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
+    const inPlanet = !starGone() && !(Wp.boilerW && inWater(s)) && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < planetR();
     if (near || inPlanet || s.life > Wp.life + (s.ext || 0)) {
       if (Wp.blast && !inPlanet) torpedoBlast(s, Wp, false);   // their torpedo going off (their phone counts it)
       if (near) burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 5, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);
@@ -13046,7 +13328,7 @@ function updateDuel(dt) {
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
         ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2), creatureLeft(game.surg.c), +(game.surg.c.hp / MAGIC.surgery.hp).toFixed(3)] : [])] : 0,
-      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
+      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), vt: vaultNet(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
@@ -13177,13 +13459,16 @@ function botThink(dt) {
   // close to the body in the middle (where it will be in a moment): get away first, straight out from it, a little to the side.
   // Leaving that takes more room than entering it, so it does not flip between running and fighting
   const px = wrapDelta(game.x + game.vx * 0.8 - WW / 2, WW), py = wrapDelta(game.y + game.vy * 0.8 - WH / 2, WH), pd = Math.hypot(px, py) || 1;
-  botAI.danger = !starOut() && pd < planetR() + U * (botAI.danger ? 0.6 : 0.3);
+  botAI.danger = !starGone() && pd < planetR() + U * (botAI.danger ? 0.6 : 0.3);
   // their BLOOM: keep out of its pollen (further while the cloud is out), and fight it from afar
   const pr = shipSize() * MAGIC.pollen.range, bloomNear = enemy.ship === "bloom" && !game.zombie && seen &&
     d < pr + shipSize() * (duel.net && duel.net.pn >= 0 ? 1.5 : 0.3);
   if (botAI.danger) {
     const away = Math.atan2(px, -py) + 0.45 * Math.sign(px * game.vy - py * game.vx || 1);
     botAI.head = away; botKey(" ", Math.abs(wrapAngle(away - game.ang)) < 0.7 && !game.locked);
+  } else if (botVaultNear(d)) {   // their VAULT holding the star: get out of its pull and radiation
+    const away = Math.atan2(-dx, dy);
+    botAI.head = away; botKey(" ", Math.abs(wrapAngle(away - game.ang)) < 0.9 && !game.locked);
   } else if (bloomNear) {
     const away = Math.atan2(-dx, dy);
     botAI.head = away; botKey(" ", Math.abs(wrapAngle(away - game.ang)) < 0.8 && !game.locked);
@@ -13235,7 +13520,7 @@ function botThink(dt) {
   botAI.tM -= dt;
   if (botAI.tM <= 0 && d < U * 2.6 && magicOf(S) && (S.id !== "lariat" || game.tether || game.elasso) &&
       (S.id !== "bloom" || d < shipSize() * MAGIC.pollen.range * 0.8) && (S.id !== "strata" || d < U * 1.2) &&
-      (S.id !== "kiln" || mines.some((q) => !q.remote && WEAPONS[q.w].kiln)) && S.id !== "frankenstein" && (S.id !== "labyrinth" || !maze)) {   // (KILN: once it has mines out)   // (STRATA: close enough to reach them up there)   // (BLOOM: only with them close enough for its pollen)
+      (S.id !== "kiln" || mines.some((q) => !q.remote && WEAPONS[q.w].kiln)) && S.id !== "frankenstein" && (S.id !== "labyrinth" || !maze) && (S.id !== "vault" || (!vaultBusy() && !maze))) {   // (KILN: once it has mines out)   // (STRATA: close enough to reach them up there)   // (BLOOM: only with them close enough for its pollen)
     botTap("v", S.id === "ballast" ? 7 + Math.random() * 4 : Math.random() < 0.5 ? 0.1 : 0.4 + Math.random() * 2.4);   // (BALLAST: held for its tow) botAI.tM = L.magic * (0.6 + Math.random() * 0.8);
   }
   botAI.tB -= dt;
@@ -13675,7 +13960,7 @@ function drawHangar() {
     if (iss) { ctx.save(); ctx.font = `600 ${Math.round(f * 0.38)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ff8a8a"; ctx.direction = "ltr"; ctx.fillText("⚠ " + iss, W / 2, U * 0.08 + f * 1.25); ctx.restore(); } }
   const cr = U * 0.045, cx = W - U * 0.06 - cr, cy = U * 0.08;
   cross(cx, cy, cr * 0.45, "#ffffff"); hangar.cards.push({ close: true, x: cx - cr * 1.4, y: cy - cr * 1.4, w: cr * 2.8, h: cr * 2.8 });
-  // the second row: "my ships" and the language (drawn over the hangar by the main draw: drawFleetBtn, drawLangBtn)
+  // the second row: "my ships" (drawn over the hangar by the main draw: drawFleetBtn)
   const fb = fleetBtn();
   if (THREE_SHIPS && profile && !trade.stage) hangar.cards.push({ fleet: true, x: fb.x - fb.r * 1.4, y: fb.y - fb.r * 1.4, w: fb.r * 2.8, h: fb.r * 2.8 });
   // the cards: as many columns as fit

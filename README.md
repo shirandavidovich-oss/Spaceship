@@ -81,7 +81,7 @@ The kit's SVGs were turned into WebP (the app serves WebP already). `HUD_KIT = f
 The buttons show their state only as a glowing outline round the plate's octagon (bright along the charged part, clockwise
 from the top: ammo, fuel for thrust, recharge for magic), nothing over the picture.
 
-**Language (עב | EN):** the pill in the test hangar's second header row, beside "my ships" (on the ship-choice screen: the top-left corner)
+**Language (עב | EN):** the pill in the top-left corner of the title screen and the ship-choice screen (not in the test hangar)
 switches every text the game draws between Hebrew and English, and is remembered (`orbit-break.language`, the kit's key).
 The texts are in `STR` in `index.html` (`tr(key)`); magic, body and rarity names have English lists next to it. The
 sign-up form is still Hebrew only.
@@ -506,6 +506,20 @@ still gets the ship squeezed (first touch after ~7 s), flying out through a gap 
 (then 3 s before it can again); it is harmless while coming out and going back. After 30 s a portal opens at its head
 and it is drawn back into it, its tail last. The other ship's phone runs the snake (FRESNEL's phone sends `sn`; the snake
 comes back in that phone's state, `sn`, to be shown).
+
+**VAULT**, the art-deco safe (`art/ships/vault/`: the VAULT package's top-down drawing, the cube 384 px in the 512
+canvas, and its two doors cut from it, `door-up` / `door-dn`; its buttons, its BLOOM zombie, its 3D picture). Sold
+only in the shop (`shopOnly`), and in the test hangar. Button 1: a brass burst from both ports. Button 2: the spring
+piston, a short heavy brass punch that shoves (`knock`). Magic, the **star in the vault** (`vault` in `MAGIC`): the
+doors slide open (the wheel door up, the lights door down, drawn in code: `drawVaultDoors`), the star flies into the
+mouth shrinking, and the doors close on it, light leaking from the seams, a 30 s countdown over the ship. Meanwhile the
+middle of space is empty (nothing to hit or bounce off), and the star's gravity comes from VAULT instead (`starPull`):
+full within 0.55 screens, gone by 1.5, below every engine's push, so the other ship can always fly out, but it has to.
+Every 2.5 s a radiation wave goes out 0.8 screens, and each wave takes 10 health from the other ship inside it (its own
+phone decides). Button 2 is then **solar fire**: the doors open and a spray of flame leaves the mouth, with an aurora of
+turquoise, green and violet (only a picture); the button glows amber with a turquoise edge. When the star is taken,
+COURIER's orbit mines round it are flung out of the screen. After 30 s, or when VAULT is destroyed, the star flies back
+to the middle. One held star at a time, never with LABYRINTH's maze. VAULT's phone sends the state as `vt`.
 
 **The station and its shop** (the Orbit Break Docking package: `art/station/`, `art/ui/shop/`, the alien seller in
 `art/ui/shop/alien/`). A docking station floats in the arena, one of `STATION_LOOKS` picked at random (one picture so far;
