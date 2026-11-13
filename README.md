@@ -626,6 +626,13 @@ water thrown up, drops, a ring on the surface; a smaller one coming out). Its to
 air and a rush of bubbles and trails a stream of bubbles; out of the water its motor lights with a missile's roar, the
 flame growing over half a second, fire and smoke behind it.
 
+**VEXAR sounds alien** (`audio/vexar/`, made in code): crickets, a cicada and katydids in flight (instead of the engine),
+a wet spit for each thorn, an alien chitter and a plop as the egg is laid, the egg cracking and the swarm taking off, the
+swarm buzzing while hunters are near (`shipSounds`), the tail swung and cracked like a whip, and a boom when its ball
+lands. **FRANKENSTEIN's workshop** (saws, hammers, a grinder, a drill) plays through the surgery and while each part is
+made; its creature, once alive, threatens the other ship in a deep voice now and again (`MONSTER_LINES`, the phone's
+English made deep: `VOICE_FX.monster`), on both phones.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

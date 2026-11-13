@@ -868,7 +868,7 @@ ok("ship shop: tapping a chosen ship opens its page (every shop ship has its wor
   const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
   for (const id of ["flipper", "courier", "fresnel", "vault", "corsair", "husk"]) assert(html.includes(`  ${id}: { w: [[`), id);
   assert(html.includes('act: "info", id: chosen.id') && html.includes('if (h.act === "poke")') && html.includes("drawShipInfo()"));
-  assert(html.includes("voiceStretch(c, buf, VOICE_SPEED / P.rate)"));
+  assert(html.includes("voiceStretch(c, buf, sp / P.rate)"));
 });
 ok("CORSAIR rows on the gas (the oars, the rowing loop), fires only its chain shot while rowing, and its cannons thunder", () => {
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
@@ -895,5 +895,11 @@ ok("BOILER: a splash going into the water (sound and a crown of water), a ship's
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
   for (const f of ["engine-loop", "splash", "splash-small", "torp-launch", "missile"]) assert(fs.existsSync(path.join(A, `audio/boiler/${f}.ogg`)), f);
   assert(html.includes("function boilerSplash(o, into)") && html.includes("drawFloodFront(); drawSplashes();") && html.includes("if (s.wetP === true && !w)"));
+});
+ok("VEXAR's alien sounds (insects in flight, the egg, the swarm, the whip and its boom) and FRANKENSTEIN's workshop and creature's deep threats", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  for (const f of ["fly-loop", "lay", "hatch", "swarm-loop", "whip", "thorn"]) assert(fs.existsSync(path.join(A, `audio/vexar/${f}.ogg`)), f);
+  assert(fs.existsSync(path.join(A, "audio/frankenstein/workshop-loop.ogg")));
+  assert(html.includes("const MONSTER_LINES = [") && html.includes('alienSay(MONSTER_LINES[i], "monster")') && html.includes("function shipSounds()"));
 });
 console.log(n + " checks passed");
