@@ -501,6 +501,19 @@ shop opens over everything, and the ship is safe there. **Exit** sends it out th
   shoot but cannot hurt it (no health lost at all then), 20 for each one shot down, and its weapons refill three times
   faster, until the other comes out.
 
+**Resource comets** (the Orbit Break Resource Comets package: `art/comets/`, the tail atlases at half size, 24 frames,
+25 fps; `COMET` and `MINERALS` hold every number). About once a minute (at random: some sooner, some later, so a longer
+fight sees more of them; the first not before 20 s) a comet crosses near the fight, 15% faster than an average ship,
+nose along its way and its tail behind, throwing coloured sparks, its value written over it, and a thin health bar.
+It burns out after 24 s; the radar and the screen's edge show where it is. Shoot it down (36 damage) for what it carries:
+- **a gold comet** (4 in 5): coins for the ship that shot it down, 100 to 1000 in steps of 50, the high values rare
+  (about 1 in 6 is 700 or more);
+- **a crystal comet** (1 in 5): 1 to 5 of one rare-earth mineral (fewer more often): Neodymium (50% of them, worth 60
+  each), Dysprosium (30%, 150), Terbium (15%, 350), Promethium (5%, 900). They are kept on the phone (`bank.res`) and
+  counted in the shop's header, each in its colour.
+Both phones see the same comets: the bottom player's phone makes them (`cm`), every hit is sent (`cmh`) so both count
+the same damage, and the phone whose hit finishes it gets the reward and tells the other (`cmk`).
+
 **App icon:** `app/src/main/res/mipmap-*/` (a rounded-square and a round one, and an adaptive icon: the picture in
 `ic_launcher_foreground.png` on the dark `ic_launcher_background` colour).
 

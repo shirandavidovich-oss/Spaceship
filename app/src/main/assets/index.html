@@ -2865,7 +2865,7 @@ function update(dt) {
     else if (game.docked) { const L = stationLook(), P = stationWorld(L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
-    updateGear(dt); updatePractice(dt); updateShop(dt);
+    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt);
   }
   updateTrade(dt);
   updateDuel(dt);
@@ -3723,7 +3723,7 @@ function st(k) { return (SHOP_TXT[LANG] || SHOP_TXT.he)[k]; }
 const BANK_KEY = "spaceship.bank";
 if (params.has("reset")) { try { LS.removeItem(BANK_KEY); } catch (e) {} }
 const bank = (() => { try { const b = JSON.parse(LS.getItem(BANK_KEY)); if (b && typeof b === "object") return b; } catch (e) {} return {}; })();
-bank.wallet = bank.wallet || {}; bank.gear = bank.gear || {}; bank.res = bank.res || { minerals: 0, metals: 0 }; bank.welcomed = bank.welcomed || {};
+bank.wallet = bank.wallet || {}; bank.gear = bank.gear || {}; bank.res = bank.res || {}; bank.welcomed = bank.welcomed || {};   // (res: each mineral's count, and metals)
 function saveBank() { try { LS.setItem(BANK_KEY, JSON.stringify(bank)); } catch (e) {} if (profile) { profile.money = totalMoney(); saveProfile(); } }
 function wallet(id) { return bank.wallet[id] || 0; }
 function totalMoney() { return Object.values(bank.wallet).reduce((a, b) => a + b, 0); }
@@ -3925,7 +3925,6 @@ function updatePractice(dt) {
     }
     if (s.life > 1.6) droneShots.splice(k, 1);
   }
-  for (let k = coinPops.length - 1; k >= 0; k--) { coinPops[k].t += dt; if (coinPops[k].t > 1.2) coinPops.splice(k, 1); }
 }
 const practice = { spawn: 0 };
 const coinPops = [];   // "+20" floating up where a practice ship went down
@@ -3961,7 +3960,11 @@ function drawPractice() {
   ctx.save(); ctx.fillStyle = "#5ee7ff";
   for (const s of droneShots) { const p = toScreen(s.x, s.y); ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.04, 0, TAU); ctx.fill(); }
   ctx.font = `900 ${Math.round(size * 0.3)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = "ltr";
-  for (const c of coinPops) { const p = toScreen(c.x, c.y); ctx.globalAlpha = 1 - c.t / 1.2; ctx.fillStyle = "#ffd166"; ctx.fillText("+" + c.n + " 🪙", p.x, p.y - c.t * size); }
+  for (const c of coinPops) {
+    const p = toScreen(c.x, c.y), M = c.mineral ? mineralById(c.mineral) : null; ctx.globalAlpha = Math.max(0, 1 - c.t / 1.4);
+    ctx.fillStyle = M ? M.color : "#ffd166"; ctx.direction = M ? textDir() : "ltr";
+    ctx.fillText(M ? `+${c.n} ◆ ${mineralName(M)}` : "+" + c.n + " 🪙", p.x, p.y - c.t * size);
+  }
   ctx.restore();
 }
 function drawPracticeNote() {
@@ -4127,8 +4130,8 @@ function drawShop() {
   ctx.textAlign = "right"; ctx.fillText(`🪙 ${wallet(game.ship).toLocaleString("en-US")}`, Hd.x + Hd.w - f * 0.7, Hd.y + Hd.h * 0.32);
   // the second line: three parts, each a number and its word drawn apart (Hebrew and numbers do not mix well in one string)
   ctx.font = `700 ${Math.round(f * 0.72)}px Rubik, Arial, sans-serif`; ctx.textAlign = "left";
-  const parts = [[`Σ ${totalMoney().toLocaleString("en-US")}`, st("total"), "#ffd166"], [`◆ ${resOf("minerals")}`, st("minerals"), "#c9a8ff"], [`⬢ ${resOf("metals")}`, st("metals"), "#9fd8ff"]];
-  const slot = (Hd.w - f * 1.4) / 3;
+  const parts = [[`Σ ${totalMoney().toLocaleString("en-US")}`, st("total"), "#ffd166"], ...MINERALS.map((M) => [`◆${resOf(M.id)}`, "", M.color]), [`⬢ ${resOf("metals")}`, "", "#9fd8ff"]];
+  const slot = (Hd.w - f * 1.4) / parts.length;
   (he ? parts.slice().reverse() : parts).forEach(([v, word, c], i) => {
     const x = Hd.x + f * 0.7 + i * slot, y = Hd.y + Hd.h * 0.74;
     ctx.fillStyle = c; ctx.fillText(v, x, y); const vw = ctx.measureText(v).width;
@@ -4225,6 +4228,150 @@ function drawShop() {
   ctx.fillText(o ? `${st("buy")} · 🪙 ${price.toLocaleString("en-US")}` : st("buy"), bx + bw * 0.6, Bt.y + Bt.h / 2, bw * 1.1);
   shop.hits.push({ x: bx, y: Bt.y, w: bw * 1.2, h: Bt.h, act: "buy" });
   ctx.restore();
+}
+
+// ======================================================================
+//  RESOURCE COMETS (the Orbit Break Resource Comets package: art/comets/, 24-frame tail atlases, 6 x 4 frames, 25 fps)
+//  Now and then (about one a minute: COMET.every on average) a comet crosses near the fight, a bit faster than an
+//  average ship, throwing coloured sparks, its value written over it. Shoot it down for what it carries:
+//  - a gold comet (4 in 5): coins for the ship that shot it down, 100 to 1000 (the higher, the rarer);
+//  - a crystal comet (1 in 5): rare-earth minerals, one of four kinds (the rarer kinds worth more), 1 to 5 of them.
+//  Both phones see the same comets: the bottom player's phone (duel.side 0) sends each new one ("cm"); a hit is sent
+//  ("cmh") so both count the same damage, and the phone whose hit finishes it gets the reward and says so ("cmk").
+// ======================================================================
+// every: seconds between comets on average (random); first: the first not before this. speed: x an average ship's top
+// speed. life: seconds before it burns out. hp: hits it takes. len: the rock's length (ship-lengths). gold: share of
+// gold comets. coins: [least, most] (a value is least + (most - least) * u^coinCurve, rounded to 50: low values common)
+const COMET = { every: 60, first: 20, speed: 1.15, life: 24, hp: 36, len: 1.5, gold: 0.8, coins: [100, 1000], coinCurve: 2.4, fps: 25,
+  // the atlases (halved: 192 x 368 frames; the rock is 90 px long, from row 15 to 105; its middle at 96, 60)
+  frame: { w: 192, h: 368, cols: 6, n: 24, rock: 90, ax: 96, ay: 60 } };
+// the four rare-earth minerals: their names, colours, how often a crystal comet carries each (`odds`), and what one is
+// worth (`worth`, in coins: the rarer, the more)
+const MINERALS = [
+  { id: "neodymium",  he: "נאודימיום",  en: "Neodymium",  color: "#8fd3ff", odds: 0.50, worth: 60 },
+  { id: "dysprosium", he: "דיספרוזיום", en: "Dysprosium", color: "#6dffc0", odds: 0.30, worth: 150 },
+  { id: "terbium",    he: "טרביום",     en: "Terbium",    color: "#c58bff", odds: 0.15, worth: 350 },
+  { id: "promethium", he: "פרומתיום",   en: "Promethium", color: "#ff7ad9", odds: 0.05, worth: 900 }
+];
+function mineralById(id) { return MINERALS.find((m) => m.id === id); }
+function mineralName(m) { return LANG === "he" ? m.he : m.en; }
+function mineralCount() { return MINERALS.reduce((a, m) => a + resOf(m.id), 0); }
+// what a new comet carries (rnd: 0..1 numbers)
+function cometLoad(rnd) {
+  if (rnd() < COMET.gold) {
+    const [a, b] = COMET.coins, v = a + (b - a) * Math.pow(rnd(), COMET.coinCurve);
+    return { kind: "gold", coins: Math.round(v / 50) * 50 };
+  }
+  let u = rnd(), m = MINERALS[MINERALS.length - 1];
+  for (const q of MINERALS) { if (u < q.odds) { m = q; break; } u -= q.odds; }
+  return { kind: "crystal", mineral: m.id, n: 1 + Math.floor(Math.pow(rnd(), 2) * 5) };
+}
+const comets = [];
+const cometClock = { next: COMET.first, seq: 0 };
+function cometAvgTop() { const L = hangarShips(); return L.reduce((a, S) => a + shipStats(S).top, 0) / Math.max(1, L.length); }
+// the bottom player's phone makes them (against the computer too: the computer is the other "phone")
+function cometMaker() { return duel.stage === "on" && duel.side === 0; }
+function spawnComet() {
+  const load = cometLoad(Math.random), a = Math.random() * TAU, d = Math.max(W, H) * 0.75;
+  // from just off screen near me, across toward the far side, a little to the side of my ship
+  const x = wrapX(game.x + Math.cos(a) * d), y = wrapY(game.y + Math.sin(a) * d), aim = a + Math.PI + (Math.random() - 0.5) * 0.7;
+  const sp = COMET.speed * cometAvgTop() * U;
+  const c = Object.assign({ id: (duel.side ? "b" : "a") + (++cometClock.seq), nx: x / WW, ny: y / WH, dx: Math.cos(aim) * sp / U, dy: Math.sin(aim) * sp / U, age: 0 }, load);
+  addComet(c); link.send(Object.assign({}, c, { t: "cm" }));   // (t: the message's kind; the comet's own clock is `age`)
+}
+// a comet from the message (positions in arena shares, speeds in screen-widths a second: the same on both phones)
+function addComet(c) {
+  if (comets.some((q) => q.id === c.id)) return;
+  comets.push({ id: c.id, kind: c.kind, coins: c.coins, mineral: c.mineral, n: c.n, x: c.nx * WW, y: c.ny * WH, vx: c.dx * U, vy: c.dy * U, t: c.age || 0, hp: COMET.hp, hurt: 0, ang: Math.atan2(c.dx, -c.dy) });
+  audio.tone(1300, 0.4, "sine", 0.03, 0.4); audio.tone(1950, 0.3, "sine", 0.02, 0.4, 0.12);
+}
+function updateComets(dt) {
+  if (cometMaker()) {
+    cometClock.next -= dt;
+    if (cometClock.next <= 0) { spawnComet(); cometClock.next = clamp(-Math.log(1 - Math.random()) * COMET.every, COMET.every * 0.35, COMET.every * 2); }
+  }
+  if (!duel.stage) { comets.length = 0; cometClock.next = COMET.first; }
+  for (let k = coinPops.length - 1; k >= 0; k--) { coinPops[k].t += dt; if (coinPops[k].t > 1.4) coinPops.splice(k, 1); }   // the "+ coins" over a win
+  for (let k = comets.length - 1; k >= 0; k--) {
+    const c = comets[k];
+    c.t += dt; c.hurt = Math.max(0, c.hurt - dt);
+    c.x = wrapX(c.x + c.vx * dt); c.y = wrapY(c.y + c.vy * dt);
+    if (Math.hypot(c.vx, c.vy) > U * 0.05) c.ang = Math.atan2(c.vx, -c.vy);   // (nose along the way it flies)
+    if (c.t > COMET.life) { comets.splice(k, 1); continue; }
+    // coloured sparks thrown off as it flies (only where it can be seen)
+    if (!BOT && Math.random() < 0.9) {
+      const cols = c.kind === "gold" ? ["#ffd166", "#ff9f1c", "#ffffff", "#ff5ea8", "#7cf3ff"] : ["#c58bff", "#7cf3ff", "#ffffff", "#ff7ad9", "#6dffc0"];
+      const r = shipSize() * 0.35, j = Math.random() * TAU;
+      burstAt(c.x + Math.cos(j) * r, c.y + Math.sin(j) * r, 1, cols, 0.12, 0.8, -c.vx * 0.15, -c.vy * 0.15);
+    }
+  }
+}
+// one of my shots into a comet (true: the shot is used up). The damage goes to the other phone too
+function cometHit(s, Wp) {
+  const size = shipSize();
+  for (const c of comets) {
+    if (Math.hypot(wrapDelta(c.x - s.x, WW), wrapDelta(c.y - s.y, WH)) > size * COMET.len * 0.36 + ((Wp.r || 0) + (Wp.prox || 0)) * size) continue;
+    const n = Wp.blast ? Wp.blastDmg : (shotHit(s, Wp).dmg || Wp.dmg || 8);
+    burstAt(s.x, s.y, 8, [Wp.color, "#ffffff", c.kind === "gold" ? "#ffd166" : "#c58bff"], 0.25, 0.4); audio.hit();
+    link.send({ t: "cmh", id: c.id, n });
+    cometDamage(c, n, true);
+    return true;
+  }
+  return false;
+}
+function cometDamage(c, n, mine) {
+  if (!comets.includes(c)) return;
+  c.hp -= n; c.hurt = 0.15;
+  if (c.hp > 0) return;
+  comets.splice(comets.indexOf(c), 1);
+  cometBreak(c);
+  if (!mine) return;
+  link.send({ t: "cmk", id: c.id });
+  // mine: the reward
+  if (BOT) return;
+  if (c.kind === "gold") { walletAdd(game.ship, c.coins); coinPops.push({ x: c.x, y: c.y, n: c.coins, t: 0 }); for (let i = 0; i < 8; i++) audio.tone(1100 + i * 160, 0.07, "triangle", 0.05, 1, i * 0.05); }
+  else { bank.res[c.mineral] = resOf(c.mineral) + c.n; coinPops.push({ x: c.x, y: c.y, mineral: c.mineral, n: c.n, t: 0 }); for (let i = 0; i < 6; i++) audio.tone(1500 + i * 220, 0.09, "sine", 0.05, 1, i * 0.07); }
+  saveBank(); buzz(90);
+}
+// it bursts: gold coins or crystal shards everywhere
+function cometBreak(c) {
+  const cols = c.kind === "gold" ? ["#ffd166", "#ffe8a3", "#ff9f1c", "#ffffff"] : [mineralById(c.mineral).color, "#ffffff", "#c58bff", "#7cf3ff"];
+  burstAt(c.x, c.y, 60, cols, 1.0, 1.2); burstAt(c.x, c.y, 20, ["#5a4a40", "#2a2420"], 0.6, 0.9);
+  rings.push({ x: c.x, y: c.y, t: 0, max: 0.45, r: shipSize() * 1.3, c: cols[0] });
+  audio.boom(); shake(0.3);
+}
+// messages from the other phone
+function cometMsg(m) {
+  if (m.t === "cm") addComet(m);
+  else if (m.t === "cmh") { const c = comets.find((q) => q.id === m.id); if (c) cometDamage(c, m.n, false); }
+  else if (m.t === "cmk") { const c = comets.find((q) => q.id === m.id); if (c) { comets.splice(comets.indexOf(c), 1); cometBreak(c); } }
+}
+function drawComets() {
+  if (!comets.length) return;
+  const F = COMET.frame, size = shipSize(), k = size * COMET.len / F.rock, z = game.zoom || 1;
+  for (const c of comets) {
+    const p = toScreen(c.x, c.y);
+    if (Math.abs(p.x - W / 2) > W / 2 / z + size * 4 || Math.abs(p.y - H / 2) > H / 2 / z + size * 4) continue;
+    const img = artImage("art/comets/" + c.kind + "-atlas.webp"), f = Math.floor(c.t * COMET.fps) % F.n;
+    const fade = Math.min(1, c.t / 0.5) * Math.min(1, (COMET.life - c.t) / 1.5);
+    ctx.save(); ctx.globalAlpha = fade; ctx.translate(p.x, p.y); ctx.rotate(c.ang);
+    if (img) ctx.drawImage(img, (f % F.cols) * F.w, Math.floor(f / F.cols) * F.h, F.w, F.h, -F.ax * k, -F.ay * k, F.w * k, F.h * k);
+    if (c.hurt > 0) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = c.hurt * 4; ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, size * 0.5, 0, TAU); ctx.fill(); }
+    ctx.restore();
+    // its value, over it
+    const f0 = Math.round(size * 0.24), y = p.y - size * 1.2;
+    ctx.save(); ctx.globalAlpha = fade; ctx.font = `900 ${f0}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const M = c.kind === "crystal" ? mineralById(c.mineral) : null;
+    const txt = M ? `◆×${c.n} ${mineralName(M)}` : `🪙 ${c.coins}`;
+    ctx.direction = M ? textDir() : "ltr";
+    const w = ctx.measureText(txt).width + f0;
+    ctx.fillStyle = "rgba(8,10,24,0.7)"; roundRect(p.x - w / 2, y - f0 * 0.75, w, f0 * 1.5, f0 * 0.5); ctx.fill();
+    ctx.fillStyle = M ? M.color : "#ffd166"; ctx.fillText(txt, p.x, y);
+    // its health, a thin bar under the value
+    ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(p.x - size * 0.35, y + f0 * 0.85, size * 0.7, 4);
+    ctx.fillStyle = M ? M.color : "#ffd166"; ctx.fillRect(p.x - size * 0.35, y + f0 * 0.85, size * 0.7 * Math.max(0, c.hp / COMET.hp), 4);
+    ctx.restore();
+  }
 }
 
 // ---------- magic: the gear button ----------
@@ -6888,6 +7035,7 @@ function updateWeapons(dt) {
       link.send({ t: "chit", n: +n.toFixed(1) }); TC.hurt = 0.15;
       burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 6, [Wp.color, "#ffffff", "#c86bff"], 0.3, 0.6); audio.hit(); shots.splice(k, 1); continue;
     }
+    if (comets.length && cometHit(s, Wp)) { shots.splice(k, 1); continue; }   // a resource comet
     if (drones.length && droneHit(s, Wp)) { shots.splice(k, 1); continue; }   // a practice ship (while they are docked)
     // into the enemy
     if (enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked()) {   // (docked in the station: out of reach)   // (their STRATA up high: shots pass under it)
@@ -10558,7 +10706,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawEnemy(); drawPractice();
+    drawEnemy(); drawPractice(); drawComets();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -10629,6 +10777,7 @@ function draw() {
     if (enemyShown()) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
     if (game.rift && game.rift.mark) edgeArrow(game.rift.mark.x, game.rift.mark.y, "#ff68c7");   // DRAKON's mark, off screen
     if (crate.on) edgeArrow(crate.x, crate.y, WEAPONS[crate.w].color);
+    for (const c of comets) edgeArrow(c.x, c.y, c.kind === "gold" ? "#ffd166" : mineralById(c.mineral).color);   // the comets, off screen
     drawCard(shown, Math.min(1, game.card * 2));
     drawRadar();
     drawHealth();
@@ -10917,6 +11066,7 @@ function drawRadar() {
   ctx.strokeRect(x0 + (game.x + game.lx - vw / 2) * kx, y0 + (game.y + game.ly - vh / 2) * ky, vw * kx, vh * ky);
   if (enemyShown()) { ctx.fillStyle = "#ff4d6d"; ctx.beginPath(); ctx.arc(x0 + enemy.x * kx, y0 + enemy.y * ky, 3, 0, TAU); ctx.fill(); }
   if (crate.on) { ctx.fillStyle = WEAPONS[crate.w].color; ctx.fillRect(x0 + crate.x * kx - 2.5, y0 + crate.y * ky - 2.5, 5, 5); }
+  for (const c of comets) { ctx.fillStyle = c.kind === "gold" ? "#ffd166" : mineralById(c.mineral).color; ctx.beginPath(); ctx.arc(x0 + c.x * kx, y0 + c.y * ky, 3, 0, TAU); ctx.fill(); }   // the comets
   { const P = stationPos(); ctx.strokeStyle = "#5ee7ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x0 + P.x * kx, y0 + P.y * ky, 4, Math.PI * 0.75, Math.PI * 2.25); ctx.stroke(); }   // the station
   ctx.translate(sx, sy); ctx.rotate(game.ang);
   ctx.fillStyle = shipById(game.ship).hull;
@@ -12103,6 +12253,7 @@ function duelLink(event, data) {
     if (duel.surg && duel.surg.c) { const C = duel.surg.c; burstAt(C.x, C.y, 90, ["#ffffff", "#c86bff", "#ffd166", "#ff6a1a", "#7fdbc9"], 1.3, 1.3); audio.boom(); duel.surg = null; }
   } else if (m.t === "rg") {   // their KILN reversed the body: it pushes MY ship away and round (worked out here, from their seed)
     game.reversed = { t: -MAGIC.reverse.at, seed: m.s || 1 }; audio.tone(140, 1.0, "sine", 0.05, 3, 0.5);
+  } else if (m.t === "cm" || m.t === "cmh" || m.t === "cmk") { cometMsg(m);   // the resource comets
   } else if (m.t === "wk") {   // their LYTH's ring / BALLAST's asteroid got my BOILER under water: it blows up
     if (flood && flood.owner === "me" && game.ship === "boiler") floodKill();
   } else if (m.t === "tank") {   // their STRATA's laser: one whole tank of power off my ship
