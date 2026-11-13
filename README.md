@@ -608,6 +608,12 @@ kept, and a volley already going stops. Instead of the engine hum: the package's
 "Heave!"), faded out in 120 ms. Its cannons thunder (`audio/corsair/cannon-1..3.ogg`), and the chain shot is the bow
 cannon then the chain whirling (`chainshot.ogg`); both made in code.
 
+**VAULT's radiation** is drawn as waves of sparkles in the northern lights' colours (`drawVaultSparkles`: three layers of
+glitter flung out to its reach, twinkling and fading). Its doors sound like a bank vault (`audio/vault/open.ogg`: bolts,
+a ratcheting wheel, a groaning door; `close.ogg`: a slam and the bolts thrown home), heard for theirs too, and all its
+weapons fire with a heavy piston (`fire.ogg`); made in code. **COURIER's capsule** leaves with the capsule-body package's
+frames (`cbody_01..26`, 40 ms each, the capsule out at frame 14).
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

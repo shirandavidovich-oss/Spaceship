@@ -1081,10 +1081,10 @@ const SHIPS = [
     hull: "#3f6e55", wingC: "#e8dcc0", trim: "#ffb347", flame: "#6dffd8",
     body: [], wing: [], nozzles: [-0.095, 0.075], engineY: 0.42, cockpit: [0, 0, 0.05, 0.1],
     weapons: ["brassburst", "mailcap"],
-    guns: { brassburst: [[-0.097, -0.365], [0.013, -0.365]], mailcap: [[0.15, -0.236]] },
+    guns: { brassburst: [[-0.097, -0.365], [0.013, -0.365]], mailcap: [[0.148, -0.299]] },
     anim: { dir: "courier", size: 1.1, idle: "idle.webp",
       primary: frames("fire", 24, () => 24),                         // both ports flash, a little recoil
-      secondary: frames("launch", 24, () => 33, { 8: "fire" }),      // the piston runs, the iris opens: the capsule goes
+      secondary: frames("cbody", 26, () => 40, { 14: "fire" }),      // (the capsule-body package) the brass lid slides aside, the capsule climbs in its bay, the piston pushes it out (frame 13 from 0, 520 ms), the lid closes
       magic: frames("swap", 24, () => 26) } },                       // an amber flash: a mine is set
   // FRESNEL, the lighthouse ship (art/ships/fresnel/, the FRESNEL package: 512 px frames, nose up). Sold only in the
   // shop (`shopOnly`), and in the test hangar. Button 1: a focused golden flash from the lens. Button 2: two coloured
@@ -2582,8 +2582,10 @@ const audio = {
     s.buffer = buf; f.type = "lowpass"; f.frequency.value = cutoff; g.gain.value = vol;
     s.connect(f); f.connect(g); g.connect(this.out); s.start();
   },
-  shot(w) {
+  shot(w, ship = game.ship) {
     if (shop.open) return;   // (in a shop: no firing heard, only the shop's music)
+    // VAULT: a heavy piston slamming out of a bank vault, steam and a ringing breech (every one of its weapons)
+    if (ship === "vault" && (w === "brassburst" || w === "piston" || w === "solarfire")) { playClip("audio/vault/fire.ogg", false, 0.75); return; }
     // CORSAIR: a pirate ship's thundering cannons; the chain shot: the bow cannon, then the chain whirling away
     if (w === "broadside") { playClip("audio/corsair/cannon-" + (1 + Math.floor(Math.random() * 3)) + ".ogg", false, 0.55); return; }
     if (w === "chainshot") { playClip("audio/corsair/chainshot.ogg", false, 0.8); return; }
@@ -5605,10 +5607,12 @@ function vaultPullAt(dx, dy) {
   const a = M.pull * U * fade * Math.min(1, d / core);   // (softer right at its middle, so nothing shakes there)
   return { ax: -dx / d * a, ay: -dy / d * a };
 }
+// the vault's doors: heavy bolts, a ratcheting wheel, a groaning door (open); a slam and the bolts thrown home (close)
+function vaultDoorSound(open) { if (game.ship === "vault" || enemy.ship === "vault") { soundBuf("audio/vault/fire.ogg"); } playClip("audio/vault/" + (open ? "open" : "close") + ".ogg", false, 0.85); }
 function startVault(M) {
   if (game.dead || vaultBusy() || maze) { audio.nope(); buzz(20); return; }   // one held star at a time (theirs too); not in the maze
   game.vault = { ph: "suck", t: 0 }; game.magicCool = M.cool; game.anim = { seq: "magic", t: 0 };
-  audio.tone(140, 0.35, "square", 0.04, 0.6); audio.tone(95, 0.5, "sawtooth", 0.04, 0.5, 0.18); audio.noise(0.3, 0.05, 1200); buzz(40);   // the bolts, the doors
+  vaultDoorSound(true); buzz(40);   // the bolts, the doors
   audio.tone(220, 1.2, "sine", 0.05, 4, 0.3);   // the star drawn in
 }
 // the star is caught: COURIER's orbit mines lose their star and fly out into space
@@ -5631,13 +5635,14 @@ function updateVault(dt) {
     V.t += dt;
     if (!duel.stage && game.stage !== "fly") game.vault = null;
     else if (game.dead && V.ph !== "free") { V.ph = "free"; V.t = 0; }   // VAULT destroyed: the star goes back
-    else if (V.ph === "suck" && V.t >= M.suck) { V.ph = "hold"; V.t = 0; vaultFling(); }
-    else if (V.ph === "hold" && V.t >= M.hold) { V.ph = "free"; V.t = 0; audio.tone(160, 0.6, "sawtooth", 0.04, 2); audio.noise(0.3, 0.05, 1200); }
-    else if (V.ph === "free" && V.t >= M.free) { game.vault = null; burstAt(WW / 2, WH / 2, 30, ["#ffffff", "#ffe08a", "#ffb347"], 0.8, 0.8); audio.tone(330, 0.5, "sine", 0.05, 2); }
+    else if (V.ph === "suck" && V.t >= M.suck) { V.ph = "hold"; V.t = 0; vaultFling(); vaultDoorSound(false); }
+    else if (V.ph === "hold" && V.t >= M.hold) { V.ph = "free"; V.t = 0; vaultDoorSound(true); }
+    else if (V.ph === "free" && V.t >= M.free) { game.vault = null; vaultDoorSound(false); burstAt(WW / 2, WH / 2, 30, ["#ffffff", "#ffe08a", "#ffb347"], 0.8, 0.8); audio.tone(330, 0.5, "sine", 0.05, 2); }
   }
   // their VAULT: the mines fly when it catches the star; its radiation, here (my phone knows where I really am)
   const T = vaultOf(enemy), ph = T ? T.ph : null;
   if (ph === "hold" && duel.vtPh !== "hold") vaultFling();
+  if (ph !== (duel.vtPh || null)) { if (ph === "suck" || ph === "free") vaultDoorSound(true); else if (duel.vtPh === "suck" || duel.vtPh === "free" || ph === "hold") vaultDoorSound(false); }   // (their doors, heard here)
   duel.vtPh = ph;
   if (ph === "hold") {
     const n = Math.floor(T.t / M.pulse);
@@ -5750,16 +5755,8 @@ function drawVaultFx() {
     }
     // the radiation: each wave from the vault out to its reach (a hit, if it is still on you when it goes out). It is
     // strongest at the vault and fades as it goes out: bright and thick near it, a thin faint edge at its reach
-    const R = M.rad * U, q = (V.t % M.pulse) / M.wave, wn = Math.floor(V.t / M.pulse);
-    if (wn > 0 && q < 1) {
-      const r = Math.max(2, R * ease(q)), a = Math.pow(1 - q, 1.6), th = 0.45 - 0.3 * q;
-      const g = ctx.createRadialGradient(ps.x, ps.y, r * (1 - th), ps.x, ps.y, r);
-      g.addColorStop(0, "rgba(255,170,60,0)"); g.addColorStop(0.6, `rgba(255,200,90,${0.4 * a})`); g.addColorStop(1, `rgba(125,255,224,${0.85 * a})`);
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ps.x, ps.y, r, 0, TAU); ctx.fill();
-      const core = ctx.createRadialGradient(ps.x, ps.y, 0, ps.x, ps.y, r * 0.6);   // the flash at the vault as it leaves
-      core.addColorStop(0, `rgba(255,236,170,${0.45 * a})`); core.addColorStop(1, "rgba(255,180,70,0)");
-      ctx.fillStyle = core; ctx.beginPath(); ctx.arc(ps.x, ps.y, r * 0.6, 0, TAU); ctx.fill();
-    }
+    const R = M.rad * U, wn = Math.floor(V.t / M.pulse);
+    if (wn > 0) drawVaultSparkles(ps, R, (V.t % M.pulse) / M.wave, wn, size);
     // northern lights round the held star: curtains of turquoise, green and violet waving and flaring (only a picture)
     drawVaultAurora(ps, V.t, size);
     // its reach, faint, and getting brighter as the next wave comes
@@ -5773,6 +5770,32 @@ function drawVaultFx() {
     ctx.lineWidth = f * 0.18; ctx.strokeStyle = "rgba(20,10,0,0.8)"; ctx.fillStyle = left <= 5 ? "#ff8a3a" : "#ffd27a";
     const ty = ps.y - size * 0.85; ctx.strokeText("☀ " + left, ps.x, ty); ctx.fillText("☀ " + left, ps.x, ty); ctx.restore();
   }
+}
+// the radiation as waves of sparkles in the northern lights' colours: each wave a few rings of glitter (some faster, some
+// lagging behind, so it spreads in layers) flung out from the vault to its reach, twinkling, swirling a little, and
+// fading as it goes; a few drift on past the reach and go out. q: the wave's time (1 = at its reach)
+const SPARKLE_COLS = ["125,255,224", "120,255,140", "190,120,255", "90,220,255", "255,140,230", "240,255,250"];
+function drawVaultSparkles(ps, R, q, wn, size) {
+  if (q >= 2.2) return;
+  const N = 150, hsh = (a) => { const s = Math.sin(a * 12.9898 + wn * 78.233) * 43758.5453; return s - Math.floor(s); };
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  if (q < 0.5) { const k = 1 - q / 0.5, g = ctx.createRadialGradient(ps.x, ps.y, 0, ps.x, ps.y, size * 0.9); g.addColorStop(0, `rgba(230,255,250,${0.55 * k})`); g.addColorStop(0.5, `rgba(125,255,224,${0.25 * k})`); g.addColorStop(1, "rgba(120,255,140,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ps.x, ps.y, size * 0.9, 0, TAU); ctx.fill(); }   // (the burst at the vault)
+  for (let j = 0; j < N; j++) {
+    const h1 = hsh(j), h2 = hsh(j + 0.31), h3 = hsh(j + 0.57), h4 = hsh(j + 0.83), layer = j % 3;
+    const sp = [1.0, 0.82, 0.64][layer] * (0.9 + 0.2 * h3), u = q * sp;   // (how far out: three layers)
+    const out = u < 1 ? ease(u) : 1 + (u - 1) * 0.25, r = R * out * (0.92 + 0.12 * h4) + Math.sin(time * 6 + j) * size * 0.04;
+    const a = j / N * TAU + (h1 - 0.5) * 0.25 + (h2 - 0.5) * 0.6 * out;   // (spread round, swirling a little as it goes)
+    const fade = u < 1 ? 1 - u * 0.55 : Math.max(0, 0.45 - (u - 1) * 0.7), tw = 0.45 + 0.55 * Math.pow(0.5 + 0.5 * Math.sin(time * (14 + 10 * h3) + j * 2.1), 2);
+    const al = fade * tw * (u < 0.04 ? u / 0.04 : 1); if (al <= 0.02) continue;
+    const x = ps.x + Math.cos(a) * r, y = ps.y + Math.sin(a) * r, c = SPARKLE_COLS[Math.floor(h4 * SPARKLE_COLS.length)], s = size * (0.022 + 0.03 * h2) * (0.7 + 0.5 * tw);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, s * 2.4); g.addColorStop(0, `rgba(255,255,255,${al})`); g.addColorStop(0.3, `rgba(${c},${al * 0.8})`); g.addColorStop(1, `rgba(${c},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, s * 2.4, 0, TAU); ctx.fill();
+    if (h1 > 0.6) {   // the brightest: a four-pointed glint
+      ctx.strokeStyle = `rgba(${c},${al * 0.9})`; ctx.lineWidth = Math.max(1, s * 0.25); const L = s * (2.5 + 2 * tw);
+      ctx.beginPath(); ctx.moveTo(x - L, y); ctx.lineTo(x + L, y); ctx.moveTo(x, y - L); ctx.lineTo(x, y + L); ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 // curtains of light round VAULT while it holds the star: arcs of ribbon at a few radii, waving, each brightening and
 // fading in its own rhythm, now and then a bright flare running along one
@@ -9306,7 +9329,7 @@ function spawnShots(w, g, rot) {
   const x = game.x + m.x, y = game.y + m.y;
   if (w === "lensflash" || w === "lightshard") fresnelFlash(x, y, w);
   if (w === "huskcannon") game.huskFlash = { at: time, side: g && g[0] > 0 ? 1 : 0 };   // HUSK: this barrel's flash   // FRESNEL: a burst of light as it leaves
-  if (w === "solarfire") { game.vaultFireT = MAGIC.vault.fireShow; audio.noise(0.4, 0.08, 1800); audio.tone(120, 0.35, "sawtooth", 0.04, 2); }   // the doors open, the aurora
+  if (w === "solarfire") { game.vaultFireT = MAGIC.vault.fireShow; audio.noise(0.4, 0.05, 1800); }   // the doors open, the aurora
   if (Wp.egg) { layEgg(x, y, Wp, S); return; }
   if (Wp.rail) { startRail(w); return; }      // RIVET's rail
   if (Wp.wave) { startWave(w, x, y); return; }   // RIVET's wave
@@ -14499,7 +14522,7 @@ function duelLink(event, data) {
     const art = a0 && a0.files && m.ix != null ? { ...a0, file: a0.files[m.ix] } : a0;   // CANTOR: each bolt its groove's colour
     duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
-    if (duel.shots.length < 60) audio.shot(m.w);
+    if (duel.shots.length < 60) audio.shot(m.w, enemy.ship);
     if (m.w === "solarfire") enemy.vaultFireT = MAGIC.vault.fireShow;
     if (m.w === "lensflash" || m.w === "lightshard") fresnelFlash(m.x * WW, m.y * WH, m.w);
     if (m.w === "huskcannon") enemy.huskFlash = { at: time, side: enemy.huskFlash ? 1 - enemy.huskFlash.side : 0 };   // their FRESNEL's light   // their VAULT's doors open for it

@@ -876,4 +876,10 @@ ok("CORSAIR rows on the gas (the oars, the rowing loop), fires only its chain sh
   assert(html.includes("const CorsairOars = (function ()") && html.includes('if (S.id === "corsair" && i !== 1 && corsairRowing()) return;'));
   assert(html.includes("if (B.n < 5 && corsairRowing()) B.n = 5;") && html.includes('if (w === "chainshot") { playClip("audio/corsair/chainshot.ogg"'));
 });
+ok("VAULT: sparkle waves for its radiation and a bank vault's heavy sounds; COURIER's capsule-body launch frames", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  for (const f of ["open", "close", "fire"]) assert(fs.existsSync(path.join(A, `audio/vault/${f}.ogg`)), f);
+  for (let i = 1; i <= 26; i++) assert(fs.existsSync(path.join(A, `art/ships/courier/cbody_${String(i).padStart(2, "0")}.webp`)), i);
+  assert(html.includes("function drawVaultSparkles(") && html.includes('secondary: frames("cbody", 26, () => 40, { 14: "fire" })') && html.includes("audio.shot(m.w, enemy.ship)"));
+});
 console.log(n + " checks passed");
