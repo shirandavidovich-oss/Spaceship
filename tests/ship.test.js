@@ -837,4 +837,10 @@ ok("the ship shop is on the main menu (its banner and SHOP button) and sells onl
   assert(html.includes('hitMenuShop(e.clientX, e.clientY)) { menuShop.press') && html.includes("hangarShips().filter((S) => S.shopOnly && !(bank.owned || {})[S.id])"));
   assert(html.includes('if (shop.open && shop.kind === "ship") { shopExit(); return true; }'));
 });
+ok("the merchants' breaks: break frames and closed pictures exist; a store on its break cannot be docked and its shutter is solid", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  for (const k of ["weapon", "shield"]) for (const f of ["break", "closed"]) assert(fs.existsSync(path.join(A, `art/station/${k}-store-${f}.webp`)), k + f);
+  assert(html.includes("stations.find((S) => storeOpen(S) && inBay(S, game))") && html.includes("L.solid.concat([L.bay])"));
+  assert(html.includes("!(game.docked && dockedStation() === S)"));
+});
 console.log(n + " checks passed");

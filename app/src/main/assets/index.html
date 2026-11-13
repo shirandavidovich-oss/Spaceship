@@ -2988,7 +2988,7 @@ function shipSize() { return U * 0.26; }
 function update(dt) {
   musicTick();   // (the loop for this screen)
   if (!BOT && ((game.t % 1) < dt)) filmPreload();   // (once a second: load the film of a ship that is about)
-  time += dt; game.t += dt;
+  time += dt; game.t += dt; updateStoreBreaks(dt);
   pipeDrain();
   updateKitFx(dt); if (HUD_KIT && !BOT) { kitPreloadFx(game.ship); if (enemy.ship) kitPreloadFx(enemy.ship); }
   tintStep();
@@ -3850,10 +3850,10 @@ function drawForgeBall(s) {
 // top-left; the bay between the arms is open), the docking point. Both bays open downward. Ships are bought in the ship
 // shop, from the main menu (shopOpen("ship")).
 const STORE_LOOKS = {
-  weapon: { file: "art/station/weapon-store.webp", idle: "art/station/weapon-store-idle.webp", w: 3.6, h: 3.6 * 871 / 845, clock: 0,
+  weapon: { file: "art/station/weapon-store.webp", idle: "art/station/weapon-store-idle.webp", brk: "art/station/weapon-store-break.webp", closed: "art/station/weapon-store-closed.webp", w: 3.6, h: 3.6 * 871 / 845, clock: 0,
     solid: [[0.12, 0.04, 0.31, 0.3], [0.03, 0.25, 0.97, 0.62], [0.03, 0.62, 0.28, 0.95], [0.72, 0.62, 0.95, 0.95]],
     bay: [0.29, 0.63, 0.71, 0.97], dock: [0.5, 0.8], merchant: "kip", goods: ["ammo", "weapon"] },
-  shield: { file: "art/station/shield-store.webp", idle: "art/station/shield-store-idle.webp", w: 3.6, h: 3.6 * 874 / 850, clock: 1.0,
+  shield: { file: "art/station/shield-store.webp", idle: "art/station/shield-store-idle.webp", brk: "art/station/shield-store-break.webp", closed: "art/station/shield-store-closed.webp", w: 3.6, h: 3.6 * 874 / 850, clock: 1.0,
     solid: [[0.38, 0.03, 0.62, 0.15], [0.03, 0.12, 0.97, 0.62], [0.05, 0.62, 0.3, 0.97], [0.7, 0.62, 0.95, 0.97]],
     bay: [0.3, 0.64, 0.7, 0.97], dock: [0.5, 0.8], merchant: "brass", goods: ["shield", "life"] }
 };
@@ -3876,7 +3876,7 @@ const SHOP = {
   drones: 3, droneHp: 40, dronePay: 20, practiceRefill: 3
 };
 const SHOP_TXT = {
-  he: { dock: "⚓ עגינה", shop: "תחנת מסחר", exit: "יציאה", buy: "קנייה", total: "סה״כ", minerals: "מינרלים", metals: "מתכות",
+  he: { onBreak: "☕ בהפסקה", dock: "⚓ עגינה", shop: "תחנת מסחר", exit: "יציאה", buy: "קנייה", total: "סה״כ", minerals: "מינרלים", metals: "מתכות",
     life: "חיים", shield: "מגן", ammo: "תחמושת", ship: "חללית", weapon: "נשק",
     lifeOpt: "+1 מיכל חיים", ammoOpt: "מילוי כל התחמושת", pas: "מגן פסיבי", act: "מגן אקטיבי", lvl: "רמה", max: "מקסימום", full: "מלא", owned: "שלך",
     poor: "חסר", practice: "היריב בתחנה · אימון מול ספינות מחשב: בלי פגיעה בחיים, 🪙 על כל הפלה",
@@ -3892,7 +3892,7 @@ const SHOP_TXT = {
     hello_shield: ["ברוך הבא לחנות המגנים. פה שומרים עליך.", "שלום, טייס! מגן חזק, מיכל חיים נוסף. מה צריך?", "בוא בוא. השריון שלי הכי עבה בגלקסיה."],
     hello_ship: ["ברוך הבא לחנות החלליות! כאן רק חלליות שאין בצי.", "אה, טייס! יש לי חלליות מיוחדות, רק אצלי.", "שלום! תבחר חללית חדשה, ואז תאשר."],
     sayShip: "חלליות שאין בצי: רק כאן אפשר לקנות אותן. תבחר אחת, ואז תאשר." },
-  en: { dock: "⚓ DOCK", shop: "Trading Station", exit: "Exit", buy: "Buy", total: "Total", minerals: "minerals", metals: "metals",
+  en: { onBreak: "☕ On break", dock: "⚓ DOCK", shop: "Trading Station", exit: "Exit", buy: "Buy", total: "Total", minerals: "minerals", metals: "metals",
     life: "Life", shield: "Shield", ammo: "Ammo", ship: "Ship", weapon: "Weapon",
     lifeOpt: "+1 health tank", ammoOpt: "Refill all ammo", pas: "Passive shield", act: "Active shield", lvl: "Level", max: "Max", full: "Full", owned: "Yours",
     poor: "Need", practice: "Enemy docked · practice vs computer ships: no health lost, 🪙 for each kill",
@@ -4202,7 +4202,32 @@ function setStation(seed) {
   const rnd = mazeRng(seed), a = rnd() * TAU;
   station.seed = seed;
   stations.forEach((S, i) => { const b = a + i * Math.PI / 2 + (rnd() - 0.5) * 0.5, d = 0.36 + rnd() * 0.07; S.nx = 0.5 + Math.cos(b) * d; S.ny = 0.5 + Math.sin(b) * d; });
+  stations.forEach((S, i) => { S.rnd = mazeRng(seed + 7919 * (i + 1)); S.st = "open"; S.a = 0; S.msg = 0; S.at = time + breakPick(S, STORE_BREAK.open); });   // (each its own breaks)
 }
+// ---- the merchants' breaks (the Shop Break package): now and then a store's merchant flies out in his ship, the landing
+// lights go off and the shutter comes down (37 frames at 12 fps, a 7 x 6 atlas; the picture is 440 x 490: the store in
+// the top 440 x 440, the same rectangle as always, and 50 more below for the ship leaving). Closed: closed.webp, the
+// shutter solid, no docking, "On break" when a ship tries the bay. Back: the same frames backwards (he flies in, the
+// shutter goes up). A ship docked when the break is due finishes first. The schedule comes from the stores' seed, so
+// both phones in a duel see the same breaks. open / away: seconds, from-to (balance: change freely) ----
+const STORE_BREAK = { open: [90, 160], away: [30, 45], fps: 12, frames: 37, cols: 7 };
+function breakPick(S, r) { return r[0] + (S.rnd ? S.rnd() : Math.random()) * (r[1] - r[0]); }
+function storeOpen(S) { return !S.st || S.st === "open"; }
+function updateStoreBreaks(dt) {
+  const len = STORE_BREAK.frames / STORE_BREAK.fps;
+  for (const S of stations) {
+    if (!S.st) continue;
+    S.msg = Math.max(0, S.msg - dt);
+    if (S.st === "open") {
+      if (time >= S.at && !(game.docked && dockedStation() === S)) { S.st = "leave"; S.a = 0; }   // (a customer inside: he finishes first)
+      else if (time >= S.at - 10) { artImage(stationLook(S).brk); artImage(stationLook(S).closed); }   // (load the frames in time)
+    } else if (S.st === "leave") { S.a += dt; if (S.a >= len) { S.st = "closed"; S.at = time + breakPick(S, STORE_BREAK.away); } }
+    else if (S.st === "closed") { if (time >= S.at) { S.st = "back"; S.a = 0; } }
+    else if (S.st === "back") { S.a += dt; if (S.a >= len) { S.st = "open"; S.at = time + breakPick(S, STORE_BREAK.open); } }
+  }
+}
+// a store's solid parts; on a break the shutter (the bay) is solid too
+function storeSolid(S) { const L = stationLook(S); return storeOpen(S) ? L.solid : L.solid.concat([L.bay]); }
 setStation(Math.floor(Math.random() * 2147483647));
 function stationLook(S) { return STORE_LOOKS[S.kind]; }
 function stationPos(S) { return { x: S.nx * WW, y: S.ny * WH }; }
@@ -4218,9 +4243,10 @@ function stationShipOne(S, o) {
   const L = stationLook(S), z = stationSize(S), rx = shipSize() * 0.3 / z.w, ry = shipSize() * 0.3 / z.h;
   let p = stationLocal(S, o.x, o.y);
   if (p.x < -0.3 || p.x > 1.3 || p.y < -0.3 || p.y > 1.3) return;
-  for (const [x0, y0, x1, y1] of L.solid) {
-    const cx = clamp(p.x, x0, x1), cy = clamp(p.y, y0, y1), dx = (p.x - cx) / rx, dy = (p.y - cy) / ry, d = Math.hypot(dx, dy);
+  for (const R of storeSolid(S)) {
+    const [x0, y0, x1, y1] = R, cx = clamp(p.x, x0, x1), cy = clamp(p.y, y0, y1), dx = (p.x - cx) / rx, dy = (p.y - cy) / ry, d = Math.hypot(dx, dy);
     if (d >= 1) continue;
+    if (R === L.bay) S.msg = 2.5;   // (the shutter: "On break")
     let nx, ny, pen;   // (in the ship's radius: the push, back in the picture's units)
     if (d > 1e-6) { nx = dx / d; ny = dy / d; pen = 1 - d; }
     else { const l = p.x - x0, r = x1 - p.x, t = p.y - y0, b = y1 - p.y, m = Math.min(l / rx, r / rx, t / ry, b / ry); nx = m === l / rx ? -1 : m === r / rx ? 1 : 0; ny = nx ? 0 : m === t / ry ? -1 : 1; pen = m + 1; }
@@ -4237,7 +4263,7 @@ function stationShot(list, k, s) {
   for (const S of stations) {
     const L = stationLook(S), p = stationLocal(S, s.x, s.y);
     if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) continue;
-    for (const [x0, y0, x1, y1] of L.solid) if (p.x > x0 && p.x < x1 && p.y > y0 && p.y < y1) {
+    for (const [x0, y0, x1, y1] of storeSolid(S)) if (p.x > x0 && p.x < x1 && p.y > y0 && p.y < y1) {
       burstAt(s.x, s.y, 5, ["#ffd27a", "#5ee7ff", "#ffffff"], 0.15, 0.35); list.splice(k, 1); return true;
     }
   }
@@ -4246,7 +4272,7 @@ function stationShot(list, k, s) {
 // the store whose bay I am in, slow enough to dock (or null)
 function canDock() {
   if (!(game.stage === "fly" && !game.dead && !game.docked && !result.mode && !trade.stage && !BOT && Math.hypot(game.vx, game.vy) < SHOP.dockSpeed * U && !game.lassoed && !game.strata && !game.dive)) return null;
-  return stations.find((S) => inBay(S, game)) || null;
+  return stations.find((S) => storeOpen(S) && inBay(S, game)) || null;
 }
 function dockButton() { const r = U * 0.11; return { x: W / 2, y: H * 0.6, w: r * 2.6, h: r * 0.95 }; }
 function hitDock(x, y) { if (!canDock()) return false; const b = dockButton(); return Math.abs(x - b.x) < b.w / 2 && Math.abs(y - b.y) < b.h / 2; }
@@ -4278,9 +4304,28 @@ function drawStation() {
     g.addColorStop(0, `rgba(${col},${on ? 0.5 : 0.18 + 0.08 * Math.sin(time * 3)})`); g.addColorStop(1, `rgba(${col},0)`);
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(D.x, D.y, sz.w * 0.22, 0, TAU); ctx.fill();
     const A = artImage(L.idle), x0 = p.x - sz.w / 2, y0 = p.y - sz.h / 2;
+    if (!storeOpen(S)) { drawStoreBreak(S, L, x0, y0, sz); ctx.restore(); continue; }
     if (A) { const f = Math.floor((time + L.clock) / 0.2) % 36, c = A.width / 6; ctx.drawImage(A, (f % 6) * c, Math.floor(f / 6) * c, c, c, x0, y0, sz.w, sz.h); }   // its lights, blinking
     else { const img = artImage(L.file); if (img) ctx.drawImage(img, x0, y0, sz.w, sz.h); }
     ctx.restore();
+  }
+}
+// a store on its break: the frames (into the store's own rectangle, 490/440 as tall), and "On break" over it
+function drawStoreBreak(S, L, x0, y0, sz) {
+  const B = artImage(L.brk), C = artImage(L.closed), hh = sz.h * 490 / 440, n = STORE_BREAK.frames - 1;
+  let f = S.st === "leave" ? Math.min(n, Math.floor(S.a * STORE_BREAK.fps)) : S.st === "back" ? n - Math.min(n, Math.floor(S.a * STORE_BREAK.fps)) : n;
+  if (S.st === "closed" && C) ctx.drawImage(C, x0, y0, sz.w, hh);
+  else if (B) { const cw = B.width / STORE_BREAK.cols, ch = cw * 490 / 440; ctx.drawImage(B, (f % STORE_BREAK.cols) * cw, Math.floor(f / STORE_BREAK.cols) * ch, cw, ch, x0, y0, sz.w, hh); }
+  else if (C) ctx.drawImage(C, x0, y0, sz.w, hh);
+  else { const img = artImage(L.file); if (img) ctx.drawImage(img, x0, y0, sz.w, sz.h); }
+  if (S.msg > 0) {   // tried the shutter: "On break", and when he is back
+    const left = S.st === "closed" ? Math.max(0, Math.ceil(S.at - time)) : 0, txt = st("onBreak") + (left ? ` · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : "");
+    const F = Math.round(Math.max(13, sz.w * 0.07)), cx = x0 + sz.w / 2, cy = y0 + sz.h * 0.55;
+    ctx.save(); ctx.globalAlpha = Math.min(1, S.msg / 0.4); ctx.font = `800 ${F}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
+    const w = ctx.measureText(txt).width + F * 1.4;
+    ctx.fillStyle = "rgba(8,10,24,0.85)"; roundRect(cx - w / 2, cy - F * 0.85, w, F * 1.7, F * 0.85); ctx.fill();
+    ctx.strokeStyle = S.kind === "shield" ? "#5ee7ff" : "#ffb048"; ctx.lineWidth = 2; roundRect(cx - w / 2, cy - F * 0.85, w, F * 1.7, F * 0.85); ctx.stroke();
+    ctx.fillStyle = "#ffffff"; ctx.fillText(txt, cx, cy); ctx.restore();
   }
 }
 function drawDockPrompt() {

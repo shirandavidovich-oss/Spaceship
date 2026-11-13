@@ -579,6 +579,12 @@ game from the menu, a ship joins the next game (`bank.once`); for a week or for 
 menu. On a wide or square screen (the Fold opened, a phone on its side) the title is two columns above the dials (`titleLayout`):
 the name on the left, the shop banner on the right.
 
+**The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
+and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
+merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the
+same frames play backwards and it opens. While it is not open no one can dock there, the shutter is solid (ships and shots
+stop on it), and touching it shows "On break" with the time until he is back. A ship docked when the break is due finishes
+first.
 **The shop's looks on the ships** (the Orbit Break Fleet Upgrades package: `art/upgrades/<ship>/`). A ship with a shield
 from the shop (passive or active) shows its own shield layer behind it, and with an extra weapon its own extra cannon on
 top; button 4 fires from that cannon's muzzle. The other phone sees them too (`gr` in the state). `UPGRADE_FIT` places
