@@ -649,8 +649,8 @@ bolts** hit a ship they touch on their way (once a pair), and the meeting blast 
 **HUSK's sounds** (made in code): with its arm out a rattlesnake's rattle and a long hiss; with its monster out,
 screeching, gurgling and clicking, and no ship's shots heard at all (`audio.shot`). **COURIER is pneumatic**: a compressor
 pumping and valves puffing for its gas, two sharp air shots for its burst, the capsule's tube (a valve, air building, a
-big THOOMP at the launch, the tube whistling), air let out for its mine. THUL's tracks are a heavy steel chain (link
-rattle, shoes clanking, pins squealing).
+big THOOMP at the launch, the tube whistling), air let out for its mine. THUL's tracks are a real recording of tank
+tracks (supplied, made into a seamless 5.5 s loop).
 
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
