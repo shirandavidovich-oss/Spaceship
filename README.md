@@ -500,10 +500,10 @@ owner's phone sends each new mine (`om`); the phone of the ship it reaches decid
 buttons, its BLOOM zombie, its 3D picture). Sold only in the shop (`shopOnly`), and in the test hangar. Button 1: a
 focused golden flash from the lens. Button 2: two coloured light shards from the side shutters, aimed to cross 2
 ship-lengths ahead (`aimAt`), then on. Magic, the **light snake** (`snake` in `MAGIC`): a beam throws a triangle of light
-ahead of the ship; it opens a portal, and a snake of glowing blocks (like the snake game) comes out of it. It chases the
-other ship, growing the whole time; near it, it circles round it, closing it in its body, and the ring tightens: sitting
-still gets the ship squeezed (first touch after ~7 s), flying out through a gap saves it. A touch takes 1.5 health tanks
-(then 3 s before it can again); it is harmless while coming out and going back. After 30 s a portal opens at its head
+ahead of the ship; it opens a portal, and a snake comes out of it: one smooth glowing body, its colours running through the rainbow. It chases the
+other ship, growing the whole time, to three times its first length (its body is a wall in the way); near it, it circles round it, closing it in its body, and the ring tightens: sitting
+still gets the ship squeezed (first touch after ~7 s), flying out through a gap saves it. A touch takes 1.5 health tanks,
+and then it flees back through a portal at its head, as when its time is up; it is harmless while coming out and going back. After 30 s a portal opens at its head
 and it is drawn back into it, its tail last. The other ship's phone runs the snake (FRESNEL's phone sends `sn`; the snake
 comes back in that phone's state, `sn`, to be shown).
 
@@ -520,6 +520,20 @@ phone decides). Button 2 is then **solar fire**: the doors open and a spray of f
 turquoise, green and violet (only a picture); the button glows amber with a turquoise edge. When the star is taken,
 COURIER's orbit mines round it are flung out of the screen. After 30 s, or when VAULT is destroyed, the star flies back
 to the middle. One held star at a time, never with LABYRINTH's maze. VAULT's phone sends the state as `vt`.
+
+**CORSAIR**, the pirate ship (`art/ships/corsair/`: the CORSAIR package's 512 px frames; `h_*` the same frames over
+its ghost-ship drawing, made by laying each frame's flashes on it; `fireL` the left side's volley, mirrored; the
+package's three ghost sheets, `ghost-*.webp`). Sold only in the shop, and in the test hangar. **Button 1 is an aiming
+stick**, like the thrust button: drag the thumb the way the cannons should point; the side nearer that way fires its
+five cannons bow to stern (68 ms apart), each ball where the stick points, as far as the cannons swing (40° either side
+of straight out); a tap without dragging aims at the enemy, and dotted lines show the aim while the thumb is down.
+Button 2: chain shot, two iron balls on a chain spinning round each other, falling round the star. Magic, the **ghost
+ship** (`haunt` in `MAGIC`): teal light runs through it (its frames), and for 12 s its shots are ghost shots that turn
+after the enemy (`ghostshot`, `ghostchain`); then it changes back. **Every hit** of its shots raises a ghost over the
+ship hit, on both phones: a skull for a ball, the skeleton in a bandana for the chain, the captain in his hat for a
+ghost ship's shot (one every 0.3 s at most per ship); and gives CORSAIR health, half the damage (all of it from a
+ghost ship's shot). Health past full fills a spare tank, up to two more than usual. The state goes as `ht`, ghosts
+as `gh`.
 
 **The station and its shop** (the Orbit Break Docking package: `art/station/`, `art/ui/shop/`, the alien seller in
 `art/ui/shop/alien/`). A docking station floats in the arena, one of `STATION_LOOKS` picked at random (one picture so far;

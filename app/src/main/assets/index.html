@@ -447,7 +447,7 @@
   }
   return {config,roots,phase,load,draw};
 });
-const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"},"boiler":{"kind":"still","sprite":"zombie-boiler-top.webp"},"flipper":{"kind":"still","sprite":"zombie-flipper-top.webp"},"courier":{"kind":"still","sprite":"zombie-courier-top.webp"},"fresnel":{"kind":"still","sprite":"zombie-fresnel-top.webp"},"vault":{"kind":"still","sprite":"zombie-vault-top.webp"}};
+const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"},"boiler":{"kind":"still","sprite":"zombie-boiler-top.webp"},"flipper":{"kind":"still","sprite":"zombie-flipper-top.webp"},"courier":{"kind":"still","sprite":"zombie-courier-top.webp"},"fresnel":{"kind":"still","sprite":"zombie-fresnel-top.webp"},"vault":{"kind":"still","sprite":"zombie-vault-top.webp"},"corsair":{"kind":"still","sprite":"zombie-corsair-top.webp"}};
 </script>
 <script>
 "use strict";
@@ -1101,7 +1101,23 @@ const SHIPS = [
     anim: { dir: "vault", size: 1.25, idle: "idle.webp",
       primary: [["idle.webp", 90]],
       secondary: [["idle.webp", 140], ["idle.webp", 40, "fire"], ["idle.webp", 160]],   // the spring winds, then lets go
-      magic: [["idle.webp", 1400]] } }                                                   // (the doors and the star: in code)
+      magic: [["idle.webp", 1400]] } },                                                  // (the doors and the star: in code)
+  // CORSAIR, the pirate ship (art/ships/corsair/: the CORSAIR package's 512 px frames, nose up; h_*: the same frames
+  // over its ghost-ship drawing; fireL: the volley on its left side, mirrored). Sold only in the shop, and in the test
+  // hangar. Button 1 (an aiming stick): a broadside of five balls. Button 2: chain shot from the bow. Magic: the ghost
+  // ship (MAGIC.haunt): its shots turn after the enemy. Every hit raises a ghost over them and gives it health (corsair part)
+  { id: "corsair", name: "CORSAIR", rarity: "legendary", mass: 1.3, fuel: 30, refill: 15, sfx: null, magic: "haunt", shopOnly: true, haunt: true,
+    hull: "#6a2a20", wingC: "#c8913a", trim: "#ffb347", flame: "#5ef0ff",
+    body: [], wing: [], nozzles: [-0.025, 0.025], engineY: 0.41, cockpit: [0, 0, 0.05, 0.1],
+    weapons: ["broadside", "chainshot"],
+    guns: { broadside: [[0.18, -0.159]], ghostshot: [[0.18, -0.159]], chainshot: [[0, -0.4245]], ghostchain: [[0, -0.4245]] },
+    anim: { dir: "corsair", size: 1.15, idle: "idle.webp",
+      primary: frames("fire", 24, () => 34),                         // the right side's cannons flash, bow to stern
+      primaryL: frames("fireL", 24, () => 34),                       // the left side's
+      secondary: frames("chain", 24, () => 28, { 3: "fire" }),       // the bow flashes: the chain shot leaves
+      magic: frames("magic", 24, () => 40),                          // teal light runs up the planks: the ghost ship
+      unmagic: frames("magic", 24, () => 40).reverse(),              // and back
+      haunted: ["h_idle.webp", ...["fire", "fireL", "chain"].flatMap((n) => frames("h_" + n, 24, () => 0).map((f) => f[0])), ...frames("fireL", 24, () => 0).map((f) => f[0]), ...frames("magic", 24, () => 0).map((f) => f[0])] } }
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1141,7 +1157,8 @@ const HANDLING = {
   flipper:  { size: 1,    speed: 1.05, accel: 1.1,  turn: 1.1  },   // a nimble pinball table
   courier:  { size: 0.95, speed: 1.15, accel: 1.1,  turn: 1.05 },  // a quick mail ship
   fresnel:  { size: 1.05, speed: 0.95, accel: 0.95, turn: 0.95 },  // a lighthouse
-  vault:    { size: 1.0,  speed: 0.85, accel: 0.9,  turn: 0.85 }    // a heavy safe
+  vault:    { size: 1.0,  speed: 0.85, accel: 0.9,  turn: 0.85 },   // a heavy safe
+  corsair:  { size: 1.05, speed: 1.0,  accel: 0.95, turn: 0.9  }    // a sailing ship
 };
 function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1356,6 +1373,13 @@ const WEAPONS = {
   brassburst: { name: "צרור פליז", dmg: 7, speed: 2.8, life: 0.75, cool: 0.4, ammo: 10, refill: 6, r: 0.022, color: "#e8b04a", both: true },
   piston:     { name: "בוכנת הדף", dmg: 14, speed: 2.4, life: 0.34, cool: 1.1, ammo: 4, refill: 6, r: 0.06, color: "#ffcf6a", knock: 1.6 },
   solarfire:  { name: "אש שמש", dmg: 4, speed: 2.1, life: 0.48, cool: 0.5, ammo: 4, refill: 6, r: 0.05, color: "#ffb02e", pellets: 7, fan: 0.4 },
+  // CORSAIR. broadside: five iron balls from one side (the aiming stick; corsair part). chainshot: two balls on a chain
+  //   (`r`: half its span), falling round the star like any heavy shot. ghostshot / ghostchain: the same from the ghost
+  //   ship, turning after the enemy. pirate: its hits raise ghosts and give CORSAIR health
+  broadside:  { name: "מטח דופן", dmg: 9, speed: 2.3, life: 0.85, cool: 0.9, ammo: 4, refill: 7, r: 0.03, color: "#ffb347", broadside: true, pirate: true },
+  chainshot:  { name: "כדורי שרשרת", dmg: 20, speed: 1.8, life: 1.1, cool: 1.3, ammo: 3, refill: 8, r: 0.09, color: "#9a9aa2", chain: true, gravity: true, pirate: true },
+  ghostshot:  { name: "מטח רפאים", dmg: 9, speed: 1.8, life: 1.4, cool: 0.9, ammo: 4, refill: 7, r: 0.03, color: "#5ef0ff", broadside: true, pirate: true, ghost: true, homing: 4.5 },
+  ghostchain: { name: "שרשרת רפאים", dmg: 20, speed: 1.7, life: 1.5, cool: 1.3, ammo: 3, refill: 8, r: 0.09, color: "#5ef0ff", chain: true, pirate: true, ghost: true, homing: 3.5 },
   laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -1504,15 +1528,18 @@ const MAGIC = {
   // FRESNEL's snake: the portal `ahead` screens in front; it opens over `open` s; the snake hunts for `last` s at `speed`
   //   screens/s, turning at most `turn` rad/s, `start` segments growing `grow` a second up to `most`, `gap` screens
   //   apart; it rings the ship at a radius of at least `ring` screens. r: a segment's half size (ship-lengths). hit:
-  //   tanks taken by a touch; spare: seconds before it can again. back: how fast it is drawn back (screens/s).
+  //   tanks taken by a touch, and then it flees back through a portal at its head (as when its time is up); back: how
+  //   fast it is drawn back (screens/s). Long (up to `most` segments, three times its first size): its body is a wall.
 //   It hurts only while hunting (not coming out of the portal nor going back into it). Round the ship, the ring
 //   tightens by `tighten` screens/s down to `tightest`: sitting still gets it squeezed; fly out through a gap
-  snake: { name: "נחש האור", look: "snake", ahead: 1.1, open: 1.0, last: 30, speed: 1.0, turn: 2.0, start: 8, grow: 1.6, most: 70, gap: 0.07, ring: 0.45,
-           r: 0.11, hit: 1.5, spare: 3, back: 2.5, tighten: 0.05, tightest: 0.08, cool: 60, color: "#ffd86b" },
+  snake: { name: "נחש האור", look: "snake", ahead: 1.1, open: 1.0, last: 30, speed: 1.0, turn: 2.0, start: 8, grow: 5.4, most: 170, gap: 0.07, ring: 0.45,
+           r: 0.11, hit: 1.5, spare: 3, back: 6, tighten: 0.05, tightest: 0.08, cool: 60, color: "#ffd86b" },
   // VAULT's held star (vault.js part: startVault). suck: doors open and the star flies in (s); hold: kept (s); free:
   //   it flies back (s); door: the doors' slide (s). While held its pull (screens/s each second, below every engine's
   //   push) is full within `near` screens of VAULT and gone by `reach`; every `pulse` s a radiation wave goes out to
   //   `rad` screens in `wave` s and takes `dmg` health from the other ship inside it. fireShow: the solar fire's aurora (s)
+  // CORSAIR's ghost ship: `last` s with homing shots (after the change, which takes its frames' time)
+  haunt: { name: "ספינת רפאים", look: "haunt", last: 12, cool: 24, color: "#5ef0ff" },
   vault: { name: "הכוכב בכספת", look: "vault", suck: 1.4, hold: 30, free: 1.4, door: 0.35, near: 0.55, reach: 1.5, pull: 0.5,
            pulse: 2.5, rad: 0.8, wave: 0.45, dmg: 10, fireShow: 0.55, cool: 50, color: "#ffb347" },
   orbitmine: { name: "מוקש מסלול", look: "orbitmine", speed: 0.8, hit: 1.5, r: 0.13, cool: 10, color: "#ffb347" },
@@ -2274,7 +2301,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake", vault: "Star in the vault" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake", vault: "Star in the vault", haunt: "Ghost ship" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -2753,6 +2780,7 @@ cv.addEventListener("pointerdown", (e) => {
     const b = hitFire(e.clientX, e.clientY);
     if (b) {
       game.fire[b.i] = e.pointerId; buzz(8);
+      if (b.i === 0 && aimStick()) game.aim = { id: e.pointerId, ox: e.clientX, oy: e.clientY, dx: 0, dy: 0 };   // CORSAIR: button 1 aims
       try { cv.setPointerCapture(e.pointerId); } catch (err) {}
       return;
     }
@@ -2767,6 +2795,7 @@ cv.addEventListener("pointerdown", (e) => {
 cv.addEventListener("pointermove", (e) => {
   if (dialMove(e)) return;
   if (fleet.open) { fleetMove(e); return; }
+  if (game.aim && e.pointerId === game.aim.id) { game.aim.dx = e.clientX - game.aim.ox; game.aim.dy = e.clientY - game.aim.oy; return; }
   if (e.pointerId !== game.thrust || !game.stick) return;
   game.stick.dx = e.clientX - game.stick.ox; game.stick.dy = e.clientY - game.stick.oy;
 });
@@ -2775,6 +2804,7 @@ function fingerUp(e) {
   if (fleet.open && fleet.press) { fleetUp(e); return; }
   if (e.pointerId === game.magicFinger) { game.magicFinger = null; return; }
   if (e.pointerId === game.thrust) { game.thrust = null; game.stick = null; return; }
+  if (game.aim && e.pointerId === game.aim.id) game.aim = null;
   const f = game.fire.indexOf(e.pointerId);
   if (f >= 0) { game.fire[f] = null; return; }
   if (!swipe || e.pointerId !== swipe.id) return;
@@ -2784,7 +2814,7 @@ function fingerUp(e) {
 }
 cv.addEventListener("pointerup", fingerUp);
 cv.addEventListener("pointercancel", fingerUp);
-addEventListener("blur", () => { game.magicFinger = null; game.thrust = null; game.stick = null; game.fire = [null, null, null, null]; });
+addEventListener("blur", () => { game.magicFinger = null; game.thrust = null; game.stick = null; game.aim = null; game.fire = [null, null, null, null]; });
 // on a computer: the space bar is the thrust button; Z, X, C are fire buttons 1, 2, 3
 const FIRE_KEYS = ["z", "x", "c", "v"];   // (V: the extra weapon; B: the active shield)
 addEventListener("keydown", (e) => {
@@ -2955,7 +2985,7 @@ function update(dt) {
     else if (game.docked) { const L = stationLook(), P = stationWorld(L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
-    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateVault(dt);
+    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateVault(dt); updateCorsair(dt);
   }
   updateTrade(dt);
   updateDuel(dt);
@@ -4564,6 +4594,7 @@ const UPGRADE_FIT = {
   brass: [-0.8061, -0.81, 1.6154, 0.5095, -0.4062],
   cantor: [-0.8058, -0.8069, 1.6115, 0.4123, -0.3285],
   cinder: [-0.8048, -0.8785, 1.6127, 0.4394, -0.3998],
+  corsair: [-0.696, -0.6996, 1.397, 0.1171, -0.2849],
   courier: [-0.6967, -0.6959, 1.3962, 0.2168, -0.2814],
   drakon: [-0.7714, -0.774, 1.5481, 0.3685, -0.3145],
   flipper: [-0.7431, -0.6461, 1.4841, 0.3323, -0.1997],
@@ -4598,7 +4629,7 @@ function drawUpgrade(S, which) {
 }
 // the ships still being made: shown in the shop ("coming soon"), not for sale yet (their pictures: art/upgrades/<id>/body.webp
 // from above, art/ships3d/<id>.webp in 3D where there is one)
-const SOON_SHIPS = [["corsair", "CORSAIR"], ["gravity-sail", "GRAVITY SAIL"],
+const SOON_SHIPS = [["gravity-sail", "GRAVITY SAIL"],
   ["knuckle", "KNUCKLE"], ["link", "LINK"]].map(([id, name]) => ({ id, name, soon: true }));
 // ships for good and ships rented (bank.owned[id] = 1; bank.rent[id] = when the rental ends, ms): they join my fleet in
 // every game. SHIP_BUY: the three ways to buy a ship, and the price of each against the ship's price (SHOP.ship)
@@ -4827,7 +4858,7 @@ function updateSnake(dt) {
     // where to: at the ship while far; round it once near (closing a ring as wide as the body allows)
     const dx = wrapDelta(game.x - N.hx, WW), dy = wrapDelta(game.y - N.hy, WH), d = Math.hypot(dx, dy) || 1;
     // the ring: as wide as its body allows; once it is round the ship it tightens (`tighten` screens/s) to squeeze it
-    const wide = clamp(N.n * sp / TAU * 0.9, M.ring * U, U * 1.4);
+    const wide = clamp(N.n * sp / TAU * 0.9, M.ring * U, U * 0.6);   // (a long body coils on round it: a wall)
     const R = Math.min(wide, N.ringR || wide), round = d <= R * 1.7;
     N.ringR = round ? Math.max(M.tightest * U, R - M.tighten * U * dt) : wide;   // (it got away: a wide ring again)
     let want;
@@ -4857,8 +4888,8 @@ function updateSnake(dt) {
     for (let i = 0; i < N.path.length; i += 1) {
       const q = N.path[i];
       if (Math.hypot(wrapDelta(q[0] - game.x, WW), wrapDelta(q[1] - game.y, WH)) < reach) {
-        N.hitT = M.spare;
-        burstAt(q[0], q[1], 30, ["#fff6c8", "#ffd86b", "#ff9a2e", "#ffffff"], 0.6, 0.7); shake(0.5);
+        N.hitT = M.spare; N.phase = "back"; N.bx = N.hx; N.by = N.hy; N.backT = 0;   // it got them: back to its dimension
+        burstAt(q[0], q[1], 30, ["#fff6c8", "#ff5ea8", "#5ee7ff", "#ffffff"], 0.6, 0.7); shake(0.5);
         audio.tone(300, 0.2, "sawtooth", 0.06, 0.5); buzz(150);
         for (let n = M.hit * SHIP_HP; n > 0.01 && !game.dead; n -= SHIP_HP) damageShip(Math.min(SHIP_HP, n));   // 1.5 tanks
         break;
@@ -4866,12 +4897,12 @@ function updateSnake(dt) {
     }
   }
 }
-// my snake in my state, for FRESNEL's phone: [phase, portal x, y, a, back x, y, then points (every other, in thousandths)]
+// my snake in my state, for FRESNEL's phone: [phase, portal x, y, a, back x, y, then points (every 4th, in ten-thousandths)]
 function snakeNet() {
   const N = game.snake; if (!N) return 0;
   const out = [["open", "chase", "back", "close"].indexOf(N.phase), Math.round(N.px / WW * 1e4), Math.round(N.py / WH * 1e4), +N.pa.toFixed(2),
     Math.round((N.bx || 0) / WW * 1e4), Math.round((N.by || 0) / WH * 1e4), +(N.phase === "close" ? N.closeT : N.phase === "open" ? N.t : 1).toFixed(2)];
-  for (let i = 0; i < N.path.length; i += 2) out.push(Math.round(N.path[i][0] / WW * 1e4), Math.round(N.path[i][1] / WH * 1e4));
+  for (let i = 0; i < N.path.length; i += 4) out.push(Math.round(N.path[i][0] / WW * 1e4), Math.round(N.path[i][1] / WH * 1e4));   // (every 4th: it is long)
   return out;
 }
 // the light triangle / portal: a golden triangle round a dark rift; k: how open (0..1)
@@ -4887,21 +4918,34 @@ function drawPortal(x, y, a, k) {
   ctx.strokeStyle = "rgba(255,200,80,0.6)"; ctx.lineWidth = Math.max(1, R * 0.04); ctx.rotate(-time * 1.6); tri(R * 1.18); ctx.stroke();
   ctx.restore();
 }
-// the snake: glowing blocks along its path (like the snake game), the head bigger with eyes
-function drawSnakeBody(pts, ha) {
+// the snake: one smooth glowing body along its path, its colours running through the rainbow (thinner to the tail),
+// the head round with two eyes. step: how many path points apart the given points are (the other phone gets every 4th)
+function drawSnakeBody(pts, ha, step = 1) {
   if (!pts.length) return;
-  const size = shipSize(), s = MAGIC.snake.r * size * 2;
-  ctx.save();
-  for (let i = pts.length - 1; i >= 0; i--) {
-    const p = toScreen(pts[i][0], pts[i][1]), head = i === 0, w = head ? s * 1.35 : s * (0.75 + 0.25 * (1 - i / pts.length));
-    ctx.fillStyle = head ? "#fff2b0" : i % 2 ? "#ffd86b" : "#ffb347";
-    ctx.shadowColor = "#ffcf5a"; ctx.shadowBlur = head ? 14 : 0;
-    roundRect(p.x - w / 2, p.y - w / 2, w, w, w * 0.25); ctx.fill();
-  }
+  const size = shipSize(), w0 = MAGIC.snake.r * size * 2, n = pts.length, P = pts.map((q) => toScreen(q[0], q[1]));
+  const hue = (i) => ((i * step * 5 - time * 160) % 360 + 360) % 360, wid = (i) => w0 * (0.5 + 0.5 * (1 - i / n));
+  ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const pass = (style, wk, comp) => {
+    ctx.globalCompositeOperation = comp;
+    for (let i = n - 1; i > 0; i--) {
+      const a = P[i], b = P[i - 1];
+      if (Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > U * 0.5) continue;   // (across the edge of space)
+      ctx.strokeStyle = style(hue(i)); ctx.lineWidth = wid(i) * wk;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+  };
+  pass((h) => `hsla(${h},100%,60%,0.22)`, 2.0, "lighter");   // the glow
+  pass((h) => `hsl(${h},95%,56%)`, 1.0, "source-over");      // the body
+  pass((h) => `hsla(${h},100%,88%,0.7)`, 0.28, "source-over"); // its shine
+  const p0 = P[0], a = n > 1 ? Math.atan2(pts[0][0] - pts[1][0], -(pts[0][1] - pts[1][1])) : ha || 0, r = w0 * 0.95;
+  ctx.translate(p0.x, p0.y); ctx.rotate(a);
+  ctx.shadowColor = `hsl(${hue(0)},100%,70%)`; ctx.shadowBlur = 14;
+  ctx.fillStyle = `hsl(${hue(0)},95%,60%)`; ctx.beginPath(); ctx.ellipse(0, -r * 0.1, r * 0.95, r * 1.15, 0, 0, TAU); ctx.fill();
   ctx.shadowBlur = 0;
-  const p0 = toScreen(pts[0][0], pts[0][1]), a = pts.length > 1 ? Math.atan2(pts[0][0] - pts[1][0], -(pts[0][1] - pts[1][1])) : ha || 0, e = s * 0.3;
-  ctx.translate(p0.x, p0.y); ctx.rotate(a); ctx.fillStyle = "#1a0e04";
-  ctx.fillRect(-e * 1.3, -e * 1.1, e * 0.8, e * 0.8); ctx.fillRect(e * 0.5, -e * 1.1, e * 0.8, e * 0.8);   // two pixel eyes
+  for (const sx of [-1, 1]) {
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(sx * r * 0.42, -r * 0.45, r * 0.3, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#14082a"; ctx.beginPath(); ctx.arc(sx * r * 0.42, -r * 0.55, r * 0.15, 0, TAU); ctx.fill();
+  }
   ctx.restore();
 }
 function drawSnakes() {
@@ -4926,7 +4970,7 @@ function drawSnakes() {
     for (let i = 7; i + 1 < n.length; i += 2) pts.push([n[i] / 1e4 * WW, n[i + 1] / 1e4 * WH]);
     if (ph === 0) drawPortal(n[1] / 1e4 * WW, n[2] / 1e4 * WH, n[3], Math.min(1, n[6] / 0.5));
     if (ph === 2 || ph === 3) drawPortal(n[4] / 1e4 * WW, n[5] / 1e4 * WH, 0, ph === 3 ? 1 - n[6] / 0.6 : 1);
-    drawSnakeBody(pts, 0);
+    drawSnakeBody(pts, 0, 4);
   }
 }
 
@@ -5172,6 +5216,125 @@ function drawVaultShot(s) {
 }
 // their VAULT's pull and radiation: the computer keeps out of reach while it holds the star
 function botVaultNear(d) { const T = vaultOf(enemy); return !!T && T.ph !== "free" && d < MAGIC.vault.rad * U * 1.15; }
+// ---------- CORSAIR: the broadside, the chain shot, the ghost ship (MAGIC.haunt) ----------
+// Button 1 is an aiming stick (like the thrust button): drag the thumb the way the cannons should point. The side of the
+// ship nearer that way fires all five of its cannons, bow to stern (CORSAIR_GAP s apart), each ball the way the stick
+// points, as far as the cannons swing (CORSAIR_SWING rad either side of straight out). A tap without dragging aims at
+// the enemy. Button 2: two iron balls on a chain from the bow, spinning round each other. The magic turns it into a
+// ghost ship for `last` s: its shots turn after the enemy (ghostshot / ghostchain). Every hit of its shots raises a ghost
+// over the ship hit (a skull for a ball, the skeleton in a bandana for the chain, the captain in his hat for a ghost
+// ship's shot) and gives CORSAIR health: `plain` or `ghost` of the damage. Health past full fills a spare tank, up to
+// CORSAIR_TANKS more than the usual.
+const CORSAIR_SWING = 0.7, CORSAIR_GAP = 0.068, CORSAIR_FIRST = 0.102, CORSAIR_TANKS = 2, CORSAIR_HEAL = { plain: 0.5, ghost: 1.0 };
+const CORSAIR_PORTS = [[0.18, -0.159], [0.18, -0.072], [0.18, 0.016], [0.18, 0.101], [0.18, 0.189]];   // the right side's cannon mouths, bow to stern
+const GHOST_FX = { cells: 28, cols: 7, ms: 40, cell: 240, anchor: [0.5, 255 / 320] };
+const ghosts = [];   // { on: game | enemy, v, t, x, y }
+function hauntT0() { return seqLength(shipById("corsair").anim.magic) / 1000; }   // the change takes its frames' time
+function hauntOn() { const H = game.haunt; return !!H && game.ship === "corsair" && H.t >= hauntT0() && H.t < hauntT0() + MAGIC.haunt.last; }
+function startHaunt(M) {
+  if (game.haunt) { audio.nope(); return; }
+  game.haunt = { t: 0, end: false }; game.magicCool = M.cool; game.anim = { seq: "magic", t: 0 };
+  audio.tone(110, 1.0, "sine", 0.05, 0.6); audio.tone(220, 0.9, "triangle", 0.03, 0.7, 0.2); audio.noise(0.9, 0.04, 600); buzz(50);
+}
+function updateCorsair(dt) {
+  for (let k = ghosts.length - 1; k >= 0; k--) { const G = ghosts[k]; G.t += dt; if (G.on && !G.on.dead && (G.on === game || enemy.on)) { G.x = G.on.x; G.y = G.on.y; } if (G.t * 1000 > GHOST_FX.cells * GHOST_FX.ms) ghosts.splice(k, 1); }
+  const H = game.haunt;
+  if (H) {
+    H.t += dt;
+    const t0 = hauntT0(), M = MAGIC.haunt;
+    if (game.ship !== "corsair" || game.dead || game.stage !== "fly") game.haunt = null;
+    else if (!H.end && H.t >= t0 + M.last) { H.end = true; game.anim = { seq: "unmagic", t: 0 }; audio.tone(220, 0.8, "sine", 0.04, 0.5); }   // the ghost fades: the frames back
+    else if (H.t >= t0 * 2 + M.last) game.haunt = null;
+  }
+  const B = game.broad;
+  if (B) {
+    B.t += dt;
+    if (game.dead || game.ship !== "corsair") { game.broad = null; return; }   // destroyed: the rest stay in
+    while (B.n < 5 && B.t >= CORSAIR_FIRST + B.n * CORSAIR_GAP) {
+      const P = CORSAIR_PORTS[B.n++];
+      game.broadAng = broadDir(corsairAim(), B.side).dir;
+      spawnShots(B.w, [P[0] * B.side, P[1]]); audio.shot(B.w);
+      if (B.n === 1) shake(0.25);
+    }
+    if (B.n >= 5) game.broad = null;
+  }
+}
+// where the cannons point: the stick, else at the enemy, else straight out to the right
+function corsairAim() {
+  const st = game.aim, b = fireButtons()[0];
+  if (st && b && Math.hypot(st.dx, st.dy) >= b.r * STICK) return Math.atan2(st.dx, -st.dy);
+  if (enemy.on && !enemyDocked()) return Math.atan2(wrapDelta(enemy.x - game.x, WW), -wrapDelta(enemy.y - game.y, WH));
+  return game.ang + Math.PI / 2;
+}
+// the side (1: right, -1: left) and the way a ball leaves, for an aim; `side` given: kept to that side
+function broadDir(aim, side) {
+  const r = wrapAngle(aim - game.ang), s = side || (r >= 0 ? 1 : -1);
+  return { side: s, dir: game.ang + s * Math.PI / 2 + clamp(wrapAngle(r - s * Math.PI / 2), -CORSAIR_SWING, CORSAIR_SWING) };
+}
+function startBroadside(w) {
+  const { side } = broadDir(corsairAim());
+  game.broad = { w, side, n: 0, t: 0 }; game.anim = { seq: side < 0 ? "primaryL" : "primary", t: 0 };
+}
+// a hit by one of CORSAIR's shots (on its phone): the ghost over them (and on their phone), and health for CORSAIR
+function corsairHit(Wp, n) {
+  const v = Wp.ghost ? "captain" : Wp.chain ? "bandana" : "skull";
+  addGhost(enemy, v); if (enemy.remote) link.send({ t: "gh", v });
+  corsairHeal(n * (Wp.ghost ? CORSAIR_HEAL.ghost : CORSAIR_HEAL.plain));
+}
+function corsairHeal(n) {
+  if (game.dead || !(n > 0)) return;
+  game.hp += n; game.healT = 0.6;
+  while (game.hp > SHIP_HP) {
+    if (game.tanks >= TANKS + CORSAIR_TANKS) { game.hp = SHIP_HP; break; }
+    game.hp -= SHIP_HP; game.tanks++; game.tankT = 1;   // a tank more
+    audio.tone(660, 0.12, "triangle", 0.05, 1.5); audio.tone(990, 0.16, "triangle", 0.05, 1.3, 0.1);
+  }
+}
+function addGhost(on, v) {
+  if (ghosts.some((G) => G.on === on && G.t < 0.3)) return;   // a fast volley: one ghost each 0.3 s, so they can be read
+  ghosts.push({ on, v, t: 0, x: on.x, y: on.y });
+  audio.tone(520, 0.5, "sine", 0.03, 0.4); audio.tone(780, 0.4, "triangle", 0.02, 0.5, 0.05);
+}
+// the ghosts: over the ship hit, upright on the screen, rising and coming apart into specks (the package's frames)
+function drawGhosts() {
+  const size = shipSize();
+  for (const G of ghosts) {
+    const img = artImage(framePath("corsair", "ghost-" + G.v + ".webp")); if (!img) continue;
+    const f = Math.min(GHOST_FX.cells - 1, Math.floor(G.t * 1000 / GHOST_FX.ms)), c = GHOST_FX.cell, d = size * 1.5;
+    const p = toScreen(G.x, G.y - size * 0.25);
+    ctx.drawImage(img, (f % GHOST_FX.cols) * c, Math.floor(f / GHOST_FX.cols) * c, c, c, p.x - d * GHOST_FX.anchor[0], p.y - d * GHOST_FX.anchor[1], d, d);
+  }
+}
+// while the thumb aims: a dotted line from each cannon of the side that will fire, the way the balls will go
+function drawCorsairAim() {
+  if (!game.aim || game.ship !== "corsair" || game.dead) return;
+  const { side, dir } = broadDir(corsairAim()), size = shipSize() * shipScale(), L = size * 1.6, gh = hauntOn();
+  ctx.save(); ctx.setLineDash([size * 0.06, size * 0.07]); ctx.lineDashOffset = -time * 40; ctx.lineWidth = Math.max(1.5, size * 0.018);
+  ctx.strokeStyle = gh ? "rgba(94,240,255,0.55)" : "rgba(255,190,90,0.55)";
+  for (const P of CORSAIR_PORTS) {
+    const m = rotatePt(P[0] * side * size, P[1] * size, game.ang), a = toScreen(game.x + m.x, game.y + m.y);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + Math.sin(dir) * L, a.y - Math.cos(dir) * L); ctx.stroke();
+  }
+  ctx.restore();
+}
+// CORSAIR's shots: an iron ball (glowing teal in a ghost ship's), and two balls on a chain spinning round their middle
+function drawPirateShot(s, Wp) {
+  const p = toScreen(s.x, s.y), size = shipSize(), gh = !!Wp.ghost;
+  ctx.save();
+  if (gh) { const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 0.12); g.addColorStop(0, "rgba(94,240,255,0.55)"); g.addColorStop(1, "rgba(94,240,255,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.12, 0, TAU); ctx.fill(); }
+  const ball = (x, y, r) => {
+    const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r);
+    g.addColorStop(0, gh ? "#d8fff8" : "#9a9aa2"); g.addColorStop(0.55, gh ? "#3aa89a" : "#3a3a42"); g.addColorStop(1, gh ? "#0e3a36" : "#121216");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  };
+  if (Wp.chain) {
+    const a = s.life * 9 + (s.nid || s.id || 0), R = Wp.r * size * 0.85, dx = Math.cos(a) * R, dy = Math.sin(a) * R;
+    ctx.strokeStyle = gh ? "#7fe8dc" : "#8a8a92"; ctx.lineWidth = Math.max(1.5, size * 0.016); ctx.setLineDash([size * 0.018, size * 0.012]);
+    ctx.beginPath(); ctx.moveTo(p.x - dx, p.y - dy); ctx.lineTo(p.x + dx, p.y + dy); ctx.stroke(); ctx.setLineDash([]);
+    ball(p.x - dx, p.y - dy, size * 0.032); ball(p.x + dx, p.y + dy, size * 0.032);
+  } else ball(p.x, p.y, size * 0.045);
+  ctx.restore();
+}
 // ---------- magic: the gear button ----------
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
 function useMagic(which = 0) {
@@ -5328,7 +5491,8 @@ function useMagicNow(which = 0) {
   if (M.look === "flood") { startFlood(M); return; }
   if (M.look === "pinballs") { startPinballs(M); return; }
   if (M.look === "orbitmine") { startOrbitMine(M); return; }
-  if (M.look === "vault") { startVault(M); return; }   // VAULT: the star into the vault
+  if (M.look === "vault") { startVault(M); return; }
+  if (M.look === "haunt") { startHaunt(M); return; }   // CORSAIR: the ghost ship   // VAULT: the star into the vault
   if (M.look === "snake") { startSnake(M); return; }   // FRESNEL: the light portal's snake   // COURIER: one more mine round the star   // FLIPPER: three pinballs round them   // BOILER: the water (updateFlood)   // LABYRINTH: the spire, then the maze (updateMaze)
   if (M.look === "surgery") { surgeryPress(M); return; }   // FRANKENSTEIN: surgery, then a part a press (updateSurgery)   // KILN: the body pushes the enemy away (updateReverse)   // STRATA: up into the upper dimension (updateShift)   // BALLAST: held, it tows an asteroid in (updateTow)
   if (M.look === "tail") {   // the stinger tail grows out behind the ship, stays out, and comes back by itself
@@ -7744,7 +7908,8 @@ const crate = { on: false, w: null, x: 0, y: 0, vx: 0, vy: 0, t: 0 };
 
 // which weapon each button fires right now (null = no such button now)
 function slotWeapon(i) {
-  if (i === 1 && game.vault && game.vault.ph === "hold" && game.ship === "vault") return "solarfire";   // VAULT holding the star
+  if (i === 1 && game.vault && game.vault.ph === "hold" && game.ship === "vault") return "solarfire";
+  if (i < 2 && hauntOn()) return i ? "ghostchain" : "ghostshot";   // CORSAIR's ghost ship   // VAULT holding the star
   if (i < 2) return weaponsOf(shipById(game.ship), game.flipMode || 0)[i];
   if (i === 3) return myGear().xw;   // the extra weapon bought at the station
   return game.loot ? game.loot.w : null;
@@ -7884,6 +8049,7 @@ function shoot(i) {
   if (Wp.one && (shots.some((q) => q.w === w) || (game.anim && game.anim.pending === w))) return;   // COURIER: one capsule at a time   // LARIAT: one hook or cable at a time
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else if (i === 3) game.xammo -= 1; else game.loot.ammo -= 1;
+  if (Wp.broadside) { startBroadside(w); return; }   // CORSAIR: the volley (updateCorsair)
   if (Wp.ring) { startRing(w, S); return; }
   if (Wp.palWall) { startWall(S); return; }   // PALISADE: the arms carry a wall out
   if (Wp.gate) { gateStart(); return; }   // GIMBAL: the quarter gate (set 0.31 s later)
@@ -7939,7 +8105,7 @@ function spawnShots(w, g, rot) {
   const pow = w === "spike" && game.trap ? game.trap.power || 0 : 0;   // SKARN's powered-up shards
   if (Wp.beam) { game.beam = { w, t: 0, ang: game.ang, hit: false }; duelSend({ t: "bm", a: +game.ang.toFixed(3) }); shake(0.3); buzz(90); return; }
   for (const a of pelletAngles(Wp)) {
-    const dir = game.ang + a + hk + (Wp.rear ? Math.PI : 0) + (Wp.splay && g ? Math.sign(g[0]) * Wp.splay : 0) + (Wp.aimAt && g ? Math.atan2(-g[0], Wp.aimAt + g[1]) : 0) + (game.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;   // (XELTAR's crystal: out of the stern; scrambled: the wrong way)
+    const dir = game.ang + a + hk + (Wp.rear ? Math.PI : 0) + (Wp.splay && g ? Math.sign(g[0]) * Wp.splay : 0) + (Wp.aimAt && g ? Math.atan2(-g[0], Wp.aimAt + g[1]) : 0) + (Wp.broadside ? wrapAngle(game.broadAng - game.ang) : 0) + (game.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;   // (XELTAR's crystal: out of the stern; scrambled: the wrong way)
     const sv = Wp.magnet ? v * (0.55 + Math.random() * 0.9) : v;   // RIVET's magnets scatter unevenly
     shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * sv, vy: game.vy - Math.cos(dir) * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined });
   }
@@ -8274,6 +8440,7 @@ function hitEnemy(s, Wp) {
   if (Wp.dmg > 15) rings.push({ x: s.x, y: s.y, t: 0, max: 0.4, r: shipSize() * 0.6, c: Wp.color });
   audio.hit();
   harmEnemy(Wp.dmg * (s.pow ? 1 + POWER_STEP * s.pow : 1));
+  if (Wp.pirate) corsairHit(Wp, Wp.dmg);   // CORSAIR: a ghost over them, health for it
 }
 
 // ---------- kills and money ----------
@@ -8363,6 +8530,7 @@ function fireButtons() {
   if (myGear().xw) list.push({ i: 3, x: x1 - r * ARC, y: y1, r: r * 0.72 });   // button 4: the station's extra weapon, left of button 1
   return list;
 }
+function aimStick() { const w = slotWeapon(0); return !!w && !!WEAPONS[w] && !!WEAPONS[w].broadside; }   // CORSAIR's button 1 is an aiming stick
 function hitFire(x, y) {
   for (const b of fireButtons()) if (b.r > 5 && Math.hypot(x - b.x, y - b.y) < b.r * 1.25) return b;
   return null;
@@ -8792,7 +8960,8 @@ const KIT = {
   flipper: { a: "#ff4d6d", b: "#ffd27a", fx: "none", face: true },
   courier: { a: "#ffb347", b: "#6dffd8", fx: "none", face: true },
   fresnel: { a: "#ffd86b", b: "#ff5ea8", fx: "none", face: true },
-  vault: { a: "#ffb347", b: "#5ef0ff", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
+  vault: { a: "#ffb347", b: "#5ef0ff", fx: "none", face: true },
+  corsair: { a: "#ffb347", b: "#5ef0ff", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
 function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
@@ -8971,6 +9140,7 @@ function drawShip(S, x, y, size, o = {}) {
   // a real drawing of the ship, once there is one
   let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep, o.cin || { power: o.power }, o.power);
   if (o.frame && S.anim) img = artImage(framePath(S.anim.dir, o.frame)) || img;   // PUFF: puffed / crumpled
+  if (o.haunt && S.haunt && S.anim) { const f = shipFrame(S, o.anim); if (f && !f.startsWith("magic")) img = artImage(framePath(S.anim.dir, "h_" + f)) || img; }   // CORSAIR, a ghost ship
   if (o.drill && S.anim && S.anim.spin && o.drill.mix > 0.5) img = artImage(framePath(S.anim.dir, S.anim.spin[o.drill.frame])) || img;   // BORER's drill turning
   // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
   // Grinding: the hull, and the ring drawn on its own, spinning, with its teeth out
@@ -11334,7 +11504,7 @@ function preloadArt() {
   for (const S of SHIPS) {
     const A = S.anim;
     if (!A) continue;
-    const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.open, A.slam, A.spit, A.rift, A.cloud && A.cloud.frames, A.blast, A.projector].filter(Boolean).flatMap((q) => q.map((x) => x[0])), ...(A.loaded || [])];
+    const all = [A.idle, ...[A.primary, A.secondary, A.smoke, A.open, A.slam, A.spit, A.rift, A.cloud && A.cloud.frames, A.blast, A.projector].filter(Boolean).flatMap((q) => q.map((x) => x[0])), ...(A.loaded || []), ...(A.haunted || [])];
     for (const k in A.shotArt || {}) all.push(A.shotArt[k].file);
     if (A.hull) all.push(A.hull, A.ring);
     if (A.crossBolt) all.push(A.crossBolt);
@@ -11526,7 +11696,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx();
+    drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawGhosts(); drawCorsairAim();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -11539,7 +11709,7 @@ function draw() {
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { prep: shown === S && surgPrep() ? game.surg.t : null, kiln: shown === S && game.kiln ? kilnRig(game.kiln.t) : null, strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && game.zombie, power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
-          ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null, vt: shown === S ? game : null,
+          ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null, vt: shown === S ? game : null, haunt: shown === S && hauntOn(),
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
           half: shown === S && game.splitUsed ? "rear" : null, glow: shown === S && S.grows ? talusGlow(game.talus.ring) : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
@@ -11817,7 +11987,7 @@ function drawEnemy() {
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
     drawShip(E, p.x, p.y, size * esc, { prep: enemy.remote && duel.surg && duel.surg.phase === "prep" ? duel.surg.t : null, kiln: enemy.remote && duel.kiln ? kilnRig(duel.kiln.t) : null, strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
-      grind: enemy.remote ? duel.grind : null, gear: enemy.remote && duel.net ? duel.net.gr : null, vt: enemy.remote ? enemy : null });
+      grind: enemy.remote ? duel.grind : null, gear: enemy.remote && duel.net ? duel.net.gr : null, vt: enemy.remote ? enemy : null, haunt: enemy.remote && !!duel.net && duel.net.ht === 1 });
     if (dv) ctx.restore();
     if (enemy.remote && duel.net && duel.net.fg && E.grows) drawForge(enemy, duel.net.fg, p.x, p.y, E.anim.size / 512 * size * esc);   // their TALUS forging
     if (enemy.remote && duel.net) drawAttachedEgg(enemy, E, enemy.anim, duel.net.ek, p.x, p.y, size * esc);   // their VEXAR's egg forming
@@ -12051,7 +12221,8 @@ function drawShots(list = shots) {
     if (s.w === "fcan") { drawCan(s); continue; }
     if (s.w === "mailcap") { drawCapsule(s); continue; }   // COURIER's
     if (s.w === "forgeball") { drawForgeBall(s); continue; }
-    if (s.w === "piston" || s.w === "solarfire") { drawVaultShot(s); continue; }   // VAULT's   // LABYRINTH's   // VANTA's drop inside the planet: only the exit mark, at the end
+    if (s.w === "piston" || s.w === "solarfire") { drawVaultShot(s); continue; }   // VAULT's
+    if (WEAPONS[s.w] && WEAPONS[s.w].pirate) { drawPirateShot(s, WEAPONS[s.w]); continue; }   // CORSAIR's   // LABYRINTH's   // VANTA's drop inside the planet: only the exit mark, at the end
     const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
     if (s.gold) {   // turned by GIMBAL's gate: a gold ring round it
       ctx.save(); ctx.strokeStyle = "rgba(233,182,106,0.85)"; ctx.lineWidth = 2; ctx.shadowColor = "#e9b66a"; ctx.shadowBlur = 6;
@@ -12459,7 +12630,7 @@ function weaponIcon(w, x, y, r, color) {
 function drawFire() {
   if (trade.stage === "swapping") return;
   const S0 = shipById(game.ship), kit = kitOf(S0);
-  for (const b of fireButtons()) {
+  for (let b of fireButtons()) {
     if (b.r < 3) continue;
     const w = slotWeapon(b.i), Wp = WEAPONS[w], ammo = slotAmmo(b.i), ready = ammo >= 1, pressed = game.fire[b.i] !== null;
     // the kit's buttons: the plate and icon, the ammo as a ring. Button 3 shows the weapon it carries (drawn in code)
@@ -12471,6 +12642,13 @@ function drawFire() {
           for (let j = 0; j < n; j++) { ctx.fillStyle = "#ff8a5a"; ctx.beginPath(); ctx.arc(x + (j - (n - 1) / 2) * r * 0.24, y + r * 0.72, r * 0.08, 0, TAU); ctx.fill(); }
           ctx.restore(); } : null;
       const o = { pressed, ready, fill: ammo / Wp.ammo, ring: b.i === 2 ? Wp.color : null };
+      if (b.i === 0 && game.aim && aimStick()) {   // CORSAIR's aiming stick: its base, and the plate follows the thumb
+        const d = Math.hypot(game.aim.dx, game.aim.dy), m = Math.min(d, b.r * 0.75), kx = d ? game.aim.dx / d * m : 0, ky = d ? game.aim.dy / d * m : 0;
+        ctx.save(); ctx.fillStyle = "rgba(10,12,32,0.45)"; ctx.strokeStyle = "rgba(255,190,90,0.4)"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 1.2, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = "rgba(255,190,90,0.2)"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 1.2 * STICK * 2, 0, TAU); ctx.stroke(); ctx.restore();
+        b = { ...b, x: b.x + kx, y: b.y + ky };
+      }
       if (b.i === 2) o.draw = extra; else if (extra) o.after = extra;
       if (drawKitButton(game.ship, slot, b, o)) {
         if (o.after) o.after(b.x, b.y, b.r);
@@ -12995,7 +13173,7 @@ function endDuel(tellThem) {
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   game.zombie = false; game.pollen = null; enemy.zombie = false;
-  mazeEnd(true); flood = null; game.pinball = null; game.snake = null; game.vault = null; flyMines.length = 0;   // the match is over: no maze, the star back, no water, no pinballs
+  mazeEnd(true); flood = null; game.pinball = null; game.snake = null; game.vault = null; flyMines.length = 0; game.haunt = null; game.broad = null; ghosts.length = 0;   // the match is over: no maze, the star back, no water, no pinballs
   if (game.docked) undock();
   duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
@@ -13081,6 +13259,7 @@ function duelLink(event, data) {
   } else if (m.t === "cm" || m.t === "cmh" || m.t === "cmk") { cometMsg(m);   // the resource comets
   } else if (m.t === "pb") { pinballsArrive();   // their FLIPPER's pinballs, round me
   } else if (m.t === "om" || m.t === "omk") { orbitMsg(m);   // COURIER's orbit mines
+  } else if (m.t === "gh") { addGhost(game, m.v);   // their CORSAIR hit me: a ghost over me
   } else if (m.t === "sn") { snakeArrive(m);   // their FRESNEL's snake, after me
   } else if (m.t === "wk") {   // their LYTH's ring / BALLAST's asteroid got my BOILER under water: it blows up
     if (flood && flood.owner === "me" && game.ship === "boiler") floodKill();
@@ -13328,7 +13507,7 @@ function updateDuel(dt) {
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
         ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2), creatureLeft(game.surg.c), +(game.surg.c.hp / MAGIC.surgery.hp).toFixed(3)] : [])] : 0,
-      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), vt: vaultNet(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
+      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), vt: vaultNet(), ht: hauntOn() ? 1 : 0, sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,

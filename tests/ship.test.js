@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("forty-four ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 44);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 44);
+ok("forty-five ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 45);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 45);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -730,7 +730,7 @@ ok("fleet upgrades: every ship with a fit has its shield, cannon and shop button
     assert(SHIPS.some((S) => S.id === id), id); assert(F.length === 5 && F[2] > 0.3 && F[2] < 4, id);
     for (const f of ["shield", "cannon", "btn-shield", "btn-cannon"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, f + ".webp")), id + " " + f);
   }
-  for (const id of ["corsair", "gravity-sail", "knuckle", "link"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, "body.webp")), id);
+  for (const id of ["gravity-sail", "knuckle", "link"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, "body.webp")), id);
   const j = html.indexOf("const SHIP3D = "), list = JSON.parse(html.slice(j + 15, html.indexOf(";", j)));
   for (const id of list) assert(fs.existsSync(path.join(A, "art/ships3d", id + ".webp")), id);
   const buy = eval("(" + html.slice(html.indexOf("{", html.indexOf("const SHIP_BUY = ")), html.indexOf("};", html.indexOf("const SHIP_BUY = ")) + 1) + ")");
@@ -766,5 +766,20 @@ ok("VAULT: shop only; brass burst, a piston that shoves, solar fire while the st
   assert(/piston:\s+\{[^}]*knock:/.test(html) && /s\.w === "piston"\)\) \{/.test(html) && html.includes('return "solarfire";'));
   assert(html.includes("starPull(o.x, o.y, o)") && !html.includes("const d = starOut() || (o === game"));   // the pull from VAULT, the empty middle
   assert(!/\(hangar\.open \|\| picker\.open \|\| camp\.over\) && hitLang/.test(html) && !/drawFleetBtn\(\); drawLangBtn\(\); \}/.test(html));
+});
+ok("CORSAIR: shop only; button 1 aims a broadside (5 balls), a chain shot; the ghost ship's shots turn after them; ghosts and health on a hit", () => {
+  const S = SHIPS.find((q) => q.id === "corsair"), html = require("fs").readFileSync(require("path").join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(S && S.shopOnly && S.haunt && S.magic === "haunt" && S.weapons.join() === "broadside,chainshot" && S.anim.primaryL && S.anim.unmagic);
+  assert(WEAPONS.broadside.broadside && WEAPONS.broadside.pirate && WEAPONS.chainshot.chain && WEAPONS.chainshot.gravity);
+  assert(WEAPONS.ghostshot.ghost && WEAPONS.ghostshot.homing > 0 && WEAPONS.ghostchain.ghost && WEAPONS.ghostchain.homing > 0);
+  assert(html.includes('if (Wp.pirate) corsairHit(Wp, Wp.dmg);') && html.includes('if (i < 2 && hauntOn()) return i ? "ghostchain" : "ghostshot";'));
+  assert(html.includes("if (b.i === 0 && aimStick()) game.aim =") && html.includes('t === "gh") { addGhost(game, m.v);'));
+  for (const v of ["skull", "bandana", "captain"]) assert(require("fs").existsSync(require("path").join(__dirname, "../app/src/main/assets/art/ships/corsair/ghost-" + v + ".webp")));
+});
+ok("FRESNEL's snake: one smooth rainbow body, three times as long; a touch sends it back through its portal", () => {
+  const html = require("fs").readFileSync(require("path").join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  const i = html.indexOf("  snake: { name:"), M = eval("(" + html.slice(html.indexOf("{", i), html.indexOf("},", i) + 1) + ")");
+  assert(M.most >= 150 && M.grow * M.last >= 150);
+  assert(html.includes('N.hitT = M.spare; N.phase = "back";') && !html.includes("roundRect(p.x - w / 2, p.y - w / 2, w, w, w * 0.25)"));
 });
 console.log(n + " checks passed");
