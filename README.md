@@ -654,6 +654,10 @@ tracks (supplied, made into a seamless 5.5 s loop: `audio/thul/tracks-rec.ogg`).
 GitHub under the same name reaches a phone that already saved the old one only on the start after next (the app checks
 for a newer copy in the background once a start), so a replaced file gets a new name.
 
+**The fleet row** under the health bar shows only the ship I fly. A tap on it shows my whole fleet (as before), another
+tap the other player's fleet (the computer's or the other phone's: its ship now in red, its lost ships crossed out), and
+another goes back to just my ship (`fleetView`, `shownFleet`).
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

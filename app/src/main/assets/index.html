@@ -2840,6 +2840,7 @@ cv.addEventListener("pointerdown", (e) => {
   if (game.stage === "fly" && !trade.stage && hitDuel(e.clientX, e.clientY)) { duel.pressAt = performance.now(); duelButton(); return; }
   if (game.stage === "fly" && !trade.stage && !realDuel() && hitHangar(e.clientX, e.clientY)) { hangar.open = true; hangar.t = 0; audio.pop(); return; }
   if (game.stage === "fly" && hitDock(e.clientX, e.clientY)) { dock(); return; }   // in the station's bay, slow: dock
+  if (game.stage === "fly" && !trade.stage && hitFleetRow(e.clientX, e.clientY)) { fleetRowTap(); return; }   // the fleet row: mine only / my fleet / theirs
   if (game.stage === "fly" && !game.dead && hitShieldBtn(e.clientX, e.clientY)) { useShield(); return; }   // the active shield
   // the left thumb on the thrust button (another finger can still swipe at the same time)
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
@@ -14674,7 +14675,8 @@ function duelLink(event, data) {
     if (duel.side === 1 && m.st) setStation(m.st);      // and the same station
     if (!duel.bot) {   // a real phone: the fleets are split (the bottom player gets the first half), and I choose my first ship
       const sp = duelSplit(duel.me, m.r);
-      duel.fleet = { mine: sp[duel.side ? 0 : 1].concat(ownedIds().filter((id) => !sp[duel.side ? 0 : 1].includes(id))), lost: [] };   // (and my ships bought for good / rented)
+      duel.fleet = { mine: sp[duel.side ? 0 : 1].concat(ownedIds().filter((id) => !sp[duel.side ? 0 : 1].includes(id))), lost: [],   // (and my ships bought for good / rented)
+        theirs: sp[duel.side ? 1 : 0].slice(), theirLost: [] };   // (theirs: for the fleet row's third view)
       if (!duel.fleet.mine.includes(game.ship)) tryShip(duel.fleet.mine[0]);
       setTimeout(() => { if (realDuel()) openPicker("start"); }, 0);
     }
@@ -14829,6 +14831,7 @@ function updateRival(dt) {
   // their ship blew up / came back
   if (n.d && enemy.on) {
     enemy.on = false; duel.won++; scoreKill(true);   // a player beaten: the reward
+    if (duel.fleet && duel.fleet.theirLost && enemy.ship && !duel.fleet.theirLost.includes(enemy.ship)) duel.fleet.theirLost.push(enemy.ship);   // (crossed out in their fleet)
     lenses.length = 0;   // (the false stars go out on both phones)
     burstAt(enemy.x, enemy.y, 90, ["#ffffff", "#ffd166", E.flame, E.hull, E.trim, "#ff6b35"], 1.4, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
     rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.7, r: shipSize() * 2.2, c: "#ffd166" });
@@ -15292,7 +15295,7 @@ function fleetRowLayout() {
   const cx = Math.max(x0, right - ctl);
   const connect = { x: cx, y: y0, w: cw, h: icon };
   const dials = [{ ch: "effects", x: cx + cw + gap, y: y0, d: icon, art: "sfx" }, { ch: "music", x: cx + cw + gap * 2 + icon, y: y0, d: icon, art: "music" }];
-  const n = BOT ? 0 : myFleet().length, pos = [];
+  const n = BOT ? 0 : shownFleet().ids.length, pos = [];
   // all in one line if they can be at least 60% of the usual size there; else lines of the usual size
   const one = n ? (cx - gap - x0 - gap * (n - 1)) / n : 0, sz = one >= icon * 0.6 ? Math.min(icon, one) : icon;
   let x = x0, y = y0 + (icon - sz) / 2, lineEnd = cx - gap;
@@ -15302,18 +15305,42 @@ function fleetRowLayout() {
   }
   return { x0, y0, gap, n, pos, sz, connect, dials };
 }
-// my fleet in a row under the health bar: the ship I fly in gold, lost ships dark and crossed out
+// the fleet row has three views, a tap on it going to the next: 0 only the ship I fly; 1 my whole fleet; 2 the other
+// player's fleet (the computer's or the other phone's), its lost ships crossed out the same way. (No other fleet known
+// yet: from 1 straight back to 0)
+let fleetView = 0;
+function theirFleet() {
+  if (realDuel() && duel.fleet && duel.fleet.theirs) {
+    const ids = duel.fleet.theirs.slice(); if (enemy.ship && enemy.on && !ids.includes(enemy.ship)) ids.push(enemy.ship);   // (a ship of theirs bought for good)
+    return { ids, lost: duel.fleet.theirLost || [], cur: enemy.on ? enemy.ship : null };
+  }
+  if (duel.bot && camp.theirs && camp.theirs.length) return { ids: camp.theirs, lost: camp.theirs.filter((id) => !camp.left.includes(id)), cur: enemy.on ? enemy.ship : null };
+  return null;
+}
+function shownFleet() {
+  if (!myFleet().length) return { ids: [], lost: [], cur: null };
+  if (fleetView === 2) { const T = theirFleet(); if (T) return { ...T, theirs: true }; }
+  if (fleetView === 1) return { ids: myFleet(), lost: lostIds(), cur: game.ship };
+  return { ids: [game.ship], lost: [], cur: game.ship };
+}
+function hitFleetRow(x, y) {
+  if (BOT || !myFleet().length) return false;
+  const { pos, sz } = fleetRowLayout(), m = sz * 0.15;
+  return pos.some((p) => x > p.x - m && x < p.x + sz + m && y > p.y - m && y < p.y + sz + m);
+}
+function fleetRowTap() { fleetView = (fleetView + 1) % 3; if (fleetView === 2 && !theirFleet()) fleetView = 0; audio.pop(); buzz(8); }
+// the fleet row under the health bar: the ship flying now in gold (theirs: red), lost ships dark and crossed out
 function drawFleetRow() {
   if (BOT || !myFleet().length) return;
-  const { pos, sz } = fleetRowLayout();
+  const { pos, sz } = fleetRowLayout(), F = shownFleet();
   ctx.save();
-  myFleet().forEach((id, i) => {
+  F.ids.forEach((id, i) => {
     if (!pos[i]) return;
     const S = shipById(id), { x, y } = pos[i];
-    const lost = lostIds().includes(id), mine = id === game.ship && !lost;
+    const lost = F.lost.includes(id), mine = id === F.cur && !lost, hi = F.theirs ? "#ff5a6a" : "#ffd166";
     ctx.globalAlpha = lost ? 0.35 : 1;
-    ctx.fillStyle = mine ? "rgba(255,209,102,0.22)" : "rgba(10,12,32,0.7)";
-    ctx.strokeStyle = mine ? "#ffd166" : "rgba(124,140,255,0.45)"; ctx.lineWidth = mine ? 2.5 : 1.5;
+    ctx.fillStyle = mine ? (F.theirs ? "rgba(255,90,106,0.22)" : "rgba(255,209,102,0.22)") : F.theirs ? "rgba(40,8,16,0.7)" : "rgba(10,12,32,0.7)";
+    ctx.strokeStyle = mine ? hi : F.theirs ? "rgba(255,110,130,0.45)" : "rgba(124,140,255,0.45)"; ctx.lineWidth = mine ? 2.5 : 1.5;
     roundRect(x, y, sz, sz, sz * 0.2); ctx.fill(); ctx.stroke();
     ctx.save(); roundRect(x, y, sz, sz, sz * 0.2); ctx.clip();
     if (S) drawShip(S, x + sz / 2, y + sz / 2, sz * 0.78, { power: 0, ang: 0, icon: true });

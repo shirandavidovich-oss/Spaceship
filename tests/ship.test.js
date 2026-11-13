@@ -922,4 +922,9 @@ ok("HUSK's rattle and hiss with its arm out, its monster's screeches (no shots h
   for (const f of ["husk/arm-loop", "husk/monster-loop", "courier/loop", "courier/burst", "courier/capsule", "courier/mine"]) assert(fs.existsSync(path.join(A, `audio/${f}.ogg`)), f);
   assert(html.includes("if (huskCreature && huskCreature.t >= 0) return;   // (HUSK's monster out") && html.includes('courier: ["audio/courier/loop.ogg", 2.0]'));
 });
+ok("the fleet row: only my ship, a tap: my fleet, a tap: theirs (lost ones crossed out), a tap: back", () => {
+  const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(html.includes("let fleetView = 0;") && html.includes("function fleetRowTap() { fleetView = (fleetView + 1) % 3;") && html.includes("theirs: sp[duel.side ? 1 : 0].slice(), theirLost: []"));
+  assert(html.includes("hitFleetRow(e.clientX, e.clientY)) { fleetRowTap(); return; }"));
+});
 console.log(n + " checks passed");
