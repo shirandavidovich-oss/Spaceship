@@ -650,7 +650,9 @@ bolts** hit a ship they touch on their way (once a pair), and the meeting blast 
 screeching, gurgling and clicking, and no ship's shots heard at all (`audio.shot`). **COURIER is pneumatic**: a compressor
 pumping and valves puffing for its gas, two sharp air shots for its burst, the capsule's tube (a valve, air building, a
 big THOOMP at the launch, the tube whistling), air let out for its mine. THUL's tracks are a real recording of tank
-tracks (supplied, made into a seamless 5.5 s loop).
+tracks (supplied, made into a seamless 5.5 s loop: `audio/thul/tracks-rec.ogg`). A picture or sound replaced on
+GitHub under the same name reaches a phone that already saved the old one only on the start after next (the app checks
+for a newer copy in the background once a start), so a replaced file gets a new name.
 
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's

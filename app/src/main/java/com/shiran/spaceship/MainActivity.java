@@ -198,7 +198,21 @@ public class MainActivity extends Activity implements SensorEventListener {
     private byte[] gameFile(String rel) {
         try { return readBytes(getAssets().open(rel)); } catch (Exception ignored) { }
         File cached = new File(getFilesDir(), "cache/" + rel);
-        try { if (cached.exists()) return readBytes(new java.io.FileInputStream(cached)); } catch (Exception ignored) { }
+        try {
+            if (cached.exists()) {
+                byte[] d = readBytes(new java.io.FileInputStream(cached));
+                // a file changed on GitHub keeps its name: look for a newer copy once each time the app starts (in the
+                // background; the next start uses it)
+                if (refreshed.add(rel)) new Thread(() -> download(rel, cached)).start();
+                return d;
+            }
+        } catch (Exception ignored) { }
+        return download(rel, cached);
+    }
+
+    private final java.util.Set<String> refreshed = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+
+    private byte[] download(String rel, File cached) {
         try {
             HttpURLConnection c = (HttpURLConnection) new URL("https://raw.githubusercontent.com/" + REPO
                     + "/main/app/src/main/assets/" + rel).openConnection();
@@ -207,7 +221,9 @@ public class MainActivity extends Activity implements SensorEventListener {
             if (c.getResponseCode() != 200) return null;
             byte[] data = readBytes(c.getInputStream());
             cached.getParentFile().mkdirs();
-            try (FileOutputStream o = new FileOutputStream(cached)) { o.write(data); }
+            File tmp = new File(cached.getPath() + ".part");
+            try (FileOutputStream o = new FileOutputStream(tmp)) { o.write(data); }
+            if (!tmp.renameTo(cached)) { cached.delete(); tmp.renameTo(cached); }
             return data;
         } catch (Exception e) {
             return null;
