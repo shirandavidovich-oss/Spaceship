@@ -11,6 +11,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
@@ -50,6 +52,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     private Sensor gravity;
     private Sensor motion;
     private PhoneLink link;
+    // the sellers' voices: the phone's own text-to-speech, in English, written to a file the page fetches (tts/<id>.wav)
+    // and makes alien itself (see alienSay in the page)
+    private TextToSpeech tts;
+    private volatile boolean ttsReady = false;
     private long lastShakeSent = 0;
     private boolean pageReady = false;
     private long lastSent = 0;
@@ -89,6 +95,16 @@ public class MainActivity extends Activity implements SensorEventListener {
                 if (!"ship.game".equals(req.getUrl().getHost())) return null;
                 String path = req.getUrl().getPath();
                 if (path == null || path.length() < 2 || path.contains("..")) return null;
+                if (path.startsWith("/tts/")) {   // a seller's line, spoken into a file (ttsMake)
+                    File f = ttsFile(path.substring(5).replace(".wav", ""));
+                    byte[] d = null;
+                    try { if (f != null && f.exists()) d = readBytes(new java.io.FileInputStream(f)); } catch (Exception ignored) { }
+                    if (d == null) return new WebResourceResponse("text/plain", "utf-8", 404, "Not found",
+                            java.util.Collections.singletonMap("Access-Control-Allow-Origin", "*"), new ByteArrayInputStream(new byte[0]));
+                    WebResourceResponse r = new WebResourceResponse("audio/wav", null, new ByteArrayInputStream(d));
+                    r.setResponseHeaders(java.util.Collections.singletonMap("Access-Control-Allow-Origin", "*"));
+                    return r;
+                }
                 byte[] data = gameFile(path.substring(1));
                 if (data == null) return new WebResourceResponse("text/plain", "utf-8", 404, "Not found",
                         java.util.Collections.singletonMap("Access-Control-Allow-Origin", "*"), new ByteArrayInputStream(new byte[0]));
@@ -99,6 +115,17 @@ public class MainActivity extends Activity implements SensorEventListener {
         });
         setContentView(web);
         loadGame();
+        tts = new TextToSpeech(this, status -> {
+            if (status != TextToSpeech.SUCCESS) return;
+            int r = tts.setLanguage(java.util.Locale.US);
+            if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) return;
+            tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                @Override public void onStart(String id) { }
+                @Override public void onDone(String id) { ttsTell(id, true); }
+                @Override public void onError(String id) { ttsTell(id, false); }
+            });
+            ttsReady = true;
+        });
 
 
         sensors = (SensorManager) getSystemService(SENSOR_SERVICE);
@@ -239,6 +266,30 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         @JavascriptInterface
         public void tradeStop() { main.post(() -> link.stop()); }
+
+        // the sellers' voices: can it speak; speak `text` (English) into tts/<id>.wav, then ttsDone(id, ok) on the page
+        @JavascriptInterface
+        public boolean ttsReady() { return ttsReady; }
+
+        @JavascriptInterface
+        public void ttsMake(String id, String text) {
+            File f = ttsFile(id);
+            if (f == null || !ttsReady) { ttsTell(id, false); return; }
+            if (f.exists() && f.length() > 0) { ttsTell(id, true); return; }
+            Bundle b = new Bundle();
+            tts.synthesizeToFile(text, b, f, id);
+        }
+    }
+
+    private File ttsFile(String id) {
+        if (id == null || !id.matches("[a-z0-9]{1,40}")) return null;
+        File dir = new File(getCacheDir(), "tts");
+        dir.mkdirs();
+        return new File(dir, id + ".wav");
+    }
+
+    private void ttsTell(String id, boolean ok) {
+        main.post(() -> { if (pageReady) web.evaluateJavascript("window.ttsDone&&ttsDone(" + org.json.JSONObject.quote(id) + "," + ok + ")", null); });
     }
 
     private String fetchLatest() throws Exception {
@@ -321,6 +372,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     @Override
     protected void onDestroy() {
         link.stop();
+        if (tts != null) tts.shutdown();
         super.onDestroy();
     }
 

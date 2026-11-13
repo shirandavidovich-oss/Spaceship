@@ -2583,6 +2583,7 @@ const audio = {
     s.connect(f); f.connect(g); g.connect(this.out); s.start();
   },
   shot(w) {
+    if (shop.open) return;   // (in a shop: no firing heard, only the shop's music)
     // twin cannon: a quick metal snap and a short spring chatter
     if (w === "twin") { this.tone(1900, 0.03, "square", 0.04, 0.5); this.noise(0.06, 0.14, 2600); [0.04, 0.07, 0.1].forEach((d) => this.tone(700, 0.025, "triangle", 0.02, 0.8, d)); }
     // iris: the heavy release (the gear grind and the latch come first, in windUp)
@@ -2986,8 +2987,11 @@ function toFly() {
 // ======================================================================
 function shipSize() { return U * 0.26; }
 
+// in a store while playing the computer: the game waits (the computer too) until I leave
+function shopPaused() { return !BOT && !!game.docked && !!duel.bot && game.stage === "fly"; }
 function update(dt) {
   musicTick();   // (the loop for this screen)
+  if (shopPaused()) { time += dt; updateShop(dt); return; }
   if (!BOT && ((game.t % 1) < dt)) filmPreload();   // (once a second: load the film of a ship that is about)
   time += dt; game.t += dt; updateStoreBreaks(dt);
   pipeDrain();
@@ -4292,6 +4296,7 @@ function dock(S) {
   audio.tone(220, 0.3, "sine", 0.06, 1.5); audio.tone(330, 0.3, "sine", 0.05, 1.5, 0.15); audio.noise(0.4, 0.05, 1500); buzz(60);
 }
 function undock() {
+  voiceStop(); voice.want = null;
   const S = dockedStation(); if (!S) { shop.open = false; return; }
   const L = stationLook(S), P = stationWorld(S, L.dock[0], L.bay[3] + 0.06);
   game.docked = null; shop.open = false; game.x = P.x; game.y = P.y; game.vx = 0; game.vy = U * 0.9; game.ang = Math.PI; game.undockT = 1;
@@ -4490,11 +4495,58 @@ function shopSpend(n) {
   for (const id of Object.keys(bank.wallet).sort((a, b) => wallet(b) - wallet(a))) { const t = Math.min(n, wallet(id)); walletAdd(id, -t); n -= t; if (n <= 0) break; }
 }
 // leaving: undocking from a store, or back to the main menu from the ship shop
-function shopExit() { if (shop.kind === "ship") { shop.open = false; audio.whoosh(); } else undock(); }
+function shopExit() { voiceStop(); voice.want = null; if (shop.kind === "ship") { shop.open = false; audio.whoosh(); } else undock(); }
 // a line said: it types out at 32 letters a second and goes away 4 s after he starts (a long one: 1.2 s after its last
 // letter), fading over SAY_FADE s, so it does not hide the ships for long. While it shows, the seller is seen close up
 const SAY_FADE = 0.3;
-function shopSay(text) { shop.say = { text, t: 0, blip: 0, life: Math.max(4, text.length / 32 + 1.2) }; }
+function shopSay(text, en) {
+  shop.say = { text, t: 0, blip: 0, life: Math.max(4, text.length / 32 + 1.2) };
+  shop.say.voiced = alienSay(en || shopEn(text));   // (spoken: no typing blips)
+}
+// the English of a seller's line (the same key in SHOP_TXT.en), or null
+function shopEn(text) {
+  const H = SHOP_TXT[LANG] || SHOP_TXT.he, E = SHOP_TXT.en;
+  for (const k in H) {
+    const v = H[k]; if (v === text) return typeof E[k] === "string" ? E[k] : null;
+    if (Array.isArray(v)) { const i = v.indexOf(text); if (i >= 0 && E[k]) return E[k][i] || null; }
+  }
+  return /[\u0590-\u05FF]/.test(text) ? null : text;
+}
+// ---- the sellers' voices: the line in English, spoken by the phone (the app's ttsMake writes tts/<id>.wav), made alien
+// here: slower or faster, times a low hum (a ring modulator, the classic alien voice) and a short metallic echo. Each
+// seller his own. Lines once spoken are kept, so they play at once next time. (An older app without it: the blips) ----
+const VOICE_FX = { alien: { rate: 0.86, ring: 55, dry: 0.35, echo: 0.032 }, kip: { rate: 1.12, ring: 90, dry: 0.5, echo: 0.02 }, brass: { rate: 0.74, ring: 32, dry: 0.4, echo: 0.045 } };
+const voice = { bufs: {}, want: null, src: null };
+function voiceId(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return "v" + h.toString(36) + s.length; }
+function alienSay(text) {
+  voiceStop();
+  if (!text || BOT || !audio.ctx || !window.ShipNative || !ShipNative.ttsMake) return false;
+  try { if (!ShipNative.ttsReady()) return false; } catch (e) { return false; }
+  const id = voiceId(text); voice.want = id;
+  if (voice.bufs[id]) { voicePlay(voice.bufs[id]); return true; }
+  try { ShipNative.ttsMake(id, text); } catch (e) { return false; }
+  return true;
+}
+window.ttsDone = (id, ok) => {
+  if (!ok) { if (voice.want === id && shop.say) shop.say.voiced = false; return; }
+  fetch("tts/" + id + ".wav").then((r) => r.ok ? r.arrayBuffer() : Promise.reject(r.status)).then((b) => audio.ctx.decodeAudioData(b))
+    .then((buf) => { voice.bufs[id] = buf; if (voice.want === id && shop.open) voicePlay(buf); })
+    .catch(() => { if (voice.want === id && shop.say) shop.say.voiced = false; });
+};
+function voicePlay(buf) {
+  const c = audio.ctx; if (!c) return;
+  voiceStop();
+  const P = VOICE_FX[shop.merchant] || VOICE_FX.alien, now = c.currentTime;
+  const src = c.createBufferSource(); src.buffer = buf; src.playbackRate.value = P.rate;
+  const ring = c.createGain(); ring.gain.value = 0; const osc = c.createOscillator(); osc.frequency.value = P.ring; osc.connect(ring.gain);
+  const dry = c.createGain(), wet = c.createGain(), out = c.createGain(), dl = c.createDelay(0.2), fb = c.createGain();
+  dry.gain.value = P.dry; wet.gain.value = 1 - P.dry; out.gain.value = 1.8; dl.delayTime.value = P.echo; fb.gain.value = 0.35;
+  src.connect(dry); src.connect(ring); ring.connect(wet); dry.connect(out); wet.connect(out);
+  out.connect(audio.out); out.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(audio.out);
+  osc.start(now); src.start(now); src.onended = () => { try { osc.stop(); } catch (e) {} };
+  voice.src = { src, osc };
+}
+function voiceStop() { const v = voice.src; voice.src = null; if (v) { try { v.src.stop(); } catch (e) {} try { v.osc.stop(); } catch (e) {} } }
 function shopPrice(p) {
   const G = myGear();
   if (p.kind === "life") return SHOP.life;
@@ -4536,7 +4588,7 @@ function shopBuy() {
   const o = shopOptions(shop.sel)[shop.opt]; if (!o) return;
   const price = shopPrice(o), have = shopMoney();
   if (!o.ok) { audio.nope(); return; }
-  if (have < price) { shopSay(`${st("cant")} ${(price - have).toLocaleString("en-US")} ${st("coins")}`); audio.nope(); buzz(20); return; }
+  if (have < price) { shopSay(`${st("cant")} ${(price - have).toLocaleString("en-US")} ${st("coins")}`, `${SHOP_TXT.en.cant} ${(price - have).toLocaleString("en-US")} ${SHOP_TXT.en.coins}`); audio.nope(); buzz(20); return; }
   shop.busy = true;   // (no paying twice: the button waits until this is done)
   shopSpend(price);
   if (o.kind === "life") { game.tanks = Math.min(TANKS, game.tanks + 1); game.tankT = 1; }
@@ -4581,7 +4633,7 @@ function updateShop(dt) {
   if (shop.say && shop.say.t > shop.say.life + SAY_FADE) shop.say = null;
   if (shop.say) {
     const n0 = Math.floor(shop.say.t * 32); shop.say.t += dt; const n1 = Math.floor(shop.say.t * 32);
-    if (n1 > n0 && n1 <= shop.say.text.length && n1 % 2 === 0 && /\S/.test(shop.say.text[n1 - 1] || "")) audio.tone(520 + Math.random() * 260, 0.035, "triangle", 0.018, 1);   // his voice
+    if (n1 > n0 && n1 <= shop.say.text.length && n1 % 2 === 0 && !shop.say.voiced && /\S/.test(shop.say.text[n1 - 1] || "")) audio.tone(520 + Math.random() * 260, 0.035, "triangle", 0.018, 1);   // his voice
   }
 }
 // KIP and BRASS (the merchant packages): body poses (384 px, standing on `pivot`) and faces (close-up, mouth shapes).
@@ -5057,7 +5109,7 @@ const WEEK_MS = 7 * 24 * 3600 * 1000;
 function rentLeft(id) { return Math.max(0, ((bank.rent || {})[id] || 0) - Date.now()); }
 function ownedIds() { return hangarShips().map((S) => S.id).filter((id) => (bank.owned || {})[id] || rentLeft(id) > 0); }
 function has3d(id) { return SHIP3D.includes(id); }
-const SHIP3D = ["ballast", "boiler", "borer", "brass", "cantor", "cinder", "corsair", "courier", "drakon", "flipper", "frankenstein", "fresnel", "glitch", "husk", "kiln", "kraal", "labyrinth", "link", "lyth", "mirage", "nimbus", "orian", "puff", "rivet", "skarn", "strata", "talus", "vanta", "vault", "vexar", "xeltar", "zorian"];
+const SHIP3D = ["ballast", "boiler", "borer", "brass", "cantor", "cinder", "corsair", "courier", "drakon", "flipper", "frankenstein", "fresnel", "glitch", "husk", "kiln", "kraal", "labyrinth", "link", "lyth", "mirage", "nimbus", "orian", "puff", "rivet", "skarn", "strata", "talus", "thul", "vanta", "vault", "vexar", "xeltar", "zorian"];
 
 // ---------- FLIPPER's pinballs (MAGIC.pinballs) ----------
 // FLIPPER's phone sends "pb"; on the OTHER ship's phone three pinballs are let loose in a pinball table round that ship
@@ -10196,7 +10248,7 @@ const RESULT_ART = {"win":{"title":"YOU WIN","width":2059,"height":393,"static":
 //  (from the Orbit Break packages: audio/, art/ui/)
 // ======================================================================
 // ---- music: one loop at a time, crossfaded over 0.45 s; MUSIC: each loop's length in seconds (the loop point) ----
-const MUSIC = { title: 34.285719, hangar: 43.636375, "orange-sun": 29.090906, "blue-giant": 36.226406, "red-dwarf": 38.787875, pulsar: 26.666656 };
+const MUSIC = { arcade: 25.6, title: 34.285719, hangar: 43.636375, "orange-sun": 29.090906, "blue-giant": 36.226406, "red-dwarf": 38.787875, pulsar: 26.666656 };
 // which loop plays in the arena, by the body in the middle (an unknown one: the orange sun's)
 const BODY_MUSIC = { sun: "orange-sun", lava: "orange-sun", gas: "orange-sun", redgiant: "red-dwarf", hole: "red-dwarf",
   bluegiant: "blue-giant", dwarf: "blue-giant", ice: "blue-giant", pulsar: "pulsar", neutron: "pulsar" };
@@ -10229,7 +10281,7 @@ function fadeVoice(v) {
 // every frame: the loop the screen wants. It changes only when the wanted one changes (and once it has loaded)
 function musicTick() {
   if (BOT) return;
-  const key = result.mode || cine.on ? null : game.stage === "title" ? "title" : (hangar.open || picker.open) ? "hangar"
+  const key = result.mode || cine.on ? null : shop.open ? "arcade" : game.stage === "title" ? "title" : (hangar.open || picker.open) ? "hangar"
     : (game.stage === "fly" || game.stage === "arrive") ? (BODY_MUSIC[body().id] || "orange-sun") : "title";
   music.want = key;
   const c = audio.ctx;
@@ -15202,7 +15254,7 @@ function frame(now) {
   if (cine.on) { musicTick(); return; }   // a ship's film is playing over the game: everything waits
   try { update(dt); } catch (e) { console.error("update:", e && e.stack || e); }
   // the computer player moves on with every frame of the page (it has no frames of its own)
-  if (bot.ready) { const bw = botWindow(); try { bw && bw.botTick && bw.botTick(dt); } catch (e) { console.error("computer player:", e && e.stack || e); } }
+  if (bot.ready && !shopPaused()) { const bw = botWindow(); try { bw && bw.botTick && bw.botTick(dt); } catch (e) { console.error("computer player:", e && e.stack || e); } }
   try { draw(); } catch (e) {
     console.error("draw:", e && e.stack || e);
     noteIssue("draw: " + (e && e.message || e) + " @ " + ((e && e.stack || "").split("\n")[1] || "").trim());

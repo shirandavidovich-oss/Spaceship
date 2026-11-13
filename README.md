@@ -590,6 +590,12 @@ then on the store shows its empty infected picture (`-husk-empty.webp`, the HUSK
 out of the doorway. When the window ends the store cleans: the empty picture fades into the store as it was (the
 infection backwards if the alien never got out). The computer's HUSK flies to the nearest store with the arm out.
 
+**In a shop** the music is an arcade chiptune (`audio/music/arcade.ogg`, made in code, a 25.6 s loop), no weapon is
+heard firing (`audio.shot`), and against the computer the whole game waits until you leave (`shopPaused`: the world and
+the computer stop). The sellers speak their lines in English with an alien voice: the app's text-to-speech writes the
+line to `tts/<id>.wav` (`ShipNative.ttsMake`, a new APK), and the page makes it alien (`VOICE_FX`: speed, a ring
+modulator, a short echo; each seller his own). An app without it keeps the typing blips.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

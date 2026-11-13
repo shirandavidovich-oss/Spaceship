@@ -856,4 +856,12 @@ ok("HUSK's alien tears out of the store: the empty infected pictures exist, the 
   assert(html.includes("if (S.inf.t >= HUSK_INF + HUSK_LOOP) S.inf.out = true;") && html.includes("function drawHuskExit(C, S, p, d)"));
   assert(html.includes("C.t >= (C.s != null ? HUSK_TEAR[2] : 0)"));
 });
+ok("in a shop: arcade music, no firing heard, the computer game waits, the sellers speak English (the app's text-to-speech)", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  assert(fs.existsSync(path.join(A, "audio/music/arcade.ogg")) && fs.existsSync(path.join(A, "art/ships3d/thul.webp")) && html.includes('"talus", "thul", "vanta"'));
+  assert(html.includes('shop.open ? "arcade"') && html.includes("if (shop.open) return;   // (in a shop: no firing heard"));
+  assert(html.includes("if (shopPaused()) { time += dt; updateShop(dt); return; }") && html.includes("if (bot.ready && !shopPaused())"));
+  const java = fs.readFileSync(path.join(__dirname, "../app/src/main/java/com/shiran/spaceship/MainActivity.java"), "utf8");
+  assert(java.includes("public void ttsMake(String id, String text)") && java.includes('path.startsWith("/tts/")') && html.includes("ShipNative.ttsMake(id, text)"));
+});
 console.log(n + " checks passed");
