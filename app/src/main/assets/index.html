@@ -2584,6 +2584,10 @@ const audio = {
   },
   shot(w, ship = game.ship, from = game) {
     if (shop.open) return;   // (in a shop: no firing heard, only the shop's music)
+    if (huskCreature && huskCreature.t >= 0) return;   // (HUSK's monster out: nothing heard but the monster)
+    // COURIER: pneumatic, two sharp air shots (its capsule's launch is played as it is pressed: the tube, then the THOOMP)
+    if (ship === "courier" && w === "brassburst" && playClip("audio/courier/burst.ogg", false, 0.7)) return;
+    if (ship === "courier" && w === "mailcap" && soundBuf("audio/courier/capsule.ogg")) return;
     // BOILER's torpedo: under water, a thunk of air and a rush of bubbles; in the air, a missile leaving its tube
     if (w === "ptorp") { playClip("audio/boiler/" + (inWater(from) ? "torp-launch" : "missile") + ".ogg", false, 0.7); return; }
     // VAULT: a heavy piston slamming out of a bank vault, steam and a ringing breech (every one of its weapons)
@@ -5430,7 +5434,7 @@ function startOrbitMine(M) {
   if (enemy.remote) link.send(Object.assign({}, m, { t: "om" }));
   game.magicCool = M.cool; game.anim = { seq: "magic", t: 0 };
   burstAt(game.x, game.y, 24, ["#ffb347", "#ffe08a", "#ffffff"], 0.5, 0.6);
-  audio.tone(330, 0.15, "square", 0.05, 1); audio.tone(660, 0.2, "triangle", 0.04, 1, 0.08); audio.noise(0.25, 0.06, 2500); buzz(40);
+  if (!playClip("audio/courier/mine.ogg", false, 0.75)) { audio.tone(330, 0.15, "square", 0.05, 1); audio.tone(660, 0.2, "triangle", 0.04, 1, 0.08); audio.noise(0.25, 0.06, 2500); } buzz(40);   // (air let out through a valve)
 }
 function orbitMsg(m) {
   if (m.t === "om") { if (!orbitMines.some((q) => q.id === m.id)) orbitMines.push({ own: "them", id: m.id, r: m.r, a0: m.a0, w: m.w, age: m.age || 0 }); }
@@ -6074,13 +6078,20 @@ function shipSounds() {
     else if (fly && enemy.on && enemy.ship === "fresnel" && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < U * 1.6) playClip("audio/fresnel/whoosh.ogg", false, 0.3);
   }
   if (game.ship === "fresnel" || enemy.ship === "fresnel") soundBuf("audio/fresnel/whoosh.ogg");
+  // HUSK: its arm out, a rattlesnake's rattle and a long hiss; its monster out, screeching, gurgling and clicking (and
+  // no shots heard at all: audio.shot)
+  const HA = [game, enemy].find((o) => { const H = huskOf(o); return H && H.ph !== "close" && (o === game || (enemy.on && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < U * 2)); });
+  loopClip("arm", "audio/husk/arm-loop.ogg", fly && !!HA, 2.6, 0.6);
+  loopClip("monster", "audio/husk/monster-loop.ogg", fly && !!huskCreature && huskCreature.t >= 0, 3.2, 0.85);
+  if (game.ship === "husk" || enemy.ship === "husk") { soundBuf("audio/husk/arm-loop.ogg"); soundBuf("audio/husk/monster-loop.ogg"); }
   const near = hunters.some((h) => Math.hypot(wrapDelta(h.x - game.x, WW), wrapDelta(h.y - game.y, WH)) < U * 2);
   loopClip("swarm", "audio/vexar/swarm-loop.ogg", fly && near, 2.0, 0.55);
 }
 const monsterTalk = { on: false, next: 0, last: -1 };
 // the ships whose gas has its own sound instead of the engine hum: the loop and its length (s)
 const THRUST_LOOPS = { corsair: ["audio/corsair/rowing-loop.ogg", 4.08], flipper: ["audio/flipper/playfield-loop.ogg", 2.4], boiler: ["audio/boiler/engine-loop.ogg", 4.0],
-  vexar: ["audio/vexar/fly-loop.ogg", 3.0], borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4], brass: ["audio/thul/tracks-loop.ogg", 2.0] };
+  vexar: ["audio/vexar/fly-loop.ogg", 3.0], borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4], brass: ["audio/thul/tracks-loop.ogg", 2.4],
+  courier: ["audio/courier/loop.ogg", 2.0] };
 // CORSAIR's rowing loop (the package's mix: oars, crew, the captain's "Heave!") instead of the engine while the gas is held;
 // started at the oars' place in their stroke, faded out in about 120 ms when let go
 function rowingSound(on) {
@@ -6089,6 +6100,7 @@ function rowingSound(on) {
   if (game.ship === "borer") for (const f of ["loop", "shot", "mine"]) soundBuf("audio/borer/" + f + ".ogg");   // (loaded early)
   if (game.ship === "gimbal") for (const f of ["loop", "blade", "gate"]) soundBuf("audio/gimbal/" + f + ".ogg");
   if (game.ship === "brass") for (const f of ["tracks-loop", "load", "boom", "mg"]) soundBuf("audio/thul/" + f + ".ogg");
+  if (game.ship === "courier") for (const f of ["loop", "burst", "capsule", "mine"]) soundBuf("audio/courier/" + f + ".ogg");
   if (game.ship === "vexar") for (const f of ["fly-loop", "lay", "hatch", "swarm-loop", "whip", "thorn"]) soundBuf("audio/vexar/" + f + ".ogg");   // (loaded early)
   if (game.ship === "frankenstein") soundBuf("audio/frankenstein/workshop-loop.ogg");
   if (game.ship === "boiler") for (const f of ["engine-loop", "splash", "splash-small", "torp-launch", "missile"]) soundBuf("audio/boiler/" + f + ".ogg");   // (loaded early)
@@ -9456,6 +9468,7 @@ function shoot(i) {
   if (A && A.secondary && i === 1 && Wp.chord) { game.anim = { seq: "secondary", t: 0, chord: [], w }; return; }   // CANTOR: the chord charges
   if (A && A.secondary && i === 1) {   // the secondary waits for its wind-up
     game.anim = { seq: "secondary", t: 0, pending: w };
+    if (w === "mailcap" && S.id === "courier") playClip("audio/courier/capsule.ogg", false, 0.85);   // COURIER: the valve, the air building, the THOOMP at the launch (520 ms)
     if (w === "iris") { if (!(S.id === "brass" && playClip("audio/thul/load.ogg", false, 0.8))) audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000); }   // (THUL: the breech, a shell, the breech shut)
     else if (w === "cross") audio.sfx(S.sfx, "cross_charge");
     else if (w === "phase") audio.sfx(S.sfx, "phase_charge");
