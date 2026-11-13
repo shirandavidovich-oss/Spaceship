@@ -496,6 +496,17 @@ half another). It does not stop when the magic is over, nor when COURIER is dest
 circle shows faintly (red for the other side's, so the danger can be seen coming), and the radar shows the mines. The
 owner's phone sends each new mine (`om`); the phone of the ship it reaches decides the hit (`omk`).
 
+**FRESNEL**, the lighthouse ship (`art/ships/fresnel/`: the FRESNEL package's atlases cut into 512 px frames; its
+buttons, its BLOOM zombie, its 3D picture). Sold only in the shop (`shopOnly`), and in the test hangar. Button 1: a
+focused golden flash from the lens. Button 2: two coloured light shards from the side shutters, aimed to cross 2
+ship-lengths ahead (`aimAt`), then on. Magic, the **light snake** (`snake` in `MAGIC`): a beam throws a triangle of light
+ahead of the ship; it opens a portal, and a snake of glowing blocks (like the snake game) comes out of it. It chases the
+other ship, growing the whole time; near it, it circles round it, closing it in its body, and the ring tightens: sitting
+still gets the ship squeezed (first touch after ~7 s), flying out through a gap saves it. A touch takes 1.5 health tanks
+(then 3 s before it can again); it is harmless while coming out and going back. After 30 s a portal opens at its head
+and it is drawn back into it, its tail last. The other ship's phone runs the snake (FRESNEL's phone sends `sn`; the snake
+comes back in that phone's state, `sn`, to be shown).
+
 **The station and its shop** (the Orbit Break Docking package: `art/station/`, `art/ui/shop/`, the alien seller in
 `art/ui/shop/alien/`). A docking station floats in the arena, one of `STATION_LOOKS` picked at random (one picture so far;
 up to five, each with its own solid parts and bay as boxes in its picture), somewhere around the star. Both phones have

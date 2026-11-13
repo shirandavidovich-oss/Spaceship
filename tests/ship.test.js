@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("forty-two ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 42);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 42);
+ok("forty-three ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 43);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 43);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -730,7 +730,7 @@ ok("fleet upgrades: every ship with a fit has its shield, cannon and shop button
     assert(SHIPS.some((S) => S.id === id), id); assert(F.length === 5 && F[2] > 0.3 && F[2] < 4, id);
     for (const f of ["shield", "cannon", "btn-shield", "btn-cannon"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, f + ".webp")), id + " " + f);
   }
-  for (const id of ["corsair", "fresnel", "gravity-sail", "knuckle", "link", "vault"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, "body.webp")), id);
+  for (const id of ["corsair", "gravity-sail", "knuckle", "link", "vault"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, "body.webp")), id);
   const j = html.indexOf("const SHIP3D = "), list = JSON.parse(html.slice(j + 15, html.indexOf(";", j)));
   for (const id of list) assert(fs.existsSync(path.join(A, "art/ships3d", id + ".webp")), id);
   const buy = eval("(" + html.slice(html.indexOf("{", html.indexOf("const SHIP_BUY = ")), html.indexOf("};", html.indexOf("const SHIP_BUY = ")) + 1) + ")");
@@ -750,5 +750,12 @@ ok("COURIER: shop only; a brass burst, a capsule bent by the star (one at a time
   const i = html.indexOf("  orbitmine: { name:"), M = eval("(" + html.slice(html.indexOf("{", i), html.indexOf("},", i) + 1) + ")");
   assert(M.hit === 1.5 && M.speed > 0 && M.cool > 0);
   assert(html.includes("mailcap:    { name:") && /mailcap:[^}]*gravity: true[^}]*one: true/.test(html));
+});
+ok("FRESNEL: shop only; a lens flash, two shards that cross ahead; the light portal's snake (1.5 tanks a touch, gone after 30 s)", () => {
+  const S = SHIPS.find((q) => q.id === "fresnel"), html = require("fs").readFileSync(require("path").join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(S && S.shopOnly && S.anim && S.magic === "snake" && S.weapons.join() === "lensflash,lightshard");
+  const i = html.indexOf("  snake: { name:"), M = eval("(" + html.slice(html.indexOf("{", i), html.indexOf("},", i) + 1) + ")");
+  assert(M.hit === 1.5 && M.last === 30 && M.grow > 0 && M.most > M.start && M.spare > 0 && M.tighten > 0 && M.tightest < M.ring);
+  assert(/lightshard:[^}]*both: true, aimAt:/.test(html));
 });
 console.log(n + " checks passed");
