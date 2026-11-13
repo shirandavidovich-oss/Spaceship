@@ -691,7 +691,7 @@ pictures, not for sale yet. The ship list has pages when it is long.
 fight sees more of them; the first not before 20 s) a comet crosses near the fight, 15% faster than an average ship,
 nose along its way and its tail behind, throwing coloured sparks, its value written over it, and a thin health bar.
 It burns out after 24 s; the radar and the screen's edge show where it is. Shoot it down (36 damage) for what it carries:
-- **a gold comet** (4 in 5): coins for the ship that shot it down, 100 to 1000 in steps of 50, the high values rare
+- **a gold comet** (4 in 5): coins for the ship that shot it down, 10 to 100 in steps of 5, the high values rare
   (about 1 in 6 is 700 or more);
 - **a crystal comet** (1 in 5): 1 to 5 of one rare-earth mineral (fewer more often): Neodymium (50% of them, worth 60
   each), Dysprosium (30%, 150), Terbium (15%, 350), Promethium (5%, 900). They are kept on the phone (`bank.res`) and
