@@ -2589,6 +2589,7 @@ const audio = {
     // CORSAIR: a pirate ship's thundering cannons; the chain shot: the bow cannon, then the chain whirling away
     if (w === "broadside") { playClip("audio/corsair/cannon-" + (1 + Math.floor(Math.random() * 3)) + ".ogg", false, 0.55); return; }
     if (w === "chainshot") { playClip("audio/corsair/chainshot.ogg", false, 0.8); return; }
+    if (w === "steelball") { pinSnd("launch", 0.8); return; }   // FLIPPER: the plunger
     // twin cannon: a quick metal snap and a short spring chatter
     if (w === "twin") { this.tone(1900, 0.03, "square", 0.04, 0.5); this.noise(0.06, 0.14, 2600); [0.04, 0.07, 0.1].forEach((d) => this.tone(700, 0.025, "triangle", 0.02, 0.8, d)); }
     // iris: the heavy release (the gear grind and the latch come first, in windUp)
@@ -2996,7 +2997,7 @@ function shipSize() { return U * 0.26; }
 function shopPaused() { return !BOT && !!game.docked && !!duel.bot && game.stage === "fly"; }
 function update(dt) {
   musicTick();   // (the loop for this screen)
-  rowingSound(!BOT && game.ship === "corsair" && !game.dead && game.stage === "fly" && !game.docked && game.thrust !== null && !result.mode && !shopPaused());   // (CORSAIR's rowing loop)
+  rowingSound(!BOT && (game.ship === "corsair" || game.ship === "flipper") && !game.dead && game.stage === "fly" && !game.docked && game.thrust !== null && !result.mode && !shopPaused());   // (CORSAIR's rowing loop)
   if (shopPaused()) { time += dt; updateShop(dt); return; }
   if (!BOT && ((game.t % 1) < dt)) filmPreload();   // (once a second: load the film of a ship that is about)
   time += dt; game.t += dt; updateStoreBreaks(dt);
@@ -3111,7 +3112,7 @@ function flyShip(dt) {
   const burning = game.thrust !== null && !game.locked;
   if (burning !== !!game.burning) { game.burning = burning; if (S.sfx) audio.sfx(S.sfx, burning ? "thrusters_open" : "thrusters_close", 0, 0.7); }
   if (game.locked && !wasEmpty) { if (game.thrust === "key") game.thrust = null; audio.empty(); buzz(120); }
-  if (hit > U * 0.15) { audio.bump(); buzz(Math.min(70, hit / U * 50)); }
+  if (hit > U * 0.15) { if (!flipperWin()) audio.bump(); buzz(Math.min(70, hit / U * 50)); }
 
   // the camera: with an enemy around it looks at the middle between the two ships (like Star Control);
   // alone, it leads a little in the direction of flight
@@ -3131,7 +3132,7 @@ function flyShip(dt) {
     z = clamp(Math.min(dx ? (W / 2 - m) / dx : 1, dy ? (H / 2 - m) / dy : 1, 1), ZOOM_MIN, 1);
   }
   game.zoom = lerp(game.zoom, z, 1 - Math.exp(-dt * (z < game.zoom ? 3 : 1)));
-  audio.engine(game.ship === "corsair" ? 0 : game.power);   // (CORSAIR rows instead: rowingSound)
+  audio.engine(game.ship === "corsair" || game.ship === "flipper" ? 0 : game.power);   // (CORSAIR rows, FLIPPER's playfield rings instead: rowingSound)
 }
 
 // One step of flying for ANY ship (player or enemy): same rules for both, like in Star Control.
@@ -4274,7 +4275,7 @@ function stationShipOne(S, o) {
     const vn = o.vx * nx + o.vy * ny;
     if (vn < 0) {
       o.vx -= 1.4 * vn * nx; o.vy -= 1.4 * vn * ny;
-      if (-vn > U * 0.25) { burstAt(o.x - nx * shipSize() * 0.3, o.y - ny * shipSize() * 0.3, 10, ["#ffffff", "#ffd27a", "#5ee7ff"], 0.3, 0.5); audio.tone(200, 0.08, "square", 0.04, 0.5); buzz(30); }
+      if (-vn > U * 0.25) { burstAt(o.x - nx * shipSize() * 0.3, o.y - ny * shipSize() * 0.3, 10, ["#ffffff", "#ffd27a", "#5ee7ff"], 0.3, 0.5); if (!flipperWin()) audio.tone(200, 0.08, "square", 0.04, 0.5); buzz(30); }
     }
   }
 }
@@ -5241,8 +5242,7 @@ function startPinballs(M) {
   game.magicCool = M.cool;
   game.anim = { seq: "magic", t: 0 };
   link.send({ t: "pb" });
-  for (let i = 0; i < 3; i++) audio.tone(900 + i * 300, 0.12, "square", 0.04, 1, i * 0.09);
-  audio.tone(200, 0.3, "sine", 0.06, 2); buzz(50);
+  pinSnd("multiball", 0.9); buzz(50);   // multiball!
 }
 // on my phone: their FLIPPER's balls arrive round me
 function pinballsArrive() {
@@ -5273,12 +5273,12 @@ function updatePinballs(dt) {
       b.vx = Math.cos(a) * sp; b.vy = Math.sin(a) * sp;
       const w = { x: P.cx + b.x, y: P.cy + b.y };
       burstAt(w.x, w.y, 5, ["#ffffff", "#ffd27a", "#ff4d6d"], 0.15, 0.3);
-      if (Math.random() < 0.5) audio.tone(1500 + Math.random() * 600, 0.03, "square", 0.015, 0.5);
+      if (Math.random() < 0.6) pinSnd(Math.random() < 0.5 ? "bumper" : "bumper2", 0.35);
     }
     const wx = wrapX(P.cx + b.x), wy = wrapY(P.cy + b.y);
     if (!game.dead && !stratAloft(game) && Math.hypot(wrapDelta(wx - game.x, WW), wrapDelta(wy - game.y, WH)) < size * 0.42 * shipScale() + r) {
       burstAt(wx, wy, 26, ["#ffffff", "#ffd27a", "#ff4d6d", "#d8dde6"], 0.6, 0.6); rings.push({ x: wx, y: wy, t: 0, max: 0.3, r: size * 0.6, c: "#ffd27a" });
-      audio.tone(2200, 0.06, "square", 0.05, 0.5); audio.tone(900, 0.2, "square", 0.05, 0.6, 0.05); shake(0.4);
+      pinSnd("bumper2", 0.9); audio.tone(900, 0.2, "square", 0.05, 0.6, 0.05); shake(0.4);
       P.balls.splice(k, 1);
       damageShip(SHIP_HP * M.hit);   // half a tank (shields still help)
     }
@@ -5326,7 +5326,7 @@ function starBounceFx(s, Wp, dt) {
   if (d >= R || d < 1) return;
   const v = bounceOff(s.vx, s.vy, dx / d, dy / d); s.vx = v.vx; s.vy = v.vy; s.bounced = true;
   burstAt(WW / 2 + dx / d * R, WH / 2 + dy / d * R, 10, ["#ffffff", "#ffd27a", "#d8dde6"], 0.3, 0.4);
-  audio.tone(1700, 0.05, "square", 0.03, 0.6);
+  if (s.w === "steelball") pinSnd("bumper2", 0.7); else audio.tone(1700, 0.05, "square", 0.03, 0.6);   // (FLIPPER's ball: a bumper)
 }
 
 // ---------- COURIER's orbit mines (MAGIC.orbitmine) ----------
@@ -5943,16 +5943,28 @@ const CorsairOars = (function () {
 
     return { create, draw, cycleMs };
 })();
+// FLIPPER sounds like a pinball machine (audio/flipper/, made in code): its gas is a busy playfield looping, the steel ball
+// leaves with the plunger, the paddles slap, its balls pop off bumpers, and bumping into anything (a ship, the star, a
+// store, the edge) is the machine's win: the replay knock, a run of bells, the score tallying (at most every 1.5 s)
+function pinSnd(name, vol = 0.8) { return playClip("audio/flipper/" + name + ".ogg", false, vol); }
+function flipperWin() {
+  if (game.ship !== "flipper") return false;
+  if (time - (game.pinWinT || -9) > 1.5) { game.pinWinT = time; pinSnd("win", 0.85); }
+  return true;
+}
 // CORSAIR's rowing loop (the package's mix: oars, crew, the captain's "Heave!") instead of the engine while the gas is held;
 // started at the oars' place in their stroke, faded out in about 120 ms when let go
 function rowingSound(on) {
   const c = audio.ctx; if (!c || BOT) return;
+  const loop = game.ship === "flipper" ? "audio/flipper/playfield-loop.ogg" : "audio/corsair/rowing-loop.ogg", len = game.ship === "flipper" ? 2.4 : 4.08;
+  if (game.ship === "flipper") for (const f of ["playfield-loop", "launch", "paddles", "bumper", "bumper2", "multiball", "win"]) soundBuf("audio/flipper/" + f + ".ogg");   // (loaded early)
   if (game.ship === "corsair") { soundBuf("audio/corsair/rowing-loop.ogg"); for (const f of ["cannon-1", "cannon-2", "cannon-3", "chainshot"]) soundBuf("audio/corsair/" + f + ".ogg"); }   // (loaded early)
   const R = audio.row || (audio.row = { src: null, g: null });
+  if (on && R.src && R.path !== loop) { try { R.src.stop(); } catch (e) {} R.src = null; }   // (another ship: its own loop)
   if (on && !R.src) {
-    const B = soundBuf("audio/corsair/rowing-loop.ogg"); if (!B) return;
-    const s = c.createBufferSource(), g = c.createGain(), P = game.oarPose;
-    s.buffer = B; s.loop = true; s.loopStart = 0; s.loopEnd = Math.min(B.duration, 4.08);
+    const B = soundBuf(loop); if (!B) return;
+    const s = c.createBufferSource(), g = c.createGain(), P = game.ship === "corsair" ? game.oarPose : null; R.path = loop;
+    s.buffer = B; s.loop = true; s.loopStart = 0; s.loopEnd = Math.min(B.duration, len);
     g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(0.9, c.currentTime + 0.06);
     s.connect(g); g.connect(audio.out); s.start(c.currentTime, P ? P.phase * 0.68 : 0); R.src = s; R.g = g;
   } else if (!on && R.src) {
@@ -6177,7 +6189,7 @@ function drawPirateShot(s, Wp) {
 // game.paddle: { ph: "arm" | "armed" | "strike" | "release", t (since the press), s (since this phase), hit }
 function startPaddles(w) {
   game.paddle = { ph: "arm", t: 0, s: 0, w, hit: false }; game.anim = { seq: "parm", t: 0 };
-  audio.tone(180, 0.28, "square", 0.03, 1.8); audio.tone(900, 0.05, "square", 0.02, 0.5, 0.26); buzz(20);   // the springs wind, a click
+  pinSnd("paddles", 0.6); buzz(20);   // the solenoids cock the paddles
 }
 function paddleInReach() {
   if (!enemy.on || enemyDocked() || enemyAloft() || enemy.warp >= 0.5) return false;
@@ -6193,7 +6205,7 @@ function updatePaddles(dt) {
   const seqT = (n) => seqLength(shipById("flipper").anim[n]) / 1000;
   if (P.ph === "arm" && P.s >= seqT("parm")) { P.ph = "armed"; P.s = 0; game.anim = { seq: "parmed", t: 0 }; }
   if ((P.ph === "arm" && P.s >= Wp.cock) || P.ph === "armed") {
-    if (paddleInReach()) { P.ph = "strike"; P.s = 0; game.anim = { seq: "pstrike", t: 0 }; audio.tone(1400, 0.06, "square", 0.04, 0.4); }
+    if (paddleInReach()) { P.ph = "strike"; P.s = 0; game.anim = { seq: "pstrike", t: 0 }; pinSnd("paddles", 0.9); }
     else if (P.t >= Wp.window) { P.ph = "release"; P.s = 0; game.anim = { seq: "prelease", t: 0 }; audio.tone(260, 0.3, "sine", 0.02, 0.6); }
     else if (P.ph === "armed" && !game.anim) game.anim = { seq: "parmed", t: 0 };   // (after a ball was launched: cocked again)
   }
@@ -9063,7 +9075,7 @@ function bumpShips(a, A, b, B) {
     if (enemy.on && !enemy.remote) harmEnemy(ram);   // (in a duel, the other phone counts its own crash)
   }
   if (-vn > U * 0.1) {
-    audio.bump(); buzz(Math.min(80, -vn / U * 60));
+    if (!flipperWin()) audio.bump(); buzz(Math.min(80, -vn / U * 60));
     const p = toScreen(a.x + nx * touch / 2, a.y + ny * touch / 2);
     burst(p.x, p.y, 16, ["#ffffff", A.trim, B.trim], 0.5, 0.8);
   }

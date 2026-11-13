@@ -614,6 +614,12 @@ a ratcheting wheel, a groaning door; `close.ogg`: a slam and the bolts thrown ho
 weapons fire with a heavy piston (`fire.ogg`); made in code. **COURIER's capsule** leaves with the capsule-body package's
 frames (`cbody_01..26`, 40 ms each, the capsule out at frame 14).
 
+**FLIPPER sounds like a pinball machine** (`audio/flipper/`, made in code): its gas is a busy playfield looping
+(bumpers, rollover bells, a spinner, score bleeps) instead of the engine, the steel ball leaves with the plunger and pops
+off the star like a bumper, the paddles slap, its magic is a multiball fanfare and its balls pop off bumpers, and
+bumping into anything (a ship, the star, a store, the edge) plays the machine's win: the replay knock, a run of bells,
+the score tallying (`flipperWin`, at most every 1.5 s).
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

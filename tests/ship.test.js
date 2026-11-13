@@ -882,4 +882,9 @@ ok("VAULT: sparkle waves for its radiation and a bank vault's heavy sounds; COUR
   for (let i = 1; i <= 26; i++) assert(fs.existsSync(path.join(A, `art/ships/courier/cbody_${String(i).padStart(2, "0")}.webp`)), i);
   assert(html.includes("function drawVaultSparkles(") && html.includes('secondary: frames("cbody", 26, () => 40, { 14: "fire" })') && html.includes("audio.shot(m.w, enemy.ship)"));
 });
+ok("FLIPPER sounds like a pinball machine: a playfield loop for its gas, the plunger, paddles, bumpers, multiball and a win when it bumps into something", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  for (const f of ["playfield-loop", "launch", "paddles", "bumper", "bumper2", "multiball", "win"]) assert(fs.existsSync(path.join(A, `audio/flipper/${f}.ogg`)), f);
+  assert(html.includes("function flipperWin()") && html.includes('if (w === "steelball") { pinSnd("launch"') && (html.match(/if \(!flipperWin\(\)\)/g) || []).length === 3);
+});
 console.log(n + " checks passed");
