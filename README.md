@@ -628,7 +628,15 @@ kill, up to 120 for doing it quickly (nothing after 90 s), up to 60 for health l
 ship's rarity, all times a streak bonus (kills without dying: x1.2, x1.4 ... up to x2). The numbers are at the top of
 the kills-and-money part of `index.html` (`KILL_PAY` ...).
 
-The server is Supabase (`SERVER_URL`, `SERVER_KEY` at the top of `index.html`; `server/supabase.sql` makes the table).
+The server is Supabase (`SERVER_URL`, `SERVER_KEY` at the top of `index.html`; `server/supabase.sql` makes the tables).
+
+**The account (money and purchases on the server):** the title screen's account button (under the language pill)
+signs in with an email and the 6-digit code it gets. Signed in, the whole bank (coins for each ship, minerals and
+metals, shields and extra weapons, ships bought or rented) is kept in the `banks` table (one JSON row per email, only
+its owner can read or change it), sent a moment after each change. The first time a phone joins an account the two
+are merged, each thing at its larger amount, so nothing is lost; after that the server's copy wins when the game opens,
+unless the phone has changes the server did not get (`bank.dirty`: merged again; with no connection it tries again
+every minute). Signing out takes the money with the account. This is separate from `THREE_SHIPS` (still off).
 Signing in: the email gets a 6-digit code (the Supabase email templates must show `{{ .Token }}`). Signed in, the
 profile (ships, kills, coins) is kept on the server and wins over the phone's copy at start, so a new phone with the same
 email gets the traded ships and the coins back. Trades and duels then meet over the internet (Supabase Realtime rooms,

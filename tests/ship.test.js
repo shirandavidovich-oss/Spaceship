@@ -782,4 +782,12 @@ ok("FRESNEL's snake: one smooth rainbow body, three times as long; a touch sends
   assert(M.most >= 150 && M.grow * M.last >= 150);
   assert(html.includes('N.hitT = M.spare; N.phase = "back";') && !html.includes("roundRect(p.x - w / 2, p.y - w / 2, w, w, w * 0.25)"));
 });
+ok("the account: money and purchases on the server (banks table); merging keeps the larger of each", () => {
+  const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8"), sql = fs.readFileSync(path.join(__dirname, "../server/supabase.sql"), "utf8");
+  assert(/create table if not exists public\.banks/.test(sql) && /bank\s+jsonb/.test(sql) && (sql.match(/on public\.banks/g) || []).length >= 4);
+  assert(html.includes("bankSync.push(); }") && html.includes("hitAccount(e.clientX, e.clientY)) { showAccount();") && html.includes("drawAccountBtn();"));
+  const i = html.indexOf("function bankFill("), j = html.indexOf("// the account button", i), f = new Function(html.slice(i, j) + "; return { bankMerge };")();
+  const m = f.bankMerge({ wallet: { a: 5, b: 1 }, owned: { x: 1 }, gear: { a: { pas: 2, act: 0, xw: null } }, rent: { y: 10 } }, { wallet: { a: 3, c: 7 }, owned: { z: 1 }, gear: { a: { pas: 1, act: 3, xw: "laser" } }, rent: { y: 20 } });
+  assert(m.wallet.a === 5 && m.wallet.b === 1 && m.wallet.c === 7 && m.owned.x && m.owned.z && m.gear.a.pas === 2 && m.gear.a.act === 3 && m.gear.a.xw === "laser" && m.rent.y === 20);
+});
 console.log(n + " checks passed");

@@ -2752,6 +2752,7 @@ cv.addEventListener("pointerdown", (e) => {
   audio.wake();
   if (game.stage === "title") {   // the title screen: the language, the dials, else start
     if (hitLang(e.clientX, e.clientY)) { setLang(LANG === "he" ? "en" : "he"); audio.pop(); buzz(10); return; }
+    if (!BOT && server.on && hitAccount(e.clientX, e.clientY)) { showAccount(); audio.pop(); buzz(10); return; }   // the account: money on the server
     if (dialDown(e)) return;
     startFromTitle(); return;
   }
@@ -3848,11 +3849,148 @@ const BANK_KEY = "spaceship.bank";
 if (params.has("reset")) { try { LS.removeItem(BANK_KEY); } catch (e) {} }
 const bank = (() => { try { const b = JSON.parse(LS.getItem(BANK_KEY)); if (b && typeof b === "object") return b; } catch (e) {} return {}; })();
 bank.wallet = bank.wallet || {}; bank.gear = bank.gear || {}; bank.res = bank.res || {}; bank.welcomed = bank.welcomed || {};   // (res: each mineral's count, and metals)
-function saveBank() { try { LS.setItem(BANK_KEY, JSON.stringify(bank)); } catch (e) {} if (profile) { profile.money = totalMoney(); saveProfile(); } }
+function saveBank() { bank.dirty = 1; try { LS.setItem(BANK_KEY, JSON.stringify(bank)); } catch (e) {} if (profile) { profile.money = totalMoney(); saveProfile(); } bankSync.push(); }   // (signed in: to the server too)
 function wallet(id) { return bank.wallet[id] || 0; }
 function totalMoney() { return Object.values(bank.wallet).reduce((a, b) => a + b, 0); }
 function walletAdd(id, n) { if (!id) return; bank.wallet[id] = Math.max(0, wallet(id) + n); }
 function resOf(k) { return bank.res[k] || 0; }
+// ---------- the account: money and purchases on the server (the `banks` table, server/supabase.sql) ----------
+// Signing in (the title screen's account button: an email, then the 6-digit code it gets) keeps the bank on the server,
+// so it comes back on another phone or after reinstalling. The first time a phone joins an account the two are merged
+// (each thing kept at its larger amount: nothing is lost); after that the server's copy wins at start, unless this
+// phone has changes the server has not had yet (bank.dirty: merged again). Each change is sent a moment later.
+// Signing out takes the money with the account: the phone starts empty. (The bot never syncs.)
+const bankSync = {
+  state: "idle", t: 0, at: 0,   // state: idle | pulling | saving | ok | error; at: when it last spoke to the server (ms)
+  email() { return server.session && server.session.email ? server.session.email.trim().toLowerCase() : null; },
+  async pull() {
+    if (BOT || !server.signedIn || !this.email()) return false;
+    this.state = "pulling";
+    if (!(await server.ready())) { this.state = "error"; return false; }
+    const email = this.email(), r = await server.call("/rest/v1/banks?email=eq." + encodeURIComponent(email) + "&select=bank");
+    if (!r.ok || !Array.isArray(r.j)) { this.state = "error"; return false; }
+    const row = r.j[0] && r.j[0].bank && typeof r.j[0].bank === "object" ? r.j[0].bank : null;
+    if (row) {
+      const mine = bank.account === email && !bank.dirty;
+      bankReplace(mine ? row : bankMerge(bank, row));
+    }
+    bank.account = email; bank.dirty = 1; bankLocal();
+    await this.send();
+    return true;
+  },
+  push() { if (BOT || !server.signedIn) return; clearTimeout(this.t); this.t = setTimeout(() => this.send(), 800); },
+  async send() {
+    if (BOT || !server.signedIn || !this.email() || bank.account !== this.email()) return false;
+    this.state = "saving";
+    if (!(await server.ready())) { this.state = "error"; return false; }
+    const out = Object.assign({}, bank); delete out.dirty; delete out.account;
+    const r = await server.call("/rest/v1/banks", "POST", { email: this.email(), bank: out, updated_at: new Date().toISOString() }, { Prefer: "resolution=merge-duplicates,return=minimal" });
+    if (r.ok) { bank.dirty = 0; bankLocal(); this.state = "ok"; this.at = Date.now(); return true; }
+    this.state = "error"; return false;
+  },
+  signOut() {
+    clearTimeout(this.t);
+    server.session = null; try { LS.removeItem(SESSION_KEY); } catch (e) {}
+    bankReplace({}); bankLocal(); this.state = "idle";
+  }
+};
+function bankLocal() { try { LS.setItem(BANK_KEY, JSON.stringify(bank)); } catch (e) {} }
+function bankFill(b) { for (const k of ["wallet", "gear", "res", "welcomed", "owned", "rent"]) if (!b[k] || typeof b[k] !== "object") b[k] = {}; return b; }
+function bankReplace(b) { for (const k of Object.keys(bank)) delete bank[k]; Object.assign(bank, JSON.parse(JSON.stringify(b))); bankFill(bank); }
+// two banks as one: every count at the larger of the two, every ship owned or welcomed in either, the later rental end
+function bankMerge(a, b) {
+  a = bankFill(JSON.parse(JSON.stringify(a))); b = bankFill(JSON.parse(JSON.stringify(b)));
+  const out = Object.assign({}, b, a);
+  for (const k of ["wallet", "res", "rent"]) { out[k] = Object.assign({}, b[k]); for (const [id, v] of Object.entries(a[k])) out[k][id] = Math.max(+v || 0, +b[k][id] || 0); }
+  for (const k of ["owned", "welcomed"]) out[k] = Object.assign({}, b[k], a[k]);
+  out.gear = Object.assign({}, b.gear);
+  for (const [id, g] of Object.entries(a.gear)) {
+    const h = b.gear[id] || {};
+    out.gear[id] = { pas: Math.max(g.pas || 0, h.pas || 0), act: Math.max(g.act || 0, h.act || 0), xw: g.xw || h.xw || null };
+  }
+  return out;
+}
+// the account button, on the title screen under the language pill
+function accountBtn() { const b = langBtn(); return { x: b.x, y: b.y + b.h * 1.45, w: b.h * 4.6, h: b.h }; }
+function hitAccount(x, y) { const b = accountBtn(); return x > b.x - 6 && x < b.x + b.w + 6 && y > b.y - 6 && y < b.y + b.h + 6; }
+function drawAccountBtn() {
+  if (BOT || !server.on) return;
+  const b = accountBtn(), f = Math.round(b.h * 0.45), on = server.signedIn;
+  const txt = on ? (bankSync.state === "error" ? "⚠ " : "☁ ") + (bankSync.email() || "").split("@")[0].slice(0, 12) : LANG === "he" ? "👤 כניסה" : "👤 Sign in";
+  ctx.save(); ctx.direction = "ltr"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(10,12,32,0.75)"; ctx.strokeStyle = on ? (bankSync.state === "error" ? "rgba(255,120,120,0.7)" : "rgba(120,230,170,0.7)") : "rgba(124,140,255,0.6)"; ctx.lineWidth = 1.5;
+  roundRect(b.x, b.y, b.w, b.h, b.h / 2); ctx.fill(); ctx.stroke();
+  ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.fillStyle = on ? "#b8ffd8" : "#dfe6ff"; ctx.fillText(txt, b.x + b.w / 2, b.y + b.h / 2 + 1);
+  ctx.restore();
+}
+// the account page: the email, then the code; signed in: who, and signing out
+function showAccount() {
+  if (document.getElementById("account")) return;
+  const he = LANG === "he", T = (h, e) => he ? h : e;
+  const d = document.createElement("div");
+  d.id = "account"; d.dir = he ? "rtl" : "ltr";
+  d.style.cssText = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;font-family:Rubik,Arial,sans-serif;background:rgba(0,0,10,.55)";
+  const field = "width:100%;box-sizing:border-box;font-size:18px;padding:12px 14px;border-radius:12px;border:1.5px solid #3a4a8a;background:#0a0c20;color:#fff;outline:none";
+  const btn = "margin-top:8px;width:100%;font-size:19px;font-weight:800;padding:12px;border:0;border-radius:12px;background:linear-gradient(#5fd0ff,#2a8ad8);color:#06122a";
+  const link = "margin-top:12px;font-size:14px;color:#9fb4d8;text-decoration:underline;cursor:pointer";
+  const box = (inner) => `<form style="background:rgba(14,16,40,.96);border:1.5px solid #4fc3ff;border-radius:18px;padding:24px 22px;width:min(86vw,420px);color:#fff;text-align:center;box-shadow:0 0 40px rgba(79,195,255,.35)">${inner}</form>`;
+  if (server.signedIn) {
+    const when = bankSync.at ? new Date(bankSync.at).toLocaleTimeString(he ? "he-IL" : "en-US", { hour: "2-digit", minute: "2-digit" }) : null;
+    d.innerHTML = box(`<div style="font-size:24px;font-weight:800;margin-bottom:6px">☁ ${T("החשבון שלי", "My account")}</div>
+      <div dir="ltr" style="font-size:16px;color:#b8ffd8;margin-bottom:10px">${(bankSync.email() || "").replace(/[<>&]/g, "")}</div>
+      <div style="font-size:14px;color:#9fb4d8;margin-bottom:14px">${bankSync.state === "error" ? T("⚠ אין חיבור לשרת כרגע. השינויים נשמרים בטלפון ויישלחו כשיהיה חיבור.", "⚠ No connection to the server right now. Changes stay on this phone and will be sent when it is back.")
+        : T("המטבעות, המינרלים, המגנים, הנשקים והחלליות שקנית שמורים בשרת.", "Your coins, minerals, shields, weapons and ships are kept on the server.") + (when ? "<br>" + T("נשמר לאחרונה ב־", "Last saved at ") + when : "")}</div>
+      <button id="ac-close" type="button" style="${btn}">${T("סגירה", "Close")}</button>
+      <div id="ac-out" style="${link}">${T("יציאה מהחשבון (הכסף נשאר בחשבון, לא בטלפון)", "Sign out (the money stays with the account, not this phone)")}</div>`);
+    document.body.appendChild(d);
+    d.querySelector("#ac-close").onclick = () => d.remove();
+    d.querySelector("#ac-out").onclick = () => { bankSync.signOut(); d.remove(); audio.pop(); };
+    return;
+  }
+  d.innerHTML = box(`<div style="font-size:24px;font-weight:800;margin-bottom:6px">👤 ${T("כניסה עם מייל", "Sign in with email")}</div>
+    <div id="ac-say" style="font-size:15px;color:#9fb4d8;margin-bottom:16px">${T("הכסף והקניות יישמרו בשרת ויחזרו בכל טלפון שתיכנסו ממנו.", "Your money and purchases are kept on the server and come back on any phone you sign in on.")}</div>
+    <input id="ac-email" type="email" required placeholder="name@gmail.com" dir="ltr" autocomplete="email" style="${field}">
+    <input id="ac-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" dir="ltr" maxlength="10" style="${field};display:none;margin-top:10px;font-size:26px;letter-spacing:8px;text-align:center">
+    <div id="ac-err" style="color:#ff6b8a;font-size:14px;min-height:20px;margin-top:6px"></div>
+    <button id="ac-go" style="${btn}">${T("שלחו לי קוד", "Send me a code")}</button>
+    <div id="ac-close" style="${link}">${T("לא עכשיו", "Not now")}</div>`);
+  document.body.appendChild(d);
+  const $ = (q) => d.querySelector(q), err = (t) => { $("#ac-err").textContent = t; };
+  let step = "email", busy = false;
+  $("#ac-close").onclick = () => d.remove();
+  $("form").onsubmit = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    const email = $("#ac-email").value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err(T("המייל לא נראה תקין", "That email does not look right")); return; }
+    busy = true; err("");
+    if (step === "email") {
+      $("#ac-go").textContent = T("שולח קוד…", "Sending…");
+      const r = await server.sendCode(email);
+      busy = false;
+      if (r.ok) {
+        step = "code"; $("#ac-email").readOnly = true; $("#ac-code").style.display = "block"; $("#ac-code").focus();
+        $("#ac-say").innerHTML = T("שלחנו קוד למייל ", "We sent a code to ") + email.replace(/[<>&]/g, "") + T(".<br>הכניסו אותו כאן (אם אין, בדקו בספאם).", ".<br>Enter it here (if it is not there, check spam).");
+        $("#ac-go").textContent = T("כניסה", "Sign in");
+      } else {
+        $("#ac-go").textContent = T("שלחו לי קוד", "Send me a code");
+        err(r.status === 429 ? T("נשלחו יותר מדי מיילים. נסו שוב עוד מעט", "Too many emails. Try again in a little while") : r.status === 0 ? T("אין חיבור לשרת. נסו שוב", "No connection to the server. Try again") : T("לא הצלחנו לשלוח קוד. נסו שוב", "Could not send a code. Try again"));
+      }
+      return;
+    }
+    $("#ac-go").textContent = T("בודק…", "Checking…");
+    const ok = await server.verify(email, $("#ac-code").value);
+    if (!ok) { busy = false; $("#ac-go").textContent = T("כניסה", "Sign in"); err(T("הקוד לא נכון או שפג תוקפו", "Wrong or expired code")); return; }
+    if (server.session && !server.session.email) { server.session.email = email.trim().toLowerCase(); try { LS.setItem(SESSION_KEY, JSON.stringify(server.session)); } catch (er) {} }
+    $("#ac-go").textContent = T("מסנכרן…", "Syncing…");
+    const synced = await bankSync.pull();
+    busy = false;
+    if (!synced) { err(T("נכנסת, אבל השמירה בשרת לא הצליחה. ננסה שוב בהמשך", "Signed in, but saving to the server failed. It will try again later")); $("#ac-go").textContent = T("סגירה", "Close"); $("#ac-go").onclick = () => d.remove(); return; }
+    d.remove(); audio.open && audio.open(); buzz(40);
+  };
+}
+if (!BOT && server.signedIn) setTimeout(() => bankSync.pull(), 1200);   // at start: the server's copy
+if (!BOT) setInterval(() => { if (server.signedIn && bank.dirty && bankSync.state === "error") bankSync.send(); }, 60000);   // no connection before: again
 // a won fight pays the winning ship (against the computer: SHOP.computerPay of it)
 function payWin(r, player) {
   const amount = player ? r.total : Math.round(r.total * SHOP.computerPay / 5) * 5;
@@ -11788,7 +11926,7 @@ function draw() {
   drawPicker();
   drawResultButtons();
   drawShop();   // the station's shop: over everything
-  if (game.stage === "title") { drawTitle(); drawDials(); drawLangBtn(); }
+  if (game.stage === "title") { drawTitle(); drawDials(); drawLangBtn(); drawAccountBtn(); }
   if (picker.open || camp.over) drawLangBtn();   // (switch the language while choosing a ship, too)
   if (hangar.open && !picker.open && !camp.over) { if (THREE_SHIPS) drawFleetBtn(); }   // in the hangar's second header row (the language button left the hangar: title and ship picker only)
 }
