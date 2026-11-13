@@ -633,6 +633,10 @@ lands. **FRANKENSTEIN's workshop** (saws, hammers, a grinder, a drill) plays thr
 made; its creature, once alive, threatens the other ship in a deep voice now and again (`MONSTER_LINES`, the phone's
 English made deep: `VOICE_FX.monster`), on both phones.
 
+**GLITCH's malfunction**: a ship its hack pulse hits cannot fire at all for 8 s (`WEAPONS.hack.status`; its buttons
+dimmed, a burst under way stops, the computer too), with a countdown on screen, and its computer calls a robot's mayday
+("We've got a malfunction! Mayday, mayday!" and others: `MAYDAY_LINES`, `VOICE_FX.robot`), heard on both phones.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

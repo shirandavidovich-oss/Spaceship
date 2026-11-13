@@ -1282,9 +1282,9 @@ const WEAPONS = {
   // REPRISE. `delays`: seconds after the press each shot leaves; `modules`: which building fires it (from its top edge)
   amber:   { name: "בריח ענבר",  dmg: 14, speed: 2.8, life: 1.2, cool: 0.56, ammo: 14, refill: 6, r: 0.035, color: "#ffb23a", delays: [0.18], modules: [0] },
   floors:  { name: "מטח קומות",  dmg: 5,  speed: 2.0, life: 0.92, cool: 1.15, ammo: 4, refill: 5, r: 0.03, color: "#b48cff", delays: [0.13, 0.26, 0.39], modules: [1, 2, 3] },
-  // GLITCH. neon: `burst` shots `gap` s apart. hack: a ship it hits is hacked for `status` s (its next firing turns)
+  // GLITCH. neon: `burst` shots `gap` s apart. hack: a ship it hits has a malfunction for `status` s: it cannot fire at all
   neon:    { name: "פרץ ניאון",  dmg: 5,  speed: 2.8, life: 0.9, cool: 0.45, ammo: 24, refill: 6, r: 0.025, color: "#ff3db8", burst: 3, gap: 0.08 },
-  hack:    { name: "פולס פריצה", dmg: 10, speed: 2.0, life: 1.3, cool: 2.5, ammo: 2, refill: 7, r: 0.05, color: "#38f6ff", hack: true, status: 2 },
+  hack:    { name: "פולס פריצה", dmg: 10, speed: 2.0, life: 1.3, cool: 2.5, ammo: 2, refill: 7, r: 0.05, color: "#38f6ff", hack: true, status: 8 },
   // RIVET's magnet balls: `pellets` balls all round, each pulled toward the planet (`magnet` screens a second, every
   //   second); they burst on it. Nail mines: `mines` nails over `fan` radians; they slow to a stop in `stop` s, arm after
   //   `arm` s and stay `stay` s (at most `max` of yours at once); an enemy touching one sets it off (`dmg`, a shove)
@@ -2328,7 +2328,7 @@ function buzz(ms) { try { native && native.vibrate(ms); } catch (e) {} }
 const LANG_KEY = "orbit-break.language";
 let LANG = (() => { try { const v = LS.getItem(LANG_KEY); return v === "en" || v === "he" ? v : "he"; } catch (e) { return "he"; } })();
 const STR = {
-  he: { flood: "ציד הצפה", maze: "מבוך", tapStart: "לחצו כדי להתחיל", nextLevel: (n) => `הבא: שלב ${n}`, streak: (m) => `רצף ×${m}`, zombie: "🧟 זומבי: פגיעה 50% · ירי 60% · בלי קסם", hacked: "⚠ נפרצת: הירייה הבאה תסטה ⚠", scrambled: (n) => `♪ הניווט שובש · ${n} ♪`,
+  he: { flood: "ציד הצפה", maze: "מבוך", tapStart: "לחצו כדי להתחיל", nextLevel: (n) => `הבא: שלב ${n}`, streak: (m) => `רצף ×${m}`, zombie: "🧟 זומבי: פגיעה 50% · ירי 60% · בלי קסם", hacked: (s) => `⚠ תקלה! הנשקים מושבתים · ${s} ⚠`, scrambled: (n) => `♪ הניווט שובש · ${n} ♪`,
     closer: "קרוב יותר לכוכב", mineIn: "המוקש כבר בכוכב", rarity: (r) => "חללית " + r, victory: "ניצחון!",
     levelUp: (n) => `שלב ${n}: צי המחשב חוזר, חזק יותר`, fleetLost: "כל הצי שלך הובס", reached: (n) => `הגעת לשלב ${n}`, newGame: "משחק חדש",
     pickFirst: "בחר חללית מהצי שלך", pickNext: "בחר את החללית הבאה", leftOf: (a, b, n) => `נשארו ${a} מתוך ${b}  ·  שלב ${n}`,
@@ -2337,7 +2337,7 @@ const STR = {
     offline: "בלי חשבון: הכול נשמר רק בטלפון הזה · החלפות וקרבות עם טלפון קרוב", noMagic: "בלי קסם", inUse: "✈ בשימוש",
     tradeDrag: "החלפה: גררו לכאן חללית שתרצו להחליף", tradeBoth: "ההחלפה קורית רק אם גם השחקן השני מציע חללית ושניכם מסכימים",
     hangar: "האנגר בדיקות", hangarNote: "לבדיקה בלבד: הבחירה לא נשמרת. במשחק כל שחקן מקבל חללית אחת", noMagicYet: "בלי קסם עדיין" },
-  en: { flood: "FLOOD HUNT", maze: "MAZE", tapStart: "Tap to start", nextLevel: (n) => `Next: level ${n}`, streak: (m) => `Streak ×${m}`, zombie: "🧟 Zombie: hits 50% · fire 60% · no magic", hacked: "⚠ Hacked: your next shot will veer ⚠", scrambled: (n) => `♪ Steering scrambled · ${n} ♪`,
+  en: { flood: "FLOOD HUNT", maze: "MAZE", tapStart: "Tap to start", nextLevel: (n) => `Next: level ${n}`, streak: (m) => `Streak ×${m}`, zombie: "🧟 Zombie: hits 50% · fire 60% · no magic", hacked: (s) => `⚠ MALFUNCTION! Weapons offline · ${s} ⚠`, scrambled: (n) => `♪ Steering scrambled · ${n} ♪`,
     closer: "Get closer to the star", mineIn: "The mine is already in the star", rarity: (r) => r + " ship", victory: "Victory!",
     levelUp: (n) => `Level ${n}: the computer's fleet returns, stronger`, fleetLost: "Your whole fleet is down", reached: (n) => `You reached level ${n}`, newGame: "New game",
     pickFirst: "Choose a ship from your fleet", pickNext: "Choose your next ship", leftOf: (a, b, n) => `${a} of ${b} left  ·  level ${n}`,
@@ -4597,7 +4597,11 @@ function shopEn(text) {
 const VOICE_SPEED = 1.3;
 // monster: FRANKENSTEIN's creature, deep and slow (heard outside the shops: `anywhere`, at its own `speed`)
 const VOICE_FX = { alien: { rate: 0.86, ring: 55, dry: 0.35, echo: 0.032 }, kip: { rate: 1.12, ring: 90, dry: 0.5, echo: 0.02 }, brass: { rate: 0.74, ring: 32, dry: 0.4, echo: 0.045 },
-  monster: { rate: 0.62, ring: 28, dry: 0.82, echo: 0.07, speed: 1.0, anywhere: true, gain: 2.4 } };
+  monster: { rate: 0.62, ring: 28, dry: 0.82, echo: 0.07, speed: 1.0, anywhere: true, gain: 2.4 },
+  robot: { rate: 1.0, ring: 46, dry: 0.12, echo: 0.014, speed: 1.15, anywhere: true, gain: 2.2 } };   // (a GLITCH malfunction's mayday)
+// GLITCH's malfunction: the stricken ship's computer calls for help (heard on both phones)
+const MAYDAY_LINES = ["We've got a malfunction! Mayday, mayday!", "System failure! Mayday, mayday!", "Weapons offline! Mayday, mayday!", "Malfunction! Malfunction! Mayday!", "Warning! Weapons jammed! Mayday, mayday!"];
+function maydaySay() { if (shop.open) return; let i; do { i = Math.floor(Math.random() * MAYDAY_LINES.length); } while (i === maydaySay.last && MAYDAY_LINES.length > 1); maydaySay.last = i; alienSay(MAYDAY_LINES[i], "robot"); }
 const voice = { bufs: {}, want: null, src: null, who: null };
 function voiceId(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return "v" + h.toString(36) + s.length; }
 function alienSay(text, who) {
@@ -8295,11 +8299,11 @@ function enemyShoot(dt) {
     enemy.cool[i] = Math.max(0, enemy.cool[i] - dt);
     enemy.ammo[i] = ammoStep(enemy.ammo[i], Wp, dt);
     const reach = Wp.speed * U * Wp.life * 0.85;
-    if (enemy.cool[i] > 0 || enemy.ammo[i] < 1 || d > reach || off > (Wp.homing ? 0.9 : 0.3)) return;
+    if (enemy.cool[i] > 0 || enemy.ammo[i] < 1 || d > reach || off > (Wp.homing ? 0.9 : 0.3) || enemy.hacked > 0) return;   // (a malfunction: no firing)
     enemy.cool[i] = Wp.cool / ENEMY_FIRE * (0.8 + Math.random() * 0.5) * (i ? 2.5 : 1);
     enemy.ammo[i] -= 1;
     const gs = gunsOf(E, w), g = gs[(enemy.barrel = (enemy.barrel || 0) + 1) % gs.length], size = shipSize();
-    const hk = enemy.hacked > 0 ? Math.PI / 2 : 0; enemy.hacked = 0;   // hacked: this salvo goes off a quarter turn clockwise
+    const hk = 0;
     const art = E.anim && E.anim.shotArt && E.anim.shotArt[w];
     for (const gg of Wp.both ? gs : [g]) {
       const m = rotatePt(gg[0] * size, gg[1] * size, enemy.ang);
@@ -8339,7 +8343,7 @@ function updateEnemyShots(dt) {
       burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 6, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);
       damageShip(Math.max(1, Math.round((Wp.blast ? Wp.blastDmg : shotHit(s, Wp).dmg) * ENEMY_DMG)));
       if (Wp.blast) { torpedoBlast(s, Wp, false); const d = Math.hypot(game.x - s.x, game.y - s.y) || 1; game.vx += (game.x - s.x) / d * Wp.push * U; game.vy += (game.y - s.y) / d * Wp.push * U; }
-      if (Wp.hack) game.hacked = Wp.status;   // the bot's GLITCH pulse hacked me
+      if (Wp.hack) { game.hacked = Wp.status; game.burstQ = null; maydaySay(); }   // the computer's GLITCH pulse: my malfunction
       eshots.splice(k, 1);
     }
   }
@@ -9265,7 +9269,7 @@ function updateWeapons(dt) {
   const S = shipById(game.ship);
   if (game.burstQ) {   // GLITCH's burst: the next round, turned like the first if it was hacked
     const Q = game.burstQ; Q.t -= dt;
-    if (game.dead) game.burstQ = null;
+    if (game.dead || game.hacked > 0) game.burstQ = null;   // (a malfunction stops a burst too)
     else if (Q.t <= 0) { spawnShots(Q.w, Q.guns ? Q.guns[++Q.n % Q.guns.length] : Q.g, Q.rot); audio.shot(Q.w); Q.left--; Q.t = WEAPONS[Q.w].gap; if (Q.left <= 0) game.burstQ = null; }
   }
   weaponsOf(S, game.flipMode || 0).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt * (game.zombie ? ZOMBIE.rate : 1)); });   // (a zombie refills at ZOMBIE.rate, 60%)
@@ -9372,7 +9376,7 @@ function updateWeapons(dt) {
           burstAt(s.x, s.y, 20, ["#ffffff", "#9fe8d8", "#cfe8e0"], 0.5, 0.6); audio.tone(700, 0.08, "sine", 0.06, 0.3); audio.noise(0.08, 0.1, 4000);
         }
         if (Wp.hack) {   // GLITCH's pulse: hacked
-          enemy.hacked = Wp.status;
+          enemy.hacked = Wp.status; maydaySay();   // (their computer's mayday, heard here too)
           if (enemy.remote) link.send({ t: "hk", n: Wp.status });
           burstAt(s.x, s.y, 20, ["#38f6ff", "#ff3db8", "#ffffff"], 0.5, 0.7, enemy.vx, enemy.vy); audio.tone(1800, 0.06, "square", 0.05, 0.3); audio.tone(300, 0.12, "sawtooth", 0.05, 0.5, 0.06);
         }
@@ -9393,6 +9397,7 @@ function updateWeapons(dt) {
 //  primary (button 1): each shot jumps to the frame where that barrel flashes, then the frames settle back to idle
 //  secondary (button 2): the iris winds up first; the shot leaves at the "fire" frame (the big flash)
 function shoot(i) {
+  if (game.hacked > 0) { if (time - (game.hackNope || -9) > 0.6) { game.hackNope = time; audio.nope(); buzz(20); } return; }   // GLITCH's malfunction: no firing
   if (game.dive) return;
   if (game.strata) return;   // STRATA in its vertical shift: no firing   // BORER in its dive: no firing
   if (game.puff && game.puff.st === "full") { if (game.puff.armed) puffBurst(); return; }   // PUFF: this press lets the spines go
@@ -9447,7 +9452,7 @@ function spawnShots(w, g, rot) {
   const Wp = WEAPONS[w], S = shipById(game.ship), size = shipSize() * shipScale();
   // hacked (GLITCH's pulse): this firing goes off a quarter turn clockwise, once (a burst's later rounds pass `rot` on)
   let hk = rot != null ? rot : 0;
-  if (rot == null && game.hacked > 0) { hk = Math.PI / 2; game.hacked = 0; }
+  // (no more turned shots: a malfunctioning ship cannot fire at all, see shoot)
   spawnShots.rot = hk;
   const m = rotatePt(g[0] * size, g[1] * size, game.ang);
   const x = game.x + m.x, y = game.y + m.y;
@@ -9498,7 +9503,7 @@ function spawnShots(w, g, rot) {
 // CANTOR's chord: the five bolts, each from its groove where it is now, each on its own remembered heading
 function chordRelease(w, notes) {
   const Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim, art = A.shotArt[w], size = shipSize() * shipScale(), guns = gunsOf(S, w), v = Wp.speed * U;
-  const hk = game.hacked > 0 ? Math.PI / 2 : 0; game.hacked = 0;   // hacked: the whole chord turns
+  const hk = 0;
   for (const n of notes) {
     const g = guns[n.i], m = rotatePt(g[0] * size, g[1] * size, game.ang), na = n.ang + hk + (game.scramble > 0 ? wrongWay() : 0);
     const s = { w, x: game.x + m.x, y: game.y + m.y, vx: game.vx + Math.sin(na) * v, vy: game.vy - Math.cos(na) * v, life: 0,
@@ -11157,7 +11162,7 @@ function drawHackNote() {
   if (!(game.hacked > 0) || game.dead) return;
   ctx.save(); ctx.font = `bold ${Math.round(Math.min(W, H) * 0.035)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top";
   ctx.fillStyle = Math.sin(time * 20) > 0 ? "#38f6ff" : "#ff3db8";
-  ctx.fillText(tr("hacked"), W / 2, H * 0.14);
+  ctx.fillText(tr("hacked", Math.ceil(game.hacked)), W / 2, H * 0.14);
   ctx.restore();
 }
 // scrambled me: a line at the top saying so, with the seconds left
@@ -14054,7 +14059,7 @@ function drawFire() {
   const S0 = shipById(game.ship), kit = kitOf(S0);
   for (let b of fireButtons()) {
     if (b.r < 3) continue;
-    const w = slotWeapon(b.i), Wp = WEAPONS[w], ammo = slotAmmo(b.i), ready = ammo >= 1 && !(game.ship === "corsair" && b.i !== 1 && corsairRowing()), pressed = game.fire[b.i] !== null;
+    const w = slotWeapon(b.i), Wp = WEAPONS[w], ammo = slotAmmo(b.i), ready = ammo >= 1 && !(game.hacked > 0) && !(game.ship === "corsair" && b.i !== 1 && corsairRowing()), pressed = game.fire[b.i] !== null;
     // the kit's buttons: the plate and icon, the ammo as a ring. Button 3 shows the weapon it carries (drawn in code)
     if (kit) {
       const slot = ["primary", "secondary", "pickup", "pickup"][b.i];
@@ -14710,7 +14715,7 @@ function duelLink(event, data) {
   } else if (m.t === "zb") {   // their BLOOM's pollen got me: a zombie until this ship blows up
     becomeZombie();
   } else if (m.t === "hk") {   // their GLITCH's pulse hit me: my next firing turns a quarter
-    game.hacked = m.n || WEAPONS.hack.status; shake(0.3); buzz(80);
+    game.hacked = m.n || WEAPONS.hack.status; game.burstQ = null; shake(0.3); buzz(80); maydaySay();
   } else if (m.t === "scr") {   // their CANTOR's rings reached me: scrambled
     if (!(game.scramble > 0 || game.scrambleSafe > 0)) {   // (already scrambled: it does not get longer; just over it: a rest)
       game.scramble = m.n || MAGIC.resonance.scramble;

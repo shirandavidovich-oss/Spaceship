@@ -383,7 +383,7 @@ ok("GLITCH (glitch-motion.js): shutters shut at rest, open and the core glowing 
   assert.strictEqual(shutterPose(0).open, 0); assert.strictEqual(shutterPose(3300).open, 0);
   const P = shutterPose(1900); assert(P.open > 0.99 && P.glow > 0.9 && P.lx === -45 * P.open && P.rx === 45 * P.open);
   assert.strictEqual(cueTime(A.secondary, "fire") * 2, 1900); assert.strictEqual(seqLength(A.secondary) * 2, 3300);
-  assert(WEAPONS.neon.burst === 3 && WEAPONS.hack.status === 2);
+  assert(WEAPONS.neon.burst === 3 && WEAPONS.hack.status === 8);
   const dir = path.join(__dirname, "../app/src/main/assets/art/ships/glitch");
   for (const f of Object.values(A.layers)) assert(fs.existsSync(path.join(dir, f)), f);
 });
@@ -901,5 +901,10 @@ ok("VEXAR's alien sounds (insects in flight, the egg, the swarm, the whip and it
   for (const f of ["fly-loop", "lay", "hatch", "swarm-loop", "whip", "thorn"]) assert(fs.existsSync(path.join(A, `audio/vexar/${f}.ogg`)), f);
   assert(fs.existsSync(path.join(A, "audio/frankenstein/workshop-loop.ogg")));
   assert(html.includes("const MONSTER_LINES = [") && html.includes('alienSay(MONSTER_LINES[i], "monster")') && html.includes("function shipSounds()"));
+});
+ok("GLITCH's malfunction: 8 s with no firing (the buttons dimmed, the computer too), and a robot's mayday on both phones", () => {
+  const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(html.includes("if (game.hacked > 0) { if (time - (game.hackNope") && html.includes("|| enemy.hacked > 0) return;") && html.includes("ready = ammo >= 1 && !(game.hacked > 0)"));
+  assert(html.includes("const MAYDAY_LINES = [") && html.includes('alienSay(MAYDAY_LINES[i], "robot")'));
 });
 console.log(n + " checks passed");
