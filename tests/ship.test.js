@@ -714,13 +714,13 @@ ok("the two stores (weapons: KIP, shields: BRASS): pictures and idle animations 
   assert(shop.computerPay > 0 && shop.computerPay < 1 && shop.welcome > 0);
   for (const w of Object.keys(shop.weapons)) assert(WEAPONS[w], w);
 });
-ok("resource comets: 1 in 5 carries minerals, four kinds (the rarer worth more), coins 100-1000 with high values rare", () => {
+ok("resource comets: 1 in 5 carries minerals, four kinds (the rarer worth more), coins 10-100 with high values rare", () => {
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
   const grab = (name, open, close) => { const i = html.indexOf("const " + name + " = "); return eval("(" + html.slice(html.indexOf(open, i), html.indexOf(close, i) + close.length - 1) + ")"); };
   const M = grab("MINERALS", "[", "\n];"), C = grab("COMET", "{", "} };");
   assert.strictEqual(M.length, 4); assert(Math.abs(M.reduce((a, m) => a + m.odds, 0) - 1) < 1e-9);
   for (let i = 1; i < 4; i++) assert(M[i].odds < M[i - 1].odds && M[i].worth > M[i - 1].worth, "rarer = worth more");
-  assert(Math.abs(C.gold - 0.8) < 1e-9 && C.coins[0] === 100 && C.coins[1] === 1000 && C.coinCurve > 1 && C.speed > 1 && C.every >= 45 && C.every <= 75);
+  assert(Math.abs(C.gold - 0.8) < 1e-9 && C.coins[0] === 10 && C.coins[1] === 100 && C.coinCurve > 1 && C.speed > 1 && C.every >= 45 && C.every <= 75);
   for (const f of ["gold", "crystal"]) assert(fs.existsSync(path.join(A, "art/comets", f + "-atlas.webp")), f);
 });
 ok("fleet upgrades: every ship with a fit has its shield, cannon and shop buttons; coming-soon ships have a picture; 3D pictures exist", () => {

@@ -3956,17 +3956,19 @@ const STORE_LOOKS = {
 // (seconds on, recharge). ship: a new ship by rarity. weapons: the extra weapons on offer and their prices.
 // drones: practice ships at once; droneHp, dronePay: their health and the money each; practiceRefill: ammo refills
 // this many times faster while practising
+// earn: the share of a win's reward that is paid (0.1: a tenth). The coins' worth in real money (not on sale yet, see
+// README): COIN_USD coins a dollar, so a ship of your own (`ship` x SHIP_BUY.own) is about 3 dollars
 const SHOP = {
-  dockSpeed: 0.5, welcome: 300, computerPay: 0.4,
+  dockSpeed: 0.5, welcome: 30, computerPay: 0.4, earn: 0.1,
   life: 150, ammo: 80,
   pasPrice: [0, 400, 900, 1600], pasCap: [0, 15, 25, 40], pasRegen: 6, pasWait: 3,
   actPrice: [0, 500, 1100, 1900], actTime: [0, 2.5, 3.5, 4.5], actCool: [0, 16, 14, 12],
-  ship: { common: 800, rare: 1500, epic: 2500, legendary: 4000 },
+  ship: { common: 3200, rare: 3600, epic: 3900, legendary: 4200 },   // (for good: x8 = 25,600 to 33,600 coins, about $2.5 to $3.4)
   weapons: { twin: [500, "Twin cannon"], pulse: [550, "Pulse"], bolt: [650, "Light bolt"], ice: [600, "Ice shards"], hammer: [750, "Hammer"],
     blaster: [650, "Blaster"], torpedo: [1000, "Blast torpedo"], neon: [700, "Neon burst"], prism: [800, "Prism shard"], ricochet: [700, "Ricochet"],
     railslug: [950, "Rail slug"], missile: [1100, "Missiles"], laser: [900, "Laser"], spread: [600, "Fan"] },
   offers: 4, shipOffers: 6,
-  drones: 3, droneHp: 40, dronePay: 20, practiceRefill: 3
+  drones: 3, droneHp: 40, dronePay: 2, practiceRefill: 3
 };
 const SHOP_TXT = {
   he: { onBreak: "☕ בהפסקה", dock: "⚓ עגינה", shop: "תחנת מסחר", exit: "יציאה", buy: "קנייה", total: "סה״כ", minerals: "מינרלים", metals: "מתכות",
@@ -4217,9 +4219,9 @@ if (!BOT && server.signedIn) setTimeout(() => bankSync.pull(), 1200);   // at st
 if (!BOT) setInterval(() => { if (server.signedIn && bank.dirty && bankSync.state === "error") bankSync.send(); }, 60000);   // no connection before: again
 // a won fight pays the winning ship (against the computer: SHOP.computerPay of it)
 function payWin(r, player) {
-  const amount = player ? r.total : Math.round(r.total * SHOP.computerPay / 5) * 5;
+  const k = SHOP.earn * (player ? 1 : SHOP.computerPay), amount = Math.max(1, Math.round(r.total * k));   // (a tenth of it)
   walletAdd(game.ship, amount); saveBank();
-  bounty.r = Object.assign({}, r, { total: amount }); bounty.t = 3.2;
+  bounty.r = Object.assign({}, r, { total: amount, lines: (r.lines || []).map(([w, n]) => [w, typeof n === "number" ? Math.round(n * k) : n]) }); bounty.t = 3.2;
   audio.coins && audio.coins(); for (let i = 0; i < 6; i++) audio.tone(1200 + i * 180, 0.06, "triangle", 0.05, 1, i * 0.06);
 }
 
@@ -5126,16 +5128,16 @@ function drawShop() {
 // every: seconds between comets on average (random); first: the first not before this. speed: x an average ship's top
 // speed. life: seconds before it burns out. hp: hits it takes. len: the rock's length (ship-lengths). gold: share of
 // gold comets. coins: [least, most] (a value is least + (most - least) * u^coinCurve, rounded to 50: low values common)
-const COMET = { every: 60, first: 20, speed: 1.15, life: 24, hp: 36, len: 1.5, gold: 0.8, coins: [100, 1000], coinCurve: 2.4, fps: 25,
+const COMET = { every: 60, first: 20, speed: 1.15, life: 24, hp: 36, len: 1.5, gold: 0.8, coins: [10, 100], coinCurve: 2.4, fps: 25,
   // the atlases (halved: 192 x 368 frames; the rock is 90 px long, from row 15 to 105; its middle at 96, 60)
   frame: { w: 192, h: 368, cols: 6, n: 24, rock: 90, ax: 96, ay: 60 } };
 // the four rare-earth minerals: their names, colours, how often a crystal comet carries each (`odds`), and what one is
 // worth (`worth`, in coins: the rarer, the more)
 const MINERALS = [
-  { id: "neodymium",  he: "נאודימיום",  en: "Neodymium",  color: "#8fd3ff", odds: 0.50, worth: 60 },
-  { id: "dysprosium", he: "דיספרוזיום", en: "Dysprosium", color: "#6dffc0", odds: 0.30, worth: 150 },
-  { id: "terbium",    he: "טרביום",     en: "Terbium",    color: "#c58bff", odds: 0.15, worth: 350 },
-  { id: "promethium", he: "פרומתיום",   en: "Promethium", color: "#ff7ad9", odds: 0.05, worth: 900 }
+  { id: "neodymium",  he: "נאודימיום",  en: "Neodymium",  color: "#8fd3ff", odds: 0.50, worth: 6 },
+  { id: "dysprosium", he: "דיספרוזיום", en: "Dysprosium", color: "#6dffc0", odds: 0.30, worth: 15 },
+  { id: "terbium",    he: "טרביום",     en: "Terbium",    color: "#c58bff", odds: 0.15, worth: 35 },
+  { id: "promethium", he: "פרומתיום",   en: "Promethium", color: "#ff7ad9", odds: 0.05, worth: 90 }
 ];
 function mineralById(id) { return MINERALS.find((m) => m.id === id); }
 function mineralName(m) { return LANG === "he" ? m.he : m.en; }
@@ -5144,7 +5146,7 @@ function mineralCount() { return MINERALS.reduce((a, m) => a + resOf(m.id), 0); 
 function cometLoad(rnd) {
   if (rnd() < COMET.gold) {
     const [a, b] = COMET.coins, v = a + (b - a) * Math.pow(rnd(), COMET.coinCurve);
-    return { kind: "gold", coins: Math.round(v / 50) * 50 };
+    return { kind: "gold", coins: Math.round(v / 5) * 5 };
   }
   let u = rnd(), m = MINERALS[MINERALS.length - 1];
   for (const q of MINERALS) { if (u < q.odds) { m = q; break; } u -= q.odds; }
@@ -5312,6 +5314,9 @@ const SOON_SHIPS = [["gravity-sail", "GRAVITY SAIL"],
 // ships for good and ships rented (bank.owned[id] = 1; bank.rent[id] = when the rental ends, ms): they join my fleet in
 // every game. SHIP_BUY: the three ways to buy a ship, and the price of each against the ship's price (SHOP.ship)
 const SHIP_BUY = { once: 1, week: 2.5, own: 8 };
+// real-money offers (planned, not on sale: buying needs the game in Google Play with its billing, see README):
+// COIN_USD coins for a dollar; ALL_SHIPS_USD: every ship for good, once per player
+const COIN_USD = 10000, ALL_SHIPS_USD = 10;
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 function rentLeft(id) { return Math.max(0, ((bank.rent || {})[id] || 0) - Date.now()); }
 function ownedIds() { return hangarShips().map((S) => S.id).filter((id) => (bank.owned || {})[id] || rentLeft(id) > 0); }
