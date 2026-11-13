@@ -907,4 +907,9 @@ ok("GLITCH's malfunction: 8 s with no firing (the buttons dimmed, the computer t
   assert(html.includes("if (game.hacked > 0) { if (time - (game.hackNope") && html.includes("|| enemy.hacked > 0) return;") && html.includes("ready = ammo >= 1 && !(game.hacked > 0)"));
   assert(html.includes("const MAYDAY_LINES = [") && html.includes('alienSay(MAYDAY_LINES[i], "robot")'));
 });
+ok("BORER's drill (its gas, the shrapnel's rev, the mine's spin-up) and GIMBAL's clockwork (its gas, the blades, the gate)", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  for (const f of ["borer/loop", "borer/shot", "borer/mine", "gimbal/loop", "gimbal/blade", "gimbal/gate"]) assert(fs.existsSync(path.join(A, `audio/${f}.ogg`)), f);
+  assert(html.includes('borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4]') && html.includes("rowingSound(!BOT && !!THRUST_LOOPS[game.ship] &&"));
+});
 console.log(n + " checks passed");

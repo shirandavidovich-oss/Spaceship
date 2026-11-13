@@ -637,6 +637,10 @@ English made deep: `VOICE_FX.monster`), on both phones.
 dimmed, a burst under way stops, the computer too), with a countdown on screen, and its computer calls a robot's mayday
 ("We've got a malfunction! Mayday, mayday!" and others: `MAYDAY_LINES`, `VOICE_FX.robot`), heard on both phones.
 
+**BORER and GIMBAL sounds** (made in code): BORER's gas is a drill spinning fast with metal grinding (`THRUST_LOOPS`),
+its shrapnel a hard drill rev, its mine a clunk and a spin-up; GIMBAL's gas is clockwork (ticks, gears, ratchets, a
+small chime), its blades a spring let go with gears catching, its gate a key winding and a lock clicking.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the
