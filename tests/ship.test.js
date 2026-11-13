@@ -912,4 +912,9 @@ ok("BORER's drill (its gas, the shrapnel's rev, the mine's spin-up) and GIMBAL's
   for (const f of ["borer/loop", "borer/shot", "borer/mine", "gimbal/loop", "gimbal/blade", "gimbal/gate"]) assert(fs.existsSync(path.join(A, `audio/${f}.ogg`)), f);
   assert(html.includes('borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4]') && html.includes("rowingSound(!BOT && !!THRUST_LOOPS[game.ship] &&"));
 });
+ok("THUL like a tank (tracks, loading, its guns), FRESNEL's whoosh each turn of its light, KRAAL's bolts hitting on the way and twice as wide", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  for (const f of ["thul/tracks-loop", "thul/load", "thul/boom", "thul/mg", "fresnel/whoosh"]) assert(fs.existsSync(path.join(A, `audio/${f}.ogg`)), f);
+  assert(WEAPONS.cross.hitK === 2 && html.includes("a bolt that touches the enemy anywhere along its flight hits it") && html.includes('brass: ["audio/thul/tracks-loop.ogg", 2.0]'));
+});
 console.log(n + " checks passed");

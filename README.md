@@ -641,6 +641,11 @@ dimmed, a burst under way stops, the computer too), with a countdown on screen, 
 its shrapnel a hard drill rev, its mine a clunk and a spin-up; GIMBAL's gas is clockwork (ticks, gears, ratchets, a
 small chime), its blades a spring let go with gears catching, its gate a key winding and a lock clicking.
 
+**THUL like a tank** (made in code): its gas is tank tracks clacking over the sprockets with a diesel under them, its big
+gun loads (the breech, a shell, the breech shut) and fires with a tank's crack and boom, its twin gun bangs with the
+bolt clacking. **FRESNEL's light** whooshes round like a rope swung fast, once each turn of the beacon. **KRAAL's crossing
+bolts** hit a ship they touch on their way (once a pair), and the meeting blast reaches twice as far (`WEAPONS.cross.hitK`).
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

@@ -730,7 +730,7 @@ const SHIPS = [
   // KRAAL, the crimson hammerhead (art/ships/kraal/, 512 x 512, center pivot, nose up), from kraal-layout.json.
   // Button 1: two parallel bolts from the two ends of the hammer (at 80 ms). Button 2: lines of light run out to the
   // two muzzles, and at 650 ms each muzzle sends a bolt to one point ahead of the nose; they meet there 425 ms later and
-  // blow up together. Only what is AT that point is hit: too close to the hull and the bolts cross behind it.
+  // blow up together. A ship they touch on the way is hit too (once a pair), and the meeting blast reaches twice as far.
   // Button 2 is held: the longer, the farther ahead the bolts meet (learn the timing to land it on the enemy).
   // magic: hammer (a fast dash at the enemy, and a blow with the hammer-head)
   { id: "kraal", name: "KRAAL", rarity: "rare", mass: 1.2, fuel: 30, refill: 15, sfx: "kraal", magic: "hammer",
@@ -1243,7 +1243,7 @@ const WEAPONS = {
   //   hold: the meeting point runs from `near` to `far` ship-lengths BEHIND it (against the way it flies: crossPoint)
   //   over `hold` seconds of holding; let go to fire.
   //   The bolts take 0.3 s plus `per` seconds for each ship-length to the point
-  cross:   { name: "הצלבה",     dmg: 32, speed: 0,   life: 0.425, cool: 1.1, ammo: 4, refill: 9, r: 0.136, color: "#ff4a3a", converge: true,
+  cross:   { name: "הצלבה",     dmg: 32, speed: 0,   life: 0.425, cool: 1.1, ammo: 4, refill: 9, r: 0.136, hitK: 2, color: "#ff4a3a", converge: true,
              near: 0.7, far: 5, hold: 1.6, per: 0.12 },
   // ZORIAN. thread (seconds from the press): it lays from `lay` to `seal`, warns until `arm`, hurts until `expire`
   needle:  { name: "מחט אור",   dmg: 6,  speed: 2.6, life: 1.0, cool: 0.27, ammo: 26, refill: 7,  r: 0.025, color: "#92f8ff" },
@@ -2595,6 +2595,9 @@ const audio = {
     // BORER: the drill revving hard (shrapnel), a clunk and a spin-up (the drilling mine). GIMBAL: a spring let go and
     // gears catching (the blades), a key winding and a lock clicking (the gate)
     if (w === "shrapnel" && playClip("audio/borer/shot.ogg", false, 0.75)) return;
+    // THUL like a tank: its twin gun a sharp bang and the bolt clacking, its big gun a tank's crack and boom
+    if (ship === "brass" && w === "twin" && playClip("audio/thul/mg.ogg", false, 0.6)) return;
+    if (ship === "brass" && w === "iris" && playClip("audio/thul/boom.ogg", false, 0.9)) return;
     if (w === "drillmine" && playClip("audio/borer/mine.ogg", false, 0.75)) return;
     if (w === "blade" && playClip("audio/gimbal/blade.ogg", false, 0.7)) return;
     if (w === "gate" && playClip("audio/gimbal/gate.ogg", false, 0.7)) return;
@@ -6063,13 +6066,21 @@ function shipSounds() {
       alienSay(MONSTER_LINES[i], "monster"); monsterTalk.next = time + 7 + Math.random() * 5;
     }
   } else monsterTalk.on = false;
+  // FRESNEL: its light whooshes round like a rope swung fast, once each turn of the beacon (every 2.4 s)
+  const turn = Math.floor((time + 0.28) / 2.4);
+  if (turn !== shipSounds.turn) {
+    shipSounds.turn = turn;
+    if (fly && game.ship === "fresnel" && !game.dead) playClip("audio/fresnel/whoosh.ogg", false, 0.55);
+    else if (fly && enemy.on && enemy.ship === "fresnel" && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < U * 1.6) playClip("audio/fresnel/whoosh.ogg", false, 0.3);
+  }
+  if (game.ship === "fresnel" || enemy.ship === "fresnel") soundBuf("audio/fresnel/whoosh.ogg");
   const near = hunters.some((h) => Math.hypot(wrapDelta(h.x - game.x, WW), wrapDelta(h.y - game.y, WH)) < U * 2);
   loopClip("swarm", "audio/vexar/swarm-loop.ogg", fly && near, 2.0, 0.55);
 }
 const monsterTalk = { on: false, next: 0, last: -1 };
 // the ships whose gas has its own sound instead of the engine hum: the loop and its length (s)
 const THRUST_LOOPS = { corsair: ["audio/corsair/rowing-loop.ogg", 4.08], flipper: ["audio/flipper/playfield-loop.ogg", 2.4], boiler: ["audio/boiler/engine-loop.ogg", 4.0],
-  vexar: ["audio/vexar/fly-loop.ogg", 3.0], borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4] };
+  vexar: ["audio/vexar/fly-loop.ogg", 3.0], borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4], brass: ["audio/thul/tracks-loop.ogg", 2.0] };
 // CORSAIR's rowing loop (the package's mix: oars, crew, the captain's "Heave!") instead of the engine while the gas is held;
 // started at the oars' place in their stroke, faded out in about 120 ms when let go
 function rowingSound(on) {
@@ -6077,6 +6088,7 @@ function rowingSound(on) {
   const TL = THRUST_LOOPS[game.ship] || THRUST_LOOPS.corsair, loop = TL[0], len = TL[1];
   if (game.ship === "borer") for (const f of ["loop", "shot", "mine"]) soundBuf("audio/borer/" + f + ".ogg");   // (loaded early)
   if (game.ship === "gimbal") for (const f of ["loop", "blade", "gate"]) soundBuf("audio/gimbal/" + f + ".ogg");
+  if (game.ship === "brass") for (const f of ["tracks-loop", "load", "boom", "mg"]) soundBuf("audio/thul/" + f + ".ogg");
   if (game.ship === "vexar") for (const f of ["fly-loop", "lay", "hatch", "swarm-loop", "whip", "thorn"]) soundBuf("audio/vexar/" + f + ".ogg");   // (loaded early)
   if (game.ship === "frankenstein") soundBuf("audio/frankenstein/workshop-loop.ogg");
   if (game.ship === "boiler") for (const f of ["engine-loop", "splash", "splash-small", "torp-launch", "missile"]) soundBuf("audio/boiler/" + f + ".ogg");   // (loaded early)
@@ -7867,7 +7879,7 @@ function drawCrossGuide() {
   const H = game.crossHold, S = shipById(game.ship);
   if (!CROSS_GUIDE || !H || game.dead) return;
   const Wp = WEAPONS[slotWeapon(1)], q = crossPoint(crossReach(Wp, H.held)), p = toScreen(q.x, q.y);
-  const r = Wp.r * shipSize() + shipSize() * 0.1;
+  const r = Wp.r * (Wp.hitK || 1) * shipSize() + shipSize() * 0.1;
   ctx.save(); ctx.globalAlpha = 0.35 + 0.15 * Math.sin(time * 10); ctx.strokeStyle = "#ff6a4a"; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(p.x - r * 1.5, p.y); ctx.lineTo(p.x - r * 0.5, p.y); ctx.moveTo(p.x + r * 0.5, p.y); ctx.lineTo(p.x + r * 1.5, p.y);
@@ -7892,13 +7904,25 @@ function updateCrosses(dt) {
   for (let k = crosses.length - 1; k >= 0; k--) {
     const c = crosses[k], Wp = WEAPONS[c.w];
     c.t += dt;
+    // on their way the bolts hit too: a bolt that touches the enemy anywhere along its flight hits it (one hit a pair)
+    if (!c.remote && !c.hitT && enemy.on && enemy.warp < 0.5 && c.t < (c.life || Wp.life)) {
+      const u = clamp(c.t / (c.life || Wp.life), 0, 1), reachR = shipSize() * (0.34 * enemyScale() + 0.2);
+      for (const s of [c.a, c.b]) {
+        const x = s.x + wrapDelta(c.f.x - s.x, WW) * u, y = s.y + wrapDelta(c.f.y - s.y, WH) * u;
+        if (Math.hypot(wrapDelta(enemy.x - x, WW), wrapDelta(enemy.y - y, WH)) <= reachR) {
+          c.hitT = c.t; hitEnemy({ x: wrapX(x), y: wrapY(y), vx: 0, vy: 0 }, Wp);
+          blasts.push({ x: wrapX(x), y: wrapY(y), t: 0, ship: c.ship }); audio.sfx(shipById(c.ship).sfx, "convergence_blast"); shake(0.2); buzz(60);
+          break;
+        }
+      }
+    }
     if (c.t < (c.life || Wp.life)) continue;
     // they meet: one blast
     crosses.splice(k, 1);
     blasts.push({ x: c.f.x, y: c.f.y, t: 0, ship: c.ship });
     audio.sfx(shipById(c.ship).sfx, "convergence_blast"); shake(0.25); buzz(80);
-    const R = Wp.r * shipSize();
-    if (!c.remote && enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - c.f.x, WW), wrapDelta(enemy.y - c.f.y, WH)) <= R + shipSize() * 0.3)
+    const R = Wp.r * (Wp.hitK || 1) * shipSize();   // (hitK: the blast reaches this many times its drawing)
+    if (!c.remote && !c.hitT && enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - c.f.x, WW), wrapDelta(enemy.y - c.f.y, WH)) <= R + shipSize() * 0.3)
       hitEnemy({ x: c.f.x, y: c.f.y, vx: 0, vy: 0 }, Wp);
   }
   for (let k = blasts.length - 1; k >= 0; k--) { blasts[k].t += dt * 1000; if (seqFrame(shipById(blasts[k].ship).anim.blast, blasts[k].t) < 0) blasts.splice(k, 1); }
@@ -9432,7 +9456,7 @@ function shoot(i) {
   if (A && A.secondary && i === 1 && Wp.chord) { game.anim = { seq: "secondary", t: 0, chord: [], w }; return; }   // CANTOR: the chord charges
   if (A && A.secondary && i === 1) {   // the secondary waits for its wind-up
     game.anim = { seq: "secondary", t: 0, pending: w };
-    if (w === "iris") audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000);
+    if (w === "iris") { if (!(S.id === "brass" && playClip("audio/thul/load.ogg", false, 0.8))) audio.windUp(Math.max(0, cueTime(A.secondary, "fire")) / 1000); }   // (THUL: the breech, a shell, the breech shut)
     else if (w === "cross") audio.sfx(S.sfx, "cross_charge");
     else if (w === "phase") audio.sfx(S.sfx, "phase_charge");
     else if (w === "storm") audio.sfx(S.sfx, "storm-charge");
