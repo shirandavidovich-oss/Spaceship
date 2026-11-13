@@ -864,4 +864,10 @@ ok("in a shop: arcade music, no firing heard, the computer game waits, the selle
   const java = fs.readFileSync(path.join(__dirname, "../app/src/main/java/com/shiran/spaceship/MainActivity.java"), "utf8");
   assert(java.includes("public void ttsMake(String id, String text)") && java.includes('path.startsWith("/tts/")') && html.includes("ShipNative.ttsMake(id, text)"));
 });
+ok("ship shop: tapping a chosen ship opens its page (every shop ship has its words); poking the seller; the voice faster, its pitch kept", () => {
+  const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  for (const id of ["flipper", "courier", "fresnel", "vault", "corsair", "husk"]) assert(html.includes(`  ${id}: { w: [[`), id);
+  assert(html.includes('act: "info", id: chosen.id') && html.includes('if (h.act === "poke")') && html.includes("drawShipInfo()"));
+  assert(html.includes("voiceStretch(c, buf, VOICE_SPEED / P.rate)"));
+});
 console.log(n + " checks passed");

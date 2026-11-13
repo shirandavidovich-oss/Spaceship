@@ -3889,6 +3889,8 @@ const SHOP_TXT = {
     sayLife: "מיכל חיים נוסף: עוד בר שלם לפני שאתה נופל. קלאסיקה!", sayAmmo: "תחמושת מלאה בכל הנשקים. בום, בום, בום.",
     sayShield: "פסיבי סופג פגיעות לבד ומתמלא שוב. אקטיבי: כפתור, ושום דבר לא עובר לכמה שניות.",
     sayWeapon: "נשק נוסף מחללית אחרת, עם כפתור משלו ליד כפתור הירי. תבחר טוב!", sayShip: "חלליות חדשות לצי של המשחק הזה. תבחר אחת, ואז תאשר.",
+    poke: ["אל תיגע בי, יצור משונה!", "ידיים לעצמך, בן אדם!", "היי! אני לא חלק מהסחורה!", "עוד נגיעה אחת ואני מעלה לך את המחירים!", "אתה יודע כמה מחושים אני צריך לנקות עכשיו?", "בכוכב שלי זה נחשב הצעת נישואים. תפסיק!", "אל תיגע! אני רגיש בכל שמונת העורות שלי!"],
+    infoW1: "נשק 1", infoW2: "נשק 2", infoMagic: "קסם", infoDmg: "נזק", infoAmmo: "תחמושת", infoMass: "מסה", infoFuel: "דלק", infoSec: "שנ׳", infoClose: "סגירה", infoTap: "לחצו על התמונה לפרטים",
     thanks: ["עסקה מצוינת!", "תהנה מזה, טייס!", "בחירה חכמה!"], cant: "אוי… חסרים לך עוד", coins: "מטבעות",
     soon: "בקרוב", once: "לקרב הזה", week: "שבוע", own: "לתמיד", ownedForever: "שלך לתמיד", rented: "מושכרת", days: "ימים", inFleet: "כבר בצי",
     saySoon: "את זו עוד בונים במספנה. בקרוב אצלי!", sayModes: "לקרב הזה, השכרה לשבוע, או לתמיד: אז היא בצי שלך בכל משחק.",
@@ -3905,6 +3907,8 @@ const SHOP_TXT = {
     sayLife: "A spare health tank: one more full bar before you go down. A classic!", sayAmmo: "All your weapons, full again. Boom, boom, boom.",
     sayShield: "Passive soaks hits by itself and refills. Active: a button, and nothing gets through for a few seconds.",
     sayWeapon: "An extra weapon from another ship, with its own button by the fire button. Choose well!", sayShip: "New ships for this game's fleet. Pick one, then confirm.",
+    poke: ["Don't touch me, you freak!", "Hands off, human!", "Hey! I'm not part of the merchandise!", "One more poke and I'm raising your prices!", "Do you know how many tentacles I have to clean now?", "On my planet that's a marriage proposal. Stop it!", "Don't touch! I'm sensitive in all eight of my skins!"],
+    infoW1: "Weapon 1", infoW2: "Weapon 2", infoMagic: "Magic", infoDmg: "Damage", infoAmmo: "Ammo", infoMass: "Mass", infoFuel: "Fuel", infoSec: "s", infoClose: "Close", infoTap: "Tap the picture for details",
     thanks: ["Excellent deal!", "Enjoy it, pilot!", "Smart choice!"], cant: "Oh… you still need", coins: "coins",
     soon: "Coming soon", once: "This game", week: "A week", own: "Forever", ownedForever: "Yours forever", rented: "Rented", days: "days", inFleet: "In your fleet",
     saySoon: "That one is still in the shipyard. Coming soon!", sayModes: "For this game, rented for a week, or forever: then it is in your fleet every game.",
@@ -4484,7 +4488,7 @@ function shopOpen(kind) {
   const ships = hangarShips().filter((S) => S.shopOnly && !(bank.owned || {})[S.id]).map((S) => S.id);   // only the ships that are not in the fleet: sold only here
   shop.offers = { weapons: shuffled(others).slice(0, SHOP.offers), ships };
   const merchant = kind === "ship" ? "alien" : STORE_LOOKS[kind].merchant;
-  Object.assign(shop, { open: true, kind, merchant, sel: kind === "ship" ? "ship" : null, opt: 0, busy: false, alien: { seq: merchant === "alien" ? "wave" : "greet", t: 0 }, say: null, mode: "once", page: 0 });
+  Object.assign(shop, { open: true, kind, merchant, sel: kind === "ship" ? "ship" : null, opt: 0, busy: false, alien: { seq: merchant === "alien" ? "wave" : "greet", t: 0 }, say: null, mode: "once", page: 0, info: null, flinch: 0 });
   const lines = st("hello_" + kind) || st("hello"); shop.helloLine = shop.offers.ships.length || kind !== "ship" ? lines[Math.floor(Math.random() * lines.length)] : st("noShips");
 }
 function shopProducts() { return SHOP_PRODUCTS.filter(([id]) => shop.kind === "ship" ? id === "ship" : (STORE_LOOKS[shop.kind] || STORE_LOOKS.weapon).goods.includes(id)); }
@@ -4515,6 +4519,8 @@ function shopEn(text) {
 // ---- the sellers' voices: the line in English, spoken by the phone (the app's ttsMake writes tts/<id>.wav), made alien
 // here: slower or faster, times a low hum (a ring modulator, the classic alien voice) and a short metallic echo. Each
 // seller his own. Lines once spoken are kept, so they play at once next time. (An older app without it: the blips) ----
+// VOICE_SPEED: how fast they talk (1 = the phone's own pace); kept whatever their pitch (`rate`), by stretching the line
+const VOICE_SPEED = 1.3;
 const VOICE_FX = { alien: { rate: 0.86, ring: 55, dry: 0.35, echo: 0.032 }, kip: { rate: 1.12, ring: 90, dry: 0.5, echo: 0.02 }, brass: { rate: 0.74, ring: 32, dry: 0.4, echo: 0.045 } };
 const voice = { bufs: {}, want: null, src: null };
 function voiceId(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return "v" + h.toString(36) + s.length; }
@@ -4536,8 +4542,10 @@ window.ttsDone = (id, ok) => {
 function voicePlay(buf) {
   const c = audio.ctx; if (!c) return;
   voiceStop();
-  const P = VOICE_FX[shop.merchant] || VOICE_FX.alien, now = c.currentTime;
-  const src = c.createBufferSource(); src.buffer = buf; src.playbackRate.value = P.rate;
+  const P = VOICE_FX[shop.merchant] || VOICE_FX.alien, now = c.currentTime, key = shop.merchant + VOICE_SPEED;
+  if (!buf.fast) buf.fast = {};
+  if (!buf.fast[key]) buf.fast[key] = voiceStretch(c, buf, VOICE_SPEED / P.rate);   // (faster, the same pitch; kept)
+  const src = c.createBufferSource(); src.buffer = buf.fast[key]; src.playbackRate.value = P.rate;
   const ring = c.createGain(); ring.gain.value = 0; const osc = c.createOscillator(); osc.frequency.value = P.ring; osc.connect(ring.gain);
   const dry = c.createGain(), wet = c.createGain(), out = c.createGain(), dl = c.createDelay(0.2), fb = c.createGain();
   dry.gain.value = P.dry; wet.gain.value = 1 - P.dry; out.gain.value = 1.8; dl.delayTime.value = P.echo; fb.gain.value = 0.35;
@@ -4545,6 +4553,16 @@ function voicePlay(buf) {
   out.connect(audio.out); out.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(audio.out);
   osc.start(now); src.start(now); src.onended = () => { try { osc.stop(); } catch (e) {} };
   voice.src = { src, osc };
+}
+// faster (k > 1) or slower, the pitch kept: overlapping 50 ms windows taken k times further apart than they are laid down
+function voiceStretch(c, buf, k) {
+  if (Math.abs(k - 1) < 0.02) return buf;
+  const d = buf.getChannelData(0), G = Math.round(buf.sampleRate * 0.05), Hs = G >> 1, Ha = Math.max(1, Math.round(Hs * k));
+  const n = Math.floor((d.length - G) / Ha) + 1; if (n < 2) return buf;
+  const len = (n - 1) * Hs + G, o = new Float32Array(len), win = new Float32Array(G);
+  for (let i = 0; i < G; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / G);
+  for (let j = 0; j < n; j++) { const a = j * Ha, b = j * Hs; for (let i = 0; i < G; i++) o[b + i] += d[a + i] * win[i]; }
+  const B = c.createBuffer(1, len, buf.sampleRate); B.copyToChannel(o, 0); return B;
 }
 function voiceStop() { const v = voice.src; voice.src = null; if (v) { try { v.src.stop(); } catch (e) {} try { v.osc.stop(); } catch (e) {} } }
 function shopPrice(p) {
@@ -4607,11 +4625,95 @@ function shopBuy() {
   audio.coins && audio.coins(); for (let i = 0; i < 5; i++) audio.tone(900 + i * 220, 0.07, "triangle", 0.05, 1, i * 0.05); buzz(50);
   setTimeout(() => { shop.busy = false; }, 450);
 }
+// ---- a ship's page in the ship shop: tap a ship, then its picture. The picture big, its weapons and its magic explained.
+// SHIP_INFO: each shop ship's words (Hebrew, English): w (its two weapons, in button order), m (its magic) ----
+const SHIP_INFO = {
+  flipper: { w: [["קפיץ יורה כדור פלדה מהחרטום. הכדור קופץ פעם אחת מהכוכב, אז אפשר לפגוע גם מזווית.", "A spring fires a steel ball from the nose. It bounces once off the star, so you can hit from an angle."],
+                 ["כפות פינבול דרוכות שמכות לבד כשאויב מתקרב.", "Cocked pinball paddles that strike by themselves when an enemy comes close."]],
+             m: ["שלושה כדורי פינבול קופצים סביב הספינה השנייה במשך דקה. כל פגיעה לוקחת חצי מיכל, אז ספינה שעומדת במקום חוטפת.", "Three pinballs bounce around the other ship for a minute. Each hit takes half a tank, so a ship that sits still gets hammered."] },
+  courier: { w: [["צרור של שני כדורי פליז מפתחי החרטום.", "A brass burst: two rounds from the nose ports."],
+                 ["קפסולת דואר מהצינור. כוח המשיכה של הכוכב מעקם את המסלול שלה.", "A mail capsule from its tube. The star's gravity bends its path."]],
+             m: ["מניח מוקש שמקיף את הכוכב במרחק שבו הספינה נמצאת. כל שימוש מוסיף מוקש, והם ממשיכים להסתובב עד שהם פוגעים, גם אחרי ש-COURIER הושמד. כל פגיעה: 1.5 מיכלים.", "Drops a mine that circles the star at the ship's distance. Each use adds another, and they keep circling until they hit, even after COURIER is destroyed. Each hit: 1.5 tanks."] },
+  fresnel: { w: [["הבזק זהב ממוקד מהעדשה.", "A focused golden flash from the lens."],
+                 ["שני רסיסי אור צבעוניים מהתריסים שבצדדים, שנפגשים בנקודה לפני הספינה.", "Two coloured light shards from the side shutters that cross at a point ahead."]],
+             m: ["משולש אור פותח פורטל, ונחש אור יוצא ממנו ורודף אחרי הספינה השנייה, מתארך ומנסה ללכוד אותה. נגיעה בו: 1.5 מיכלים. צריך לתמרן עד שהוא נשאב חזרה לפורטל.", "A light triangle opens a portal and a light snake comes out, chasing the other ship, growing longer and trying to trap it. Touching it: 1.5 tanks. Keep moving until it is sucked back through the portal."] },
+  vault: { w: [["צרור פליז משני הפתחים.", "A brass burst from both ports."],
+               ["דחיפה של בוכנת קפיץ. כשהכוכב כלוא בכספת, יוצאת ממנה אש שמש.", "A spring piston's shove. While the star is locked inside, solar fire pours from the vault's mouth."]],
+           m: ["שואב את הכוכב לתוך הכספת ל-30 שניות. ליד VAULT יש משיכה חזקה, וכל כמה שניות יוצא גל קרינה שפוגע בספינה השנייה.", "Sucks the star into the vault for 30 seconds. Its pull is strong near VAULT, and every few seconds a radiation wave hits the other ship."] },
+  corsair: { w: [["מטח צדדי של חמישה כדורי תותח, מכוונים עם ג׳ויסטיק.", "A broadside of five cannonballs, aimed with a stick."],
+                 ["כדורי תותח מחוברים בשרשרת מהחרטום.", "Chain shot from the bow."]],
+             m: ["הופך לספינת רפאים ל-12 שניות: היריות שלו מסתובבות אחרי האויב. כל פגיעה מעלה רוח מעל האויב ומחזירה ל-CORSAIR בריאות.", "Turns into a ghost ship for 12 seconds: its shots turn after the enemy. Every hit raises a ghost over them and gives CORSAIR health back."] },
+  husk: { w: [["תותחים תאומים שיורים בורגי ענבר, שמאל וימין לסירוגין.", "Twin cannons firing amber bolts, left and right in turn."],
+              ["קפסולה שנתפסת במנוע של ספינה ומחלישה את הדחף שלה.", "A capsule that grips a ship's engine and weakens its thrust."]],
+          m: ["המכל נפתח וזרוע עם פה יוצאת. נוגעים איתה בחנות, החנות נדבקת והמפלצת פורצת ממנה ומחכה בחוץ. ספינה שנתפסת בפה ומובאת אליה מושמדת.", "The tank opens and an arm with jaws comes out. Touch a store with it: the store is infected and the monster tears out and waits outside. A ship caught in the jaws and brought to it is destroyed."] }
+};
+const WEAPON_EN_INFO = { steelball: "Steel ball", paddles: "Paddles", brassburst: "Brass burst", mailcap: "Mail capsule", lensflash: "Lens flash", lightshard: "Light shards",
+  piston: "Spring piston", broadside: "Broadside", chainshot: "Chain shot", huskcannon: "Twin cannons", parasite: "Engine parasite" };
+function weaponTitle(w) { const Wp = WEAPONS[w]; if (!Wp) return w; return LANG === "he" ? Wp.name : WEAPON_EN_INFO[w] || (SHOP.weapons[w] && SHOP.weapons[w][1]) || w.replace(/^./, (c) => c.toUpperCase()); }
+function drawShipInfo() {
+  const I = shop.info; if (!I) return;
+  const S = shipById(I.id); if (!S) { shop.info = null; return; }
+  const he = LANG === "he", f = Math.round(U * 0.034), k = ease(clamp(I.t / 0.25, 0, 1)), D = SHIP_INFO[I.id], lg = he ? 0 : 1;
+  ctx.save(); ctx.globalAlpha = k;
+  ctx.fillStyle = "rgba(3,6,16,0.94)"; ctx.fillRect(0, 0, W, H);
+  const m = U * 0.05, pw = Math.min(W - m * 2, U * 1.6), px = (W - pw) / 2;
+  // the weapons and the magic (measured first: the picture gets the room they leave)
+  const rows = [[st("infoW1"), weaponTitle(weaponsOf(S)[0]), D && D.w[0][lg], weaponsOf(S)[0]], [st("infoW2"), weaponTitle(weaponsOf(S)[1]), D && D.w[1][lg], weaponsOf(S)[1]],
+    [st("infoMagic"), S.magic && MAGIC[S.magic] ? magicName(MAGIC[S.magic]) : "", D && D.m[lg], null]];
+  const ff = Math.round(f * 0.78), tx = he ? px + pw - f * 0.8 : px + f * 0.8, iconR = f * 0.9;
+  ctx.font = `600 ${ff}px Rubik, Arial, sans-serif`;
+  const boxes = rows.map((r) => { const lines = r[2] ? wrapLines(r[2], pw - f * 1.6 - iconR * 2.6) : []; return { lines, h: f * 1.9 + lines.length * ff * 1.3 + f * 0.5 }; });
+  const need = boxes.reduce((a, b) => a + b.h + f * 0.5, 0) + f * 2.9 + f * 1.3 + f * 1.6 + m * 2 + f * 0.6;
+  // the picture, big
+  const pic = has3d(S.id) ? artImage("art/ships3d/" + S.id + ".webp") : null, ph = clamp(H - need, H * 0.14, Math.min(H * 0.36, pw * 427 / 640));
+  let y = m;
+  if (pic) {
+    const pwi = ph * pic.width / pic.height, x0 = W / 2 - pwi / 2;
+    ctx.save(); roundRect(x0, y, pwi, ph, U * 0.02); ctx.clip(); ctx.drawImage(pic, x0, y + Math.sin(time * 1.3) * U * 0.004, pwi, ph);
+    ctx.globalAlpha = 0.06 * k; ctx.fillStyle = "#5ee7ff"; for (let yy = y + ((time * 30) % 6); yy < y + ph; yy += 6) ctx.fillRect(x0, yy, pwi, 1); ctx.restore();
+    ctx.strokeStyle = "rgba(94,231,255,0.8)"; ctx.lineWidth = 2; roundRect(x0, y, pwi, ph, U * 0.02); ctx.stroke();
+  } else drawShip(S, W / 2, y + ph / 2, ph * 0.8, { ang: Math.sin(time * 0.5) * 0.4, power: 0.35 });
+  y += ph + f * 1.3;
+  // the name, its rarity, mass and fuel
+  const R = RARITY[S.rarity] || RARITY.common;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  ctx.font = `900 ${Math.round(f * 1.6)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.fillText(S.name, W / 2, y); y += f * 1.4;
+  ctx.direction = textDir(); ctx.font = `700 ${Math.round(f * 0.8)}px Rubik, Arial, sans-serif`; ctx.fillStyle = R.color;
+  const st_ = shipStats(S);
+  ctx.fillText(`${"★".repeat(R.stars || 1)} ${he ? R.name : RARITY_EN[S.rarity] || ""}  ·  ${st("infoMass")} ${S.mass}  ·  ${st("infoFuel")} ${Math.round(st_.fuel || S.fuel)} ${st("infoSec")}`, W / 2, y, pw); y += f * 1.5;
+  // the weapons and the magic: a box each
+  rows.forEach(([label, name, desc, w], ri) => {
+    const { lines, h: bh } = boxes[ri];
+    if (y + bh > H - m - f * 2.2) return;
+    const col = w ? (WEAPONS[w] && WEAPONS[w].color) || "#5ee7ff" : (MAGIC[S.magic] && MAGIC[S.magic].color) || "#c77dff";
+    shopPanel(px, y, pw, bh, col, "rgba(10,16,34,0.9)");
+    const ix = he ? px + iconR * 1.4 : px + pw - iconR * 1.4, iy = y + bh / 2;
+    ctx.fillStyle = col; ctx.font = `900 ${Math.round(iconR * 1.3)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.fillText(w ? (ri ? "◎" : "✹") : "✦", ix, iy);
+    ctx.textAlign = he ? "right" : "left"; ctx.direction = textDir();
+    ctx.font = `800 ${Math.round(ff * 0.85)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#9fb4d8"; ctx.fillText(label, tx, y + f * 0.6);
+    ctx.font = `900 ${ff}px Rubik, Arial, sans-serif`; ctx.fillStyle = col;
+    const Wp = w && WEAPONS[w]; ctx.fillText(name + (Wp ? `   ·  ${st("infoDmg")} ${Wp.dmg}  ·  ${st("infoAmmo")} ${Wp.ammo}` : ""), tx, y + f * 1.35, pw - iconR * 3);
+    ctx.font = `600 ${ff}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#e8f6ff";
+    lines.forEach((ln, i) => ctx.fillText(ln, tx, y + f * 1.95 + ff * 0.4 + i * ff * 1.3));
+    y += bh + f * 0.5;
+  });
+  // close
+  const cw = U * 0.36, ch = f * 1.6, cx = W / 2 - cw / 2, cy = H - m - ch;
+  shopPanel(cx, cy, cw, ch, "#5ee7ff", "rgba(10,16,34,0.95)");
+  ctx.textAlign = "center"; ctx.fillStyle = "#e8f6ff"; ctx.font = `800 ${Math.round(f * 0.8)}px Rubik, Arial, sans-serif`; ctx.fillText(st("infoClose"), W / 2, cy + ch / 2);
+  ctx.direction = "ltr"; ctx.restore();
+}
 function shopTap(x, y) {
+  if (shop.info) { shop.info = null; audio.pop(); buzz(8); return; }   // (the ship's page: any tap closes it)
   for (let i = shop.hits.length - 1; i >= 0; i--) {
     const h = shop.hits[i];
     if (x < h.x || x > h.x + h.w || y < h.y || y > h.y + h.h) continue;
     if (h.act === "exit") { shopExit(); audio.pop(); return; }
+    if (h.act === "info") { shop.info = { id: h.id, t: 0 }; audio.pop(); buzz(10); return; }   // the chosen ship's picture: its page
+    if (h.act === "poke") {   // poking the seller: he does not like it
+      const P = st("poke"); let i; do { i = Math.floor(Math.random() * P.length); } while (P.length > 1 && i === shop.pokeLast); shop.pokeLast = i;
+      shopSay(P[i]); shop.flinch = 0.35; audio.tone(180, 0.15, "square", 0.04, 1.8); buzz(25); return;
+    }
     if (h.act === "buy") { shopBuy(); return; }
     if (h.act === "prod") {
       if (shop.sel === h.p) { shop.sel = null; shopSay(shop.helloLine); }   // (again: put it back)
@@ -4626,6 +4728,8 @@ function shopTap(x, y) {
 }
 function updateShop(dt) {
   if (!shop.open) return;
+  if (shop.info) shop.info.t += dt;
+  if (shop.flinch > 0) shop.flinch = Math.max(0, shop.flinch - dt);
   shop.alien.t += dt;
   if ((shop.alien.seq === "wave" && shop.alien.t > 0.68) || (shop.alien.seq === "greet" && shop.alien.t > clipSec("greet"))) { shop.alien = { seq: "idle", t: 0 }; shopSay(shop.helloLine); }
   if (shop.alien.seq === "present" && shop.alien.t > clipSec("present")) shop.alien = { seq: "idle", t: 0 };
@@ -4746,6 +4850,10 @@ function drawShop() {
     ctx.globalAlpha = 0.07; ctx.fillStyle = "#5ee7ff"; for (let y = fy + ((time * 30) % 6); y < fy + fh; y += 6) ctx.fillRect(fx, y, fw, 1);   // scan lines
     ctx.restore();
     ctx.strokeStyle = "rgba(94,231,255,0.8)"; ctx.lineWidth = 2; roundRect(fx, fy, fw, fh, U * 0.02); ctx.stroke();
+    if (chosen && !chosen.soon && shipById(chosen.id)) {   // ("tap for details")
+      ctx.save(); ctx.fillStyle = `rgba(255,209,102,${0.65 + 0.3 * Math.sin(time * 3)})`; ctx.font = `800 ${Math.round(f * 0.6)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = textDir();
+      ctx.fillText("ⓘ " + st("infoTap"), cx, fy + fh - f * 0.55, fw * 0.95); ctx.restore();
+    }
     if (chosen && chosen.soon) { ctx.fillStyle = "rgba(255,209,102,0.95)"; ctx.font = `900 ${Math.round(f * 0.7)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = textDir(); ctx.fillText(st("soon"), cx, fy + fh - f * 0.6); ctx.direction = "ltr"; }
     if (!chosen) {   // my ship from above, small, with its looks
       const tx = he ? fx + fh * 0.32 : fx + fw - fh * 0.32, ty = fy + fh * 0.72, ts = fh * 0.42;
@@ -4763,6 +4871,7 @@ function drawShop() {
     const SS = chosen ? shipById(chosen.id) : S;
     drawShip(SS, cx, cy, sz, { ang: Math.sin(time * 0.5) * 0.5, bank: Math.sin(time * 0.8) * 0.9, power: 0.35, gear: chosen ? null : myGearLook() });
   }
+  if (chosen && !chosen.soon && shipById(chosen.id)) shop.hits.push({ x: Sh.x, y: Sh.y - Sh.h * 0.3, w: Sh.w, h: Sh.h * 1.3, act: "info", id: chosen.id });   // tap the ship: its page
   // what it carries: its shields and extra weapon, under it
   ctx.font = `800 ${Math.round(f * 0.62)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "#bff6ff";
   const carry = [G.pas ? `🛡 ${st("pas")} ${G.pas}` : "", G.act ? `⚡🛡 ${st("act")} ${G.act}` : "", G.xw ? `✦ ${he ? WEAPONS[G.xw].name : SHOP.weapons[G.xw] ? SHOP.weapons[G.xw][1] : G.xw}` : ""].filter(Boolean).join("   ");
@@ -4775,6 +4884,9 @@ function drawShop() {
   const ah = MC ? Math.min(A.h * 0.98 * 384 / MC.pivot[1], A.w * 1.25) : Math.min(A.h * 0.98, A.w * 1.1 * 480 / 384), aw = MC ? ah : ah * 384 / 480;
   const ox = MC ? A.x + A.w / 2 - MC.pivot[0] / 384 * aw : A.x + A.w / 2 - aw / 2, oy = MC ? A.y + A.h - MC.pivot[1] / 384 * ah : A.y + A.h - ah;
   const hx = A.x + A.w / 2, hy = MC ? oy + ah * 0.25 : A.y + A.h - ah * 0.78;   // the head: the view closes in on it
+  shop.hits.push({ x: A.x, y: A.y, w: A.w, h: A.h, act: "poke" });   // (poke him)
+  const fl = shop.flinch > 0 ? Math.sin(shop.flinch * 60) * U * 0.01 * (shop.flinch / 0.35) : 0;   // (poked: he shudders)
+  ctx.save(); ctx.translate(fl, 0);
   if (z < 1) {
     ctx.save(); ctx.globalAlpha = 1 - z; ctx.translate(hx, hy); ctx.scale(1 + z * 0.8, 1 + z * 0.8); ctx.translate(-hx, -hy);
     ctx.fillStyle = "rgba(94,231,255,0.15)"; ctx.beginPath(); ctx.ellipse(A.x + A.w / 2, A.y + A.h - A.h * 0.02, aw * 0.4, A.h * 0.04, 0, 0, TAU); ctx.fill();
@@ -4786,6 +4898,7 @@ function drawShop() {
     const cs = Math.min(A.w * 1.2, A.h) * (0.7 + 0.3 * z), cx0 = A.x + A.w / 2;
     if (cu) { ctx.save(); ctx.globalAlpha = z; ctx.beginPath(); ctx.rect(A.x - L.m, A.y, A.w + L.m * 2, A.h); ctx.clip(); ctx.drawImage(cu, cx0 - cs / 2, A.y + A.h - cs, cs, cs); ctx.restore(); }
   }
+  ctx.restore();
   // his speech bubble, the words appearing as he speaks
   if (shop.say) {
     const B = L.bubble, ff = Math.round(f * 0.78);
@@ -12836,7 +12949,7 @@ function draw() {
   drawFleet();
   drawPicker();
   drawResultButtons();
-  drawShop();   // the station's shop: over everything
+  drawShop(); if (shop.open) drawShipInfo();   // the station's shop: over everything (and a ship's page over it)
   if (game.stage === "title" && !shop.open) { drawTitle(); drawMenuShop(); drawDials(); drawLangBtn(); drawAccountBtn(); }   // (the ship shop covers it)
   if (picker.open || camp.over) drawLangBtn();   // (switch the language while choosing a ship, too)
   if (hangar.open && !picker.open && !camp.over) { if (THREE_SHIPS) drawFleetBtn(); }   // in the hangar's second header row (the language button left the hangar: title and ship picker only)

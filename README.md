@@ -596,6 +596,11 @@ the computer stop). The sellers speak their lines in English with an alien voice
 line to `tts/<id>.wav` (`ShipNative.ttsMake`, a new APK), and the page makes it alien (`VOICE_FX`: speed, a ring
 modulator, a short echo; each seller his own). An app without it keeps the typing blips.
 
+**A ship's page** (the ship shop): tap a ship, then its picture: the picture big, its rarity, mass and fuel, its two
+weapons (damage, ammo, what they do) and its magic (`drawShipInfo`; the words in `SHIP_INFO`, Hebrew and English). Any
+tap closes it. Poking a seller: he complains (`poke` lines, spoken like the rest). The voices run at `VOICE_SPEED`
+(1.3), stretched so their pitch stays.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the
