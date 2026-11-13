@@ -486,6 +486,16 @@ ship takes half a health tank (shields help) and is gone. A ship that sits still
 dodging, or flying off before the table catches up, saves it. The other ship's phone runs the balls (so hits go by
 where that ship really is) and sends them in its state (`pb`) for FLIPPER's phone to show.
 
+**COURIER**, the pneumatic mail ship (`art/ships/courier/`: the COURIER package's atlases cut into 512 px frames; its
+buttons, its BLOOM zombie, its 3D picture). Sold only in the shop (`shopOnly`), and in the test hangar. Button 1: a brass
+burst, two rounds at once from the nose ports. Button 2: a mail capsule from its tube that the star's gravity bends round
+(blinking orange, a fading trail; one at a time). Magic, the **orbit mine** (`orbitmine` in `MAGIC`): each press puts one
+more spiked mine on a circle round the star, at the ship's own distance from it, going round the way the ship is going.
+A mine keeps going round until it reaches an enemy ship, then it blows up and takes 1.5 health tanks (a whole tank and
+half another). It does not stop when the magic is over, nor when COURIER is destroyed (only when the match ends). Its
+circle shows faintly (red for the other side's, so the danger can be seen coming), and the radar shows the mines. The
+owner's phone sends each new mine (`om`); the phone of the ship it reaches decides the hit (`omk`).
+
 **The station and its shop** (the Orbit Break Docking package: `art/station/`, `art/ui/shop/`, the alien seller in
 `art/ui/shop/alien/`). A docking station floats in the arena, one of `STATION_LOOKS` picked at random (one picture so far;
 up to five, each with its own solid parts and bay as boxes in its picture), somewhere around the star. Both phones have

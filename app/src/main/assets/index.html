@@ -447,7 +447,7 @@
   }
   return {config,roots,phase,load,draw};
 });
-const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"},"boiler":{"kind":"still","sprite":"zombie-boiler-top.webp"},"flipper":{"kind":"still","sprite":"zombie-flipper-top.webp"}};
+const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"},"boiler":{"kind":"still","sprite":"zombie-boiler-top.webp"},"flipper":{"kind":"still","sprite":"zombie-flipper-top.webp"},"courier":{"kind":"still","sprite":"zombie-courier-top.webp"}};
 </script>
 <script>
 "use strict";
@@ -1064,7 +1064,19 @@ const SHIPS = [
     anim: { dir: "flipper", size: 1.1, idle: "idle.webp",
       primary: frames("fire", 24, () => 35),                        // the launcher kicks, then back at rest
       secondary: frames("plunge", 24, () => 23, { 6: "fire" }),     // the plunger out (it hits at the 6th frame)
-      magic: frames("magic", 24, () => 58) } }                       // both paddles flap: the balls go
+      magic: frames("magic", 24, () => 58) } },                      // both paddles flap: the balls go
+  // COURIER, the pneumatic mail ship (art/ships/courier/, the COURIER package: 512 px frames, nose up). Sold only in the
+  // shop (`shopOnly`), and in the test hangar. Button 1: a brass burst, two rounds from the nose ports. Button 2: a mail
+  // capsule from its tube: the star's gravity bends it round (one at a time). Magic: an orbit mine (MAGIC.orbitmine)
+  { id: "courier", name: "COURIER", rarity: "epic", mass: 1.0, fuel: 30, refill: 15, sfx: null, magic: "orbitmine", shopOnly: true,
+    hull: "#3f6e55", wingC: "#e8dcc0", trim: "#ffb347", flame: "#6dffd8",
+    body: [], wing: [], nozzles: [-0.095, 0.075], engineY: 0.42, cockpit: [0, 0, 0.05, 0.1],
+    weapons: ["brassburst", "mailcap"],
+    guns: { brassburst: [[-0.097, -0.365], [0.013, -0.365]], mailcap: [[0.15, -0.236]] },
+    anim: { dir: "courier", size: 1.1, idle: "idle.webp",
+      primary: frames("fire", 24, () => 24),                         // both ports flash, a little recoil
+      secondary: frames("launch", 24, () => 33, { 8: "fire" }),      // the piston runs, the iris opens: the capsule goes
+      magic: frames("swap", 24, () => 26) } }                        // an amber flash: a mine is set
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1101,7 +1113,8 @@ const HANDLING = {
   frankenstein: { size: 1, speed: 1.3,  accel: 1.3,  turn: 1.15 },   // quick (it has to stand still to operate)
   labyrinth: { size: 1.1, speed: 0.85, accel: 0.9,  turn: 0.85 },   // an iron foundry
   boiler:   { size: 1.05, speed: 0.85, accel: 0.9,  turn: 0.9  },   // a heavy diving bell
-  flipper:  { size: 1,    speed: 1.05, accel: 1.1,  turn: 1.1  }    // a nimble pinball table
+  flipper:  { size: 1,    speed: 1.05, accel: 1.1,  turn: 1.1  },   // a nimble pinball table
+  courier:  { size: 0.95, speed: 1.15, accel: 1.1,  turn: 1.05 }    // a quick mail ship
 };
 function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1304,6 +1317,10 @@ const WEAPONS = {
   // FLIPPER. steelball: bounces once off the star (starBounce). plunger: a short, fast punch that shoves (`knock`)
   steelball: { name: "כדור פלדה", dmg: 9, speed: 1.8, life: 1.6, cool: 0.45, ammo: 10, refill: 7, r: 0.05, color: "#d8dde6", starBounce: true },
   plunger:   { name: "בוכנת קפיץ", dmg: 14, speed: 3.0, life: 0.13, cool: 0.9, ammo: 5, refill: 6, r: 0.1, color: "#ffd27a", knock: 1.4 },
+  // COURIER. brassburst: two rounds at once from the nose ports. mailcap: a capsule the star pulls round (gravity), one
+  //   at a time (`one`)
+  brassburst: { name: "צרור פליז", dmg: 5, speed: 2.3, life: 1.0, cool: 0.28, ammo: 16, refill: 7, r: 0.02, color: "#ffc46b", both: true },
+  mailcap:    { name: "קפסולת דואר", dmg: 18, speed: 1.2, life: 6.0, cool: 1.6, ammo: 3, refill: 9, r: 0.05, color: "#ff9a2e", gravity: true, one: true },
   laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -1447,6 +1464,9 @@ const MAGIC = {
   // FLIPPER's pinballs: `balls` balls round the other ship in a table `box` screens square that follows it at `follow`
   //   screens/s; they fly at `speed` screens/s for `last` s; each that reaches it takes `hit` of a health tank. r: a
   //   ball's radius (ship-lengths). cool: recharge
+  // COURIER's orbit mine: one more each press, round the star at the ship's distance, `speed` screens/s along the circle,
+  //   until it reaches an enemy ship: `hit` health tanks. r: its size (ship-lengths). cool: recharge
+  orbitmine: { name: "מוקש מסלול", look: "orbitmine", speed: 0.8, hit: 1.5, r: 0.13, cool: 10, color: "#ffb347" },
   pinballs: { name: "כדורי פליפר", look: "pinballs", balls: 3, box: 2.4, follow: 0.7, speed: 0.8, last: 60, hit: 0.5, r: 0.1, cool: 75, color: "#ff4d6d" },
   reverse: { name: "היפוך כבידה", look: "reverse", at: 0.65, last: 4, push: 0.55, swirl: 1.1, reach: 1.5, cool: 16, color: "#7fb6ff" },
   // STRATA's vertical shift (its package: strata-magic.mjs). It tips its nose, the front engine fires down, and it
@@ -2205,7 +2225,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -2886,7 +2906,7 @@ function update(dt) {
     else if (game.docked) { const L = stationLook(), P = stationWorld(L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
-    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt);
+    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt);
   }
   updateTrade(dt);
   updateDuel(dt);
@@ -4495,6 +4515,7 @@ const UPGRADE_FIT = {
   brass: [-0.8061, -0.81, 1.6154, 0.5095, -0.4062],
   cantor: [-0.8058, -0.8069, 1.6115, 0.4123, -0.3285],
   cinder: [-0.8048, -0.8785, 1.6127, 0.4394, -0.3998],
+  courier: [-0.6967, -0.6959, 1.3962, 0.2168, -0.2814],
   drakon: [-0.7714, -0.774, 1.5481, 0.3685, -0.3145],
   flipper: [-0.7431, -0.6461, 1.4841, 0.3323, -0.1997],
   frankenstein: [-0.7808, -0.7808, 1.5615, 0.2074, -0.3172],
@@ -4526,7 +4547,7 @@ function drawUpgrade(S, which) {
 }
 // the ships still being made: shown in the shop ("coming soon"), not for sale yet (their pictures: art/upgrades/<id>/body.webp
 // from above, art/ships3d/<id>.webp in 3D where there is one)
-const SOON_SHIPS = [["corsair", "CORSAIR"], ["courier", "COURIER"], ["fresnel", "FRESNEL"], ["gravity-sail", "GRAVITY SAIL"],
+const SOON_SHIPS = [["corsair", "CORSAIR"], ["fresnel", "FRESNEL"], ["gravity-sail", "GRAVITY SAIL"],
   ["knuckle", "KNUCKLE"], ["link", "LINK"], ["vault", "VAULT"]].map(([id, name]) => ({ id, name, soon: true }));
 // ships for good and ships rented (bank.owned[id] = 1; bank.rent[id] = when the rental ends, ms): they join my fleet in
 // every game. SHIP_BUY: the three ways to buy a ship, and the price of each against the ship's price (SHOP.ship)
@@ -4634,6 +4655,86 @@ function starBounceFx(s, Wp, dt) {
   const v = bounceOff(s.vx, s.vy, dx / d, dy / d); s.vx = v.vx; s.vy = v.vy; s.bounced = true;
   burstAt(WW / 2 + dx / d * R, WH / 2 + dy / d * R, 10, ["#ffffff", "#ffd27a", "#d8dde6"], 0.3, 0.4);
   audio.tone(1700, 0.05, "square", 0.03, 0.6);
+}
+
+// ---------- COURIER's orbit mines (MAGIC.orbitmine) ----------
+// Each press puts one more mine on a circle round the star, at the ship's own distance from it, going round the way
+// the ship is going round (`speed` screens/s along the circle). A mine goes round until it reaches an enemy ship
+// (`hit` health tanks, then it is gone): not when the magic is over, and not when COURIER is destroyed. Only the other
+// side's ships are hurt by it. The owner's phone sends each new one ("om"); the phone of the ship it reaches decides
+// the hit (it knows where it really is) and says so ("omk"). orbitMines: [{ id, own: "me" | "them", r (screen-widths),
+// a0, w (rad/s), age }]
+const orbitMines = [];
+let orbitSeq = 0;
+function orbitPos(m) { const a = m.a0 + m.w * m.age; return { x: wrapX(WW / 2 + Math.cos(a) * m.r * U), y: wrapY(WH / 2 + Math.sin(a) * m.r * U), a }; }
+function startOrbitMine(M) {
+  if (game.dead) return;
+  const dx = wrapDelta(game.x - WW / 2, WW), dy = wrapDelta(game.y - WH / 2, WH), d = Math.max(Math.hypot(dx, dy), planetR() + shipSize() * 0.8);
+  const turn = dx * game.vy - dy * game.vx, dir = Math.abs(turn) < 1e-6 ? 1 : Math.sign(turn);   // the way I am going round
+  const m = { id: (duel.side ? "b" : "a") + "o" + (++orbitSeq), r: +(d / U).toFixed(4), a0: +Math.atan2(dy, dx).toFixed(4), w: +(dir * M.speed * U / d).toFixed(5), age: 0 };
+  orbitMines.push(Object.assign({ own: "me" }, m));
+  if (enemy.remote) link.send(Object.assign({}, m, { t: "om" }));
+  game.magicCool = M.cool; game.anim = { seq: "magic", t: 0 };
+  burstAt(game.x, game.y, 24, ["#ffb347", "#ffe08a", "#ffffff"], 0.5, 0.6);
+  audio.tone(330, 0.15, "square", 0.05, 1); audio.tone(660, 0.2, "triangle", 0.04, 1, 0.08); audio.noise(0.25, 0.06, 2500); buzz(40);
+}
+function orbitMsg(m) {
+  if (m.t === "om") { if (!orbitMines.some((q) => q.id === m.id)) orbitMines.push({ own: "them", id: m.id, r: m.r, a0: m.a0, w: m.w, age: m.age || 0 }); }
+  else if (m.t === "omk") { const i = orbitMines.findIndex((q) => q.id === m.id); if (i >= 0) { const p = orbitPos(orbitMines[i]); orbitBoom(p.x, p.y); orbitMines.splice(i, 1); } }
+}
+function orbitBoom(x, y) {
+  burstAt(x, y, 50, ["#ffffff", "#ffe08a", "#ffb347", "#ff6a1a"], 1.0, 1.0); rings.push({ x, y, t: 0, max: 0.45, r: shipSize() * 1.2, c: "#ffb347" });
+  audio.boom(); shake(0.5);
+}
+function updateOrbitMines(dt) {
+  if (!duel.stage) { orbitMines.length = 0; return; }
+  const M = MAGIC.orbitmine, size = shipSize();
+  for (let k = orbitMines.length - 1; k >= 0; k--) {
+    const m = orbitMines[k]; m.age += dt;
+    if (m.own !== "them" || game.dead || game.stage !== "fly" || stratAloft(game) || game.docked) continue;
+    const p = orbitPos(m);
+    if (Math.hypot(wrapDelta(p.x - game.x, WW), wrapDelta(p.y - game.y, WH)) < size * 0.42 * shipScale() + M.r * size) {   // it reached me
+      orbitMines.splice(k, 1); orbitBoom(p.x, p.y); link.send({ t: "omk", id: m.id }); buzz(160);
+      for (let n = M.hit * SHIP_HP; n > 0.01 && !game.dead; n -= SHIP_HP) damageShip(Math.min(SHIP_HP, n));   // 1.5 tanks: a whole one, then half
+    }
+  }
+}
+function drawOrbitMines() {
+  if (!orbitMines.length) return;
+  const M = MAGIC.orbitmine, size = shipSize(), c = toScreen(WW / 2, WH / 2), rs = M.r * size;
+  ctx.save();
+  // their circles, faint (one per mine), so the danger can be seen coming
+  for (const m of orbitMines) {
+    ctx.strokeStyle = m.own === "them" ? "rgba(255,90,60,0.22)" : "rgba(255,180,71,0.18)"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 10]);
+    ctx.beginPath(); ctx.arc(c.x, c.y, m.r * U, 0, TAU); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  for (const m of orbitMines) {
+    const P = orbitPos(m), p = toScreen(P.x, P.y), blink = Math.sin(time * 9 + m.a0 * 3) > 0;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(P.a * 2 + time);
+    ctx.fillStyle = "#6a4a22"; ctx.strokeStyle = "#c8913a"; ctx.lineWidth = Math.max(1.5, rs * 0.18);
+    for (let i = 0; i < 6; i++) { ctx.rotate(TAU / 6); ctx.beginPath(); ctx.moveTo(0, rs * 0.7); ctx.lineTo(0, rs * 1.35); ctx.stroke(); }   // the spikes
+    const g = ctx.createRadialGradient(-rs * 0.3, -rs * 0.3, rs * 0.1, 0, 0, rs); g.addColorStop(0, "#e8c27a"); g.addColorStop(0.6, "#8a5a24"); g.addColorStop(1, "#3a2410");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rs, 0, TAU); ctx.fill();
+    ctx.fillStyle = blink ? (m.own === "them" ? "#ff4d3a" : "#ffb347") : "#5a2010"; ctx.beginPath(); ctx.arc(0, 0, rs * 0.35, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+// COURIER's mail capsule: it falls round the star (gravity), blinking orange, a fading trail behind it
+function drawCapsule(s) {
+  const p = toScreen(s.x, s.y), img = artImage(framePath("courier", "capsule.webp")), L = shipSize() * 0.3, a = Math.atan2(s.vx, -s.vy);
+  s.trail = s.trail || []; s.trail.push([s.x, s.y]); if (s.trail.length > 26) s.trail.shift();
+  ctx.save(); ctx.lineWidth = 2;
+  for (let i = 1; i < s.trail.length; i++) {
+    const q0 = toScreen(...s.trail[i - 1]), q1 = toScreen(...s.trail[i]);
+    if (Math.hypot(q1.x - q0.x, q1.y - q0.y) > U) continue;
+    ctx.strokeStyle = `rgba(255,154,46,${i / s.trail.length * 0.5})`; ctx.beginPath(); ctx.moveTo(q0.x, q0.y); ctx.lineTo(q1.x, q1.y); ctx.stroke();
+  }
+  ctx.translate(p.x, p.y); ctx.rotate(a);
+  if (img) ctx.drawImage(img, -L * 0.2, -L / 2, L * 0.4, L);
+  if (Math.sin(time * 14) > 0) { ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = "rgba(255,154,46,0.6)"; ctx.beginPath(); ctx.arc(0, 0, L * 0.3, 0, TAU); ctx.fill(); }
+  ctx.restore();
 }
 
 // ---------- magic: the gear button ----------
@@ -4790,7 +4891,8 @@ function useMagicNow(which = 0) {
   if (M.look === "reverse") { startReverse(M); return; }
   if (M.look === "starforge") { startForge(M); return; }
   if (M.look === "flood") { startFlood(M); return; }
-  if (M.look === "pinballs") { startPinballs(M); return; }   // FLIPPER: three pinballs round them   // BOILER: the water (updateFlood)   // LABYRINTH: the spire, then the maze (updateMaze)
+  if (M.look === "pinballs") { startPinballs(M); return; }
+  if (M.look === "orbitmine") { startOrbitMine(M); return; }   // COURIER: one more mine round the star   // FLIPPER: three pinballs round them   // BOILER: the water (updateFlood)   // LABYRINTH: the spire, then the maze (updateMaze)
   if (M.look === "surgery") { surgeryPress(M); return; }   // FRANKENSTEIN: surgery, then a part a press (updateSurgery)   // KILN: the body pushes the enemy away (updateReverse)   // STRATA: up into the upper dimension (updateShift)   // BALLAST: held, it tows an asteroid in (updateTow)
   if (M.look === "tail") {   // the stinger tail grows out behind the ship, stays out, and comes back by itself
     if (game.tail) return;
@@ -7340,7 +7442,8 @@ function shoot(i) {
   if (game.puff && game.puff.st === "full") { if (game.puff.armed) puffBurst(); return; }   // PUFF: this press lets the spines go
   const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
   if (Wp.gate && (gateAlive(game.gate) || game.gateWait != null)) return;   // GIMBAL: one gate at a time
-  if (Wp.harpoon && (game.hook || game.tether || game.elasso || game.hookWait != null)) return;   // LARIAT: one hook or cable at a time
+  if (Wp.harpoon && (game.hook || game.tether || game.elasso || game.hookWait != null)) return;
+  if (Wp.one && (shots.some((q) => q.w === w) || (game.anim && game.anim.pending === w))) return;   // COURIER: one capsule at a time   // LARIAT: one hook or cable at a time
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else if (i === 3) game.xammo -= 1; else game.loot.ammo -= 1;
   if (Wp.ring) { startRing(w, S); return; }
@@ -8247,7 +8350,8 @@ const KIT = {
   kiln: { a: "#ffb85a", b: "#7fb6ff", fx: "none", face: true }, frankenstein: { a: "#9bd2c3", b: "#c86bff", fx: "none", face: true },
   labyrinth: { a: "#ffb36b", b: "#5ee7ff", fx: "none", face: true },
   boiler: { a: "#ffb36b", b: "#3fd6d0", fx: "none", face: true },
-  flipper: { a: "#ff4d6d", b: "#ffd27a", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
+  flipper: { a: "#ff4d6d", b: "#ffd27a", fx: "none", face: true },
+  courier: { a: "#ffb347", b: "#6dffd8", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
 function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
@@ -10974,7 +11078,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawEnemy(); drawPractice(); drawComets(); drawPinballs();
+    drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -11334,6 +11438,7 @@ function drawRadar() {
   ctx.strokeRect(x0 + (game.x + game.lx - vw / 2) * kx, y0 + (game.y + game.ly - vh / 2) * ky, vw * kx, vh * ky);
   if (enemyShown()) { ctx.fillStyle = "#ff4d6d"; ctx.beginPath(); ctx.arc(x0 + enemy.x * kx, y0 + enemy.y * ky, 3, 0, TAU); ctx.fill(); }
   if (crate.on) { ctx.fillStyle = WEAPONS[crate.w].color; ctx.fillRect(x0 + crate.x * kx - 2.5, y0 + crate.y * ky - 2.5, 5, 5); }
+  for (const m of orbitMines) { const P = orbitPos(m); ctx.fillStyle = m.own === "them" ? "#ff4d3a" : "#ffb347"; ctx.fillRect(x0 + P.x * kx - 2, y0 + P.y * ky - 2, 4, 4); }   // the orbit mines
   for (const c of comets) { ctx.fillStyle = c.kind === "gold" ? "#ffd166" : mineralById(c.mineral).color; ctx.beginPath(); ctx.arc(x0 + c.x * kx, y0 + c.y * ky, 3, 0, TAU); ctx.fill(); }   // the comets
   { const P = stationPos(); ctx.strokeStyle = "#5ee7ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x0 + P.x * kx, y0 + P.y * ky, 4, Math.PI * 0.75, Math.PI * 2.25); ctx.stroke(); }   // the station
   ctx.translate(sx, sy); ctx.rotate(game.ang);
@@ -11495,6 +11600,7 @@ function drawShots(list = shots) {
     if (s.w === "torpedo") { drawTorpedo(s); continue; }
     if (s.w === "ptorp") { drawPTorp(s); continue; }   // BOILER's
     if (s.w === "fcan") { drawCan(s); continue; }
+    if (s.w === "mailcap") { drawCapsule(s); continue; }   // COURIER's
     if (s.w === "forgeball") { drawForgeBall(s); continue; }   // LABYRINTH's   // VANTA's drop inside the planet: only the exit mark, at the end
     const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
     if (s.gold) {   // turned by GIMBAL's gate: a gold ring round it
@@ -12523,6 +12629,7 @@ function duelLink(event, data) {
     game.reversed = { t: -MAGIC.reverse.at, seed: m.s || 1 }; audio.tone(140, 1.0, "sine", 0.05, 3, 0.5);
   } else if (m.t === "cm" || m.t === "cmh" || m.t === "cmk") { cometMsg(m);   // the resource comets
   } else if (m.t === "pb") { pinballsArrive();   // their FLIPPER's pinballs, round me
+  } else if (m.t === "om" || m.t === "omk") { orbitMsg(m);   // COURIER's orbit mines
   } else if (m.t === "wk") {   // their LYTH's ring / BALLAST's asteroid got my BOILER under water: it blows up
     if (flood && flood.owner === "me" && game.ship === "boiler") floodKill();
   } else if (m.t === "tank") {   // their STRATA's laser: one whole tank of power off my ship
