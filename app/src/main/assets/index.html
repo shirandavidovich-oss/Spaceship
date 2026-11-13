@@ -3851,10 +3851,10 @@ function drawForgeBall(s) {
 // top-left; the bay between the arms is open), the docking point. Both bays open downward. Ships are bought in the ship
 // shop, from the main menu (shopOpen("ship")).
 const STORE_LOOKS = {
-  weapon: { file: "art/station/weapon-store.webp", idle: "art/station/weapon-store-idle.webp", brk: "art/station/weapon-store-break.webp", huskIn: "art/station/weapon-store-husk-in.webp", huskLoop: "art/station/weapon-store-husk-loop.webp", closed: "art/station/weapon-store-closed.webp", w: 3.6, h: 3.6 * 871 / 845, clock: 0,
+  weapon: { file: "art/station/weapon-store.webp", idle: "art/station/weapon-store-idle.webp", brk: "art/station/weapon-store-break.webp", huskIn: "art/station/weapon-store-husk-in.webp", huskLoop: "art/station/weapon-store-husk-loop.webp", huskEmpty: "art/station/weapon-store-husk-empty.webp", door: [0.2, 0.64, 0.8, 0.9], exitAt: [0.49, 0.785], closed: "art/station/weapon-store-closed.webp", w: 3.6, h: 3.6 * 871 / 845, clock: 0,
     solid: [[0.12, 0.04, 0.31, 0.3], [0.03, 0.25, 0.97, 0.62], [0.03, 0.62, 0.28, 0.95], [0.72, 0.62, 0.95, 0.95]],
     bay: [0.29, 0.63, 0.71, 0.97], dock: [0.5, 0.8], merchant: "kip", goods: ["ammo", "weapon"] },
-  shield: { file: "art/station/shield-store.webp", idle: "art/station/shield-store-idle.webp", brk: "art/station/shield-store-break.webp", huskIn: "art/station/shield-store-husk-in.webp", huskLoop: "art/station/shield-store-husk-loop.webp", closed: "art/station/shield-store-closed.webp", w: 3.6, h: 3.6 * 874 / 850, clock: 1.0,
+  shield: { file: "art/station/shield-store.webp", idle: "art/station/shield-store-idle.webp", brk: "art/station/shield-store-break.webp", huskIn: "art/station/shield-store-husk-in.webp", huskLoop: "art/station/shield-store-husk-loop.webp", huskEmpty: "art/station/shield-store-husk-empty.webp", door: [0.24, 0.65, 0.76, 0.92], exitAt: [0.5, 0.783], closed: "art/station/shield-store-closed.webp", w: 3.6, h: 3.6 * 874 / 850, clock: 1.0,
     solid: [[0.38, 0.03, 0.62, 0.15], [0.03, 0.12, 0.97, 0.62], [0.05, 0.62, 0.3, 0.97], [0.7, 0.62, 0.95, 0.97]],
     bay: [0.3, 0.64, 0.7, 0.97], dock: [0.5, 0.8], merchant: "brass", goods: ["shield", "life"] }
 };
@@ -4218,7 +4218,7 @@ function updateStoreBreaks(dt) {
   const len = STORE_BREAK.frames / STORE_BREAK.fps;
   for (const S of stations) {
     if (S.inf) {   // HUSK's infection: in, the loop; cleaning (the infection backwards), then the store as it was
-      S.inf.t += dt;
+      S.inf.t += dt; if (S.inf.t >= HUSK_INF + HUSK_LOOP) S.inf.out = true;   // (the alien has left: the chamber empty from now on)
       if (S.inf.clean >= 0 && (S.inf.clean += dt) >= HUSK_INF) S.inf = null;
     }
     if (!S.st) continue;
@@ -4299,7 +4299,7 @@ function undock() {
 }
 function drawStation() {
   if (game.stage === "gift" || game.stage === "opening" || game.stage === "title") return;
-  if (game.ship === "husk" || (enemy.on && enemy.ship === "husk")) for (const S of stations) { artImage(stationLook(S).huskIn); artImage(stationLook(S).huskLoop); }   // (HUSK about: its infection's frames)
+  if (game.ship === "husk" || (enemy.on && enemy.ship === "husk")) for (const S of stations) { artImage(stationLook(S).huskIn); artImage(stationLook(S).huskLoop); artImage(stationLook(S).huskEmpty); }   // (HUSK about: its infection's frames)
   const lit = canDock(), z = game.zoom || 1;
   for (const S of stations) {
     const L = stationLook(S), sz = stationSize(S), P = stationPos(S), p = toScreen(P.x, P.y);
@@ -4321,7 +4321,19 @@ function drawStation() {
 // a store HUSK infected: the infection (37 frames, 7 x 6), then the creature moving inside (72, 9 x 8, looping); cleaning:
 // the infection backwards. Both atlases are in the store's own rectangle. False: not loaded yet (the store as it is)
 function drawStoreHusk(S, L, x0, y0, sz) {
-  const I = S.inf, n = HUSK_INF_N - 1, loop = I.clean < 0 && I.t >= HUSK_INF, A = artImage(loop ? L.huskLoop : L.huskIn);
+  const I = S.inf, n = HUSK_INF_N - 1;
+  if (I.out) {   // the alien out: the empty infected store (the HUSK Empty package); cleaning: it fades into the store as it was
+    const E = artImage(L.huskEmpty); if (!E) return false;
+    const k = I.clean >= 0 ? clamp(I.clean / HUSK_INF, 0, 1) : 0;
+    if (k > 0) {
+      const A0 = artImage(L.idle), F0 = artImage(L.file);
+      if (A0) { const f = Math.floor((time + L.clock) / 0.2) % 36, c = A0.width / 6; ctx.drawImage(A0, (f % 6) * c, Math.floor(f / 6) * c, c, c, x0, y0, sz.w, sz.h); }
+      else if (F0) ctx.drawImage(F0, x0, y0, sz.w, sz.h);
+    }
+    ctx.globalAlpha = 1 - k; ctx.drawImage(E, x0, y0, sz.w, sz.h); ctx.globalAlpha = 1;
+    return true;
+  }
+  const loop = I.clean < 0 && I.t >= HUSK_INF, A = artImage(loop ? L.huskLoop : L.huskIn);
   if (!A) return false;
   const cols = loop ? 9 : 7, f = loop ? Math.floor((I.t - HUSK_INF) * 12) % 72 : I.clean >= 0 ? n - Math.min(n, Math.floor(I.clean * 12)) : Math.min(n, Math.floor(I.t * 12));
   const cw = A.width / cols, ch = cw * 363 / 352;
@@ -6011,6 +6023,8 @@ const HUSK_MOUTH = [0.141, -0.464], HUSK_OPEN = 1.77, HUSK_CLOSE = 1.72, HUSK_BU
 // a store's infection (the HUSK store packages): HUSK_INF_N frames at 12 fps, then the creature inside for HUSK_LOOP s
 // (one turn of the inside loop) before it breaks out of the store
 const HUSK_INF_N = 37, HUSK_INF = HUSK_INF_N / 12, HUSK_LOOP = 6;
+// its exit through the membrane (s from when it leaves): the first push, the tear open, out of the doorway, the edges settled
+const HUSK_TEAR = [0.22, 0.48, 0.9, 1.3];
 let huskCreature = null;
 const pad2 = (n) => String(n).padStart(2, "0");
 function huskFrame(H) {
@@ -6040,8 +6054,8 @@ function huskMouth(o) {
 // (no store: on HUSK's side of the star, rising out of it)
 function creaturePos(C) {
   const S = C.s != null ? stations[C.s] : null;
-  if (S) {
-    const L = stationLook(S), k = ease(clamp(C.t / HUSK_BURST, 0, 1)), A = stationWorld(S, L.dock[0], L.dock[1]), B = stationWorld(S, L.dock[0], 1);
+  if (S) {   // from the membrane (the exit anchor) down the ramp, out in front of the store (HUSK_TEAR: the tear, the exit)
+    const L = stationLook(S), k = ease(clamp((C.t - HUSK_TEAR[1]) / (HUSK_TEAR[2] - HUSK_TEAR[1]), 0, 1)), A = stationWorld(S, L.exitAt[0], L.exitAt[1]), B = stationWorld(S, L.exitAt[0], 1);
     const out = wrapDelta(B.y - A.y, WH) + shipSize() * MAGIC.breach.crR * 0.75;
     return { x: A.x, y: wrapY(A.y + out * k) };
   }
@@ -6121,7 +6135,7 @@ function updateHusk(dt) {
     else {
       const mo = huskMouth(enemy); game.x = mo.x; game.y = mo.y; game.vx = enemy.vx || 0; game.vy = enemy.vy || 0;
       const C = huskCreature;
-      if (C && C.own === "them" && C.t >= 0 && Math.hypot(wrapDelta(game.x - creaturePos(C).x, WW), wrapDelta(game.y - creaturePos(C).y, WH)) < M.deliver * size) {
+      if (C && C.own === "them" && C.t >= (C.s != null ? HUSK_TEAR[2] : 0) && Math.hypot(wrapDelta(game.x - creaturePos(C).x, WW), wrapDelta(game.y - creaturePos(C).y, WH)) < M.deliver * size) {
         game.hcap = false; if (enemy.remote) link.send({ t: "hdel" });
         const P = creaturePos(C); burstAt(P.x, P.y, 40, ["#ff7ad9", "#5ee7c0", "#ffd27a", "#ffffff"], 0.8, 0.9); audio.boom();
         blowUpShip();   // delivered: as if beaten
@@ -6143,22 +6157,78 @@ function huskMsg(m) {
 function drawHuskCreature() {
   const C = huskCreature; if (!C || C.t < 0) return;   // (still inside the store)
   const P = creaturePos(C), p = toScreen(P.x, P.y), size = shipSize(), d = size * MAGIC.breach.crR * 2;
-  if (C.t < 1.4) {   // the flare where it breaks out (the store's membrane, or the star)
+  if (C.t < 1.4 && C.s == null) {   // the flare where it breaks out of the star (out of a store: drawHuskExit)
     const St = C.s != null ? stations[C.s] : null, L = St && stationLook(St);
     const S = St ? toScreen(...Object.values(stationWorld(St, L.dock[0], L.dock[1]))) : toScreen(WW / 2 + Math.cos(C.a) * planetR(), WH / 2 + Math.sin(C.a) * planetR()), k = 1 - C.t / 1.4;
     const g = ctx.createRadialGradient(S.x, S.y, 0, S.x, S.y, size * 1.4);
     g.addColorStop(0, `rgba(255,255,240,${0.9 * k})`); g.addColorStop(0.3, `rgba(255,170,90,${0.5 * k})`); g.addColorStop(1, "rgba(255,120,200,0)");
     ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(S.x, S.y, size * 1.4, 0, TAU); ctx.fill(); ctx.restore();
   }
-  const burst = C.t < HUSK_BURST, img = artImage(framePath("husk", burst ? "creature-burst.webp" : "creature-wait.webp"));
-  if (img) {
-    const cols = burst ? 5 : 7, n = burst ? Math.min(24, Math.floor(C.t / 0.0832)) : Math.floor((C.t - HUSK_BURST) / 0.0832) % 44;
+  const St = C.s != null ? stations[C.s] : null;
+  if (St) { drawHuskExit(C, St, p, d); }
+  const burst = !St && C.t < HUSK_BURST, img = artImage(framePath("husk", burst ? "creature-burst.webp" : "creature-wait.webp"));
+  if (St && C.t < HUSK_TEAR[2]) {}   // (drawn by drawHuskExit, through the tear)
+  else if (img) {
+    const cols = burst ? 5 : 7, n = burst ? Math.min(24, Math.floor(C.t / 0.0832)) : Math.floor((C.t - (St ? 0 : HUSK_BURST)) / 0.0832) % 44;
     ctx.drawImage(img, (n % cols) * 256, Math.floor(n / cols) * 256, 256, 256, p.x - d / 2, p.y - d / 2, d, d);
   }
   if ((game.husk && game.husk.cap) || game.hcap) {
     ctx.save(); ctx.strokeStyle = `rgba(255,122,217,${0.35 + 0.25 * Math.sin(time * 6)})`; ctx.lineWidth = 2; ctx.setLineDash([8, 8]); ctx.lineDashOffset = -time * 30;
     ctx.beginPath(); ctx.arc(p.x, p.y, MAGIC.breach.deliver * size, 0, TAU); ctx.stroke(); ctx.restore();
   }
+}
+// the alien tearing out of a store's membrane (the HUSK Empty package's exit): the membrane bulges where it pushes, a
+// jagged tear opens there (dark amber inside, sticky strands across), it comes out head first down the ramp (the part still
+// inside hidden behind the membrane, the torn edges in front of it), and the edges settle back into the closed membrane
+function huskTearPath(cx, cy, rx, ry) {
+  ctx.beginPath();
+  for (let i = 0; i <= 16; i++) {
+    const a = (i % 16) / 16 * TAU, j = 1 + 0.18 * Math.sin(i * 2.7 + 1.3) + 0.06 * Math.sin(time * 18 + i * 1.9);   // jagged, the edges pulling
+    const x = cx + Math.cos(a) * rx * j, y = cy + Math.sin(a) * ry * j; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+}
+function drawHuskExit(C, S, p, d) {
+  const T = HUSK_TEAR, t = C.t; if (t >= T[3]) return;
+  const L = stationLook(S), z = stationSize(S), A = toScreen(...Object.values(stationWorld(S, L.exitAt[0], L.exitAt[1])));
+  const dw = (L.door[2] - L.door[0]) * z.w, dh = (L.door[3] - L.door[1]) * z.h, Db = toScreen(...Object.values(stationWorld(S, 0.5, L.door[3])));
+  // how open the tear is: opening (T0-T1), open while it comes out, closing after (T2-T3)
+  const open = t < T[0] ? 0 : t < T[1] ? ease((t - T[0]) / (T[1] - T[0])) : t < T[2] ? 1 : 1 - ease((t - T[2]) / (T[3] - T[2]));
+  const rx = dw * 0.36 * open, ry = dh * 0.46 * open;
+  ctx.save();
+  // the first push: the membrane bulging, glowing, where it presses
+  const push = t < T[1] ? Math.sin(Math.min(1, t / T[1]) * Math.PI) : 0;
+  if (push > 0) { const g = ctx.createRadialGradient(A.x, A.y, 0, A.x, A.y, dw * 0.3); g.addColorStop(0, `rgba(255,214,140,${0.75 * push})`); g.addColorStop(1, "rgba(255,150,40,0)"); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(A.x, A.y, dw * 0.3 * (0.7 + 0.3 * push), dh * 0.45 * (0.7 + 0.3 * push), 0, 0, TAU); ctx.fill(); ctx.globalCompositeOperation = "source-over"; }
+  // the tear's inside: dark amber
+  if (open > 0.02) { huskTearPath(A.x, A.y, rx, ry); const g = ctx.createRadialGradient(A.x, A.y, 0, A.x, A.y, Math.max(rx, ry)); g.addColorStop(0, "#2a0e00"); g.addColorStop(1, "#7a3200"); ctx.fillStyle = g; ctx.fill(); }
+  // the alien: inside the tear, or out below the doorway (the part still inside hidden); before the tear, a shadow through the membrane
+  const img = artImage(framePath("husk", "creature-wait.webp"));
+  if (img && t < T[2] + 0.05) {
+    const n = Math.floor(t / 0.0832) % 44;
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(A.x, A.y, dw / 2, dh / 2, 0, 0, TAU);   // (before the tear: within the membrane)
+    if (open > 0.02) { huskTearPath(A.x, A.y, rx, ry); ctx.rect(A.x - d * 2, Db.y, d * 4, d * 4); }
+    ctx.clip();
+    if (open <= 0.02 || t < T[0]) ctx.globalAlpha = 0.35 + 0.4 * push;
+    ctx.drawImage(img, (n % 7) * 256, Math.floor(n / 7) * 256, 256, 256, p.x - d / 2, p.y - d / 2, d, d);
+    if (t < T[1]) { ctx.globalAlpha = 0.45 * (1 - open); ctx.fillStyle = "#ff9a2e"; ctx.fillRect(A.x - dw, A.y - dh, dw * 2, dh * 2); }   // (amber over it, behind the film)
+    ctx.restore();
+  }
+  // the torn edges in front, and sticky strands stretching across until it is through
+  if (open > 0.02) {
+    huskTearPath(A.x, A.y, rx, ry); ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(255,170,60,0.95)"; ctx.lineWidth = Math.max(3, dw * 0.035); ctx.stroke();
+    ctx.strokeStyle = "rgba(255,236,180,0.7)"; ctx.lineWidth = Math.max(1, dw * 0.012); ctx.stroke();
+    const sk = t < T[1] ? 1 : clamp(1 - (t - T[1]) / (T[2] - T[1]) * 1.4, 0, 1);
+    if (sk > 0) {
+      ctx.strokeStyle = `rgba(255,190,90,${0.8 * sk})`;
+      for (let i = 0; i < 4; i++) {
+        const x = A.x + (i - 1.5) * rx * 0.45, sag = Math.sin(time * 9 + i) * rx * 0.06;
+        ctx.lineWidth = Math.max(1, dw * 0.012 * sk); ctx.beginPath(); ctx.moveTo(x, A.y - ry * 0.95); ctx.quadraticCurveTo(x + sag, A.y, x - sag * 0.5, A.y + ry * 0.95); ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
 }
 // the parasite gripping a ship's engine (theirs, or mine), and HUSK's cannon flashes
 function drawParasites() {

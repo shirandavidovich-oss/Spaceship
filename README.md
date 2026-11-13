@@ -584,8 +584,11 @@ at 12 fps, and `-husk-loop.webp`, the creature moving inside, 72 frames looping;
 rectangle). HUSK's magic opens the tank and the arm comes out, and it has `MAGIC.breach.seek` s to touch a store with its
 jaws. That store is infected (`hinf`, on both phones): the infection plays, then the inside loop once, then the alien
 breaks out of the store's bay and waits in front of it. From then on the window is `last` s, and a caught ship is
-delivered to the alien there. An infected store is sealed (no docking, the bay solid); when the window ends it cleans
-(the infection backwards). The computer's HUSK flies to the nearest store with the arm out.
+delivered to the alien there. An infected store is sealed (no docking, the bay solid). The alien tears out of the membrane (`drawHuskExit`,
+`HUSK_TEAR`: the push, the tear opening at the exit anchor, out head first down the ramp, the edges settling), and from
+then on the store shows its empty infected picture (`-husk-empty.webp`, the HUSK Empty package); no delivery until it is
+out of the doorway. When the window ends the store cleans: the empty picture fades into the store as it was (the
+infection backwards if the alien never got out). The computer's HUSK flies to the nearest store with the arm out.
 
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's

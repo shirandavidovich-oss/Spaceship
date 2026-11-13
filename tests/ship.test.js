@@ -850,4 +850,10 @@ ok("HUSK infects a store with its jaws: the infection and inside-loop atlases ex
   assert(html.includes("huskCreature = { s: k, t: -(HUSK_INF + HUSK_LOOP), own }") && html.includes("&& !S.inf; }"));
   assert(!html.includes('seqT("prelease"))) game.paddle = null; huskRelease();'));   // (FLIPPER's paddles no longer clear HUSK's state)
 });
+ok("HUSK's alien tears out of the store: the empty infected pictures exist, the store stays empty after, no delivery before it is out", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  for (const k of ["weapon", "shield"]) assert(fs.existsSync(path.join(A, `art/station/${k}-store-husk-empty.webp`)), k);
+  assert(html.includes("if (S.inf.t >= HUSK_INF + HUSK_LOOP) S.inf.out = true;") && html.includes("function drawHuskExit(C, S, p, d)"));
+  assert(html.includes("C.t >= (C.s != null ? HUSK_TEAR[2] : 0)"));
+});
 console.log(n + " checks passed");
