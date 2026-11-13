@@ -4196,10 +4196,12 @@ function drawShieldBubble(x, y, size, kind, t) {
 // ---- the stores in the arena (both phones the same: the seed travels in the duel's "hi") ----
 const stations = [{ kind: "weapon", nx: 0.5, ny: 0.28 }, { kind: "shield", nx: 0.5, ny: 0.72 }];
 const station = { seed: 1 };
-function setStation(seed) {   // the two on opposite sides of the star, at a random angle
+// the two far from the star, out toward the map's edge (0.36-0.43 of the map from the middle; 0.5 is the edge). Space wraps
+// round, so two stores on opposite sides would meet again across the edge: they stand about a quarter turn apart instead
+function setStation(seed) {
   const rnd = mazeRng(seed), a = rnd() * TAU;
   station.seed = seed;
-  stations.forEach((S, i) => { const b = a + i * Math.PI + (rnd() - 0.5) * 0.7, d = 0.19 + rnd() * 0.05; S.nx = 0.5 + Math.cos(b) * d; S.ny = 0.5 + Math.sin(b) * d; });
+  stations.forEach((S, i) => { const b = a + i * Math.PI / 2 + (rnd() - 0.5) * 0.5, d = 0.36 + rnd() * 0.07; S.nx = 0.5 + Math.cos(b) * d; S.ny = 0.5 + Math.sin(b) * d; });
 }
 setStation(Math.floor(Math.random() * 2147483647));
 function stationLook(S) { return STORE_LOOKS[S.kind]; }

@@ -565,7 +565,7 @@ window ends, or HUSK is destroyed, a caught ship goes free (`hrel`) and the tank
 `zombie-husk-top`.
 
 **The stores and the ship shop** (the Docking Stores, KIP, BRASS and Shop Entry packages). Two stores float in the
-arena on opposite sides of the star (`stations`, placed from the seed both phones share): the **weapon store**
+arena far from the star, out toward the map's edge and about a quarter turn apart (`setStation`, placed from the seed both phones share): the **weapon store**
 (`art/station/weapon-store`) and the **shield store** (`shield-store`), each with its looping idle animation (36 frames,
 a 6 x 6 atlas, drawn into the picture's own rectangle; the two clocks a second apart), solid walls, and a bay that
 opens downward. Fly slowly into a bay and the dock button shows; docked, that store's shop opens. The weapon store's
