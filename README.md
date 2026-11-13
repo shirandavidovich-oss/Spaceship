@@ -475,6 +475,17 @@ in 1 s. While it is up:
 The flood ends at once if BOILER is destroyed. LABYRINTH's walls stay in the water, and the flood never relights a
 star the maze put out. In a duel the owner's phone sends its clock (`fd`); a blow-up is sent as `wk`.
 
+**FLIPPER**, the pinball ship (`art/ships/flipper/`: the FLIPPER package's atlases cut into 512 px frames; its buttons in
+`art/hud/flipper/`, its BLOOM zombie, its 3D picture). **Sold only in the station's shop** (`shopOnly`: never drawn into
+the random fleets against the computer or a phone; it is in the test hangar, and always first among the shop's ships).
+Button 1: a steel ball from the nose rail that bounces once off the star. Button 2: the spring plunger, a short punch
+straight ahead that shoves. Magic, **pinballs** (`pinballs` in `MAGIC`): three pinballs are let loose round the other
+ship, in a pinball table (a red dashed frame with bumpers, 2.4 screens square) that drifts after that ship more slowly
+than a ship flies. For a minute the balls bounce off its edges at slightly random angles; each one that reaches the
+ship takes half a health tank (shields help) and is gone. A ship that sits still is hit by all three about 3 times in 4;
+dodging, or flying off before the table catches up, saves it. The other ship's phone runs the balls (so hits go by
+where that ship really is) and sends them in its state (`pb`) for FLIPPER's phone to show.
+
 **The station and its shop** (the Orbit Break Docking package: `art/station/`, `art/ui/shop/`, the alien seller in
 `art/ui/shop/alien/`). A docking station floats in the arena, one of `STATION_LOOKS` picked at random (one picture so far;
 up to five, each with its own solid parts and bay as boxes in its picture), somewhere around the star. Both phones have

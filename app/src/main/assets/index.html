@@ -447,7 +447,7 @@
   }
   return {config,roots,phase,load,draw};
 });
-const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"},"boiler":{"kind":"still","sprite":"zombie-boiler-top.webp"}};
+const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vexar":{"kind":"vexar","sprite":"zombie-vexar-top.webp"},"lyth":{"kind":"lyth","sprite":"zombie-lyth-top.webp"},"talus":{"kind":"fleet","sprite":"zombie-talus-top.webp","atlas":"fx/zombie-talus-motion-atlas.webp","bounds":{"x":71,"y":75,"w":369,"h":361},"recipe":{"style":"stone","anchors":[[0.36,0.61],[0.66,0.71],[0.23,0.8]]}},"orian":{"kind":"fleet","sprite":"zombie-orian-top.webp","atlas":"fx/zombie-orian-motion-atlas.webp","bounds":{"x":205,"y":153,"w":102,"h":233},"recipe":{"style":"fan","anchors":[[0.4,0.71],[0.6,0.71],[0.52,0.9]]}},"skarn":{"kind":"fleet","sprite":"zombie-skarn-top.webp","atlas":"fx/zombie-skarn-motion-atlas.webp","bounds":{"x":63,"y":94,"w":386,"h":315},"recipe":{"style":"ribs","anchors":[[0.28,0.49],[0.72,0.49],[0.51,0.69]]}},"drakon":{"kind":"fleet","sprite":"zombie-drakon-top.webp","atlas":"fx/zombie-drakon-motion-atlas.webp","bounds":{"x":84,"y":46,"w":345,"h":420},"recipe":{"style":"diagonal","anchors":[[0.31,0.44],[0.57,0.56],[0.65,0.68]]}},"xeltar":{"kind":"fleet","sprite":"zombie-xeltar-top.webp","atlas":"fx/zombie-xeltar-motion-atlas.webp","bounds":{"x":124,"y":39,"w":264,"h":430},"recipe":{"style":"tentacles","anchors":[[0.26,0.7],[0.42,0.77],[0.58,0.77],[0.73,0.7]]}},"kraal":{"kind":"fleet","sprite":"zombie-kraal-top.webp","atlas":"fx/zombie-kraal-motion-atlas.webp","bounds":{"x":58,"y":130,"w":396,"h":250},"recipe":{"style":"hammer","anchors":[[0.16,0.26],[0.84,0.26],[0.52,0.63]]}},"zorian":{"kind":"fleet","sprite":"zombie-zorian-top.webp","atlas":"fx/zombie-zorian-motion-atlas.webp","bounds":{"x":123,"y":53,"w":266,"h":406},"recipe":{"style":"conduit","anchors":[[0.3,0.77],[0.52,0.68],[0.76,0.54]]}},"vanta":{"kind":"fleet","sprite":"zombie-vanta-top.webp","atlas":"fx/zombie-vanta-motion-atlas.webp","bounds":{"x":143,"y":46,"w":220,"h":416},"recipe":{"style":"liquid","anchors":[[0.36,0.47],[0.64,0.53],[0.47,0.77]]}},"cantor":{"kind":"fleet","sprite":"zombie-cantor-top.webp","atlas":"fx/zombie-cantor-motion-atlas.webp","bounds":{"x":70,"y":46,"w":372,"h":420},"recipe":{"style":"strings","anchors":[[0.23,0.3],[0.38,0.27],[0.5,0.25],[0.62,0.27],[0.77,0.3]]}},"rivet":{"kind":"fleet","sprite":"zombie-rivet-top.webp","atlas":"fx/zombie-rivet-motion-atlas.webp","bounds":{"x":91,"y":77,"w":330,"h":357},"recipe":{"style":"rail","anchors":[[0.82,0.2],[0.83,0.61],[0.37,0.86]]}},"glitch":{"kind":"fleet","sprite":"zombie-glitch-top.webp","atlas":"fx/zombie-glitch-motion-atlas.webp","bounds":{"x":23,"y":61,"w":466,"h":390},"recipe":{"style":"shutters","anchors":[[0.25,0.43],[0.74,0.43],[0.49,0.64]]}},"nimbus":{"kind":"fleet","sprite":"zombie-nimbus-top.webp","atlas":"fx/zombie-nimbus-motion-atlas.webp","bounds":{"x":38,"y":95,"w":416,"h":342},"recipe":{"style":"cloud","anchors":[[0.28,0.55],[0.71,0.55],[0.48,0.72]]}},"reprise":{"kind":"fleet","sprite":"zombie-reprise-top.webp","atlas":"fx/zombie-reprise-motion-atlas.webp","bounds":{"x":35,"y":41,"w":440,"h":430},"recipe":{"style":"archive","anchors":[[0.49,0.19],[0.2,0.51],[0.78,0.5],[0.5,0.8]]}},"puff":{"kind":"fleet","sprite":"zombie-puff-top.webp","atlas":"fx/zombie-puff-motion-atlas.webp","bounds":{"x":144,"y":0,"w":223,"h":512},"recipe":{"style":"inflate","anchors":[[0.29,0.42],[0.71,0.42],[0.42,0.74],[0.61,0.74]]}},"cinder":{"kind":"fleet","sprite":"zombie-cinder-top.webp","atlas":"fx/zombie-cinder-motion-atlas.webp","bounds":{"x":97,"y":57,"w":318,"h":347},"recipe":{"style":"embers","anchors":[[0.32,0.79],[0.68,0.79],[0.52,0.55]]}},"borer":{"kind":"fleet","sprite":"zombie-borer-top.webp","atlas":"fx/zombie-borer-motion-atlas.webp","bounds":{"x":140,"y":16,"w":232,"h":480},"recipe":{"style":"drill","anchors":[[0.39,0.42],[0.59,0.52],[0.48,0.68]]}},"mirage":{"kind":"fleet","sprite":"zombie-mirage-top.webp","atlas":"fx/zombie-mirage-motion-atlas.webp","bounds":{"x":59,"y":31,"w":393,"h":450},"recipe":{"style":"prism","anchors":[[0.45,0.39],[0.32,0.71],[0.71,0.73]]}},"palisade":{"kind":"fleet","sprite":"zombie-palisade-top.webp","atlas":"fx/zombie-palisade-motion-atlas.webp","bounds":{"x":43,"y":48,"w":426,"h":415},"recipe":{"style":"plates","anchors":[[0.26,0.53],[0.5,0.46],[0.73,0.53]]}},"gimbal":{"kind":"fleet","sprite":"zombie-gimbal-top.webp","atlas":"fx/zombie-gimbal-motion-atlas.webp","bounds":{"x":89,"y":18,"w":334,"h":433},"recipe":{"style":"rings","anchors":[[0.22,0.44],[0.78,0.48],[0.48,0.7]]}},"lariat":{"kind":"fleet","sprite":"zombie-lariat-top.webp","atlas":"fx/zombie-lariat-motion-atlas.webp","bounds":{"x":138,"y":19,"w":241,"h":433},"recipe":{"style":"winch","anchors":[[0.19,0.2],[0.43,0.61],[0.67,0.68]]}},"ballast":{"kind":"fleet","sprite":"zombie-ballast-top.webp","atlas":"fx/zombie-ballast-motion-atlas.webp","bounds":{"x":47,"y":108,"w":418,"h":295},"recipe":{"style":"winch","anchors":[[0.18,0.52],[0.24,0.63],[0.82,0.39],[0.88,0.35],[0.62,0.81]]},"scale":1.2},"strata":{"kind":"fleet","sprite":"zombie-strata-top.webp","atlas":"fx/zombie-strata-motion-atlas.webp","bounds":{"x":148,"y":47,"w":216,"h":418},"recipe":{"style":"plates","anchors":[[0.27,0.52],[0.73,0.52],[0.38,0.8],[0.64,0.82],[0.53,0.91]]},"scale":1.22},"kiln":{"kind":"fleet","sprite":"zombie-kiln-top.webp","atlas":"fx/zombie-kiln-motion-atlas.webp","bounds":{"x":112,"y":47,"w":287,"h":418},"recipe":{"style":"embers","anchors":[[0.28,0.26],[0.72,0.28],[0.26,0.69],[0.73,0.71],[0.51,0.84]]},"scale":1.05},"frankenstein":{"kind":"fleet","sprite":"zombie-frankenstein-top.webp","atlas":"fx/zombie-frankenstein-motion-atlas.webp","bounds":{"x":156,"y":47,"w":200,"h":418},"recipe":{"style":"conduit","anchors":[[0.23,0.27],[0.74,0.28],[0.29,0.68],[0.72,0.72],[0.53,0.87]]},"scale":1.0},"labyrinth":{"kind":"still","sprite":"zombie-labyrinth-top.webp"},"boiler":{"kind":"still","sprite":"zombie-boiler-top.webp"},"flipper":{"kind":"still","sprite":"zombie-flipper-top.webp"}};
 </script>
 <script>
 "use strict";
@@ -1051,7 +1051,20 @@ const SHIPS = [
     anim: { dir: "boiler", size: 1.2, idle: "idle.webp",
       idleLoop: frames("idle", 32, () => 50).map((f) => f[0]),          // bubbles, the gauge, the collars, a wisp of steam
       primary: frames("fire", 16, () => 50),                           // the cold-blue launch flash (0.8 s)
-      pressure: frames("pressure", 32, () => 50) } }                   // more pressure, bigger strokes: while the water fills
+      pressure: frames("pressure", 32, () => 50) } },                  // more pressure, bigger strokes: while the water fills
+  // FLIPPER, the pinball ship (art/ships/flipper/, the FLIPPER package: 512 px frames cut from its atlases, nose up).
+  // Sold only in the station's shop (`shopOnly`: never drawn into the random fleets; in the test hangar too).
+  // Button 1: a steel ball from the nose rail that bounces once off the star. Button 2: the spring plunger, a short
+  // punch straight ahead that shoves. Magic: three pinballs loose round the other ship for a minute (MAGIC.pinballs)
+  { id: "flipper", name: "FLIPPER", rarity: "legendary", mass: 1.1, fuel: 30, refill: 15, sfx: null, magic: "pinballs", shopOnly: true,
+    hull: "#d8323a", wingC: "#f2e6cf", trim: "#ffd27a", flame: "#6dffd8",
+    body: [], wing: [], nozzles: [-0.13, 0.13], engineY: 0.46, cockpit: [0, 0, 0.05, 0.1],
+    weapons: ["steelball", "plunger"],
+    guns: { steelball: [[0, -0.34]], plunger: [[0, -0.36]] },
+    anim: { dir: "flipper", size: 1.1, idle: "idle.webp",
+      primary: frames("fire", 24, () => 35),                        // the launcher kicks, then back at rest
+      secondary: frames("plunge", 24, () => 23, { 6: "fire" }),     // the plunger out (it hits at the 6th frame)
+      magic: frames("magic", 24, () => 58) } }                       // both paddles flap: the balls go
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1087,7 +1100,8 @@ const HANDLING = {
   kiln:     { size: 1.05, speed: 0.85, accel: 0.9,  turn: 0.85 },   // a furnace
   frankenstein: { size: 1, speed: 1.3,  accel: 1.3,  turn: 1.15 },   // quick (it has to stand still to operate)
   labyrinth: { size: 1.1, speed: 0.85, accel: 0.9,  turn: 0.85 },   // an iron foundry
-  boiler:   { size: 1.05, speed: 0.85, accel: 0.9,  turn: 0.9  }    // a heavy diving bell
+  boiler:   { size: 1.05, speed: 0.85, accel: 0.9,  turn: 0.9  },   // a heavy diving bell
+  flipper:  { size: 1,    speed: 1.05, accel: 1.1,  turn: 1.1  }    // a nimble pinball table
 };
 function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1287,6 +1301,9 @@ const WEAPONS = {
   ptorp:      { name: "טורפדו לחץ", dmg: 12, speed: 1.6, life: 4.0, cool: 0.8, ammo: 8, refill: 8, r: 0.035, color: "#7fd8ff", ptorp: true, homing: 1.2, dry: true, boilerW: true },
   fcan:       { name: "מכל צף", dmg: 0, speed: 0.45, life: 6.0, cool: 1.6, ammo: 4, refill: 9, r: 0.07, color: "#c8763a", buoy: 1.4, prox: 0.25,
                 blast: 1.4, blastDmg: 26, push: 1.4, boilerW: true },
+  // FLIPPER. steelball: bounces once off the star (starBounce). plunger: a short, fast punch that shoves (`knock`)
+  steelball: { name: "כדור פלדה", dmg: 9, speed: 1.8, life: 1.6, cool: 0.45, ammo: 10, refill: 7, r: 0.05, color: "#d8dde6", starBounce: true },
+  plunger:   { name: "בוכנת קפיץ", dmg: 14, speed: 3.0, life: 0.13, cool: 0.9, ammo: 5, refill: 6, r: 0.1, color: "#ffd27a", knock: 1.4 },
   laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -1427,6 +1444,10 @@ const MAGIC = {
 //   slows a ship (per second; XELTAR: dragXeltar)
   flood:   { name: "ציד הצפה", look: "flood", fill: 2, hunt: 60, drain: 1, cool: 20, pull: 2.4, xeltar: 1.35, reel: 0.6, sink: 1.1, drag: 0.5, dragXeltar: 0.15,
              top: 0.05, bottom: 0.95, color: "#3fd6d0" },
+  // FLIPPER's pinballs: `balls` balls round the other ship in a table `box` screens square that follows it at `follow`
+  //   screens/s; they fly at `speed` screens/s for `last` s; each that reaches it takes `hit` of a health tank. r: a
+  //   ball's radius (ship-lengths). cool: recharge
+  pinballs: { name: "כדורי פליפר", look: "pinballs", balls: 3, box: 2.4, follow: 0.7, speed: 0.8, last: 60, hit: 0.5, r: 0.1, cool: 75, color: "#ff4d6d" },
   reverse: { name: "היפוך כבידה", look: "reverse", at: 0.65, last: 4, push: 0.55, swirl: 1.1, reach: 1.5, cool: 16, color: "#7fb6ff" },
   // STRATA's vertical shift (its package: strata-magic.mjs). It tips its nose, the front engine fires down, and it
   //   rises into the upper dimension (up by `rise`[1] s): drawn high above its grey shadow, which stays where it is on
@@ -2184,7 +2205,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -2865,7 +2886,7 @@ function update(dt) {
     else if (game.docked) { const L = stationLook(), P = stationWorld(L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
-    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt);
+    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt);
   }
   updateTrade(dt);
   updateDuel(dt);
@@ -4001,7 +4022,8 @@ const shop = { open: false, sel: null, opt: 0, say: null, alien: { seq: "idle", 
 function shopOpen() {
   const others = Object.keys(SHOP.weapons).filter((w) => !weaponsOf(shipById(game.ship)).includes(w));
   const ships = hangarShips().map((S) => S.id).filter((id) => !(bank.owned || {})[id] && id !== game.ship);
-  shop.offers = { weapons: shuffled(others).slice(0, SHOP.offers), ships: shuffled(ships).slice(0, SHOP.shipOffers).concat(SOON_SHIPS.map((q) => q.id)) };   // (and the ships still being made)
+  const only = ships.filter((id) => shipById(id).shopOnly), rest = ships.filter((id) => !shipById(id).shopOnly);
+  shop.offers = { weapons: shuffled(others).slice(0, SHOP.offers), ships: only.concat(shuffled(rest).slice(0, SHOP.shipOffers)).concat(SOON_SHIPS.map((q) => q.id)) };   // (shop-only ships first, then others, then the ships still being made)
   Object.assign(shop, { open: true, sel: null, opt: 0, busy: false, alien: { seq: "wave", t: 0 }, say: null, mode: "once", page: 0 });
   shop.helloLine = st("hello")[Math.floor(Math.random() * st("hello").length)];
 }
@@ -4474,6 +4496,7 @@ const UPGRADE_FIT = {
   cantor: [-0.8058, -0.8069, 1.6115, 0.4123, -0.3285],
   cinder: [-0.8048, -0.8785, 1.6127, 0.4394, -0.3998],
   drakon: [-0.7714, -0.774, 1.5481, 0.3685, -0.3145],
+  flipper: [-0.7431, -0.6461, 1.4841, 0.3323, -0.1997],
   frankenstein: [-0.7808, -0.7808, 1.5615, 0.2074, -0.3172],
   gimbal: [-0.8315, -0.8831, 1.6654, 0.3297, -0.3887],
   glitch: [-1.8993, -1.8956, 3.7986, 1.1277, -0.716],
@@ -4503,7 +4526,7 @@ function drawUpgrade(S, which) {
 }
 // the ships still being made: shown in the shop ("coming soon"), not for sale yet (their pictures: art/upgrades/<id>/body.webp
 // from above, art/ships3d/<id>.webp in 3D where there is one)
-const SOON_SHIPS = [["corsair", "CORSAIR"], ["courier", "COURIER"], ["flipper", "FLIPPER"], ["fresnel", "FRESNEL"], ["gravity-sail", "GRAVITY SAIL"],
+const SOON_SHIPS = [["corsair", "CORSAIR"], ["courier", "COURIER"], ["fresnel", "FRESNEL"], ["gravity-sail", "GRAVITY SAIL"],
   ["knuckle", "KNUCKLE"], ["link", "LINK"], ["vault", "VAULT"]].map(([id, name]) => ({ id, name, soon: true }));
 // ships for good and ships rented (bank.owned[id] = 1; bank.rent[id] = when the rental ends, ms): they join my fleet in
 // every game. SHIP_BUY: the three ways to buy a ship, and the price of each against the ship's price (SHOP.ship)
@@ -4513,6 +4536,105 @@ function rentLeft(id) { return Math.max(0, ((bank.rent || {})[id] || 0) - Date.n
 function ownedIds() { return hangarShips().map((S) => S.id).filter((id) => (bank.owned || {})[id] || rentLeft(id) > 0); }
 function has3d(id) { return SHIP3D.includes(id); }
 const SHIP3D = ["ballast", "boiler", "borer", "brass", "cantor", "cinder", "corsair", "courier", "drakon", "flipper", "frankenstein", "fresnel", "glitch", "kiln", "kraal", "labyrinth", "link", "lyth", "mirage", "nimbus", "orian", "puff", "rivet", "skarn", "strata", "talus", "vanta", "vault", "vexar", "xeltar", "zorian"];
+
+// ---------- FLIPPER's pinballs (MAGIC.pinballs) ----------
+// FLIPPER's phone sends "pb"; on the OTHER ship's phone three pinballs are let loose in a pinball table round that ship
+// (`box` screens square). The table follows the ship, but slower than it can fly (`follow`), so flying off helps for a
+// while. The balls bounce off the table's edges at slightly random angles for `last` s; each that reaches the ship
+// takes `hit` of a health tank, and is gone. (That phone runs them, so the hits go by where the ship really is; it
+// sends where they are in its state, `pb`, so FLIPPER's phone shows them too.)
+function startPinballs(M) {
+  if (!enemy.on || enemyDocked() || !enemy.remote) { audio.nope(); buzz(20); return; }
+  game.magicCool = M.cool;
+  game.anim = { seq: "magic", t: 0 };
+  link.send({ t: "pb" });
+  for (let i = 0; i < 3; i++) audio.tone(900 + i * 300, 0.12, "square", 0.04, 1, i * 0.09);
+  audio.tone(200, 0.3, "sine", 0.06, 2); buzz(50);
+}
+// on my phone: their FLIPPER's balls arrive round me
+function pinballsArrive() {
+  const M = MAGIC.pinballs, B = M.box * U;
+  game.pinball = { t: 0, cx: game.x, cy: game.y, balls: [] };
+  for (let i = 0; i < M.balls; i++) {
+    const a = (i / M.balls) * TAU + Math.random() * 0.8, d = B * (0.32 + Math.random() * 0.12), h = Math.random() * TAU;
+    game.pinball.balls.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, vx: Math.cos(h) * M.speed * U, vy: Math.sin(h) * M.speed * U, spin: 0 });
+  }
+  audio.tone(1400, 0.08, "square", 0.04, 1); audio.tone(1800, 0.08, "square", 0.04, 1, 0.1); buzz(40);
+}
+function updatePinballs(dt) {
+  const P = game.pinball; if (!P) return;
+  const M = MAGIC.pinballs, B = M.box * U, size = shipSize(), r = M.r * size;
+  P.t += dt;
+  if (P.t > M.last || !P.balls.length || game.stage !== "fly") { game.pinball = null; return; }
+  // the table drifts after my ship, slower than a ship
+  const dx = wrapDelta(game.x - P.cx, WW), dy = wrapDelta(game.y - P.cy, WH), d = Math.hypot(dx, dy);
+  if (d > 1) { const st = Math.min(d, M.follow * U * dt); P.cx = wrapX(P.cx + dx / d * st); P.cy = wrapY(P.cy + dy / d * st); }
+  for (let k = P.balls.length - 1; k >= 0; k--) {
+    const b = P.balls[k], lim = B / 2 - r;
+    b.x += b.vx * dt; b.y += b.vy * dt; b.spin += dt * 8;
+    let hitWall = false;
+    if (Math.abs(b.x) > lim) { b.x = Math.sign(b.x) * lim; b.vx = -b.vx; hitWall = true; }
+    if (Math.abs(b.y) > lim) { b.y = Math.sign(b.y) * lim; b.vy = -b.vy; hitWall = true; }
+    if (hitWall) {   // a bumper: off at a slightly different angle each time (the same speed)
+      const a = Math.atan2(b.vy, b.vx) + (Math.random() - 0.5) * 0.7, sp = M.speed * U;
+      b.vx = Math.cos(a) * sp; b.vy = Math.sin(a) * sp;
+      const w = { x: P.cx + b.x, y: P.cy + b.y };
+      burstAt(w.x, w.y, 5, ["#ffffff", "#ffd27a", "#ff4d6d"], 0.15, 0.3);
+      if (Math.random() < 0.5) audio.tone(1500 + Math.random() * 600, 0.03, "square", 0.015, 0.5);
+    }
+    const wx = wrapX(P.cx + b.x), wy = wrapY(P.cy + b.y);
+    if (!game.dead && !stratAloft(game) && Math.hypot(wrapDelta(wx - game.x, WW), wrapDelta(wy - game.y, WH)) < size * 0.42 * shipScale() + r) {
+      burstAt(wx, wy, 26, ["#ffffff", "#ffd27a", "#ff4d6d", "#d8dde6"], 0.6, 0.6); rings.push({ x: wx, y: wy, t: 0, max: 0.3, r: size * 0.6, c: "#ffd27a" });
+      audio.tone(2200, 0.06, "square", 0.05, 0.5); audio.tone(900, 0.2, "square", 0.05, 0.6, 0.05); shake(0.4);
+      P.balls.splice(k, 1);
+      damageShip(SHIP_HP * M.hit);   // half a tank (shields still help)
+    }
+  }
+}
+// in my state: the table and the balls (shares of the arena), for FLIPPER's phone to show
+function pinballNet() {
+  const P = game.pinball; if (!P) return 0;
+  const out = [+(P.cx / WW).toFixed(4), +(P.cy / WH).toFixed(4)];
+  for (const b of P.balls) out.push(+(b.x / U).toFixed(3), +(b.y / U).toFixed(3));
+  return out;
+}
+// the table (a neon frame with bumpers in its corners) and its balls: P = { cx, cy, balls: [{x, y}] } in pixels
+function drawPinballTable(cx, cy, balls, t) {
+  const M = MAGIC.pinballs, B = M.box * U, size = shipSize(), r = M.r * size, p = toScreen(cx, cy), img = artImage(framePath("flipper", "pinball.webp"));
+  const fade = Math.min(1, t / 0.4) * Math.min(1, (M.last - t) / 1);
+  ctx.save(); ctx.globalAlpha = 0.55 * fade;
+  ctx.strokeStyle = "#ff4d6d"; ctx.lineWidth = 3; ctx.setLineDash([14, 8]); ctx.lineDashOffset = -time * 40;
+  roundRect(p.x - B / 2, p.y - B / 2, B, B, B * 0.08); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = "#ffd27a";
+  for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.beginPath(); ctx.arc(p.x + sx * B * 0.42, p.y + sy * B * 0.42, size * 0.06, 0, TAU); ctx.fill(); }   // bumpers
+  ctx.globalAlpha = fade;
+  for (const b of balls) {
+    const q = { x: p.x + b.x, y: p.y + b.y };
+    const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, r * 2.2); g.addColorStop(0, "rgba(255,240,200,0.5)"); g.addColorStop(1, "rgba(255,240,200,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(q.x, q.y, r * 2.2, 0, TAU); ctx.fill();
+    if (img) ctx.drawImage(img, q.x - r, q.y - r, r * 2, r * 2);
+    else { ctx.fillStyle = "#d8dde6"; ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, TAU); ctx.fill(); }
+  }
+  ctx.restore();
+}
+function drawPinballs() {
+  const P = game.pinball;
+  if (P) drawPinballTable(P.cx, P.cy, P.balls, P.t);
+  const n = enemy.remote && duel.net && duel.net.pb;   // theirs, round their ship (my FLIPPER's)
+  if (Array.isArray(n) && n.length >= 2) {
+    const balls = []; for (let i = 2; i + 1 < n.length; i += 2) balls.push({ x: n[i] * U, y: n[i + 1] * U });
+    drawPinballTable(n[0] * WW, n[1] * WH, balls, 1);
+  }
+}
+// FLIPPER's steel ball: it bounces once off the star (pinball-style), then it is like any shot
+function starBounceFx(s, Wp, dt) {
+  if (s.bounced || starOut()) return;
+  const R = planetR() + (Wp.r || 0) * shipSize(), dx = wrapDelta(s.x + s.vx * dt - WW / 2, WW), dy = wrapDelta(s.y + s.vy * dt - WH / 2, WH), d = Math.hypot(dx, dy);
+  if (d >= R || d < 1) return;
+  const v = bounceOff(s.vx, s.vy, dx / d, dy / d); s.vx = v.vx; s.vy = v.vy; s.bounced = true;
+  burstAt(WW / 2 + dx / d * R, WH / 2 + dy / d * R, 10, ["#ffffff", "#ffd27a", "#d8dde6"], 0.3, 0.4);
+  audio.tone(1700, 0.05, "square", 0.03, 0.6);
+}
 
 // ---------- magic: the gear button ----------
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
@@ -4667,7 +4789,8 @@ function useMagicNow(which = 0) {
   if (M.look === "vshift") { startShift(M); return; }
   if (M.look === "reverse") { startReverse(M); return; }
   if (M.look === "starforge") { startForge(M); return; }
-  if (M.look === "flood") { startFlood(M); return; }   // BOILER: the water (updateFlood)   // LABYRINTH: the spire, then the maze (updateMaze)
+  if (M.look === "flood") { startFlood(M); return; }
+  if (M.look === "pinballs") { startPinballs(M); return; }   // FLIPPER: three pinballs round them   // BOILER: the water (updateFlood)   // LABYRINTH: the spire, then the maze (updateMaze)
   if (M.look === "surgery") { surgeryPress(M); return; }   // FRANKENSTEIN: surgery, then a part a press (updateSurgery)   // KILN: the body pushes the enemy away (updateReverse)   // STRATA: up into the upper dimension (updateShift)   // BALLAST: held, it tows an asteroid in (updateTow)
   if (M.look === "tail") {   // the stinger tail grows out behind the ship, stays out, and comes back by itself
     if (game.tail) return;
@@ -7184,7 +7307,7 @@ function updateWeapons(dt) {
         if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
         const Hw = shotHit(s, Wp); hitEnemy(s, Hw); shots.splice(k, 1);
         if (Wp.tag) { enemy.markT = Wp.tag; audio.sfx("vanta", "mark_hit"); }   // VANTA's marking drop: the stain
-        if (Wp.knock && s.w === "bubble") {   // PUFF's bubble pops: a shove
+        if (Wp.knock && (s.w === "bubble" || s.w === "plunger")) {   // PUFF's bubble pops / FLIPPER's plunger: a shove
           const sp = Math.hypot(s.vx, s.vy) || 1, kn = Hw.knock;
           if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + s.vx / sp * kn, vy: enemy.vy / U + s.vy / sp * kn });
           else { enemy.vx += s.vx / sp * kn * U; enemy.vy += s.vy / sp * kn * U; }
@@ -8123,7 +8246,8 @@ const KIT = {
   ballast: { a: "#7fdbc9", b: "#ffb21e", fx: "none", face: true }, strata: { a: "#c86bff", b: "#e3c5ff", fx: "none", face: true },
   kiln: { a: "#ffb85a", b: "#7fb6ff", fx: "none", face: true }, frankenstein: { a: "#9bd2c3", b: "#c86bff", fx: "none", face: true },
   labyrinth: { a: "#ffb36b", b: "#5ee7ff", fx: "none", face: true },
-  boiler: { a: "#ffb36b", b: "#3fd6d0", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
+  boiler: { a: "#ffb36b", b: "#3fd6d0", fx: "none", face: true },
+  flipper: { a: "#ff4d6d", b: "#ffd27a", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
 function kitOf(S) { return HUD_KIT && S && KIT[S.id] ? KIT[S.id] : null; }
@@ -9192,7 +9316,8 @@ function updateLenses(dt) {
 function shotFx(list, k, s, Wp, dt) {
   if (maze && mazeShot(list, k, s, Wp, dt)) return true;
   if (flood && floodShot(list, k, s, Wp, dt)) return true;   // BOILER's water: the enemy's shots stop at it
-  if (stationShot(list, k, s)) return true;   // the station's hull   // LABYRINTH's maze: its own shots bounce, the rest are stopped
+  if (stationShot(list, k, s)) return true;   // the station's hull
+  if (Wp.starBounce) starBounceFx(s, Wp, dt);   // FLIPPER's steel ball: once off the star   // LABYRINTH's maze: its own shots bounce, the rest are stopped
   if ((game.palWall || duel.palWall) && palShot(list, k, s, Wp, dt)) return true;
   if (lenses.length && !(Wp.speed === 0)) {
     const size = shipSize();
@@ -10849,7 +10974,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawEnemy(); drawPractice(); drawComets();
+    drawEnemy(); drawPractice(); drawComets(); drawPinballs();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -12291,7 +12416,7 @@ function enemyShown() { return enemy.on && !(enemy.remote && enemy.hidden) && !e
 function duelSplit(a, b) {
   let t = Math.floor((Math.min(a, b) * 1e9 + Math.max(a, b) * 7919) % 4294967296) >>> 0;   // the same seed on both phones
   const rnd = () => { t = (t + 0x6D2B79F5) >>> 0; let r = Math.imul(t ^ (t >>> 15), 1 | t); r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); return ((r ^ (r >>> 14)) >>> 0) / 4294967296; };
-  const all = hangarShips().map((S) => S.id).sort();
+  const all = hangarShips().filter((S) => !S.shopOnly).map((S) => S.id).sort();   // (shop-only ships: only bought)
   for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
   const half = Math.ceil(all.length / 2);
   return [all.slice(0, half), all.slice(half)];
@@ -12314,7 +12439,7 @@ function endDuel(tellThem) {
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   game.zombie = false; game.pollen = null; enemy.zombie = false;
-  mazeEnd(true); flood = null;   // the match is over: no maze, the star back, no water
+  mazeEnd(true); flood = null; game.pinball = null;   // the match is over: no maze, the star back, no water, no pinballs
   if (game.docked) undock();
   duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
@@ -12397,6 +12522,7 @@ function duelLink(event, data) {
   } else if (m.t === "rg") {   // their KILN reversed the body: it pushes MY ship away and round (worked out here, from their seed)
     game.reversed = { t: -MAGIC.reverse.at, seed: m.s || 1 }; audio.tone(140, 1.0, "sine", 0.05, 3, 0.5);
   } else if (m.t === "cm" || m.t === "cmh" || m.t === "cmk") { cometMsg(m);   // the resource comets
+  } else if (m.t === "pb") { pinballsArrive();   // their FLIPPER's pinballs, round me
   } else if (m.t === "wk") {   // their LYTH's ring / BALLAST's asteroid got my BOILER under water: it blows up
     if (flood && flood.owner === "me" && game.ship === "boiler") floodKill();
   } else if (m.t === "tank") {   // their STRATA's laser: one whole tank of power off my ship
@@ -12643,7 +12769,7 @@ function updateDuel(dt) {
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
         ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2), creatureLeft(game.surg.c), +(game.surg.c.hp / MAGIC.surgery.hp).toFixed(3)] : [])] : 0,
-      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
+      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
@@ -12849,7 +12975,7 @@ const camp = { off: false, lvl: 1, mine: [], theirs: [], lost: [], left: [], ove
 function realDuel() { return !!duel.stage && !duel.bot; }
 function shuffled(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function newCampaign() {
-  const all = shuffled(hangarShips().map((S) => S.id)), half = Math.ceil(all.length / 2);
+  const all = shuffled(hangarShips().filter((S) => !S.shopOnly).map((S) => S.id)), half = Math.ceil(all.length / 2);   // (shop-only ships: only bought)
   camp.mine = all.slice(0, half); camp.theirs = all.slice(half);
   for (const id of ownedIds()) if (!camp.mine.includes(id)) { camp.mine.push(id); camp.theirs = camp.theirs.filter((x) => x !== id); }   // bought for good / rented: always mine
   filmNewGame(all);   // this game's surprise film

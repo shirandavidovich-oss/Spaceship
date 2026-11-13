@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("forty ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 40);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 40);
+ok("forty-one ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 41);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 41);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -730,10 +730,18 @@ ok("fleet upgrades: every ship with a fit has its shield, cannon and shop button
     assert(SHIPS.some((S) => S.id === id), id); assert(F.length === 5 && F[2] > 0.3 && F[2] < 4, id);
     for (const f of ["shield", "cannon", "btn-shield", "btn-cannon"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, f + ".webp")), id + " " + f);
   }
-  for (const id of ["corsair", "courier", "flipper", "fresnel", "gravity-sail", "knuckle", "link", "vault"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, "body.webp")), id);
+  for (const id of ["corsair", "courier", "fresnel", "gravity-sail", "knuckle", "link", "vault"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, "body.webp")), id);
   const j = html.indexOf("const SHIP3D = "), list = JSON.parse(html.slice(j + 15, html.indexOf(";", j)));
   for (const id of list) assert(fs.existsSync(path.join(A, "art/ships3d", id + ".webp")), id);
   const buy = eval("(" + html.slice(html.indexOf("{", html.indexOf("const SHIP_BUY = ")), html.indexOf("};", html.indexOf("const SHIP_BUY = ")) + 1) + ")");
   assert(buy.once === 1 && buy.week > buy.once && buy.own > buy.week);
+});
+ok("FLIPPER: sold only in the shop; a steel ball that bounces off the star, a plunger that shoves; three pinballs for a minute, half a tank each", () => {
+  const S = SHIPS.find((q) => q.id === "flipper"), html = require("fs").readFileSync(require("path").join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(S && S.shopOnly && S.anim && S.magic === "pinballs" && S.weapons.join() === "steelball,plunger");
+  assert(SHIPS.filter((q) => q.shopOnly).every((q) => q.anim), "shop-only ships are in the test hangar (it lists the ships with art)");
+  assert(html.includes("hangarShips().filter((S) => !S.shopOnly)"), "the random fleets leave shop-only ships out");
+  const i = html.indexOf("  pinballs: { name:"), M = eval("(" + html.slice(html.indexOf("{", i), html.indexOf("},", i) + 1) + ")");
+  assert(M.balls === 3 && M.last === 60 && M.hit === 0.5 && M.follow < 1.0 && M.box > 1);
 });
 console.log(n + " checks passed");
