@@ -620,6 +620,12 @@ off the star like a bumper, the paddles slap, its magic is a multiball fanfare a
 bumping into anything (a ship, the star, a store, the edge) plays the machine's win: the replay knock, a run of bells,
 the score tallying (`flipperWin`, at most every 1.5 s).
 
+**BOILER sounds like a submarine** (`audio/boiler/`, made in code): its gas is a ship's diesel throb and churning screw
+with a sonar ping (instead of the engine hum); going into the water it splashes (`boilerSplash`: the sound, a crown of
+water thrown up, drops, a ring on the surface; a smaller one coming out). Its torpedo leaves under water with a thunk of
+air and a rush of bubbles and trails a stream of bubbles; out of the water its motor lights with a missile's roar, the
+flame growing over half a second, fire and smoke behind it.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

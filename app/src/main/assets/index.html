@@ -2582,8 +2582,10 @@ const audio = {
     s.buffer = buf; f.type = "lowpass"; f.frequency.value = cutoff; g.gain.value = vol;
     s.connect(f); f.connect(g); g.connect(this.out); s.start();
   },
-  shot(w, ship = game.ship) {
+  shot(w, ship = game.ship, from = game) {
     if (shop.open) return;   // (in a shop: no firing heard, only the shop's music)
+    // BOILER's torpedo: under water, a thunk of air and a rush of bubbles; in the air, a missile leaving its tube
+    if (w === "ptorp") { playClip("audio/boiler/" + (inWater(from) ? "torp-launch" : "missile") + ".ogg", false, 0.7); return; }
     // VAULT: a heavy piston slamming out of a bank vault, steam and a ringing breech (every one of its weapons)
     if (ship === "vault" && (w === "brassburst" || w === "piston" || w === "solarfire")) { playClip("audio/vault/fire.ogg", false, 0.75); return; }
     // CORSAIR: a pirate ship's thundering cannons; the chain shot: the bow cannon, then the chain whirling away
@@ -2997,7 +2999,7 @@ function shipSize() { return U * 0.26; }
 function shopPaused() { return !BOT && !!game.docked && !!duel.bot && game.stage === "fly"; }
 function update(dt) {
   musicTick();   // (the loop for this screen)
-  rowingSound(!BOT && (game.ship === "corsair" || game.ship === "flipper") && !game.dead && game.stage === "fly" && !game.docked && game.thrust !== null && !result.mode && !shopPaused());   // (CORSAIR's rowing loop)
+  rowingSound(!BOT && (game.ship === "corsair" || game.ship === "flipper" || game.ship === "boiler") && !game.dead && game.stage === "fly" && !game.docked && game.thrust !== null && !result.mode && !shopPaused());   // (CORSAIR's rowing loop)
   if (shopPaused()) { time += dt; updateShop(dt); return; }
   if (!BOT && ((game.t % 1) < dt)) filmPreload();   // (once a second: load the film of a ship that is about)
   time += dt; game.t += dt; updateStoreBreaks(dt);
@@ -3132,7 +3134,7 @@ function flyShip(dt) {
     z = clamp(Math.min(dx ? (W / 2 - m) / dx : 1, dy ? (H / 2 - m) / dy : 1, 1), ZOOM_MIN, 1);
   }
   game.zoom = lerp(game.zoom, z, 1 - Math.exp(-dt * (z < game.zoom ? 3 : 1)));
-  audio.engine(game.ship === "corsair" || game.ship === "flipper" ? 0 : game.power);   // (CORSAIR rows, FLIPPER's playfield rings instead: rowingSound)
+  audio.engine(game.ship === "corsair" || game.ship === "flipper" || game.ship === "boiler" ? 0 : game.power);   // (CORSAIR rows, FLIPPER's playfield rings instead: rowingSound)
 }
 
 // One step of flying for ANY ship (player or enemy): same rules for both, like in Star Control.
@@ -3626,6 +3628,37 @@ function splashAt(x, y, n, big) {
   burstAt(x, y, n, ["#ffffff", "#bff6ff", "#5fe0e0", "#2aa8b8"], big ? 0.7 : 0.3, big ? 0.9 : 0.5, 0, -U * (big ? 0.5 : 0.25));
   if (big) rings.push({ x, y, t: 0, max: 0.45, r: shipSize() * 0.9, c: "#bff6ff" });
 }
+// a splash where BOILER crosses the surface: a crown of water thrown up, droplets, a ring on the surface, and its sound
+const splashes = [];
+function boilerSplash(o, into) {
+  const sy = surfaceY(); splashAt(o.x, sy, into ? 34 : 16, into);
+  splashes.push({ x: o.x, y: sy, t: 0, big: into ? 1 : 0.6, seed: Math.random() * 100 });
+  const near = Math.hypot(wrapDelta(o.x - game.x, WW), wrapDelta(sy - game.y, WH)) < U * 2.2;
+  if (near) playClip("audio/boiler/" + (into ? "splash" : "splash-small") + ".ogg", false, into ? 0.85 : 0.6);
+  if (o === game) buzz(into ? 60 : 30);
+}
+function drawSplashes() {
+  const size = shipSize();
+  for (let k = splashes.length - 1; k >= 0; k--) {
+    const S = splashes[k]; S.t += frameDt || 0.016; const D = 1.0, q = S.t / D;
+    if (q >= 1) { splashes.splice(k, 1); continue; }
+    const p = toScreen(S.x, S.y), h = size * 1.6 * S.big, g = size * 6;
+    ctx.save(); ctx.lineCap = "round";
+    // the crown: jets of water thrown up and out, rising, slowing and falling back, thinning as they go
+    for (let j = 0; j < 11; j++) {
+      const r1 = Math.sin(S.seed + j * 7.3) * 0.5 + 0.5, a = -Math.PI / 2 + (j - 5) * 0.2 + (r1 - 0.5) * 0.15;
+      const v = h * (1.6 + r1 * 0.8) * (1 - Math.abs(j - 5) * 0.06), vx = Math.cos(a) * v, vy = Math.sin(a) * v, t = S.t;
+      const x1 = p.x + vx * t, y1 = Math.min(p.y, p.y + vy * t + 0.5 * g * t * t), al = (1 - q) * 0.9;
+      ctx.strokeStyle = `rgba(220,255,255,${al})`; ctx.lineWidth = Math.max(1.5, size * 0.07 * (1 - q) * (1 - Math.abs(j - 5) * 0.08));
+      ctx.beginPath(); ctx.moveTo(p.x + (j - 5) * size * 0.05, p.y); ctx.quadraticCurveTo((p.x + x1) / 2 + vx * 0.05, (p.y + y1) / 2 - h * 0.15 * (1 - q), x1, y1); ctx.stroke();
+      ctx.fillStyle = `rgba(240,255,255,${al})`; ctx.beginPath(); ctx.arc(x1, y1, size * 0.045 * (1 - q * 0.5), 0, TAU); ctx.fill();   // the drop at its tip
+    }
+    // a ring spreading over the surface
+    ctx.strokeStyle = `rgba(200,255,255,${0.7 * (1 - q)})`; ctx.lineWidth = Math.max(1, size * 0.03);
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, size * (0.4 + 1.6 * q) * S.big, size * (0.08 + 0.2 * q) * S.big, 0, 0, TAU); ctx.stroke();
+    ctx.restore();
+  }
+}
 function startFlood(M) {
   if (flood) { audio.nope(); buzz(20); return; }   // one flood at a time (theirs too)
   flood = { owner: "me", t: 0 };
@@ -3671,6 +3704,12 @@ function updateFlood(dt) {
   if (t0 < M.fill && flood.t >= M.fill) { audio.tone(45, 0.9, "sine", 0.08, 0.4); buzz(60); }   // full: the hunt begins
   if (t0 < M.fill + M.hunt && flood.t >= M.fill + M.hunt) audio.noise(M.drain, 0.1, 400);       // draining
   if (flood.owner === "me" && game.zombie && inWater(game)) floodCure();   // infected under water: washed at once
+  for (const o of [game, enemy]) {   // BOILER going into the water (a big splash) or coming out of it (a small one)
+    const on = o === game ? !game.dead && game.ship === "boiler" : enemy.on && enemy.ship === "boiler";
+    const w = on && inWater(o);
+    if (on && o.wasWet != null && w !== o.wasWet) boilerSplash(o, w);
+    o.wasWet = on ? w : null;
+  }
   if (!game.dead && floodHeld()) floodKeep(dt);
 }
 // my ship on its side of the water
@@ -3741,9 +3780,20 @@ function floodSink(T, M, dt) {
   return true;
 }
 // BOILER's torpedo: bubbles behind it under water, a short blue trail in space
+// leaving the water its motor lights (s.dryAt: the flame grows from then) with a missile's roar; fired in the air: lit from the start
 function ptorpTrail(s) {
-  if (inWater(s)) { if (Math.random() < 0.7) burstAt(s.x, s.y, 1, ["#bff6ff", "#ffffff"], 0.06, 1.0, -s.vx * 0.1, -s.vy * 0.1 - U * 0.15); }
-  else if (Math.random() < 0.8) burstAt(s.x, s.y, 1, ["#7fd8ff", "#e8f6ff"], 0.05, 0.35, -s.vx * 0.2, -s.vy * 0.2);
+  const w = inWater(s);
+  if (s.wetP === undefined && !w) s.dryAt = time;
+  if (s.wetP === true && !w) {
+    s.dryAt = time;
+    if (Math.hypot(wrapDelta(s.x - game.x, WW), wrapDelta(s.y - game.y, WH)) < U * 2.2) playClip("audio/boiler/missile.ogg", false, 0.6);
+  }
+  s.wetP = w;
+  if (w) { if (Math.random() < 0.7) burstAt(s.x, s.y, 1, ["#bff6ff", "#ffffff"], 0.06, 1.0, -s.vx * 0.1, -s.vy * 0.1 - U * 0.15); }
+  else if (Math.random() < 0.9) {   // fire and smoke behind it
+    const sp = Math.hypot(s.vx, s.vy) || 1, bx = s.x - s.vx / sp * shipSize() * 0.12, by = s.y - s.vy / sp * shipSize() * 0.12;
+    burstAt(bx, by, 1, Math.random() < 0.6 ? ["#ffd27a", "#ff8a3a", "#fff3c8"] : ["#8a8f99", "#5a5f69"], 0.06, 0.5, -s.vx * 0.25, -s.vy * 0.25);
+  }
 }
 function drawPTorp(s) {
   const p = toScreen(s.x, s.y), L = shipSize() * 0.2, a = Math.atan2(s.vx, -s.vy);
@@ -3753,6 +3803,22 @@ function drawPTorp(s) {
   ctx.fillStyle = "#f2e6cf"; ctx.fillRect(-L * 0.13, -L * 0.02, L * 0.26, L * 0.08);   // ivory band
   ctx.fillStyle = "#7fd8ff"; ctx.beginPath(); ctx.ellipse(0, -L * 0.3, L * 0.13, L * 0.22, 0, 0, TAU); ctx.fill();   // the glass warhead
   ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.beginPath(); ctx.ellipse(-L * 0.04, -L * 0.36, L * 0.04, L * 0.08, 0, 0, TAU); ctx.fill();
+  if (inWater(s)) {   // a stream of bubbles behind it, wobbling, growing as they rise and fall behind
+    ctx.strokeStyle = "rgba(220,255,255,0.75)"; ctx.lineWidth = Math.max(1, L * 0.035);
+    for (let i = 0; i < 9; i++) {
+      const u = ((time * 2.2 + i / 9) % 1), y = L * (0.55 + u * 2.6), x = Math.sin(time * 9 + i * 1.7) * L * 0.16 * (0.4 + u), r = L * (0.05 + 0.11 * u);
+      ctx.globalAlpha = 1 - u; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  } else if (s.dryAt != null) {   // its motor: a flame that grows over half a second, flickering
+    const k = ease(clamp((time - s.dryAt) / 0.5, 0, 1)), fl = L * (0.3 + 1.3 * k) * (0.85 + 0.25 * Math.random()), fw = L * (0.1 + 0.08 * k);
+    ctx.globalCompositeOperation = "lighter";
+    const g = ctx.createLinearGradient(0, L * 0.45, 0, L * 0.45 + fl); g.addColorStop(0, "rgba(255,255,235,0.95)"); g.addColorStop(0.25, "rgba(255,210,90,0.9)"); g.addColorStop(0.6, "rgba(255,110,30,0.6)"); g.addColorStop(1, "rgba(200,40,10,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-fw, L * 0.45); ctx.quadraticCurveTo(0, L * 0.45 + fl * 1.3, fw, L * 0.45); ctx.fill();
+    const h = ctx.createRadialGradient(0, L * 0.5, 0, 0, L * 0.5, L * 0.45 * (0.5 + k)); h.addColorStop(0, `rgba(255,200,90,${0.5 * k})`); h.addColorStop(1, "rgba(255,120,30,0)");
+    ctx.fillStyle = h; ctx.beginPath(); ctx.arc(0, L * 0.5, L * 0.45 * (0.5 + k), 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+  }
   const sp = Math.sin(time * 40) * L * 0.14;   // the propeller
   ctx.strokeStyle = "#d8d0c0"; ctx.lineWidth = Math.max(1, L * 0.05); ctx.beginPath(); ctx.moveTo(-sp, L * 0.5); ctx.lineTo(sp, L * 0.5); ctx.stroke();
   ctx.restore();
@@ -5956,7 +6022,8 @@ function flipperWin() {
 // started at the oars' place in their stroke, faded out in about 120 ms when let go
 function rowingSound(on) {
   const c = audio.ctx; if (!c || BOT) return;
-  const loop = game.ship === "flipper" ? "audio/flipper/playfield-loop.ogg" : "audio/corsair/rowing-loop.ogg", len = game.ship === "flipper" ? 2.4 : 4.08;
+  const loop = game.ship === "flipper" ? "audio/flipper/playfield-loop.ogg" : game.ship === "boiler" ? "audio/boiler/engine-loop.ogg" : "audio/corsair/rowing-loop.ogg", len = game.ship === "flipper" ? 2.4 : game.ship === "boiler" ? 4.0 : 4.08;
+  if (game.ship === "boiler") for (const f of ["engine-loop", "splash", "splash-small", "torp-launch", "missile"]) soundBuf("audio/boiler/" + f + ".ogg");   // (loaded early)
   if (game.ship === "flipper") for (const f of ["playfield-loop", "launch", "paddles", "bumper", "bumper2", "multiball", "win"]) soundBuf("audio/flipper/" + f + ".ogg");   // (loaded early)
   if (game.ship === "corsair") { soundBuf("audio/corsair/rowing-loop.ogg"); for (const f of ["cannon-1", "cannon-2", "cannon-3", "chainshot"]) soundBuf("audio/corsair/" + f + ".ogg"); }   // (loaded early)
   const R = audio.row || (audio.row = { src: null, g: null });
@@ -13069,7 +13136,7 @@ function draw() {
     drawRiftMark(); drawRiftBursts();
     drawChips(); drawPieces();
     drawKitFx("above");
-    drawFloodFront();
+    drawFloodFront(); drawSplashes();
     if (!game.dead && (game.actOn > 0 || game.shieldFx > 0)) { const q = shipScreen(); drawShieldBubble(q.x, q.y, shipSize() * shipScale(), game.actOn > 0 ? 1 : 2, game.shieldFx); }   // my shields
     if (enemyShown() && duel.net && duel.net.sh) { const q = toScreen(enemy.x, enemy.y); drawShieldBubble(q.x, q.y, shipSize() * enemyScale(), duel.net.sh, 0.3); }   // theirs
     drawParts();
@@ -14539,7 +14606,7 @@ function duelLink(event, data) {
     const art = a0 && a0.files && m.ix != null ? { ...a0, file: a0.files[m.ix] } : a0;   // CANTOR: each bolt its groove's colour
     duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
-    if (duel.shots.length < 60) audio.shot(m.w, enemy.ship);
+    if (duel.shots.length < 60) audio.shot(m.w, enemy.ship, enemy);
     if (m.w === "solarfire") enemy.vaultFireT = MAGIC.vault.fireShow;
     if (m.w === "lensflash" || m.w === "lightshard") fresnelFlash(m.x * WW, m.y * WH, m.w);
     if (m.w === "huskcannon") enemy.huskFlash = { at: time, side: enemy.huskFlash ? 1 - enemy.huskFlash.side : 0 };   // their FRESNEL's light   // their VAULT's doors open for it

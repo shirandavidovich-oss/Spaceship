@@ -880,7 +880,7 @@ ok("VAULT: sparkle waves for its radiation and a bank vault's heavy sounds; COUR
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
   for (const f of ["open", "close", "fire"]) assert(fs.existsSync(path.join(A, `audio/vault/${f}.ogg`)), f);
   for (let i = 1; i <= 26; i++) assert(fs.existsSync(path.join(A, `art/ships/courier/cbody_${String(i).padStart(2, "0")}.webp`)), i);
-  assert(html.includes("function drawVaultSparkles(") && html.includes('secondary: frames("cbody", 26, () => 40, { 14: "fire" })') && html.includes("audio.shot(m.w, enemy.ship)"));
+  assert(html.includes("function drawVaultSparkles(") && html.includes('secondary: frames("cbody", 26, () => 40, { 14: "fire" })') && html.includes("audio.shot(m.w, enemy.ship, enemy)"));
 });
 ok("FLIPPER sounds like a pinball machine: a playfield loop for its gas, the plunger, paddles, bumpers, multiball and a win when it bumps into something", () => {
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
@@ -890,5 +890,10 @@ ok("FLIPPER sounds like a pinball machine: a playfield loop for its gas, the plu
 ok("CORSAIR as BLOOM's zombie still rows: its oars drawn under the zombie art", () => {
   const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
   assert(html.includes('if (o.zombie && S.rig) drawCorsairOars(S, o, "bloom");') && html.includes("function drawCorsairOars(S, o, v)"));
+});
+ok("BOILER: a splash going into the water (sound and a crown of water), a ship's engine with sonar, the torpedo's bubbles and its missile flame out of the water", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  for (const f of ["engine-loop", "splash", "splash-small", "torp-launch", "missile"]) assert(fs.existsSync(path.join(A, `audio/boiler/${f}.ogg`)), f);
+  assert(html.includes("function boilerSplash(o, into)") && html.includes("drawFloodFront(); drawSplashes();") && html.includes("if (s.wetP === true && !w)"));
 });
 console.log(n + " checks passed");
