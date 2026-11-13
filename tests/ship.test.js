@@ -887,4 +887,8 @@ ok("FLIPPER sounds like a pinball machine: a playfield loop for its gas, the plu
   for (const f of ["playfield-loop", "launch", "paddles", "bumper", "bumper2", "multiball", "win"]) assert(fs.existsSync(path.join(A, `audio/flipper/${f}.ogg`)), f);
   assert(html.includes("function flipperWin()") && html.includes('if (w === "steelball") { pinSnd("launch"') && (html.match(/if \(!flipperWin\(\)\)/g) || []).length === 3);
 });
+ok("CORSAIR as BLOOM's zombie still rows: its oars drawn under the zombie art", () => {
+  const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(html.includes('if (o.zombie && S.rig) drawCorsairOars(S, o, "bloom");') && html.includes("function drawCorsairOars(S, o, v)"));
+});
 console.log(n + " checks passed");

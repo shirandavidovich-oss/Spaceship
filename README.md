@@ -602,7 +602,7 @@ tap closes it. Poking a seller: he complains (`poke` lines, spoken like the rest
 (1.3), stretched so their pitch stays.
 
 **CORSAIR rows** (the CORSAIR Rowing package): four oars a side come out while the gas is held and row from bow to
-stern (`CorsairOars`, the package's own drawing code, under the hull), folding when it is let go. Rowing (the gas held, or
+stern (`CorsairOars`, the package's own drawing code, under the hull), folding when it is let go (as BLOOM's zombie too: the oars in BLOOM's colours under its zombie art). Rowing (the gas held, or
 the oars still folding) only the bow's chain shot fires: the broadside and a picked-up weapon are dimmed, a press is not
 kept, and a volley already going stops. Instead of the engine hum: the package's rowing loop (oars, crew, the captain's
 "Heave!"), faded out in 120 ms. Its cannons thunder (`audio/corsair/cannon-1..3.ogg`), and the chain shot is the bow
