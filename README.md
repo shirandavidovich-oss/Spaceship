@@ -501,6 +501,22 @@ shop opens over everything, and the ship is safe there. **Exit** sends it out th
   shoot but cannot hurt it (no health lost at all then), 20 for each one shot down, and its weapons refill three times
   faster, until the other comes out.
 
+**The shop's looks on the ships** (the Orbit Break Fleet Upgrades package: `art/upgrades/<ship>/`). A ship with a shield
+from the shop (passive or active) shows its own shield layer behind it, and with an extra weapon its own extra cannon on
+top; button 4 fires from that cannon's muzzle. The other phone sees them too (`gr` in the state). `UPGRADE_FIT` places
+each package canvas on the ship (worked out once from the package reference body against the ship's own picture,
+matched by length; LABYRINTH's reference is two views, the top one is used; GLITCH's hull is its core and wings
+together; REPRISE, built of moving buildings, gets no layers). In the shop the shield options show the ship's own shield
+button and the weapon card its own cannon button.
+**3D pictures** (the Orbit Break Fleet 3D archive, `art/ships3d/`, 640 px): the shop's showcase shows the docked ship's
+3D picture in a hologram frame, with the ship from above and its looks in a corner; choosing a ship to buy shows that
+ship. (Ships without a 3D picture turn on the hologram stand as before.)
+**Buying ships**: three ways (`SHIP_BUY`, times the ship's price by rarity): for this game only (×1), rented for a week
+(×2.5; renting again adds a week) or for good (×8). Rented and owned ships join the player's fleet in every game (against
+the computer and against a phone). They are kept on the phone for now (`bank.owned`, `bank.rent`). The ships still being
+made (CORSAIR, COURIER, FLIPPER, FRESNEL, GRAVITY SAIL, KNUCKLE, LINK, VAULT) are shown as "coming soon" with their
+pictures, not for sale yet. The ship list has pages when it is long.
+
 **Resource comets** (the Orbit Break Resource Comets package: `art/comets/`, the tail atlases at half size, 24 frames,
 25 fps; `COMET` and `MINERALS` hold every number). About once a minute (at random: some sooner, some later, so a longer
 fight sees more of them; the first not before 20 s) a comet crosses near the fight, 15% faster than an average ship,

@@ -722,4 +722,18 @@ ok("resource comets: 1 in 5 carries minerals, four kinds (the rarer worth more),
   assert(Math.abs(C.gold - 0.8) < 1e-9 && C.coins[0] === 100 && C.coins[1] === 1000 && C.coinCurve > 1 && C.speed > 1 && C.every >= 45 && C.every <= 75);
   for (const f of ["gold", "crystal"]) assert(fs.existsSync(path.join(A, "art/comets", f + "-atlas.webp")), f);
 });
+ok("fleet upgrades: every ship with a fit has its shield, cannon and shop buttons; coming-soon ships have a picture; 3D pictures exist", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  const i = html.indexOf("const UPGRADE_FIT = {"), fit = eval("(" + html.slice(html.indexOf("{", i), html.indexOf("\n};", i) + 2) + ")");
+  assert(Object.keys(fit).length >= 28);
+  for (const [id, F] of Object.entries(fit)) {
+    assert(SHIPS.some((S) => S.id === id), id); assert(F.length === 5 && F[2] > 0.3 && F[2] < 4, id);
+    for (const f of ["shield", "cannon", "btn-shield", "btn-cannon"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, f + ".webp")), id + " " + f);
+  }
+  for (const id of ["corsair", "courier", "flipper", "fresnel", "gravity-sail", "knuckle", "link", "vault"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, "body.webp")), id);
+  const j = html.indexOf("const SHIP3D = "), list = JSON.parse(html.slice(j + 15, html.indexOf(";", j)));
+  for (const id of list) assert(fs.existsSync(path.join(A, "art/ships3d", id + ".webp")), id);
+  const buy = eval("(" + html.slice(html.indexOf("{", html.indexOf("const SHIP_BUY = ")), html.indexOf("};", html.indexOf("const SHIP_BUY = ")) + 1) + ")");
+  assert(buy.once === 1 && buy.week > buy.once && buy.own > buy.week);
+});
 console.log(n + " checks passed");

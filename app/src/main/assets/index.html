@@ -3704,7 +3704,9 @@ const SHOP_TXT = {
     sayLife: "מיכל חיים נוסף: עוד בר שלם לפני שאתה נופל. קלאסיקה!", sayAmmo: "תחמושת מלאה בכל הנשקים. בום, בום, בום.",
     sayShield: "פסיבי סופג פגיעות לבד ומתמלא שוב. אקטיבי: כפתור, ושום דבר לא עובר לכמה שניות.",
     sayWeapon: "נשק נוסף מחללית אחרת, עם כפתור משלו ליד כפתור הירי. תבחר טוב!", sayShip: "חלליות חדשות לצי של המשחק הזה. תבחר אחת, ואז תאשר.",
-    thanks: ["עסקה מצוינת!", "תהנה מזה, טייס!", "בחירה חכמה!"], cant: "אוי… חסרים לך עוד", coins: "מטבעות" },
+    thanks: ["עסקה מצוינת!", "תהנה מזה, טייס!", "בחירה חכמה!"], cant: "אוי… חסרים לך עוד", coins: "מטבעות",
+    soon: "בקרוב", once: "לקרב הזה", week: "שבוע", own: "לתמיד", ownedForever: "שלך לתמיד", rented: "מושכרת", days: "ימים", inFleet: "כבר בצי",
+    saySoon: "את זו עוד בונים במספנה. בקרוב אצלי!", sayModes: "לקרב הזה, השכרה לשבוע, או לתמיד: אז היא בצי שלך בכל משחק." },
   en: { dock: "⚓ DOCK", shop: "Trading Station", exit: "Exit", buy: "Buy", total: "Total", minerals: "minerals", metals: "metals",
     life: "Life", shield: "Shield", ammo: "Ammo", ship: "Ship", weapon: "Weapon",
     lifeOpt: "+1 health tank", ammoOpt: "Refill all ammo", pas: "Passive shield", act: "Active shield", lvl: "Level", max: "Max", full: "Full", owned: "Yours",
@@ -3713,7 +3715,9 @@ const SHOP_TXT = {
     sayLife: "A spare health tank: one more full bar before you go down. A classic!", sayAmmo: "All your weapons, full again. Boom, boom, boom.",
     sayShield: "Passive soaks hits by itself and refills. Active: a button, and nothing gets through for a few seconds.",
     sayWeapon: "An extra weapon from another ship, with its own button by the fire button. Choose well!", sayShip: "New ships for this game's fleet. Pick one, then confirm.",
-    thanks: ["Excellent deal!", "Enjoy it, pilot!", "Smart choice!"], cant: "Oh… you still need", coins: "coins" }
+    thanks: ["Excellent deal!", "Enjoy it, pilot!", "Smart choice!"], cant: "Oh… you still need", coins: "coins",
+    soon: "Coming soon", once: "This game", week: "A week", own: "Forever", ownedForever: "Yours forever", rented: "Rented", days: "days", inFleet: "In your fleet",
+    saySoon: "That one is still in the shipyard. Coming soon!", sayModes: "For this game, rented for a week, or forever: then it is in your fleet every game." }
 };
 function st(k) { return (SHOP_TXT[LANG] || SHOP_TXT.he)[k]; }
 
@@ -3740,6 +3744,7 @@ function payWin(r, player) {
 // ---- gear ----
 function gearOf(id) { const g = bank.gear[id]; return { pas: (g && g.pas) || 0, act: (g && g.act) || 0, xw: (g && g.xw && WEAPONS[g.xw]) ? g.xw : null }; }
 function myGear() { return gearOf(game.ship); }
+function myGearLook() { const G = myGear(); return [G.pas || G.act ? 1 : 0, G.xw ? 1 : 0]; }   // [shield shown, cannon shown]
 function setGear(id, k, v) { bank.gear[id] = Object.assign(gearOf(id), { [k]: v }); }
 // a new ship / a new life: the shields full, the extra weapon full
 function gearReset() {
@@ -3992,12 +3997,12 @@ function drawWallet() {
 // ---- the shop page (drawn on the canvas, like the other pages) ----
 // shop: { open, sel (the product), opt (its chosen option), say { text, t }, alien { seq, t }, hits (tap boxes), busy,
 //   offers (this visit's weapons and ships) }
-const shop = { open: false, sel: null, opt: 0, say: null, alien: { seq: "idle", t: 0 }, hits: [], busy: false, offers: null };
+const shop = { open: false, sel: null, opt: 0, say: null, alien: { seq: "idle", t: 0 }, hits: [], busy: false, offers: null, mode: "once", page: 0 };
 function shopOpen() {
   const others = Object.keys(SHOP.weapons).filter((w) => !weaponsOf(shipById(game.ship)).includes(w));
-  const ships = hangarShips().map((S) => S.id).filter((id) => !myFleet().includes(id) || lostIds().includes(id));
-  shop.offers = { weapons: shuffled(others).slice(0, SHOP.offers), ships: shuffled(ships).slice(0, SHOP.shipOffers) };
-  Object.assign(shop, { open: true, sel: null, opt: 0, busy: false, alien: { seq: "wave", t: 0 }, say: null });
+  const ships = hangarShips().map((S) => S.id).filter((id) => !(bank.owned || {})[id] && id !== game.ship);
+  shop.offers = { weapons: shuffled(others).slice(0, SHOP.offers), ships: shuffled(ships).slice(0, SHOP.shipOffers).concat(SOON_SHIPS.map((q) => q.id)) };   // (and the ships still being made)
+  Object.assign(shop, { open: true, sel: null, opt: 0, busy: false, alien: { seq: "wave", t: 0 }, say: null, mode: "once", page: 0 });
   shop.helloLine = st("hello")[Math.floor(Math.random() * st("hello").length)];
 }
 function shopSay(text) { shop.say = { text, t: 0, blip: 0 }; }
@@ -4008,7 +4013,7 @@ function shopPrice(p) {
   if (p.kind === "pas") return SHOP.pasPrice[G.pas + 1] || 0;
   if (p.kind === "act") return SHOP.actPrice[G.act + 1] || 0;
   if (p.kind === "xw") return SHOP.weapons[p.w][0];
-  if (p.kind === "ship") return SHOP.ship[shipById(p.id).rarity] || SHOP.ship.common;
+  if (p.kind === "ship") return p.soon ? 0 : Math.round((SHOP.ship[shipById(p.id).rarity] || SHOP.ship.common) * SHIP_BUY[shop.mode] / 50) * 50;
   return 0;
 }
 function ammoFull() {
@@ -4024,7 +4029,15 @@ function shopOptions(sel) {
     { kind: "pas", label: st("pas"), sub: G.pas < 3 ? `${st("lvl")} ${G.pas + 1}` : st("max"), lvl: G.pas, ok: G.pas < 3, why: st("max") },
     { kind: "act", label: st("act"), sub: G.act < 3 ? `${st("lvl")} ${G.act + 1}` : st("max"), lvl: G.act, ok: G.act < 3, why: st("max") }];
   if (sel === "weapon") return shop.offers.weapons.map((w) => ({ kind: "xw", w, label: LANG === "he" ? WEAPONS[w].name : SHOP.weapons[w][1], sub: G.xw === w ? st("owned") : "", ok: G.xw !== w, why: st("owned") }));
-  if (sel === "ship") return shop.offers.ships.map((id) => ({ kind: "ship", id, label: shipById(id).name, sub: (LANG === "he" ? { common: "רגילה", rare: "נדירה", epic: "אפית", legendary: "אגדית" } : {})[shipById(id).rarity] || shipById(id).rarity, ok: !myFleet().includes(id) || lostIds().includes(id), why: st("owned") }));
+  if (sel === "ship") return shop.offers.ships.map((id) => {
+    const soon = SOON_SHIPS.find((q) => q.id === id);
+    if (soon) return { kind: "ship", id, soon: true, label: soon.name, sub: st("soon"), ok: false, why: st("soon") };
+    const S = shipById(id), owned = (bank.owned || {})[id], rent = rentLeft(id), inFleet = myFleet().includes(id) && !lostIds().includes(id);
+    const rarity = (LANG === "he" ? { common: "רגילה", rare: "נדירה", epic: "אפית", legendary: "אגדית" } : {})[S.rarity] || S.rarity;
+    const sub = owned ? st("ownedForever") : rent ? `${st("rented")} · ${Math.ceil(rent / 86400000)} ${st("days")}` : rarity;
+    const ok = !owned && !(shop.mode === "once" && (inFleet || rent > 0));
+    return { kind: "ship", id, label: S.name, sub, ok, why: owned ? st("ownedForever") : st("inFleet") };
+  });
   return [];
 }
 const SHOP_PRODUCTS = [["life", "art/ui/shop/life.webp", "sayLife"], ["shield", "art/ui/shop/shield.webp", "sayShield"], ["ammo", "art/ui/shop/ammo.webp", "sayAmmo"],
@@ -4042,7 +4055,11 @@ function shopBuy() {
   else if (o.kind === "pas") { setGear(game.ship, "pas", myGear().pas + 1); game.pasHp = SHOP.pasCap[myGear().pas]; }
   else if (o.kind === "act") { setGear(game.ship, "act", myGear().act + 1); game.actCool = 0; }
   else if (o.kind === "xw") { setGear(game.ship, "xw", o.w); game.xammo = WEAPONS[o.w].ammo; game.cool[3] = 0; }
-  else if (o.kind === "ship") { const L = lostIds(), i = L.indexOf(o.id); if (i >= 0) L.splice(i, 1); else myFleet().push(o.id); }
+  else if (o.kind === "ship") {
+    if (shop.mode === "week") { bank.rent = bank.rent || {}; bank.rent[o.id] = Math.max(Date.now(), bank.rent[o.id] || 0) + WEEK_MS; }   // (a rental again: a week more)
+    if (shop.mode === "own") { bank.owned = bank.owned || {}; bank.owned[o.id] = 1; }
+    const L = lostIds(), i = L.indexOf(o.id); if (i >= 0) L.splice(i, 1); else if (!myFleet().includes(o.id)) myFleet().push(o.id);   // in this game's fleet now
+  }
   saveBank();
   shopSay(st("thanks")[Math.floor(Math.random() * st("thanks").length)]);
   audio.coins && audio.coins(); for (let i = 0; i < 5; i++) audio.tone(900 + i * 220, 0.07, "triangle", 0.05, 1, i * 0.05); buzz(50);
@@ -4056,10 +4073,12 @@ function shopTap(x, y) {
     if (h.act === "buy") { shopBuy(); return; }
     if (h.act === "prod") {
       if (shop.sel === h.p) { shop.sel = null; shopSay(shop.helloLine); }   // (again: put it back)
-      else { shop.sel = h.p; shop.opt = 0; shopSay(st(SHOP_PRODUCTS.find((q) => q[0] === h.p)[2])); }
+      else { shop.sel = h.p; shop.opt = 0; shop.page = 0; shopSay(st(SHOP_PRODUCTS.find((q) => q[0] === h.p)[2])); }
       audio.pop(); buzz(10); return;
     }
-    if (h.act === "opt") { shop.opt = h.i; audio.pop(); buzz(8); return; }
+    if (h.act === "opt") { shop.opt = h.i; audio.pop(); buzz(8); const o = shopOptions(shop.sel)[h.i]; if (o && o.soon) shopSay(st("saySoon")); return; }
+    if (h.act === "mode") { shop.mode = h.m; shopSay(st("sayModes")); audio.pop(); buzz(8); return; }
+    if (h.act === "page") { shop.page = h.p; audio.pop(); buzz(8); return; }
     return;
   }
 }
@@ -4137,16 +4156,37 @@ function drawShop() {
     ctx.fillStyle = c; ctx.fillText(v, x, y); const vw = ctx.measureText(v).width;
     ctx.fillStyle = "#9fb4d8"; ctx.fillText(word, x + vw + f * 0.35, y, slot - vw - f * 0.5);
   });
-  // the showcase: the docked ship turning on a hologram stand (to be replaced by its 3D art when it comes)
+  // the showcase: the 3D picture of the docked ship (or of the ship chosen to buy), floating in a hologram frame, and the
+  // docked ship from above with what it carries (shield behind, extra cannon on top). No 3D picture: the top view, turning
   const Sh = L.show, cx = Sh.x + Sh.w / 2, cy = Sh.y + Sh.h * 0.48, sz = Math.min(Sh.w, Sh.h) * 0.62;
-  const pg = ctx.createRadialGradient(cx, cy + sz * 0.55, 0, cx, cy + sz * 0.55, sz * 0.75);
-  pg.addColorStop(0, "rgba(94,231,255,0.45)"); pg.addColorStop(1, "rgba(94,231,255,0)");
-  ctx.fillStyle = pg; ctx.beginPath(); ctx.ellipse(cx, cy + sz * 0.55, sz * 0.75, sz * 0.2, 0, 0, TAU); ctx.fill();
-  ctx.strokeStyle = "rgba(94,231,255,0.7)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(cx, cy + sz * 0.55, sz * 0.6, sz * 0.14, 0, 0, TAU); ctx.stroke();
-  for (let i = 0; i < 3; i++) { const k = ((time * 0.6 + i / 3) % 1); ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.ellipse(cx, cy + sz * 0.55 - k * sz * 0.9, sz * 0.6 * (1 - k * 0.3), sz * 0.14 * (1 - k * 0.3), 0, 0, TAU); ctx.stroke(); }
-  ctx.globalAlpha = 1;
-  drawShip(S, cx, cy, sz, { ang: Math.sin(time * 0.5) * 0.5, bank: Math.sin(time * 0.8) * 0.9, power: 0.35 });
-  if (game.actOn > 0 || G.pas) drawShieldBubble(cx, cy, sz, 2, 0.3 + 0.15 * Math.sin(time * 2));
+  const chosen = shop.sel === "ship" ? shopOptions("ship")[shop.opt] : null, showId = chosen ? chosen.id : game.ship;
+  const pic = has3d(showId) ? artImage("art/ships3d/" + showId + ".webp") : chosen && chosen.soon ? artImage("art/upgrades/" + showId + "/body.webp") : null;
+  if (pic) {
+    const fw = Sh.w * 0.96, fh = Math.min(Sh.h * 1.25, fw * pic.height / pic.width), fx = cx - fw / 2, fy = Sh.y + Sh.h * 0.5 - fh / 2 - Sh.h * 0.12 + Math.sin(time * 1.3) * U * 0.006;
+    ctx.save(); roundRect(fx, fy, fw, fh, U * 0.02); ctx.clip();
+    ctx.fillStyle = "#04060e"; ctx.fillRect(fx, fy, fw, fh);
+    const k = Math.min(fw / pic.width, fh / pic.height) * (1.02 + 0.015 * Math.sin(time * 0.7));
+    ctx.drawImage(pic, cx - pic.width * k / 2, fy + fh / 2 - pic.height * k / 2, pic.width * k, pic.height * k);
+    ctx.globalAlpha = 0.07; ctx.fillStyle = "#5ee7ff"; for (let y = fy + ((time * 30) % 6); y < fy + fh; y += 6) ctx.fillRect(fx, y, fw, 1);   // scan lines
+    ctx.restore();
+    ctx.strokeStyle = "rgba(94,231,255,0.8)"; ctx.lineWidth = 2; roundRect(fx, fy, fw, fh, U * 0.02); ctx.stroke();
+    if (chosen && chosen.soon) { ctx.fillStyle = "rgba(255,209,102,0.95)"; ctx.font = `900 ${Math.round(f * 0.7)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = textDir(); ctx.fillText(st("soon"), cx, fy + fh - f * 0.6); ctx.direction = "ltr"; }
+    if (!chosen) {   // my ship from above, small, with its looks
+      const tx = he ? fx + fh * 0.32 : fx + fw - fh * 0.32, ty = fy + fh * 0.72, ts = fh * 0.42;
+      ctx.fillStyle = "rgba(4,8,20,0.75)"; ctx.beginPath(); ctx.arc(tx, ty, ts * 0.62, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "rgba(94,231,255,0.6)"; ctx.beginPath(); ctx.arc(tx, ty, ts * 0.62, 0, TAU); ctx.stroke();
+      drawShip(S, tx, ty, ts, { power: 0.3, ang: Math.sin(time * 0.6) * 0.3, gear: myGearLook() });
+    }
+  } else {
+    const pg = ctx.createRadialGradient(cx, cy + sz * 0.55, 0, cx, cy + sz * 0.55, sz * 0.75);
+    pg.addColorStop(0, "rgba(94,231,255,0.45)"); pg.addColorStop(1, "rgba(94,231,255,0)");
+    ctx.fillStyle = pg; ctx.beginPath(); ctx.ellipse(cx, cy + sz * 0.55, sz * 0.75, sz * 0.2, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = "rgba(94,231,255,0.7)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(cx, cy + sz * 0.55, sz * 0.6, sz * 0.14, 0, 0, TAU); ctx.stroke();
+    for (let i = 0; i < 3; i++) { const k = ((time * 0.6 + i / 3) % 1); ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.ellipse(cx, cy + sz * 0.55 - k * sz * 0.9, sz * 0.6 * (1 - k * 0.3), sz * 0.14 * (1 - k * 0.3), 0, 0, TAU); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    const SS = chosen ? shipById(chosen.id) : S;
+    drawShip(SS, cx, cy, sz, { ang: Math.sin(time * 0.5) * 0.5, bank: Math.sin(time * 0.8) * 0.9, power: 0.35, gear: chosen ? null : myGearLook() });
+  }
   // what it carries: its shields and extra weapon, under it
   ctx.font = `800 ${Math.round(f * 0.62)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "#bff6ff";
   const carry = [G.pas ? `🛡 ${st("pas")} ${G.pas}` : "", G.act ? `⚡🛡 ${st("act")} ${G.act}` : "", G.xw ? `✦ ${he ? WEAPONS[G.xw].name : SHOP.weapons[G.xw] ? SHOP.weapons[G.xw][1] : G.xw}` : ""].filter(Boolean).join("   ");
@@ -4176,7 +4216,9 @@ function drawShop() {
     shopPanel(x, y, C.w, C.h, sel ? "#ffd166" : "rgba(94,231,255,0.5)", sel ? "rgba(60,46,10,0.9)" : "rgba(10,16,34,0.88)");
     if (sel) { ctx.save(); ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 5); ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 6; roundRect(x - 3, y - 3, C.w + 6, C.h + 6, C.w * 0.14); ctx.stroke(); ctx.restore(); }
     const isz = Math.min(C.w * 0.86, C.h * 0.62), ix = x + C.w / 2 - isz / 2, iy = y + C.h * 0.06;
-    if (file) { const im = artImage(file); if (im) ctx.drawImage(im, ix, iy, isz, isz); }
+    const own = id === "weapon" && UPGRADE_FIT[game.ship] ? artImage("art/upgrades/" + game.ship + "/btn-cannon.webp") : null;   // (this ship's own cannon)
+    if (own) ctx.drawImage(own, ix, iy, isz, isz);
+    else if (file) { const im = artImage(file); if (im) ctx.drawImage(im, ix, iy, isz, isz); }
     else weaponIcon(G.xw || "missile", x + C.w / 2, iy + isz / 2, isz * 0.32, "#ffd166");
     ctx.fillStyle = sel ? "#ffd166" : "#e8f6ff"; ctx.font = `800 ${Math.round(Math.min(f * 0.7, C.w * 0.2))}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = textDir();
     ctx.fillText(st(id), x + C.w / 2, y + C.h * 0.82, C.w * 0.92); ctx.direction = "ltr";
@@ -4189,16 +4231,59 @@ function drawShop() {
     ctx.fillText(he ? "⬆ בחרו מוצר מהמדף" : "⬆ Pick something from the shelf", W / 2, D.y + Math.min(D.h, U * 0.3) / 2); ctx.direction = "ltr";
   }
   if (shop.sel) {
-    const opts = shopOptions(shop.sel), cols = opts.length > 2 ? 2 : opts.length, rows = Math.ceil(opts.length / cols), gap = L.m * 0.6;
-    const ow = (D.w - gap * (cols - 1)) / cols, oh = Math.min(L.optH * 1.1, (D.h - gap * (rows - 1)) / rows);
-    opts.forEach((o, i) => {
-      const c = i % cols, r = Math.floor(i / cols), x = he ? D.x + D.w - ow - c * (ow + gap) : D.x + c * (ow + gap), y = D.y + r * (oh + gap), on = shop.opt === i;
+    const all = shopOptions(shop.sel), ships = shop.sel === "ship", gap = L.m * 0.6;
+    const modeH = ships ? L.optH * 0.62 : 0, pagerH = shopOptions(shop.sel).length > (ships ? 6 : 6) ? L.optH * 0.42 : 0, areaH = D.h - (modeH ? modeH + gap : 0) - pagerH;
+    const cols = ships ? 3 : all.length > 2 ? 2 : all.length, ohMax = ships ? L.optH * 1.25 : L.optH * 1.1;
+    const fitRows = Math.max(1, Math.floor((areaH + gap) / (Math.min(ohMax, L.optH) + gap))), per = fitRows * cols, pages = Math.ceil(all.length / per);
+    shop.page = clamp(shop.page, 0, Math.max(0, pages - 1));
+    const first = shop.page * per, opts = all.slice(first, first + per), rows = Math.ceil(opts.length / cols);
+    const ow = (D.w - gap * (cols - 1)) / cols, oh = Math.min(ohMax, (areaH - gap * (fitRows - 1)) / fitRows);
+    if (pages > 1) {   // more than fit: pages (◀ 1/3 ▶ under the shelf)
+      const pw = U * 0.09, py = D.y + areaH + pagerH * 0.45;   // (under the options, over the buying modes)
+      ctx.font = `800 ${Math.round(f * 0.62)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "#9fb4d8"; ctx.direction = "ltr";
+      ctx.fillText(`${shop.page + 1}/${pages}`, W / 2, py);
+      for (const [dx, p, t] of [[-1, shop.page - 1, "◀"], [1, shop.page + 1, "▶"]]) {
+        const q = he ? -dx : dx, bx = W / 2 + q * pw * 1.2 - pw / 2;
+        if (p < 0 || p >= pages) continue;
+        ctx.fillStyle = "#5ee7ff"; ctx.fillText(t, bx + pw / 2, py); shop.hits.push({ x: bx, y: py - pw / 2, w: pw, h: pw, act: "page", p });
+      }
+    }
+    if (ships) {   // the way to buy it: for this game, a week, or for good
+      const mw = (D.w - gap * 2) / 3, my = D.y + D.h - modeH;
+      ["once", "week", "own"].forEach((m, i) => {
+        const x = he ? D.x + D.w - mw - i * (mw + gap) : D.x + i * (mw + gap), on = shop.mode === m;
+        shopPanel(x, my, mw, modeH, on ? "#5ee7ff" : "rgba(94,231,255,0.35)", on ? "rgba(10,50,70,0.95)" : "rgba(10,16,34,0.85)");
+        ctx.fillStyle = on ? "#e8fbff" : "#9fb4d8"; ctx.font = `800 ${Math.round(Math.min(f * 0.7, modeH * 0.36))}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = textDir();
+        ctx.fillText(`${st(m)} ×${SHIP_BUY[m]}`, x + mw / 2, my + modeH / 2, mw * 0.9); ctx.direction = "ltr";
+        shop.hits.push({ x, y: my, w: mw, h: modeH, act: "mode", m });
+      });
+    }
+    opts.forEach((o0, j) => {
+      const i = first + j, o = o0;
+      if (o.kind === "ship") {   // a small card: the ship, its name, its price (or why not)
+        const c = j % cols, r = Math.floor(j / cols), x = he ? D.x + D.w - ow - c * (ow + gap) : D.x + c * (ow + gap), y = D.y + r * (oh + gap), on = shop.opt === i;
+        const price = shopPrice(o), afford = wallet(game.ship) >= price;
+        shopPanel(x, y, ow, oh, on ? "#ffd166" : o.soon ? "rgba(159,180,216,0.3)" : "rgba(94,231,255,0.4)", on ? "rgba(40,34,12,0.92)" : "rgba(10,16,34,0.85)");
+        const ic = oh * 0.55;
+        ctx.save(); if (o.soon) ctx.globalAlpha = 0.6;
+        if (o.soon) { const im = artImage("art/upgrades/" + o.id + "/body.webp"); if (im) ctx.drawImage(im, x + ow / 2 - ic / 2, y + oh * 0.04, ic, ic); }
+        else drawShip(shipById(o.id), x + ow / 2, y + oh * 0.04 + ic / 2, ic * 0.9, { power: 0.3 });
+        ctx.restore();
+        ctx.textAlign = "center"; ctx.direction = "ltr"; ctx.font = `800 ${Math.round(Math.min(f * 0.6, oh * 0.15))}px Rubik, Arial, sans-serif`;
+        ctx.fillStyle = o.soon ? "#9fb4d8" : "#e8f6ff"; ctx.fillText(o.label, x + ow / 2, y + oh * 0.68, ow * 0.94);
+        ctx.font = `800 ${Math.round(Math.min(f * 0.56, oh * 0.14))}px Rubik, Arial, sans-serif`; ctx.direction = textDir();
+        ctx.fillStyle = !o.ok ? "#9fb4d8" : afford ? "#ffd166" : "#ff6b8a";
+        ctx.fillText(o.ok ? `🪙 ${price.toLocaleString("en-US")}` : o.why, x + ow / 2, y + oh * 0.87, ow * 0.94); ctx.direction = "ltr";
+        shop.hits.push({ x, y, w: ow, h: oh, act: "opt", i });
+        return;
+      }
+      const c = j % cols, r = Math.floor(j / cols), x = he ? D.x + D.w - ow - c * (ow + gap) : D.x + c * (ow + gap), y = D.y + r * (oh + gap), on = shop.opt === i;
       const price = shopPrice(o), afford = wallet(game.ship) >= price;
       shopPanel(x, y, ow, oh, on ? "#ffd166" : "rgba(94,231,255,0.4)", on ? "rgba(40,34,12,0.92)" : "rgba(10,16,34,0.85)");
       const ic = oh * 0.62, icx = he ? x + ow - oh * 0.5 : x + oh * 0.5, icy = y + oh / 2;
       if (o.kind === "xw") weaponIcon(o.w, icx, icy, ic * 0.4, o.ok ? "#ffffff" : "#7a8090");
       else if (o.kind === "ship") drawShip(shipById(o.id), icx, icy, ic * 0.95, { power: 0.3 });
-      else if (o.kind === "pas" || o.kind === "act") { const im = artImage("art/ui/shop/shield.webp"); if (im) ctx.drawImage(im, icx - ic / 2, icy - ic / 2, ic, ic); }
+      else if (o.kind === "pas" || o.kind === "act") { const im = (UPGRADE_FIT[game.ship] && artImage("art/upgrades/" + game.ship + "/btn-shield.webp")) || artImage("art/ui/shop/shield.webp"); if (im) ctx.drawImage(im, icx - ic / 2, icy - ic / 2, ic, ic); }   // (this ship's own shield)
       else { const im = artImage(o.kind === "life" ? "art/ui/shop/life.webp" : "art/ui/shop/ammo.webp"); if (im) ctx.drawImage(im, icx - ic / 2, icy - ic / 2, ic, ic); }
       const tx = he ? x + ow - oh : x + oh, tw = ow - oh - L.m;
       ctx.direction = textDir(); ctx.textAlign = he ? "right" : "left";
@@ -4225,7 +4310,7 @@ function drawShop() {
   const o = shop.sel ? shopOptions(shop.sel)[shop.opt] : null, price = o ? shopPrice(o) : 0, can = o && o.ok && wallet(game.ship) >= price && !shop.busy;
   shopPanel(bx, Bt.y, bw * 1.2, Bt.h, can ? "#ffd166" : "rgba(120,130,150,0.6)", can ? "rgba(70,52,8,0.95)" : "rgba(20,24,36,0.9)");
   ctx.fillStyle = can ? "#ffd166" : "#6a7488"; ctx.font = `900 ${Math.round(f * 1.0)}px Rubik, Arial, sans-serif`;
-  ctx.fillText(o ? `${st("buy")} · 🪙 ${price.toLocaleString("en-US")}` : st("buy"), bx + bw * 0.6, Bt.y + Bt.h / 2, bw * 1.1);
+  ctx.fillText(o ? (o.ok ? `${st("buy")} · 🪙 ${price.toLocaleString("en-US")}` : o.why) : st("buy"), bx + bw * 0.6, Bt.y + Bt.h / 2, bw * 1.1);
   shop.hits.push({ x: bx, y: Bt.y, w: bw * 1.2, h: Bt.h, act: "buy" });
   ctx.restore();
 }
@@ -4373,6 +4458,61 @@ function drawComets() {
     ctx.restore();
   }
 }
+
+// ---- the shop's looks on the ship (the Orbit Break Fleet Upgrades package: art/upgrades/<ship>/) ----
+// A ship with a shield (passive or active) shows its shield layer behind it; with an extra weapon, its extra cannon on
+// top, which the extra weapon (button 4) fires from. UPGRADE_FIT[ship]: where the package's 512 canvas goes on the ship
+// in its own drawing units (ship-lengths from its middle, nose up): [left, top, width, muzzle x, muzzle y]. Worked out
+// from each package reference body against the ship's own picture (matched by length). (REPRISE is built of moving
+// buildings: no layers.)
+const UPGRADE_FIT = {
+  ballast: [-0.9413, -0.953, 1.9036, 0.572, -0.3395],
+  bloom: [-0.7538, -0.7826, 1.5077, 0.2179, -0.4351],
+  boiler: [-0.6233, -0.7171, 1.4154, 0.3857, -0.2969],
+  borer: [-0.8215, -0.8231, 1.6462, 0.1656, -0.3344],
+  brass: [-0.8061, -0.81, 1.6154, 0.5095, -0.4062],
+  cantor: [-0.8058, -0.8069, 1.6115, 0.4123, -0.3285],
+  cinder: [-0.8048, -0.8785, 1.6127, 0.4394, -0.3998],
+  drakon: [-0.7714, -0.774, 1.5481, 0.3685, -0.3145],
+  frankenstein: [-0.7808, -0.7808, 1.5615, 0.2074, -0.3172],
+  gimbal: [-0.8315, -0.8831, 1.6654, 0.3297, -0.3887],
+  glitch: [-1.8993, -1.8956, 3.7986, 1.1277, -0.716],
+  kiln: [-0.8442, -0.8454, 1.6885, 0.3463, -0.3441],
+  kraal: [-0.7653, -0.7676, 1.5306, 0.1226, -0.2475],
+  labyrinth: [-1.0005, -1.4723, 2.9919, 0.4078, -0.3386],
+  lariat: [-0.8252, -0.8807, 1.6654, 0.2026, -0.3863],
+  lyth: [-0.7966, -0.8024, 1.5931, 0.4636, -0.3201],
+  mirage: [-0.8232, -0.8221, 1.6442, 0.1787, -0.334],
+  nimbus: [-0.8258, -0.7785, 1.6047, 0.4028, -0.277],
+  orian: [-0.5963, -0.5552, 1.1949, 0.1249, -0.2005],
+  palisade: [-0.8548, -0.8544, 1.7096, 0.394, -0.3435],
+  puff: [-0.7385, -0.7385, 1.4769, 0.1673, -0.3],
+  rivet: [-0.6852, -0.6877, 1.3731, 0.3607, -0.2801],
+  skarn: [-0.75, -0.7605, 1.5, 0.4395, -0.2889],
+  strata: [-0.9518, -0.9518, 1.9036, 0.2417, -0.3867],
+  talus: [-0.7459, -0.7444, 1.4893, 0.1035, -0.2994],
+  vanta: [-0.8051, -0.8016, 1.5962, 0.2517, -0.3277],
+  vexar: [-0.7827, -0.7862, 1.5654, 0.3913, -0.3215],
+  xeltar: [-0.8265, -0.8316, 1.6538, 0.2136, -0.3406],
+  zorian: [-0.7788, -0.7777, 1.5577, 0.2099, -0.3152]
+};
+function drawUpgrade(S, which) {
+  const F = UPGRADE_FIT[S.id]; if (!F) return;
+  const img = artImage("art/upgrades/" + S.id + "/" + which + ".webp");
+  if (img) ctx.drawImage(img, F[0], F[1], F[2], F[2]);
+}
+// the ships still being made: shown in the shop ("coming soon"), not for sale yet (their pictures: art/upgrades/<id>/body.webp
+// from above, art/ships3d/<id>.webp in 3D where there is one)
+const SOON_SHIPS = [["corsair", "CORSAIR"], ["courier", "COURIER"], ["flipper", "FLIPPER"], ["fresnel", "FRESNEL"], ["gravity-sail", "GRAVITY SAIL"],
+  ["knuckle", "KNUCKLE"], ["link", "LINK"], ["vault", "VAULT"]].map(([id, name]) => ({ id, name, soon: true }));
+// ships for good and ships rented (bank.owned[id] = 1; bank.rent[id] = when the rental ends, ms): they join my fleet in
+// every game. SHIP_BUY: the three ways to buy a ship, and the price of each against the ship's price (SHOP.ship)
+const SHIP_BUY = { once: 1, week: 2.5, own: 8 };
+const WEEK_MS = 7 * 24 * 3600 * 1000;
+function rentLeft(id) { return Math.max(0, ((bank.rent || {})[id] || 0) - Date.now()); }
+function ownedIds() { return hangarShips().map((S) => S.id).filter((id) => (bank.owned || {})[id] || rentLeft(id) > 0); }
+function has3d(id) { return SHIP3D.includes(id); }
+const SHIP3D = ["ballast", "boiler", "borer", "brass", "cantor", "cinder", "corsair", "courier", "drakon", "flipper", "frankenstein", "fresnel", "glitch", "kiln", "kraal", "labyrinth", "link", "lyth", "mirage", "nimbus", "orian", "puff", "rivet", "skarn", "strata", "talus", "vanta", "vault", "vexar", "xeltar", "zorian"];
 
 // ---------- magic: the gear button ----------
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
@@ -7106,7 +7246,7 @@ function shoot(i) {
     } else audio.jaws();
     return;
   }
-  const guns = gunsOf(S, w), b = Wp.both || Wp.alt ? 0 : game.barrel[i]++ % guns.length;   // (alt: a burst always starts on the left)
+  const guns = i === 3 && UPGRADE_FIT[S.id] ? [[UPGRADE_FIT[S.id][3], UPGRADE_FIT[S.id][4]]] : gunsOf(S, w), b = Wp.both || Wp.alt ? 0 : game.barrel[i]++ % guns.length;   // (button 4: from the extra cannon)   // (alt: a burst always starts on the left)
   // the firing frames do not cut into the ship's other sequences (the heavy cannon, the smoke hatches, the jaw...)
   if (A && A.mech && A.mech[w] && !(game.flipT >= 0)) game.anim = { seq: A.mech[w], t: 0 };   // RIVET: the part that fires moves
   if (A && A.primary && i === 0 && !(game.anim && game.anim.seq !== "primary"))
@@ -8166,6 +8306,8 @@ function drawShip(S, x, y, size, o = {}) {
     const k = S.anim.size / 512, [c, sl] = S.anim.seam, y0 = (c + -300 * sl) * k, y1 = (c + 300 * sl) * k, far = o.half === "front" ? -2 : 2;
     ctx.save(); ctx.beginPath(); ctx.moveTo(-300 * k, y0); ctx.lineTo(300 * k, y1); ctx.lineTo(300 * k, far); ctx.lineTo(-300 * k, far); ctx.closePath(); ctx.clip();
   }
+  if (o.gear && o.gear[0]) drawUpgrade(S, "shield");   // the shop's shield, behind the hull
+  if (S.clockwork && o.gear && o.gear[1]) drawUpgrade(S, "cannon");   // (GIMBAL returns below: its cannon now)
   if (S.clockwork && drawClockwork(S, ang)) { ctx.restore(); return; }   // GIMBAL: drawn in its moving layers
   if (img) {
     // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
@@ -8177,6 +8319,7 @@ function drawShip(S, x, y, size, o = {}) {
       ctx.restore();
     }
     ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
+    if (o.gear && o.gear[1] && !S.clockwork) drawUpgrade(S, "cannon");   // the shop's extra cannon, over the hull
     if (halfClip) ctx.restore();
     if (S.winch && o.winch) drawWinch(S, o.winch);   // LARIAT's winch turning
     if (S.anim && S.anim.ribbon && img === artImage(framePath(S.anim.dir, S.anim.ribbon))) drawRibbon(S, o.tint || 0);
@@ -10719,7 +10862,7 @@ function draw() {
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { prep: shown === S && surgPrep() ? game.surg.t : null, kiln: shown === S && game.kiln ? kilnRig(game.kiln.t) : null, strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && game.zombie, power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
-          ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null,
+          ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null,
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
           half: shown === S && game.splitUsed ? "rear" : null, glow: shown === S && S.grows ? talusGlow(game.talus.ring) : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
@@ -10996,7 +11139,7 @@ function drawEnemy() {
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
     drawShip(E, p.x, p.y, size * esc, { prep: enemy.remote && duel.surg && duel.surg.phase === "prep" ? duel.surg.t : null, kiln: enemy.remote && duel.kiln ? kilnRig(duel.kiln.t) : null, strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
-      grind: enemy.remote ? duel.grind : null });
+      grind: enemy.remote ? duel.grind : null, gear: enemy.remote && duel.net ? duel.net.gr : null });
     if (dv) ctx.restore();
     if (enemy.remote && duel.net && duel.net.fg && E.grows) drawForge(enemy, duel.net.fg, p.x, p.y, E.anim.size / 512 * size * esc);   // their TALUS forging
     if (enemy.remote && duel.net) drawAttachedEgg(enemy, E, enemy.anim, duel.net.ek, p.x, p.y, size * esc);   // their VEXAR's egg forming
@@ -12197,7 +12340,7 @@ function duelLink(event, data) {
     if (duel.side === 1 && m.st) setStation(m.st);      // and the same station
     if (!duel.bot) {   // a real phone: the fleets are split (the bottom player gets the first half), and I choose my first ship
       const sp = duelSplit(duel.me, m.r);
-      duel.fleet = { mine: sp[duel.side ? 0 : 1], lost: [] };
+      duel.fleet = { mine: sp[duel.side ? 0 : 1].concat(ownedIds().filter((id) => !sp[duel.side ? 0 : 1].includes(id))), lost: [] };   // (and my ships bought for good / rented)
       if (!duel.fleet.mine.includes(game.ship)) tryShip(duel.fleet.mine[0]);
       setTimeout(() => { if (realDuel()) openPicker("start"); }, 0);
     }
@@ -12500,7 +12643,7 @@ function updateDuel(dt) {
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
         ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2), creatureLeft(game.surg.c), +(game.surg.c.hp / MAGIC.surgery.hp).toFixed(3)] : [])] : 0,
-      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
+      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
@@ -12708,6 +12851,7 @@ function shuffled(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { c
 function newCampaign() {
   const all = shuffled(hangarShips().map((S) => S.id)), half = Math.ceil(all.length / 2);
   camp.mine = all.slice(0, half); camp.theirs = all.slice(half);
+  for (const id of ownedIds()) if (!camp.mine.includes(id)) { camp.mine.push(id); camp.theirs = camp.theirs.filter((x) => x !== id); }   // bought for good / rented: always mine
   filmNewGame(all);   // this game's surprise film
   camp.lvl = 1; camp.lost = []; camp.left = camp.theirs.slice(); camp.over = false; camp.wait = 1.5; camp.banner = 0;
   openPicker("start");
