@@ -708,7 +708,7 @@ const SHIPS = [
   // at 1,070 ms launch it BACKWARD from the stern (aim the stern at the target: turn the nose away). Magic: ink. The body
   // swells, and at 570 ms an ink cloud bursts from the stern; it stays where it was let out and spreads for 3.4 s,
   // and the enemy loses sight of you.
-  { id: "xeltar", name: "XELTAR", rarity: "epic", mass: 1.0, fuel: 30, refill: 15, sfx: "xeltar", magic: "ink",
+  { id: "xeltar", name: "XELTAR", rarity: "epic", mass: 1.0, fuel: 30, refill: 15, sfx: "xeltar", magic: "ink",   // (fins: always moving)
     sfxNames: ["crystal_launch", "ice_charge", "ice_shard", "ink_inflate", "ink_release"],
     hull: "#2a6fe0", wingC: "#0d1f4a", trim: "#9fe8ff", flame: "#8fe3ff",
     body: [], wing: [], nozzles: [0], engineY: 0.42, cockpit: [0, -0.2, 0.05, 0.1], noFlame: true,   // it swims: one engine's push, no flame
@@ -722,7 +722,11 @@ const SHIPS = [
       smoke: frames("ink", 13, (n) => [80, 80, 90, 95, 95, 80, 50, 80, 85, 85, 100, 80, 60][n - 1], { 8: "release" }),   // 1,060 ms, ink at 570
       // the ink cloud: stays where it was let out, turned the way the ship faced; its canvas is the ship's (512 -> 1.2)
       cloud: { frames: frames("cloud", 15, (n) => [90, 90, 90, 110, 130, 180, 210, 250, 330, 320, 400, 380, 400, 270, 150][n - 1]), size: 1.9, y: 0.307 },
-      shotArt: { ice: { file: "small_crystal.webp", size: 0.3 }, crystal: { file: "large_crystal.webp", size: 0.45, spin: 1.6 } } } },
+      shotArt: { ice: { file: "small_crystal.webp", size: 0.3 }, crystal: { file: "large_crystal.webp", size: 0.45, spin: 1.6 } },
+      // its side fins never stop: 32 frames of 40 ms (a 1,280 ms loop), a 512 x 168 strip laid over y 150..318 of
+      // every frame but the ink's (where the body swells): finComposite
+      fins: { y: 150, h: 168, n: 32, ms: 40 },
+      haunted: Array.from({ length: 32 }, (_, i) => "fins/fin_" + String(i).padStart(2, "0") + ".webp") } },
   // KRAAL, the crimson hammerhead (art/ships/kraal/, 512 x 512, center pivot, nose up), from kraal-layout.json.
   // Button 1: two parallel bolts from the two ends of the hammer (at 80 ms). Button 2: lines of light run out to the
   // two muzzles, and at 650 ms each muzzle sends a bolt to one point ahead of the nose; they meet there 425 ms later and
@@ -1085,7 +1089,7 @@ const SHIPS = [
   // FRESNEL, the lighthouse ship (art/ships/fresnel/, the FRESNEL package: 512 px frames, nose up). Sold only in the
   // shop (`shopOnly`), and in the test hangar. Button 1: a focused golden flash from the lens. Button 2: two coloured
   // light shards from the side shutters that cross at a point ahead (`aimAt`). Magic: the light portal's snake (MAGIC.snake)
-  { id: "fresnel", name: "FRESNEL", rarity: "legendary", mass: 1.2, fuel: 30, refill: 15, sfx: null, magic: "snake", shopOnly: true,
+  { id: "fresnel", name: "FRESNEL", rarity: "legendary", mass: 1.2, fuel: 30, refill: 15, sfx: null, magic: "snake", shopOnly: true, beacon: true,
     hull: "#a8242c", wingC: "#e8d8b0", trim: "#ffd86b", flame: "#7cc8ff",
     body: [], wing: [], nozzles: [-0.07, 0.07], engineY: 0.42, cockpit: [0, 0, 0.05, 0.1],
     weapons: ["lensflash", "lightshard"],
@@ -1294,7 +1298,7 @@ const WEAPONS = {
   gate:    { name: "שער רבע סיבוב", dmg: 0, speed: 0, life: 0, cool: 5.7, ammo: 2, refill: 11, r: 0, color: "#e9b66a", gate: true },
   ricochet: { name: "קליע ניתור", dmg: 9, speed: 3.0, life: 0.9, cool: 0.38, ammo: 16, refill: 6, r: 0.022, color: "#dfff83" },
   wall:    { name: "הצבת קיר",   dmg: 0, speed: 0, life: 0, cool: 4.6, ammo: 2, refill: 8, r: 0, color: "#e8e4f0", palWall: true },
-  pshard:  { name: "שבר קרמי",   dmg: 6, speed: 2.4, life: 0.6, cool: 1, ammo: 1, r: 0.025, color: "#f2eee6" },
+  pshard:  { name: "שבר קרמי",   dmg: 12, speed: 2.4, life: 0.6, cool: 1, ammo: 1, r: 0.025, color: "#f2eee6" },
   magnet:  { name: "כדורי מגנט", dmg: 7,  speed: 1.0, life: 6.0, cool: 4.5, ammo: 1, refill: 4.5, r: 0.06, color: "#ff6ad5", pellets: 8, fan: 5.5, magnet: 1.6,
              colors: ["#ff5a5a", "#ffb347", "#fff275", "#6dff8a", "#38d8ff", "#6a7dff", "#c86bff", "#ff6ad5"] },
   nails:   { name: "מסמרי מוקש", dmg: 14, speed: 2.0, life: 0, cool: 3.2, ammo: 2, refill: 6, r: 0.05, color: "#ffb347", mines: 4, fan: 0.9,
@@ -1446,8 +1450,8 @@ const MAGIC = {
   slip:    { name: "קפיצת תקלה", look: "slip", cool: 7, at: 0.4, jump: 2.6, ghost: 2.5, color: "#38f6ff" },
   // CINDER's side slip (dashL to the left, dashR to the right, one shared recharge): the engines swivel for `turn` s,
   //   and at `at` s the ship is kicked `kick` screens a second sideways (its own sideways, its heading untouched)
-  dashL: { name: "החלקה שמאלה", look: "dash", dir: -1, cool: 3.4, turn: 0.66, at: 0.17, kick: 1.8, color: "#ffa040" },
-  dashR: { name: "החלקה ימינה", look: "dash", dir: 1,  cool: 3.4, turn: 0.66, at: 0.17, kick: 1.8, color: "#ffa040" },
+  dashL: { name: "החלקה שמאלה", look: "dash", dir: -1, cool: 3.4, turn: 0.66, at: 0.17, kick: 2.34, color: "#ffa040" },   // (kick: 30% more than 1.8)
+  dashR: { name: "החלקה ימינה", look: "dash", dir: 1,  cool: 3.4, turn: 0.66, at: 0.17, kick: 2.34, color: "#ffa040" },
   // PUFF's inflation: while the spines are out (`guard`, seconds) a touching ship is stabbed (`dmg`, at most every
   //   `every` s) and thrown off (`knock`); it turns at `turn` of its speed while puffed up
   // PUFF: `up` s to puff up; held until a fire press; the spines fly; `down` s crumpling. `cool` counts from the spines.
@@ -1548,11 +1552,11 @@ const MAGIC = {
   //   `rad` screens in `wave` s and takes `dmg` health from the other ship inside it. fireShow: the solar fire's aurora (s)
   // CORSAIR's ghost ship: `last` s with homing shots (after the change, which takes its frames' time)
   haunt: { name: "ספינת רפאים", look: "haunt", last: 12, cool: 24, color: "#5ef0ff" },
-  vault: { name: "הכוכב בכספת", look: "vault", suck: 1.4, hold: 30, free: 1.4, door: 0.35, near: 0.55, reach: 1.5, pull: 0.5,
+  vault: { name: "הכוכב בכספת", look: "vault", suck: 1.4, hold: 30, free: 1.4, door: 0.35, near: 0.715, reach: 1.95, pull: 0.5,
            pulse: 2.5, rad: 0.8, wave: 0.45, dmg: 10, fireShow: 0.55, cool: 50, color: "#ffb347" },
   orbitmine: { name: "מוקש מסלול", look: "orbitmine", speed: 0.8, hit: 1.5, r: 0.13, cool: 10, color: "#ffb347" },
   pinballs: { name: "כדורי פליפר", look: "pinballs", balls: 3, box: 2.4, follow: 0.7, speed: 0.8, last: 60, hit: 0.5, r: 0.1, cool: 75, color: "#ff4d6d" },
-  reverse: { name: "היפוך כבידה", look: "reverse", at: 0.65, last: 4, push: 0.55, swirl: 1.1, reach: 1.5, cool: 16, color: "#7fb6ff" },
+  reverse: { name: "היפוך כבידה", look: "reverse", at: 0.65, last: 4, push: 0.55, swirl: 1.1, reach: 3.0, cool: 16, color: "#7fb6ff" },   // (reach: twice 1.5)
   // STRATA's vertical shift (its package: strata-magic.mjs). It tips its nose, the front engine fires down, and it
   //   rises into the upper dimension (up by `rise`[1] s): drawn high above its grey shadow, which stays where it is on
   //   the arena. Up there nothing touches it and it cannot fire; it still flies (its shadow is where it really is).
@@ -1588,7 +1592,7 @@ const MAGIC = {
   //   (at most once every `every` s) and knocks it away (`knock` screens a second)
   // VEXAR's tail: one tap; it grows out (`out` s), stays out `hold` s, and pulls back in (`back` s); `cool` s more after
   tail:  { name: "זנב כדור קוצים", out: 0.8, hold: 8, back: 0.7, len: 9.6, cool: 1, look: "tail", color: "#b8ff3a",
-           ball: 0.22, hit: 20, every: 0.6, knock: 1.0 }
+           ball: 0.22, hit: 40, every: 0.6, knock: 1.0 }   // (the tail itself: like one of VEXAR's button-1 shots, at most every `every` s)
 };
 // BALLAST's rig through the tow (its package's timeline): T.t seconds since the button went down, T.rel seconds since
 // it was let go (null while held), T.miss: let go before the cables latched. Returns 0..1 for each moving part:
@@ -1609,12 +1613,25 @@ function kilnRig(t, M = MAGIC.reverse) {
   const age = Math.max(0, t), spin = Math.min(age, end), after = Math.max(0, t - end);
   return { open, power, angle: 10.5 * (spin - 0.25 * (1 - Math.exp(-spin / 0.25))) + 3 * (1 - Math.exp(-after / 0.3)), piston: power * (0.52 + 0.48 * Math.sin(age * 21)), time: t };
 }
+// the way to the nearest of KILN's mines within 2.5 screens of ship o (theirs: the other phone's KILN), or null
+function kilnMineToward(o, theirs) {
+  let best = null, bd = U * 2.5;
+  for (const q of mines) {
+    if (!!q.remote !== theirs || !WEAPONS[q.w] || !WEAPONS[q.w].kiln) continue;
+    const dx = wrapDelta(q.x - o.x, WW), dy = wrapDelta(q.y - o.y, WH), d = Math.hypot(dx, dy);
+    if (d > 1 && d < bd) { bd = d; best = { x: dx / d, y: dy / d }; }
+  }
+  return best;
+}
 // the reversal's strength `t` s after it starts: up in 0.35 s, back down over 0.5 s after `last`
 function revRamp(t, M) { return t < 0 ? 0 : smoothStep(t / 0.35) * (1 - smoothStep((t - M.last) / 0.5)); }
 // the reversed body's push on a ship at (dx, dy) from its middle, `t` s in: out from it and round it, wavering by the seed.
 // Full strength within `reach` screens, none past twice that. Returns { ax, ay } in screens a second each second (times u)
-function revAccel(dx, dy, t, seed, M, u) {
-  const d = Math.hypot(dx, dy) || 1, nx = dx / d, ny = dy / d, far = Math.max(0, Math.min(1, 2 - d / (M.reach * u)));
+// toward: a unit vector (the nearest of KILN's mines): the push out leans that way, so it throws ships onto them
+function revAccel(dx, dy, t, seed, M, u, toward) {
+  let d = Math.hypot(dx, dy) || 1, nx = dx / d, ny = dy / d;
+  if (toward) { const mx = nx * 0.3 + toward.x * 0.7, my = ny * 0.3 + toward.y * 0.7, m = Math.hypot(mx, my) || 1; nx = mx / m; ny = my / m; }
+  const far = Math.max(0, Math.min(1, 2 - d / (M.reach * u)));
   const w = 1 + 0.25 * Math.sin(t * 1.3 + seed) + 0.15 * Math.sin(t * 2.9 + seed * 2.1), dir = seed % 2 ? 1 : -1;
   const out = M.push * u * w * far, round = M.swirl * u * (1 + 0.3 * Math.sin(t * 1.7 + seed * 0.7)) * far * dir;
   return { ax: nx * out - ny * round, ay: ny * out + nx * round };
@@ -2994,7 +3011,7 @@ function update(dt) {
     else if (game.docked) { const L = stationLook(), P = stationWorld(L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
-    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateVault(dt); updateCorsair(dt); updatePaddles(dt);
+    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateVault(dt); updateCorsair(dt); updatePaddles(dt); updateLightFx(dt);
   }
   updateTrade(dt);
   updateDuel(dt);
@@ -3130,7 +3147,7 @@ function moveShip(o, S, c, dt) {
   const g = inWater(o) ? { ax: 0, ay: 0 } : starPull(o.x, o.y, o);   // (from VAULT while it holds the star)   // (none in BOILER's water)   // (bodyPull: none while LABYRINTH's maze keeps the star out)
   const rk = reverseOn(o);   // KILN's reverse gravity: this ship is pushed away and round instead of pulled
   if (rk > 0) {
-    const RV = o === game ? game.reversed : game.kiln, ra = revAccel(dx, dy, o === game ? RV.t : RV.t - MAGIC.reverse.at, RV.seed, MAGIC.reverse, U);
+    const RV = o === game ? game.reversed : game.kiln, ra = revAccel(dx, dy, o === game ? RV.t : RV.t - MAGIC.reverse.at, RV.seed, MAGIC.reverse, U, kilnMineToward(o, o === game));
     o.vx += (g.ax * (1 - rk) + ra.ax * rk) * dt; o.vy += (g.ay * (1 - rk) + ra.ay * rk) * dt;
   } else { o.vx += g.ax * dt; o.vy += g.ay * dt; }
 
@@ -5364,14 +5381,20 @@ function drawVaultFx() {
       ctx.strokeStyle = `rgba(255,${190 + (i % 3) * 20},${110 + (i % 2) * 90},${0.3 * Math.sin(ph * Math.PI)})`; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(ps.x + Math.cos(a) * r0, ps.y + Math.sin(a) * r0); ctx.lineTo(ps.x + Math.cos(a + 0.12) * r1, ps.y + Math.sin(a + 0.12) * r1); ctx.stroke();
     }
-    // the radiation: each wave from the vault out to its reach (a hit, if it is still on you when it goes out)
+    // the radiation: each wave from the vault out to its reach (a hit, if it is still on you when it goes out). It is
+    // strongest at the vault and fades as it goes out: bright and thick near it, a thin faint edge at its reach
     const R = M.rad * U, q = (V.t % M.pulse) / M.wave, wn = Math.floor(V.t / M.pulse);
     if (wn > 0 && q < 1) {
-      const r = R * ease(q), a = 1 - q;
-      const g = ctx.createRadialGradient(ps.x, ps.y, r * 0.75, ps.x, ps.y, r);
-      g.addColorStop(0, "rgba(255,170,60,0)"); g.addColorStop(0.8, `rgba(255,200,90,${0.22 * a})`); g.addColorStop(1, `rgba(125,255,224,${0.55 * a})`);
+      const r = Math.max(2, R * ease(q)), a = Math.pow(1 - q, 1.6), th = 0.45 - 0.3 * q;
+      const g = ctx.createRadialGradient(ps.x, ps.y, r * (1 - th), ps.x, ps.y, r);
+      g.addColorStop(0, "rgba(255,170,60,0)"); g.addColorStop(0.6, `rgba(255,200,90,${0.4 * a})`); g.addColorStop(1, `rgba(125,255,224,${0.85 * a})`);
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ps.x, ps.y, r, 0, TAU); ctx.fill();
+      const core = ctx.createRadialGradient(ps.x, ps.y, 0, ps.x, ps.y, r * 0.6);   // the flash at the vault as it leaves
+      core.addColorStop(0, `rgba(255,236,170,${0.45 * a})`); core.addColorStop(1, "rgba(255,180,70,0)");
+      ctx.fillStyle = core; ctx.beginPath(); ctx.arc(ps.x, ps.y, r * 0.6, 0, TAU); ctx.fill();
     }
+    // northern lights round the held star: curtains of turquoise, green and violet waving and flaring (only a picture)
+    drawVaultAurora(ps, V.t, size);
     // its reach, faint, and getting brighter as the next wave comes
     const next = (V.t % M.pulse) / M.pulse;
     ctx.strokeStyle = `rgba(255,176,60,${0.12 + 0.25 * next * next})`; ctx.lineWidth = 2; ctx.setLineDash([10, 12]); ctx.lineDashOffset = -time * 30;
@@ -5383,6 +5406,30 @@ function drawVaultFx() {
     ctx.lineWidth = f * 0.18; ctx.strokeStyle = "rgba(20,10,0,0.8)"; ctx.fillStyle = left <= 5 ? "#ff8a3a" : "#ffd27a";
     const ty = ps.y - size * 0.85; ctx.strokeText("☀ " + left, ps.x, ty); ctx.fillText("☀ " + left, ps.x, ty); ctx.restore();
   }
+}
+// curtains of light round VAULT while it holds the star: arcs of ribbon at a few radii, waving, each brightening and
+// fading in its own rhythm, now and then a bright flare running along one
+function drawVaultAurora(ps, t, size) {
+  const cols = ["125,255,224", "120,255,140", "190,120,255", "90,220,255"];
+  ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+  for (let i = 0; i < 7; i++) {
+    const c = cols[i % cols.length], R0 = size * (0.75 + 0.18 * i), a0 = i * 1.7 + t * (0.25 + 0.07 * i) * (i % 2 ? 1 : -1), span = 1.1 + 0.5 * Math.sin(t * 0.6 + i);
+    const flare = Math.pow(Math.max(0, Math.sin(t * (1.3 + 0.21 * i) + i * 2.3)), 6), al = 0.1 + 0.18 * (0.5 + 0.5 * Math.sin(t * 2.1 + i * 1.9)) + 0.45 * flare;
+    for (const [lw, ak] of [[size * 0.16, 0.35], [size * 0.06, 1]]) {
+      ctx.strokeStyle = `rgba(${c},${al * ak})`; ctx.lineWidth = lw; ctx.beginPath();
+      for (let s = 0; s <= 24; s++) {
+        const u = s / 24, a = a0 + span * u, r = R0 + Math.sin(u * 9 + t * 3 + i) * size * 0.07;
+        const x = ps.x + Math.cos(a) * r, y = ps.y + Math.sin(a) * r; s ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    }
+    if (flare > 0.3) {   // the flare's bright knot running along the curtain
+      const u = (t * 0.8 + i * 0.37) % 1, a = a0 + span * u, r = R0 + Math.sin(u * 9 + t * 3 + i) * size * 0.07, x = ps.x + Math.cos(a) * r, y = ps.y + Math.sin(a) * r;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, size * 0.25); g.addColorStop(0, `rgba(240,255,250,${flare * 0.8})`); g.addColorStop(1, `rgba(${c},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, size * 0.25, 0, TAU); ctx.fill();
+    }
+  }
+  ctx.restore();
 }
 // the solar fire's aurora: translucent ribbons in turquoise, green and violet waving out ahead of the mouth (only a picture)
 function drawAurora(p, ang, k, size) {
@@ -5669,6 +5716,96 @@ function updatePaddles(dt) {
     }
   }
   if ((P.ph === "strike" && P.s >= seqT("pstrike")) || (P.ph === "release" && P.s >= seqT("prelease"))) game.paddle = null;
+}
+// XELTAR's side fins: the frame with its fin band swapped for the moving fins' (the old fin edges gone), on a canvas
+let finCanvas = null;
+function finComposite(S, img) {
+  const F = S.anim.fins, f = artImage(framePath(S.anim.dir, "fins/fin_" + String(Math.floor(time * 1000 / F.ms) % F.n).padStart(2, "0") + ".webp"));
+  if (!f || img.width !== 512) return img;
+  if (!finCanvas) { finCanvas = document.createElement("canvas"); finCanvas.width = finCanvas.height = 512; }
+  const g = finCanvas.getContext("2d");
+  g.clearRect(0, 0, 512, 512); g.drawImage(img, 0, 0); g.clearRect(0, F.y, 512, F.h); g.drawImage(f, 0, F.y);
+  return finCanvas;
+}
+// ---------- FRESNEL's light: the beacon in its dome, and its shots lighting up the space round them ----------
+// The FRESNEL package's renderer (animation/fresnel-beacon.js): a blue light turning inside the dome every 2.4 s, its
+// sweep shining on the hull (masked by the hull's own outline), a faint halo behind. Drawn in the drawing's 512 px
+// space instead of the plain drawing, whatever frame is showing (only a picture).
+const FresnelBeacon = (() => {
+  const TAU = Math.PI * 2, config = { periodMs: 2400, lensX: 256, lensY: 104, beamLength: 295 };
+  function sample(timeMs) {
+    const phase = timeMs / config.periodMs * TAU, mix = 0.5 - 0.5 * Math.cos(phase - 0.7), blue = [30, 93, 255], cyan = [150, 238, 255];
+    return { angle: phase - Math.PI / 2, color: blue.map((c, i) => Math.round(c + (cyan[i] - c) * mix)) };
+  }
+  function paintSweep(ctx, angle, color, length, halfWidth, intensity) {
+    ctx.save(); ctx.translate(config.lensX, config.lensY); ctx.rotate(angle);
+    const tint = (a) => `rgba(${color.join(",")},${a})`;
+    for (const [width, opacity] of [[1, 0.09], [0.72, 0.15], [0.49, 0.26], [0.26, 0.37], [0.105, 0.42]]) {
+      const spread = halfWidth * width, glow = ctx.createLinearGradient(0, 0, length, 0);
+      glow.addColorStop(0, tint(intensity * opacity)); glow.addColorStop(0.25, tint(intensity * opacity * 0.68)); glow.addColorStop(0.72, tint(intensity * opacity * 0.2)); glow.addColorStop(1, tint(0));
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.moveTo(1, -3 * width); ctx.quadraticCurveTo(length * 0.36, -spread * 0.38, length, -spread);
+      ctx.lineTo(length, spread); ctx.quadraticCurveTo(length * 0.36, spread * 0.38, 1, 3 * width); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function paintLens(ctx, angle, color) {
+    const x = config.lensX, y = config.lensY;
+    ctx.save(); ctx.beginPath(); ctx.ellipse(x, y + 1, 54, 31, 0, 0, TAU); ctx.clip(); ctx.globalCompositeOperation = "screen";
+    ctx.translate(x, y); ctx.scale(1, 0.61); ctx.rotate(angle);
+    const glow = ctx.createRadialGradient(18, 0, 2, 18, 0, 47);
+    glow.addColorStop(0, "rgba(228,249,255,.87)"); glow.addColorStop(0.33, `rgba(${color.join(",")},.78)`); glow.addColorStop(1, `rgba(${color.join(",")},0)`);
+    ctx.fillStyle = glow; ctx.fillRect(-32, -51, 102, 102);
+    ctx.fillStyle = `rgba(${color.join(",")},.37)`; ctx.beginPath(); ctx.ellipse(8, 0, 32, 12, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = "rgba(232,251,255,.85)"; ctx.beginPath(); ctx.ellipse(15, 0, 21, 3, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  let light = null, surface = null;
+  function draw(ctx, hull, timeMs) {
+    if (!light) { light = document.createElement("canvas"); light.width = light.height = 512; surface = light.getContext("2d"); }
+    const { angle, color } = sample(timeMs);
+    ctx.save();
+    paintSweep(ctx, angle, color, config.beamLength, 81, 0.75);
+    ctx.drawImage(hull, 0, 0, 512, 512);
+    surface.clearRect(0, 0, 512, 512); paintSweep(surface, angle, color, 422, 193, 1.2);
+    surface.save(); surface.globalCompositeOperation = "destination-in"; surface.drawImage(hull, 0, 0, 512, 512); surface.restore();
+    ctx.globalCompositeOperation = "screen"; ctx.drawImage(light, 0, 0); paintLens(ctx, angle, color);
+    ctx.restore();
+  }
+  return { draw, sample };
+})();
+// a burst of light where a FRESNEL shot leaves (and round the ship): it lights up the space for a moment
+const lightFx = [];   // { x, y, t, c, r (ship-lengths), life }
+function fresnelFlash(x, y, w) {
+  const big = w === "lensflash";
+  lightFx.push({ x, y, t: 0, c: big ? "255,226,140" : "255,140,210", r: big ? 2.2 : 1.6, life: big ? 0.22 : 0.28 });
+  if (!big) lightFx.push({ x, y, t: 0, c: "120,235,255", r: 1.3, life: 0.24 });
+}
+function updateLightFx(dt) { for (let i = lightFx.length - 1; i >= 0; i--) if ((lightFx[i].t += dt) > lightFx[i].life) lightFx.splice(i, 1); }
+function drawLightFx() {
+  if (!lightFx.length) return;
+  const size = shipSize();
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  for (const L of lightFx) {
+    const p = toScreen(L.x, L.y), k = 1 - L.t / L.life, r = size * L.r * (0.7 + 0.3 * (1 - k));
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+    g.addColorStop(0, `rgba(255,255,240,${0.75 * k})`); g.addColorStop(0.18, `rgba(${L.c},${0.45 * k})`); g.addColorStop(1, `rgba(${L.c},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+// FRESNEL's shots, glowing: the lens flash a white-hot golden streak with a wide halo; the shards bright coloured
+// needles with their own glow. Both light the space round them as they fly
+function drawFresnelShot(s, Wp) {
+  const p = toScreen(s.x, s.y), size = shipSize(), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
+  const col = Wp.colors ? Wp.colors[(s.ix || 0) % Wp.colors.length] : Wp.color, rgb = [1, 3, 5].map((i) => parseInt(col.slice(i, i + 2), 16)).join(",");
+  const big = s.w === "lensflash", L = size * (big ? 0.42 : 0.3), halo = size * (big ? 0.55 : 0.38);
+  ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+  const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, halo);
+  g.addColorStop(0, `rgba(${rgb},0.45)`); g.addColorStop(1, `rgba(${rgb},0)`); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, halo, 0, TAU); ctx.fill();
+  for (const [w, a, c] of [[size * (big ? 0.1 : 0.07), 0.5, rgb], [size * (big ? 0.045 : 0.03), 0.95, rgb], [size * (big ? 0.018 : 0.012), 1, "255,255,245"]]) {
+    ctx.strokeStyle = `rgba(${c},${a})`; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(p.x - ux * L, p.y - uy * L); ctx.lineTo(p.x + ux * L * 0.15, p.y + uy * L * 0.15); ctx.stroke();
+  }
+  ctx.restore();
 }
 // ---------- magic: the gear button ----------
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
@@ -7970,10 +8107,22 @@ function updateTail(dt) {
   if (!moveTail(T, game, S, M, dt)) { game.tail = null; return; }
   const size = shipSize(), b = T.pts[TAIL_SEGS];
   const bvx = tip0 ? wrapDelta(b.x - tip0.x, WW) / dt : 0, bvy = tip0 ? wrapDelta(b.y - tip0.y, WH) / dt : 0;
-  T.touch = Math.max(0, T.touch - dt); T.hitT = Math.max(0, (T.hitT || 0) - dt);
+  T.touch = Math.max(0, T.touch - dt); T.hitT = Math.max(0, (T.hitT || 0) - dt); T.bodyT = Math.max(0, (T.bodyT || 0) - dt);
   if (!enemy.on || enemy.warp >= 0.5 || tailOut(M, T.t) < 0.5) return;
   const dx = wrapDelta(enemy.x - b.x, WW), dy = wrapDelta(enemy.y - b.y, WH), d = Math.hypot(dx, dy);
-  if (d > size * (0.36 + M.ball) || T.hitT > 0) return;
+  if (d > size * (0.36 + M.ball) || T.hitT > 0) {   // not the ball: the tail itself, touching them, hurts like one shot
+    if (T.bodyT > 0) return;
+    for (let i = 2; i < TAIL_SEGS - 1; i++) {
+      const q = T.pts[i];
+      if (Math.hypot(wrapDelta(enemy.x - q.x, WW), wrapDelta(enemy.y - q.y, WH)) < size * (0.34 * enemyScale() + tailWidth(i) * 0.5)) {
+        T.bodyT = M.every;
+        hitEnemy({ x: q.x, y: q.y, vx: 0, vy: 0 }, { dmg: WEAPONS[weaponsOf(S)[0]].dmg, color: M.color });
+        burstAt(q.x, q.y, 10, ["#d8ff5a", "#b8ff3a", "#ffffff"], 0.3, 0.5, enemy.vx, enemy.vy); audio.zap(); buzz(40);
+        break;
+      }
+    }
+    return;
+  }
   T.hitT = M.every; T.touch = 0.3;
   hitEnemy({ x: b.x, y: b.y, vx: bvx, vy: bvy }, { dmg: M.hit, color: M.color });
   const nx = dx / (d || 1), ny = dy / (d || 1);
@@ -8341,6 +8490,14 @@ function updateWeapons(dt) {
     }
     if (comets.length && cometHit(s, Wp)) { shots.splice(k, 1); continue; }   // a resource comet
     if (drones.length && droneHit(s, Wp)) { shots.splice(k, 1); continue; }   // a practice ship (while they are docked)
+    // sent back by their PALISADE's wall: now it can only hit me
+    if (s.back) {
+      const r = (Wp.r || 0) * shotScale(s, Wp) * size;
+      if (!game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < size * 0.42 * shipScale() + r) {
+        damageShip(shotHit(s, Wp).dmg || Wp.dmg || 0); burstAt(s.x, s.y, 14, [Wp.color, "#ffffff", "#dfff83"], 0.4, 0.6, game.vx, game.vy); shots.splice(k, 1);
+      }
+      continue;
+    }
     // into the enemy
     if (enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked()) {   // (docked in the station: out of reach)   // (their STRATA up high: shots pass under it)
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
@@ -8433,6 +8590,7 @@ function spawnShots(w, g, rot) {
   spawnShots.rot = hk;
   const m = rotatePt(g[0] * size, g[1] * size, game.ang);
   const x = game.x + m.x, y = game.y + m.y;
+  if (w === "lensflash" || w === "lightshard") fresnelFlash(x, y, w);   // FRESNEL: a burst of light as it leaves
   if (w === "solarfire") { game.vaultFireT = MAGIC.vault.fireShow; audio.noise(0.4, 0.08, 1800); audio.tone(120, 0.35, "sawtooth", 0.04, 2); }   // the doors open, the aurora
   if (Wp.egg) { layEgg(x, y, Wp, S); return; }
   if (Wp.rail) { startRail(w); return; }      // RIVET's rail
@@ -9478,6 +9636,7 @@ function drawShip(S, x, y, size, o = {}) {
   // a real drawing of the ship, once there is one
   let img = S.grows && o.talus ? talusPicture(S, o.talus.stage, o.talus.colors) : shipArt(S, o.anim, o.stored, o.tint || 0, o.rep, o.cin || { power: o.power }, o.power);
   if (o.frame && S.anim) img = artImage(framePath(S.anim.dir, o.frame)) || img;   // PUFF: puffed / crumpled
+  if (img && S.anim && S.anim.fins && !(o.anim && o.anim.seq === "smoke")) img = finComposite(S, img);   // XELTAR's side fins
   if (o.haunt && S.haunt && S.anim) { const f = shipFrame(S, o.anim); if (f && !f.startsWith("magic")) img = artImage(framePath(S.anim.dir, "h_" + f)) || img; }   // CORSAIR, a ghost ship
   if (o.drill && S.anim && S.anim.spin && o.drill.mix > 0.5) img = artImage(framePath(S.anim.dir, S.anim.spin[o.drill.frame])) || img;   // BORER's drill turning
   // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
@@ -9502,7 +9661,10 @@ function drawShip(S, x, y, size, o = {}) {
       for (let i = 0; i < 2; i++) ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
       ctx.restore();
     }
-    ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
+    if (S.beacon) {   // FRESNEL: the blue beacon turning in its dome (the package's renderer, in the drawing's 512 px)
+      ctx.save(); ctx.translate(-img.width * k / 2, -img.height * k / 2); ctx.scale(img.width * k / 512, img.height * k / 512);
+      FresnelBeacon.draw(ctx, img, time * 1000); ctx.restore();
+    } else ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
     if (S.vaultDoors && o.vt) drawVaultDoors(o.vt, S);   // VAULT's doors (and the star in it)
     if (o.gear && o.gear[1] && !S.clockwork) drawUpgrade(S, "cannon");   // the shop's extra cannon, over the hull
     if (halfClip) ctx.restore();
@@ -10273,6 +10435,7 @@ function palShot(list, k, s, Wp, dt) {
     if (!W) continue;
     const own = mine ? list === shots : list === duel.shots;
     if (own && !(s.w === "ricochet" && !s.bounced)) continue;
+    if (s.back) continue;   // (sent back already: it passes)
     const p = { x: wrapDelta(s.x - W.x, WW), y: wrapDelta(s.y - W.y, WH) }, d = { x: s.vx * dt, y: s.vy * dt }, r = (Wp.r || 0) * size * shotScale(s, Wp);
     const H = palInteract(W.ang, p, d, PAL.w / 2 * size + r, PAL.d / 2 * size + r);
     if (!H) continue;
@@ -10284,11 +10447,15 @@ function palShot(list, k, s, Wp, dt) {
       continue;
     }
     burstAt(cx, cy, 10, ["#ffffff", "#e8e4f0", "#dfff83"], 0.3, 0.4);
+    {   // it goes back the way it came, aimed at the ship that fired it (on its phone it can now hit only that ship)
+      const shooter = list === shots ? game : enemy, sp = Math.hypot(s.vx, s.vy) || U, ax = wrapDelta(shooter.x - cx, WW), ay = wrapDelta(shooter.y - cy, WH), ad = Math.hypot(ax, ay) || 1;
+      s.vx = ax / ad * sp; s.vy = ay / ad * sp; s.x = cx; s.y = cy; s.back = true; s.life = Math.min(s.life, Wp.life * 0.3);
+      audio.tone(1300, 0.08, "square", 0.04, 0.5);
+    }
     if (mine && list === eshots) palHit();   // the bot's shot: one lamp less (a rival's: their phone tells me, "pwh")
     if (!mine && list === shots) { duelSend({ t: "pwh" }); W.charges--; }   // my shot on their wall
     audio.tone(240, 0.06, "square", 0.04, 0.5);
-    list.splice(k, 1);
-    return true;
+    return false;   // (it flies on, back at its shooter)
   }
   return false;
 }
@@ -12035,7 +12202,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawGhosts(); drawCorsairAim();
+    drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawLightFx(); drawGhosts(); drawCorsairAim();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -12561,7 +12728,8 @@ function drawShots(list = shots) {
     if (s.w === "mailcap") { drawCapsule(s); continue; }   // COURIER's
     if (s.w === "forgeball") { drawForgeBall(s); continue; }
     if (s.w === "piston" || s.w === "solarfire") { drawVaultShot(s); continue; }   // VAULT's
-    if (WEAPONS[s.w] && WEAPONS[s.w].pirate) { drawPirateShot(s, WEAPONS[s.w]); continue; }   // CORSAIR's   // LABYRINTH's   // VANTA's drop inside the planet: only the exit mark, at the end
+    if (WEAPONS[s.w] && WEAPONS[s.w].pirate) { drawPirateShot(s, WEAPONS[s.w]); continue; }   // CORSAIR's
+    if (s.w === "lensflash" || s.w === "lightshard") { drawFresnelShot(s, WEAPONS[s.w]); continue; }   // FRESNEL's, glowing   // LABYRINTH's   // VANTA's drop inside the planet: only the exit mark, at the end
     const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
     if (s.gold) {   // turned by GIMBAL's gate: a gold ring round it
       ctx.save(); ctx.strokeStyle = "rgba(233,182,106,0.85)"; ctx.lineWidth = 2; ctx.shadowColor = "#e9b66a"; ctx.shadowBlur = 6;
@@ -13565,7 +13733,8 @@ function duelLink(event, data) {
     duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
     if (duel.shots.length < 60) audio.shot(m.w);
-    if (m.w === "solarfire") enemy.vaultFireT = MAGIC.vault.fireShow;   // their VAULT's doors open for it
+    if (m.w === "solarfire") enemy.vaultFireT = MAGIC.vault.fireShow;
+    if (m.w === "lensflash" || m.w === "lightshard") fresnelFlash(m.x * WW, m.y * WH, m.w);   // their FRESNEL's light   // their VAULT's doors open for it
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
     eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, fl: 0, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
   } else if (m.t === "cv" && shipById(m.s) && Array.isArray(m.p)) {   // their KRAAL's crossing bolts (their phone counts the blast)

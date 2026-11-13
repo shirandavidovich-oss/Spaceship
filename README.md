@@ -141,7 +141,8 @@ and an egg is laid; it drifts to a stop and pulses, then cracks and lets out 3 h
 one of each insect (an orange wasp, a turquoise beetle, a pink-violet moth); the orange, turquoise and magenta eggs hold 3 of one kind. The enemy can crush the egg by flying into it before it hatches: then no hunters.
 Its magic button is a tail with a spiked iron ball: hold it and a long segmented tail (9.6 ship-lengths) grows out behind
 the ship, with a spiked ball at its tip, and stays out while you hold; it drags and swings after the ship as you fly and turn. It is drawn from VEXAR's tail art (a mount, vertebrae that narrow toward the end), the ball drawn in code. The ball
-hits a ship it touches for 20 (at most every 0.6 s) and knocks it away. Let go and the tail pulls back in and the ship flies on.
+hits a ship it touches for 40 (at most every 0.6 s) and knocks it away; the tail itself, touching a ship, hurts it like
+one of VEXAR's button-1 shots (at most every 0.6 s). Let go and the tail pulls back in and the ship flies on.
 
 **LYTH**, the mechanical ring duelist (`art/ships/lyth/`), with its own recorded sounds (`sfx/`).
 Button 1: the pulse (the shutters slide apart and the emitter flashes). Button 2: the big ring around the hull unlatches
@@ -191,7 +192,8 @@ next life.
 
 **XELTAR**, the frozen squid (`art/ships/xeltar/`, own recorded sounds). Button 1: three small ice shards from the nose.
 Button 2: its four arms curl round a growing ice crystal and launch it **backward** out of the stern; to hit something,
-turn your nose away from it. Its magic (a swirl of ink): the body swells and an ink cloud bursts from the stern; the cloud
+turn your nose away from it. Its side fins never stop moving (the XELTAR package's 32 fin frames, a 1.28 s loop, laid
+over every frame but the ink's: `finComposite`). Its magic (a swirl of ink): the body swells and an ink cloud bursts from the stern; the cloud
 stays where it was let out and spreads for 3.4 s, and the enemy loses sight of you for 4 s. A ship that touches the cloud
 is covered in black ink: it loses 15 health and for 20 s it cannot steer, thrust or shoot; it drifts on the way it was going,
 at the speed it had (only the planet bounces it). In a duel the inked player's own phone does that to their ship. No engine flame: it swims.
@@ -278,7 +280,7 @@ star's colour on the side facing it.
 **CINDER**, the blockade runner (`art/ships/cinder/`: a hull and two engines on swivel joints, put together in code).
 Button 1: red bolts taking turns from the two front blasters (8). Button 2: an amber concussion torpedo; it blows up on a
 ship or after 0.95 s, and the blast hurts (up to 22) and throws back every enemy near it. Magic, split into left and right
-(each side its own recharge, 3.4 s; keyboard V and B): both engines swivel to that side and the ship is kicked sideways; it keeps
+(each side its own recharge, 3.4 s; keyboard V and B): both engines swivel to that side and the ship is kicked sideways (2.34, 30% more than at first); it keeps
 facing the same way and keeps its speed, and it can fire all the while.
 
 **BORER**, the star miner (`art/ships/borer/idle.webp`; the weapons are drawn in code). Button 1: a fan of five metal
@@ -333,8 +335,9 @@ more false stars, the thicker the web. When either ship is destroyed, all the fa
 the face it strikes, at the same speed, changing colour). Button 2: deploy a wall: the three roof plates slide back,
 two arms rise from the bay, grab the wall and fly it forward from where the ship was at 0.56 s (turning after that
 moves only the ship), set it down at 1.04 s and let go; the roof shuts. The wall stays 7.8 s or four enemy shots (four
-lamps), stops enemy shots, lets its own pass; ships fly through it. One wall at a time. Magic, ceramic shatter: only
-with the wall up; 0.36 s later it breaks into seven shards fanned out the way it faces (if it was knocked down
+lamps); an enemy shot that reaches it is sent back at the ship that fired it (on that ship's phone it can then hit
+only that ship); its own shots pass; ships fly through it. One wall at a time. Magic, ceramic shatter: only
+with the wall up; 0.36 s later it breaks into seven shards (12 each, twice the first damage) fanned out the way it faces (if it was knocked down
 meanwhile, nothing). In a duel the wall is sent to the other phone (`pw`), which stops its own shots on it and tells
 the owner (`pwh`) to put out a lamp.
 
@@ -402,8 +405,9 @@ by `drawKilnRig`). Button 1: slag shot from the furnace grille (7). Button 2: th
 a stop, arm after 0.6 s, wait 25 s (at most 9 of yours) and blow up once on an enemy that comes near (22 and a shove).
 Magic, reverse gravity (`reverse` in `MAGIC`, 16 s recharge): the shutters slide apart and the gear spins up; at full
 power, for 4 s, the body in the middle pushes the ENEMY away and round instead of pulling it (KILN keeps the normal
-pull), wavering a little, so the enemy is flung round in a widening circle, into the mines, and swings back after. Full
-strength within 1.5 screens of the body, none past 3. The body glows cold blue with rings going out while it lasts.
+pull), wavering a little, so the enemy is flung round in a widening circle, into the mines, and swings back after. With
+KILN's mines out, the push leans toward the nearest one (within 2.5 screens), throwing ships onto them. Full strength
+within 3 screens of the body, none past 6 (twice the first reach). The body glows cold blue with rings going out while it lasts.
 Each phone moves its own ship, so the push is worked out on the pushed ship's phone from a seed both share (`rg`); the
 gear is shown with `kl`. The computer lays its mines first and only then uses the magic.
 
@@ -505,7 +509,9 @@ circle shows faintly (red for the other side's, so the danger can be seen coming
 owner's phone sends each new mine (`om`); the phone of the ship it reaches decides the hit (`omk`).
 
 **FRESNEL**, the lighthouse ship (`art/ships/fresnel/`: the FRESNEL package's atlases cut into 512 px frames; its
-buttons, its BLOOM zombie, its 3D picture). Sold only in the shop (`shopOnly`), and in the test hangar. Button 1: a
+buttons, its BLOOM zombie, its 3D picture). A blue beacon turns in its dome every 2.4 s, its sweep shining on the hull (the FRESNEL package's renderer,
+`FresnelBeacon`). Its shots glow: the lens flash a white-hot golden streak, the shards bright needles, each with a wide
+halo, and every shot leaves with a burst of light round it (`lightFx`). Sold only in the shop (`shopOnly`), and in the test hangar. Button 1: a
 focused golden flash from the lens. Button 2: two coloured light shards from the side shutters, aimed to cross 2
 ship-lengths ahead (`aimAt`), then on. Magic, the **light snake** (`snake` in `MAGIC`): a beam throws a triangle of light
 ahead of the ship; it opens a portal, and a snake comes out of it: one smooth glowing body, its colours running through the rainbow. It chases the
@@ -522,9 +528,9 @@ piston, a short heavy brass punch that shoves (`knock`). Magic, the **star in th
 doors slide open (the wheel door up, the lights door down, drawn in code: `drawVaultDoors`), the star flies into the
 mouth shrinking, and the doors close on it, light leaking from the seams, a 30 s countdown over the ship. Meanwhile the
 middle of space is empty (nothing to hit or bounce off), and the star's gravity comes from VAULT instead (`starPull`):
-full within 0.55 screens, gone by 1.5, below every engine's push, so the other ship can always fly out, but it has to.
-Every 2.5 s a radiation wave goes out 0.8 screens, and each wave takes 10 health from the other ship inside it (its own
-phone decides). Button 2 is then **solar fire**: the doors open and a spray of flame leaves the mouth, with an aurora of
+full within 0.72 screens, gone by 1.95, below every engine's push, so the other ship can always fly out, but it has to.
+Every 2.5 s a radiation wave goes out 0.8 screens, bright at the vault and fading as it goes out, and each wave takes
+10 health from the other ship inside it (its own phone decides). Curtains of northern lights wave and flare round it. Button 2 is then **solar fire**: the doors open and a spray of flame leaves the mouth, with an aurora of
 turquoise, green and violet (only a picture); the button glows amber with a turquoise edge. When the star is taken,
 COURIER's orbit mines round it are flung out of the screen. After 30 s, or when VAULT is destroyed, the star flies back
 to the middle. One held star at a time, never with LABYRINTH's maze. VAULT's phone sends the state as `vt`.

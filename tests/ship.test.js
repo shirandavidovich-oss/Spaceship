@@ -804,4 +804,14 @@ ok("CORSAIR's rig: ten cannons that turn 30° and recoil, sails and cabin light 
   assert(html.includes("S.rig && !(o.anim && /magic/.test(o.anim.seq)) && drawCorsairRig(S, o)") && html.includes("ca: corsairNet()"));
   function CORSAIR_SWING_DEG() { return 30; }
 });
+ok("balance round: VEXAR's tail hurts (its ball twice), PALISADE's wall sends shots back and its shards hit twice, CINDER slips 30% farther, KILN reaches twice as far and throws ships at its mines, VAULT's pull 30% wider", () => {
+  const html = require("fs").readFileSync(require("path").join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  const mag = (k) => { const m = new RegExp("\\n  " + k + ":\\s*\\{ name:").exec(html), i = m.index; return eval("(" + html.slice(html.indexOf("{", i), html.indexOf("}", i) + 1) + ")"); };
+  assert(mag("tail").hit === 40 && html.includes("hitEnemy({ x: q.x, y: q.y, vx: 0, vy: 0 }, { dmg: WEAPONS[weaponsOf(S)[0]].dmg"));
+  assert(WEAPONS.pshard.dmg === 12 && html.includes("s.back = true") && html.includes("if (s.back) {"));
+  assert(Math.abs(mag("dashL").kick - 1.8 * 1.3) < 1e-9 && Math.abs(mag("dashR").kick - 1.8 * 1.3) < 1e-9);
+  assert(mag("reverse").reach === 3.0 && html.includes("kilnMineToward(o, o === game)"));
+  const V = mag("vault"); assert(Math.abs(V.near - 0.55 * 1.3) < 1e-9 && Math.abs(V.reach - 1.5 * 1.3) < 1e-9 && html.includes("drawVaultAurora(ps, V.t, size)"));
+  assert(html.includes("FresnelBeacon.draw(ctx, img, time * 1000)") && html.includes("img = finComposite(S, img)"));
+});
 console.log(n + " checks passed");
