@@ -81,6 +81,11 @@ The kit's SVGs were turned into WebP (the app serves WebP already). `HUD_KIT = f
 The buttons show their state only as a glowing outline round the plate's octagon (bright along the charged part, clockwise
 from the top: ammo, fuel for thrust, recharge for magic), nothing over the picture.
 
+**Test modes (test hangar):** under its title, four buttons for the enemy: no enemy (the computer waits far off, out of
+the game), a still enemy (it stays where it is and does nothing), fires without harm (it fights, nothing takes my health)
+and fires and hurts (as usual); and **unlimited money** (coins and minerals without end; nothing is spent and the real
+bank is not touched, so none of it reaches the server). Kept on the phone (`spaceship.test`); only in the DEV app.
+
 **Language (עב | EN):** the pill in the top-left corner of the title screen and the ship-choice screen (not in the test hangar)
 switches every text the game draws between Hebrew and English, and is remembered (`orbit-break.language`, the kit's key).
 The texts are in `STR` in `index.html` (`tr(key)`); magic, body and rarity names have English lists next to it. The
@@ -478,8 +483,11 @@ star the maze put out. In a duel the owner's phone sends its clock (`fd`); a blo
 **FLIPPER**, the pinball ship (`art/ships/flipper/`: the FLIPPER package's atlases cut into 512 px frames; its buttons in
 `art/hud/flipper/`, its BLOOM zombie, its 3D picture). **Sold only in the station's shop** (`shopOnly`: never drawn into
 the random fleets against the computer or a phone; it is in the test hangar, and always first among the shop's ships).
-Button 1: a steel ball from the nose rail that bounces once off the star. Button 2: the spring plunger, a short punch
-straight ahead that shoves. Magic, **pinballs** (`pinballs` in `MAGIC`): three pinballs are let loose round the other
+Button 1: the spring winds and the plunger launches a steel ball from the nose rail (it leaves at 210 ms, the frame
+where the plunger kicks); it bounces once off the star. Button 2: **cocked paddles** (`paddles`): a press cocks both
+paddles back and opens an 8 s window; cocked, they strike by themselves the moment an enemy is within about a
+ship-length in front (18 damage and a shove the way FLIPPER faces), once, then come back to rest; if no one comes
+they go back quietly when the window ends. Pressing again while cocked does nothing; the magic lets them go. Magic, **pinballs** (`pinballs` in `MAGIC`): three pinballs are let loose round the other
 ship, in a pinball table (a red dashed frame with bumpers, 2.4 screens square) that drifts after that ship more slowly
 than a ship flies. For a minute the balls bounce off its edges at slightly random angles; each one that reaches the
 ship takes half a health tank (shields help) and is gone. A ship that sits still is hit by all three about 3 times in 4;
@@ -521,12 +529,15 @@ turquoise, green and violet (only a picture); the button glows amber with a turq
 COURIER's orbit mines round it are flung out of the screen. After 30 s, or when VAULT is destroyed, the star flies back
 to the middle. One held star at a time, never with LABYRINTH's maze. VAULT's phone sends the state as `vt`.
 
-**CORSAIR**, the pirate ship (`art/ships/corsair/`: the CORSAIR package's 512 px frames; `h_*` the same frames over
-its ghost-ship drawing, made by laying each frame's flashes on it; `fireL` the left side's volley, mirrored; the
-package's three ghost sheets, `ghost-*.webp`). Sold only in the shop, and in the test hangar. **Button 1 is an aiming
+**CORSAIR**, the pirate ship (`art/ships/corsair/`; `rig/` the package's motion rig: the body without its cannons, the
+ten cannons apart, the two sails apart, for the normal, ghost-ship and BLOOM looks; `magic_*` the change into the ghost
+ship; the three ghost sheets, `ghost-*.webp`). It is drawn from its rig (`drawCorsairRig`): each cannon turns round its
+own pivot toward the aim (up to 30° either way) and recoils along its own line as it fires, with its own muzzle flash;
+the sails stretch back and ripple with the thrust (calm at rest); the captain's cabin windows glow at rest and dim under
+thrust. Sold only in the shop, and in the test hangar. **Button 1 is an aiming
 stick**, like the thrust button: drag the thumb the way the cannons should point; the side nearer that way fires its
-five cannons bow to stern (68 ms apart), each ball where the stick points, as far as the cannons swing (40° either side
-of straight out); a tap without dragging aims at the enemy, and dotted lines show the aim while the thumb is down.
+five cannons bow to stern (90 ms apart), each ball the way its cannon points at that moment (they turn to the stick, 30°
+either side of straight out); a tap without dragging aims at the enemy, and dotted lines show the aim while the thumb is down.
 Button 2: chain shot, two iron balls on a chain spinning round each other, falling round the star. Magic, the **ghost
 ship** (`haunt` in `MAGIC`): teal light runs through it (its frames), and for 12 s its shots are ghost shots that turn
 after the enemy (`ghostshot`, `ghostchain`); then it changes back. **Every hit** of its shots raises a ghost over the

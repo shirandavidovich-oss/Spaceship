@@ -1054,17 +1054,22 @@ const SHIPS = [
       pressure: frames("pressure", 32, () => 50) } },                  // more pressure, bigger strokes: while the water fills
   // FLIPPER, the pinball ship (art/ships/flipper/, the FLIPPER package: 512 px frames cut from its atlases, nose up).
   // Sold only in the station's shop (`shopOnly`: never drawn into the random fleets; in the test hangar too).
-  // Button 1: a steel ball from the nose rail that bounces once off the star. Button 2: the spring plunger, a short
-  // punch straight ahead that shoves. Magic: three pinballs loose round the other ship for a minute (MAGIC.pinballs)
+  // Button 1: the spring launches a steel ball from the nose rail (it leaves at the "bolt" frame); it bounces once off
+  // the star. Button 2: cocked paddles that strike by themselves when an enemy comes near (paddles part).
+  // Magic: three pinballs loose round the other ship for a minute (MAGIC.pinballs)
   { id: "flipper", name: "FLIPPER", rarity: "legendary", mass: 1.1, fuel: 30, refill: 15, sfx: null, magic: "pinballs", shopOnly: true,
     hull: "#d8323a", wingC: "#f2e6cf", trim: "#ffd27a", flame: "#6dffd8",
     body: [], wing: [], nozzles: [-0.13, 0.13], engineY: 0.46, cockpit: [0, 0, 0.05, 0.1],
-    weapons: ["steelball", "plunger"],
-    guns: { steelball: [[0, -0.34]], plunger: [[0, -0.36]] },
+    weapons: ["steelball", "paddles"],
+    guns: { steelball: [[0, -0.296]], plunger: [[0, -0.36]] },
     anim: { dir: "flipper", size: 1.1, idle: "idle.webp",
-      primary: frames("fire", 24, () => 35),                        // the launcher kicks, then back at rest
-      secondary: frames("plunge", 24, () => 23, { 6: "fire" }),     // the plunger out (it hits at the 6th frame)
-      magic: frames("magic", 24, () => 58) } },                      // both paddles flap: the balls go
+      primary: frames("fire", 24, () => 30, { 8: "bolt" }),         // the spring winds, the plunger kicks: the ball leaves at 210 ms
+      parm: frames("parm", 24, () => 25),                            // the paddles cock back
+      parmed: [["parm_24.webp", 9000]],                              // and stay cocked
+      pstrike: frames("pstrike", 24, () => 25),                      // they snap forward (the hit at 100 ms) and come back
+      prelease: frames("prelease", 24, () => 25),                    // the window ran out: back to rest quietly
+      magic: frames("magic", 24, () => 58),                          // both paddles flap: the balls go
+      haunted: [...frames("parm", 24, () => 0), ...frames("pstrike", 24, () => 0), ...frames("prelease", 24, () => 0), ...frames("magic", 24, () => 0)].map((f) => f[0]) } },
   // COURIER, the pneumatic mail ship (art/ships/courier/, the COURIER package: 512 px frames, nose up). Sold only in the
   // shop (`shopOnly`), and in the test hangar. Button 1: a brass burst, two rounds from the nose ports. Button 2: a mail
   // capsule from its tube: the star's gravity bends it round (one at a time). Magic: an orbit mine (MAGIC.orbitmine)
@@ -1106,18 +1111,18 @@ const SHIPS = [
   // over its ghost-ship drawing; fireL: the volley on its left side, mirrored). Sold only in the shop, and in the test
   // hangar. Button 1 (an aiming stick): a broadside of five balls. Button 2: chain shot from the bow. Magic: the ghost
   // ship (MAGIC.haunt): its shots turn after the enemy. Every hit raises a ghost over them and gives it health (corsair part)
-  { id: "corsair", name: "CORSAIR", rarity: "legendary", mass: 1.3, fuel: 30, refill: 15, sfx: null, magic: "haunt", shopOnly: true, haunt: true,
+  { id: "corsair", name: "CORSAIR", rarity: "legendary", mass: 1.3, fuel: 30, refill: 15, sfx: null, magic: "haunt", shopOnly: true, haunt: true, rig: true,
     hull: "#6a2a20", wingC: "#c8913a", trim: "#ffb347", flame: "#5ef0ff",
     body: [], wing: [], nozzles: [-0.025, 0.025], engineY: 0.41, cockpit: [0, 0, 0.05, 0.1],
     weapons: ["broadside", "chainshot"],
     guns: { broadside: [[0.18, -0.159]], ghostshot: [[0.18, -0.159]], chainshot: [[0, -0.4245]], ghostchain: [[0, -0.4245]] },
     anim: { dir: "corsair", size: 1.15, idle: "idle.webp",
-      primary: frames("fire", 24, () => 34),                         // the right side's cannons flash, bow to stern
-      primaryL: frames("fireL", 24, () => 34),                       // the left side's
-      secondary: frames("chain", 24, () => 28, { 3: "fire" }),       // the bow flashes: the chain shot leaves
+      primary: [["idle.webp", 550]], primaryL: [["idle.webp", 550]],    // (the volley: the rig's cannons recoil in turn, drawCorsairRig)
+      secondary: [["idle.webp", 56], ["idle.webp", 200, "fire"]],       // the bow flashes: the chain shot leaves
       magic: frames("magic", 24, () => 40),                          // teal light runs up the planks: the ghost ship
       unmagic: frames("magic", 24, () => 40).reverse(),              // and back
-      haunted: ["h_idle.webp", ...["fire", "fireL", "chain"].flatMap((n) => frames("h_" + n, 24, () => 0).map((f) => f[0])), ...frames("fireL", 24, () => 0).map((f) => f[0]), ...frames("magic", 24, () => 0).map((f) => f[0])] } }
+      haunted: ["h_idle.webp", ...frames("magic", 24, () => 0).map((f) => f[0]),
+        ...["normal", "haunted", "bloom"].flatMap((v) => ["body", "sail1", "sail2", ...[1, 2, 3, 4, 5].flatMap((n) => ["left-" + n, "right-" + n])].map((q) => "rig/" + v + "-" + q + ".webp"))] } }
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1359,7 +1364,10 @@ const WEAPONS = {
   fcan:       { name: "מכל צף", dmg: 0, speed: 0.45, life: 6.0, cool: 1.6, ammo: 4, refill: 9, r: 0.07, color: "#c8763a", buoy: 1.4, prox: 0.25,
                 blast: 1.4, blastDmg: 26, push: 1.4, boilerW: true },
   // FLIPPER. steelball: bounces once off the star (starBounce). plunger: a short, fast punch that shoves (`knock`)
-  steelball: { name: "כדור פלדה", dmg: 9, speed: 1.8, life: 1.6, cool: 0.45, ammo: 10, refill: 7, r: 0.05, color: "#d8dde6", starBounce: true },
+  steelball: { name: "כדור פלדה", dmg: 9, speed: 1.8, life: 1.6, cool: 0.6, ammo: 10, refill: 7, r: 0.05, color: "#d8dde6", starBounce: true, cued: true },
+  //   paddles: button 2 now (paddles part): cocked for up to `window` s (striking from `cock` s on), they hit an enemy
+  //   within `reach` ship-lengths ahead at `hitAt` s into the strike: `dmg`, and a shove of `knock`
+  paddles:   { name: "מחבטים דרוכים", dmg: 18, speed: 0, life: 0, cool: 1.0, ammo: 3, refill: 8, r: 0, color: "#ffd27a", paddles: true, window: 8, cock: 0.28, reach: 0.95, hitAt: 0.1, knock: 1.8 },
   plunger:   { name: "בוכנת קפיץ", dmg: 14, speed: 3.0, life: 0.13, cool: 0.9, ammo: 5, refill: 6, r: 0.1, color: "#ffd27a", knock: 1.4 },
   // COURIER. brassburst: two rounds at once from the nose ports. mailcap: a capsule the star pulls round (gravity), one
   //   at a time (`one`)
@@ -2974,7 +2982,7 @@ function update(dt) {
   if (game.stage === "fly") { updateMaze(dt); updateFlood(dt); }
   game.hurt = Math.max(0, game.hurt - dt); game.tankT = Math.max(0, (game.tankT || 0) - dt * 1.5);
   game.arriveT = Math.max(0, (game.arriveT || 0) - dt * 1.5);
-  if (BOT) botThink(dt); else campTick(dt);
+  if (BOT) botThink(dt); else { campTick(dt); testTick(dt); }
   if (game.stage === "fly" && trade.stage !== "swapping") {
     if (game.dead) {
       game.dead -= dt; game.thrust = null; game.stick = null; game.fire = [null, null, null, null];
@@ -2986,7 +2994,7 @@ function update(dt) {
     else if (game.docked) { const L = stationLook(), P = stationWorld(L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
-    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateVault(dt); updateCorsair(dt);
+    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateVault(dt); updateCorsair(dt); updatePaddles(dt);
   }
   updateTrade(dt);
   updateDuel(dt);
@@ -3842,6 +3850,64 @@ const SHOP_TXT = {
 };
 function st(k) { return (SHOP_TXT[LANG] || SHOP_TXT.he)[k]; }
 
+// ---------- the test hangar's test modes (only where the hangar is: the DEV app, a computer) ----------
+// foe: "fight" (the computer fights and hurts) | "safe" (it fights, nothing takes my health) | "still" (it stays where
+// it is, doing nothing) | "none" (no enemy: it waits far off, out of the game). money: coins and minerals without end
+// (nothing is spent, the real bank is not touched, so none of it reaches the server). Kept on the phone (TEST_KEY).
+const TEST_KEY = "spaceship.test";
+const testState = (() => { try { const t = JSON.parse(LS.getItem(TEST_KEY)); if (t && typeof t === "object") return { foe: ["fight", "safe", "still", "none"].includes(t.foe) ? t.foe : "fight", money: !!t.money }; } catch (e) {} return { foe: "fight", money: false }; })();
+function saveTest() { try { LS.setItem(TEST_KEY, JSON.stringify(testState)); } catch (e) {} }
+function testFoe() { return HANGAR && !BOT ? testState.foe : "fight"; }
+function testMoney() { return HANGAR && !BOT && testState.money; }
+let botTest = "fight";   // (in the computer's window: what the hangar asked of it)
+window.setBotTest = (m) => { botTest = m; };
+let testT = 0;
+function testTick(dt) {   // tell the computer, now and then
+  testT -= dt; if (testT > 0) return; testT = 0.5;
+  const bw = botWindow(); if (bw && bw.setBotTest) try { bw.setBotTest(testFoe()); } catch (e) {}
+}
+// the computer told to keep still (or to keep out of the game, far off on the other side of space): no keys, no moving
+function botStill() {
+  if (botTest !== "still" && botTest !== "none") { botAI.anchor = null; return false; }
+  botRelease();
+  if (!botAI.anchor || botAI.anchor.mode !== botTest) {
+    botAI.anchor = botTest === "none" ? { mode: botTest, x: wrapX(enemy.x + WW / 2), y: wrapY(enemy.y + WH / 2) } : { mode: botTest, x: game.x, y: game.y };
+  }
+  game.x = botAI.anchor.x; game.y = botAI.anchor.y; game.vx = game.vy = 0;
+  return true;
+}
+const TEST_TXT = {
+  he: { fight: "יורה עם נזק", safe: "יורה, בלי נזק", still: "אויב עומד", none: "בלי אויב", money: "💰 כסף ללא הגבלה" },
+  en: { fight: "Fires & hurts", safe: "Fires, no harm", still: "Still enemy", none: "No enemy", money: "💰 Unlimited money" }
+};
+// the chips: the four enemy modes on one row (one lit), the money under them
+function testChips() {
+  const R = hangarRow(), h = R.r * 1.15, gap = U * 0.018, w = (W - U * 0.06 - gap * 3) / 4, x0 = U * 0.03, list = [];
+  ["none", "still", "safe", "fight"].forEach((m, i) => list.push({ foe: m, x: x0 + i * (w + gap), y: R.y - h / 2, w, h }));
+  const mw = Math.min(W * 0.6, w * 2.2); list.push({ money: true, x: (W - mw) / 2, y: R.y + h * 0.85, w: mw, h });
+  return list;
+}
+function testRowBottom() { const c = testChips(); const m = c[c.length - 1]; return m.y + m.h; }
+function drawTestChips() {
+  const T = TEST_TXT[LANG] || TEST_TXT.he;
+  ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
+  for (const c of testChips()) {
+    const on = c.money ? testState.money : testState.foe === c.foe, col = c.money ? "#ffd166" : c.foe === "fight" ? "#ff8a6a" : c.foe === "safe" ? "#7dffb0" : "#7cc8ff";
+    ctx.fillStyle = on ? hexA(col, 0.22) : "rgba(10,12,32,0.8)"; ctx.strokeStyle = on ? col : "rgba(124,140,255,0.45)"; ctx.lineWidth = on ? 2.5 : 1.5;
+    roundRect(c.x, c.y, c.w, c.h, c.h / 2); ctx.fill(); ctx.stroke();
+    let f = Math.round(c.h * 0.42); ctx.font = `${on ? 800 : 600} ${f}px Rubik, Arial, sans-serif`;
+    const txt = c.money ? T.money : T[c.foe];
+    while (f > 8 && ctx.measureText(txt).width > c.w - c.h * 0.5) { f--; ctx.font = `${on ? 800 : 600} ${f}px Rubik, Arial, sans-serif`; }
+    ctx.fillStyle = on ? "#ffffff" : "#9fb4d8"; ctx.fillText(txt, c.x + c.w / 2, c.y + c.h / 2 + 1);
+    hangar.cards.push({ test: c, x: c.x, y: c.y, w: c.w, h: c.h });
+  }
+  ctx.restore();
+}
+function testTap(c) {
+  if (c.money) testState.money = !testState.money; else testState.foe = c.foe;
+  saveTest(); testT = 0; audio.pop(); buzz(10);
+}
+
 // ---- money ----
 // bank: kept on the phone (BANK_KEY): { wallet: { ship: coins }, gear: { ship: { pas, act, xw } }, res: { minerals, metals },
 //   welcomed: { ship: 1 } }. (The bot keeps its own, in memory only.)
@@ -3850,10 +3916,10 @@ if (params.has("reset")) { try { LS.removeItem(BANK_KEY); } catch (e) {} }
 const bank = (() => { try { const b = JSON.parse(LS.getItem(BANK_KEY)); if (b && typeof b === "object") return b; } catch (e) {} return {}; })();
 bank.wallet = bank.wallet || {}; bank.gear = bank.gear || {}; bank.res = bank.res || {}; bank.welcomed = bank.welcomed || {};   // (res: each mineral's count, and metals)
 function saveBank() { bank.dirty = 1; try { LS.setItem(BANK_KEY, JSON.stringify(bank)); } catch (e) {} if (profile) { profile.money = totalMoney(); saveProfile(); } bankSync.push(); }   // (signed in: to the server too)
-function wallet(id) { return bank.wallet[id] || 0; }
-function totalMoney() { return Object.values(bank.wallet).reduce((a, b) => a + b, 0); }
-function walletAdd(id, n) { if (!id) return; bank.wallet[id] = Math.max(0, wallet(id) + n); }
-function resOf(k) { return bank.res[k] || 0; }
+function wallet(id) { return testMoney() ? 999999 : bank.wallet[id] || 0; }   // (the hangar's unlimited money: shown, never stored)
+function totalMoney() { return testMoney() ? 999999 : Object.values(bank.wallet).reduce((a, b) => a + b, 0); }
+function walletAdd(id, n) { if (!id || (testMoney() && n < 0)) return; bank.wallet[id] = Math.max(0, (bank.wallet[id] || 0) + n); }
+function resOf(k) { return testMoney() ? 999 : bank.res[k] || 0; }
 // ---------- the account: money and purchases on the server (the `banks` table, server/supabase.sql) ----------
 // Signing in (the title screen's account button: an email, then the 6-digit code it gets) keeps the bank on the server,
 // so it comes back on another phone or after reinstalling. The first time a phone joins an account the two are merged
@@ -4674,7 +4740,7 @@ function cometDamage(c, n, mine) {
   // mine: the reward
   if (BOT) return;
   if (c.kind === "gold") { walletAdd(game.ship, c.coins); coinPops.push({ x: c.x, y: c.y, n: c.coins, t: 0 }); for (let i = 0; i < 8; i++) audio.tone(1100 + i * 160, 0.07, "triangle", 0.05, 1, i * 0.05); }
-  else { bank.res[c.mineral] = resOf(c.mineral) + c.n; coinPops.push({ x: c.x, y: c.y, mineral: c.mineral, n: c.n, t: 0 }); for (let i = 0; i < 6; i++) audio.tone(1500 + i * 220, 0.09, "sine", 0.05, 1, i * 0.07); }
+  else { bank.res[c.mineral] = (bank.res[c.mineral] || 0) + c.n; coinPops.push({ x: c.x, y: c.y, mineral: c.mineral, n: c.n, t: 0 }); for (let i = 0; i < 6; i++) audio.tone(1500 + i * 220, 0.09, "sine", 0.05, 1, i * 0.07); }
   saveBank(); buzz(90);
 }
 // it bursts: gold coins or crystal shards everywhere
@@ -5358,13 +5424,13 @@ function botVaultNear(d) { const T = vaultOf(enemy); return !!T && T.ph !== "fre
 // Button 1 is an aiming stick (like the thrust button): drag the thumb the way the cannons should point. The side of the
 // ship nearer that way fires all five of its cannons, bow to stern (CORSAIR_GAP s apart), each ball the way the stick
 // points, as far as the cannons swing (CORSAIR_SWING rad either side of straight out). A tap without dragging aims at
-// the enemy. Button 2: two iron balls on a chain from the bow, spinning round each other. The magic turns it into a
+// the enemy. Each ball leaves from its cannon's mouth the way that cannon points at that moment (the cannons turn to
+// the aim: corsairAimStep). Button 2: two iron balls on a chain from the bow, spinning round each other. The magic turns it into a
 // ghost ship for `last` s: its shots turn after the enemy (ghostshot / ghostchain). Every hit of its shots raises a ghost
 // over the ship hit (a skull for a ball, the skeleton in a bandana for the chain, the captain in his hat for a ghost
 // ship's shot) and gives CORSAIR health: `plain` or `ghost` of the damage. Health past full fills a spare tank, up to
 // CORSAIR_TANKS more than the usual.
-const CORSAIR_SWING = 0.7, CORSAIR_GAP = 0.068, CORSAIR_FIRST = 0.102, CORSAIR_TANKS = 2, CORSAIR_HEAL = { plain: 0.5, ghost: 1.0 };
-const CORSAIR_PORTS = [[0.18, -0.159], [0.18, -0.072], [0.18, 0.016], [0.18, 0.101], [0.18, 0.189]];   // the right side's cannon mouths, bow to stern
+const CORSAIR_SWING = Math.PI / 6, CORSAIR_GAP = 0.09, CORSAIR_TANKS = 2, CORSAIR_HEAL = { plain: 0.5, ghost: 1.0 };   // (cannons turn 30° either way)
 const GHOST_FX = { cells: 28, cols: 7, ms: 40, cell: 240, anchor: [0.5, 255 / 320] };
 const ghosts = [];   // { on: game | enemy, v, t, x, y }
 function hauntT0() { return seqLength(shipById("corsair").anim.magic) / 1000; }   // the change takes its frames' time
@@ -5384,17 +5450,18 @@ function updateCorsair(dt) {
     else if (!H.end && H.t >= t0 + M.last) { H.end = true; game.anim = { seq: "unmagic", t: 0 }; audio.tone(220, 0.8, "sine", 0.04, 0.5); }   // the ghost fades: the frames back
     else if (H.t >= t0 * 2 + M.last) game.haunt = null;
   }
+  if (game.ship === "corsair" && !game.dead) corsairAimStep(dt);
   const B = game.broad;
   if (B) {
     B.t += dt;
     if (game.dead || game.ship !== "corsair") { game.broad = null; return; }   // destroyed: the rest stay in
-    while (B.n < 5 && B.t >= CORSAIR_FIRST + B.n * CORSAIR_GAP) {
-      const P = CORSAIR_PORTS[B.n++];
-      game.broadAng = broadDir(corsairAim(), B.side).dir;
-      spawnShots(B.w, [P[0] * B.side, P[1]]); audio.shot(B.w);
-      if (B.n === 1) shake(0.25);
+    while (B.n < 5 && B.t >= B.n * CORSAIR_GAP) {
+      const n = B.n++, off = game.cAim[B.side < 0 ? "L" : "R"];
+      game.broadAng = game.ang + B.side * Math.PI / 2 + off;   // the way this cannon points now
+      spawnShots(B.w, barrelMuzzle(B.side, n, off, shipById("corsair").anim.size / 512)); audio.shot(B.w);
+      if (n === 0) shake(0.25);
     }
-    if (B.n >= 5) game.broad = null;
+    if (B.n >= 5 && B.t > 4 * CORSAIR_GAP + CORSAIR_RIG.all) game.broad = null;   // (kept to the end of the last recoil)
   }
 }
 // where the cannons point: the stick, else at the enemy, else straight out to the right
@@ -5446,14 +5513,101 @@ function drawGhosts() {
 // while the thumb aims: a dotted line from each cannon of the side that will fire, the way the balls will go
 function drawCorsairAim() {
   if (!game.aim || game.ship !== "corsair" || game.dead) return;
-  const { side, dir } = broadDir(corsairAim()), size = shipSize() * shipScale(), L = size * 1.6, gh = hauntOn();
+  const side = game.broad ? game.broad.side : broadDir(corsairAim()).side, off = (game.cAim || { L: 0, R: 0 })[side < 0 ? "L" : "R"], dir = game.ang + side * Math.PI / 2 + off;
+  const size = shipSize() * shipScale(), L = size * 1.6, gh = hauntOn(), k = shipById("corsair").anim.size / 512;
   ctx.save(); ctx.setLineDash([size * 0.06, size * 0.07]); ctx.lineDashOffset = -time * 40; ctx.lineWidth = Math.max(1.5, size * 0.018);
   ctx.strokeStyle = gh ? "rgba(94,240,255,0.55)" : "rgba(255,190,90,0.55)";
-  for (const P of CORSAIR_PORTS) {
-    const m = rotatePt(P[0] * side * size, P[1] * size, game.ang), a = toScreen(game.x + m.x, game.y + m.y);
+  for (let n = 0; n < 5; n++) {
+    const P = barrelMuzzle(side, n, off, k), m = rotatePt(P[0] * size, P[1] * size, game.ang), a = toScreen(game.x + m.x, game.y + m.y);
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + Math.sin(dir) * L, a.y - Math.cos(dir) * L); ctx.stroke();
   }
   ctx.restore();
+}
+// CORSAIR's rig (art/ships/corsair/rig/, the package's motionRig): the body without its cannons, the ten cannons apart
+// (each turns round its own pivot, up to CORSAIR_SWING either way from straight out, and recoils along its own line:
+// in by `rc` px at `up` s, back by `all` s), the two sails apart (stretched back and rippling with the thrust, the mast
+// edge still) and the captain's cabin windows (brighter at rest, dim at full thrust). Normal, ghost ship (haunted) and
+// BLOOM (bloom) have the same parts. In pixels of the 512 drawing.
+const CORSAIR_RIG = {
+  barrels: { "left-1": { tl: [188, 177], pv: [219, 183.5], mz: [195, 183.5] }, "left-2": { tl: [184, 216], pv: [213, 222.5], mz: [191, 222.5] },
+    "left-3": { tl: [183, 255], pv: [212, 261.5], mz: [190, 261.5] }, "left-4": { tl: [183, 294], pv: [211, 300.5], mz: [190, 300.5] },
+    "left-5": { tl: [183, 333], pv: [212, 339.5], mz: [190, 339.5] }, "right-1": { tl: [295, 177], pv: [294, 183.5], mz: [317, 183.5] },
+    "right-2": { tl: [300, 216], pv: [299, 222.5], mz: [321, 222.5] }, "right-3": { tl: [302, 255], pv: [301, 261.5], mz: [322, 261.5] },
+    "right-4": { tl: [302, 294], pv: [301, 300.5], mz: [322, 300.5] }, "right-5": { tl: [301, 333], pv: [300, 339.5], mz: [322, 339.5] } },
+  rc: 11, up: 0.038, all: 0.19, turn: 2.5,
+  sails: [[213, 119, 299, 204], [210, 251, 304, 338]], bow: [256, 67],
+  cabin: { c: [[239.5, 402], [256, 402], [273, 402]], h: [[4.4, 8.1], [5.6, 8.8], [4.5, 8.1]], idle: 1.48, full: 0.36 }
+};
+function rigBarrel(side, n) { return CORSAIR_RIG.barrels[(side < 0 ? "left-" : "right-") + (n + 1)]; }
+// a cannon's mouth (ship units) when turned `off` radians (clockwise on the screen)
+function barrelMuzzle(side, n, off, k) {
+  const B = rigBarrel(side, n), dx = B.mz[0] - B.pv[0], dy = B.mz[1] - B.pv[1], c = Math.cos(off), s = Math.sin(off);
+  return [(B.pv[0] + dx * c - dy * s - 256) * k, (B.pv[1] + dx * s + dy * c - 256) * k];
+}
+function recoilAt(t) { const R = CORSAIR_RIG; return t < 0 || t > R.all ? 0 : t < R.up ? ease(t / R.up) : 1 - ease((t - R.up) / (R.all - R.up)); }
+// my cannons follow the aim (the stick, else the enemy): the side that would fire turns to it, the other back to straight
+function corsairAimStep(dt) {
+  const A = game.cAim || (game.cAim = { L: 0, R: 0 });
+  const side = game.broad ? game.broad.side : broadDir(corsairAim()).side;
+  const want = clamp(wrapAngle(corsairAim() - game.ang - side * Math.PI / 2), -CORSAIR_SWING, CORSAIR_SWING), step = CORSAIR_RIG.turn * dt;
+  for (const s of [-1, 1]) { const key = s < 0 ? "L" : "R", to = s === side ? want : 0; A[key] += clamp(to - A[key], -step, step); }
+}
+// what the other phone needs to draw my cannons: [left, right (hundredths of a radian), the volley's side, its time (ms) or -1]
+function corsairNet() {
+  if (game.ship !== "corsair") return 0;
+  const A = game.cAim || { L: 0, R: 0 }, B = game.broad;
+  return [Math.round(A.L * 100), Math.round(A.R * 100), B ? B.side : 0, B ? Math.round(B.t * 1000) : -1];
+}
+// drawn in the ship's own frame (units), instead of a frame of the drawing. false: not ready (the frames then)
+function drawCorsairRig(S, o) {
+  const v = o.zombie ? "bloom" : o.haunt ? "haunted" : "normal", R = CORSAIR_RIG, k = S.anim.size / 512, X = (p) => (p - 256) * k;
+  const img = (n) => artImage(framePath(S.anim.dir, "rig/" + v + "-" + n + ".webp"));
+  const body = img("body"); if (!body) return false;
+  // the cannons' turn and the volley (mine, or theirs from their state)
+  let aim = { L: 0, R: 0 }, side = 0, vt = -1;
+  if (o.vt === game) { aim = game.cAim || aim; if (game.broad) { side = game.broad.side; vt = game.broad.t; } }
+  else if (o.vt === enemy && duel.net && Array.isArray(duel.net.ca)) { const c = duel.net.ca; aim = { L: c[0] / 100, R: c[1] / 100 }; side = c[2]; vt = c[3] >= 0 ? c[3] / 1000 : -1; }
+  // the thrust, eased in and out over about 240 ms (the sails and the cabin light both follow it)
+  let T = clamp(((o.power || 0) - 0.12) / 0.88, 0, 1);
+  if (o.vt) { o.vt.sailK = lerp(o.vt.sailK || 0, T, 1 - Math.exp(-(frameDt || 0.016) / 0.08)); T = o.vt.sailK; }
+  const flashes = [];
+  for (const s of [-1, 1]) for (let n = 0; n < 5; n++) {
+    const B = rigBarrel(s, n), off = s < 0 ? aim.L : aim.R, bi = img((s < 0 ? "left-" : "right-") + (n + 1)); if (!bi) continue;
+    const rt = s === side && vt >= 0 ? vt - n * CORSAIR_GAP : -1, rec = recoilAt(rt) * R.rc;
+    ctx.save(); ctx.translate(X(B.pv[0]), X(B.pv[1])); ctx.rotate(off); ctx.translate(-s * rec * k, 0);   // in along its own line
+    ctx.drawImage(bi, X(B.tl[0]) - X(B.pv[0]), X(B.tl[1]) - X(B.pv[1]), bi.width * k, bi.height * k);
+    ctx.restore();
+    if (rt >= 0 && rt < 0.12) { const m = barrelMuzzle(s, n, off, k); flashes.push({ x: m[0], y: m[1], a: off + (s < 0 ? Math.PI : 0), f: 1 - rt / 0.12 }); }
+  }
+  ctx.drawImage(body, -256 * k, -256 * k, 512 * k, 512 * k);
+  // the sails: drawn again over themselves in thin rows, each row pushed back and widened more toward the free edge,
+  // with ripples running out to the edges (calm at rest, quick and big at full thrust)
+  R.sails.forEach((b, i) => {
+    const si = img("sail" + (i + 1)); if (!si) return;
+    const h = si.height, w = si.width, amp = 0.4 + 2.6 * T, sp = 3 + 10 * T;
+    for (let y = 0; y < h; y += 2) {
+      const vv = y / h, sc = 1 + T * 0.17 * vv, wx = Math.sin(time * sp + vv * 9 + i * 2) * amp * vv, dy = T * 12 * vv;
+      ctx.drawImage(si, 0, y, w, Math.min(2, h - y), X(256 + (b[0] - 256) * sc + wx), X(b[1] + y + dy), w * sc * k, Math.min(2, h - y) * k * (1 + T * 0.04) + k * 0.3);
+    }
+  });
+  // the captain's cabin: bright at rest, dimmed under thrust (amber; turquoise on the ghost ship)
+  const C = R.cabin, g = lerp(C.idle, C.full, T), rgb = v === "haunted" ? "83,245,213" : "255,166,61";
+  ctx.save();
+  C.c.forEach(([cx, cy], j) => {
+    const [hx, hy] = C.h[j];
+    if (g > 1) {
+      ctx.globalCompositeOperation = "lighter";
+      const a = (g - 1) / (C.idle - 1) * 0.75, gr = ctx.createRadialGradient(X(cx), X(cy), 0, X(cx), X(cy), hy * 2.4 * k);
+      gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(1, `rgba(${rgb},0)`); ctx.fillStyle = gr; ctx.fillRect(X(cx) - hy * 2.4 * k, X(cy) - hy * 2.4 * k, hy * 4.8 * k, hy * 4.8 * k);
+    } else { ctx.globalCompositeOperation = "source-over"; ctx.fillStyle = `rgba(20,10,4,${(1 - g) / (1 - C.full) * 0.7})`; ctx.fillRect(X(cx - hx), X(cy - hy), hx * 2 * k, hy * 2 * k); }
+  });
+  // the muzzle flashes, on each cannon as it fires, and the bow's when the chain shot leaves
+  ctx.globalCompositeOperation = "lighter";
+  const fl = (x, y, a, f, r) => { const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(255,250,220,${f})`); gr.addColorStop(0.4, v === "haunted" ? `rgba(94,240,255,${f * 0.8})` : `rgba(255,170,60,${f * 0.8})`); gr.addColorStop(1, "rgba(255,120,20,0)"); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x + Math.cos(a) * r * 0.4, y + Math.sin(a) * r * 0.4, r, 0, TAU); ctx.fill(); };
+  for (const F of flashes) fl(F.x, F.y, F.a, F.f, 22 * k);
+  const an = o.anim; if (an && an.seq === "secondary" && an.t > 50 && an.t < 230) fl(X(R.bow[0]), X(R.bow[1]), -Math.PI / 2, 1 - (an.t - 50) / 180, 30 * k);
+  ctx.restore();
+  return true;
 }
 // CORSAIR's shots: an iron ball (glowing teal in a ghost ship's), and two balls on a chain spinning round their middle
 function drawPirateShot(s, Wp) {
@@ -5472,6 +5626,49 @@ function drawPirateShot(s, Wp) {
     ball(p.x - dx, p.y - dy, size * 0.032); ball(p.x + dx, p.y + dy, size * 0.032);
   } else ball(p.x, p.y, size * 0.045);
   ctx.restore();
+}
+// ---------- FLIPPER's cocked paddles (button 2, WEAPONS.paddles) ----------
+// A press cocks both paddles back (the "parm" frames) and opens a window of `window` s (from the press, the cocking
+// counted in it). Cocked, they wait: the first moment an enemy is within `reach` ship-lengths ahead of the paddles they
+// snap forward by themselves ("pstrike": they hit at `hitAt` s, once, `dmg` and a shove of `knock` the way the ship
+// faces) and come back to rest. If the window runs out first they go back quietly ("prelease"). A press while cocked
+// does nothing (it does not start the window again); the magic, being destroyed or the round ending let them go.
+// game.paddle: { ph: "arm" | "armed" | "strike" | "release", t (since the press), s (since this phase), hit }
+function startPaddles(w) {
+  game.paddle = { ph: "arm", t: 0, s: 0, w, hit: false }; game.anim = { seq: "parm", t: 0 };
+  audio.tone(180, 0.28, "square", 0.03, 1.8); audio.tone(900, 0.05, "square", 0.02, 0.5, 0.26); buzz(20);   // the springs wind, a click
+}
+function paddleInReach() {
+  if (!enemy.on || enemyDocked() || enemyAloft() || enemy.warp >= 0.5) return false;
+  const Wp = WEAPONS[game.paddle.w], dx = wrapDelta(enemy.x - game.x, WW), dy = wrapDelta(enemy.y - game.y, WH), size = shipSize() * shipScale();
+  const ahead = dx * Math.sin(game.ang) - dy * Math.cos(game.ang);   // how far in front of my middle
+  return Math.hypot(dx, dy) < Wp.reach * size + size * 0.42 * enemyScale() && ahead > -size * 0.15;
+}
+function updatePaddles(dt) {
+  const P = game.paddle; if (!P) return;
+  if (game.dead || game.ship !== "flipper" || game.stage !== "fly") { game.paddle = null; return; }
+  const Wp = WEAPONS[P.w];
+  P.t += dt; P.s += dt;
+  const seqT = (n) => seqLength(shipById("flipper").anim[n]) / 1000;
+  if (P.ph === "arm" && P.s >= seqT("parm")) { P.ph = "armed"; P.s = 0; game.anim = { seq: "parmed", t: 0 }; }
+  if ((P.ph === "arm" && P.s >= Wp.cock) || P.ph === "armed") {
+    if (paddleInReach()) { P.ph = "strike"; P.s = 0; game.anim = { seq: "pstrike", t: 0 }; audio.tone(1400, 0.06, "square", 0.04, 0.4); }
+    else if (P.t >= Wp.window) { P.ph = "release"; P.s = 0; game.anim = { seq: "prelease", t: 0 }; audio.tone(260, 0.3, "sine", 0.02, 0.6); }
+    else if (P.ph === "armed" && !game.anim) game.anim = { seq: "parmed", t: 0 };   // (after a ball was launched: cocked again)
+  }
+  if (P.ph === "strike" && !P.hit && P.s >= Wp.hitAt) {
+    P.hit = true;
+    if (paddleInReach()) {   // (still there when the paddles come round)
+      const fx = Math.sin(game.ang), fy = -Math.cos(game.ang);
+      harmEnemy(Wp.dmg);
+      if (enemy.remote) link.send({ t: "knock", vx: enemy.vx / U + fx * Wp.knock, vy: enemy.vy / U + fy * Wp.knock });
+      else { enemy.vx += fx * Wp.knock * U; enemy.vy += fy * Wp.knock * U; }
+      burstAt(enemy.x, enemy.y, 30, ["#ffffff", "#ffd27a", "#ff4d6d"], 0.6, 0.7, enemy.vx, enemy.vy);
+      rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.35, r: shipSize() * 0.7, c: "#ffd27a" });
+      audio.hit(); audio.tone(520, 0.12, "square", 0.05, 0.6); shake(0.5); buzz(120);
+    }
+  }
+  if ((P.ph === "strike" && P.s >= seqT("pstrike")) || (P.ph === "release" && P.s >= seqT("prelease"))) game.paddle = null;
 }
 // ---------- magic: the gear button ----------
 function magicOf(S) { return S.magic ? MAGIC[S.magic] : null; }
@@ -5627,7 +5824,7 @@ function useMagicNow(which = 0) {
   if (M.look === "reverse") { startReverse(M); return; }
   if (M.look === "starforge") { startForge(M); return; }
   if (M.look === "flood") { startFlood(M); return; }
-  if (M.look === "pinballs") { startPinballs(M); return; }
+  if (M.look === "pinballs") { game.paddle = null; startPinballs(M); return; }   // (the magic lets cocked paddles go)
   if (M.look === "orbitmine") { startOrbitMine(M); return; }
   if (M.look === "vault") { startVault(M); return; }
   if (M.look === "haunt") { startHaunt(M); return; }   // CORSAIR: the ghost ship   // VAULT: the star into the vault
@@ -7993,6 +8190,7 @@ function bumpShips(a, A, b, B) {
 function shake(k) { game.shakeT = Math.min(1.2, Math.max(game.shakeT, k * SHAKE)); }
 function damageShip(n, src) {
   if (game.dead || game.stage !== "fly" || n <= 0) return;
+  if (testFoe() === "safe") { game.hurt = 0.2; buzz(20); return; }   // the hangar's "fires, no harm": a flash, nothing taken
   if (src !== "env" && floodSafe()) { floodShield(); return; }   // BOILER in its flood: the enemy cannot hurt it (src "env": walls, the star)
   if (game.docked || game.undockT > 0 || practiceOn()) return;   // in the station, just out of it, or practising: safe
   if (src !== "env") { n = shieldsTake(n); if (n <= 0) return; }   // the station's shields
@@ -8184,10 +8382,12 @@ function shoot(i) {
   const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
   if (Wp.gate && (gateAlive(game.gate) || game.gateWait != null)) return;   // GIMBAL: one gate at a time
   if (Wp.harpoon && (game.hook || game.tether || game.elasso || game.hookWait != null)) return;
-  if (Wp.one && (shots.some((q) => q.w === w) || (game.anim && game.anim.pending === w))) return;   // COURIER: one capsule at a time   // LARIAT: one hook or cable at a time
+  if (Wp.one && (shots.some((q) => q.w === w) || (game.anim && game.anim.pending === w))) return;
+  if (Wp.paddles && game.paddle) return;   // FLIPPER: cocked already (the window is not started again)   // COURIER: one capsule at a time   // LARIAT: one hook or cable at a time
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else if (i === 3) game.xammo -= 1; else game.loot.ammo -= 1;
-  if (Wp.broadside) { startBroadside(w); return; }   // CORSAIR: the volley (updateCorsair)
+  if (Wp.broadside) { startBroadside(w); return; }
+  if (Wp.paddles) { startPaddles(w); return; }   // FLIPPER: the paddles cock (updatePaddles)   // CORSAIR: the volley (updateCorsair)
   if (Wp.ring) { startRing(w, S); return; }
   if (Wp.palWall) { startWall(S); return; }   // PALISADE: the arms carry a wall out
   if (Wp.gate) { gateStart(); return; }   // GIMBAL: the quarter gate (set 0.31 s later)
@@ -9291,7 +9491,8 @@ function drawShip(S, x, y, size, o = {}) {
   }
   if (o.gear && o.gear[0]) drawUpgrade(S, "shield");   // the shop's shield, behind the hull
   if (S.clockwork && o.gear && o.gear[1]) drawUpgrade(S, "cannon");   // (GIMBAL returns below: its cannon now)
-  if (S.clockwork && drawClockwork(S, ang)) { ctx.restore(); return; }   // GIMBAL: drawn in its moving layers
+  if (S.clockwork && drawClockwork(S, ang)) { ctx.restore(); return; }
+  if (S.rig && !(o.anim && /magic/.test(o.anim.seq)) && drawCorsairRig(S, o)) { if (o.gear && o.gear[1]) drawUpgrade(S, "cannon"); ctx.restore(); return; }   // CORSAIR: its parts (the change into a ghost ship: its frames)   // GIMBAL: drawn in its moving layers
   if (img) {
     // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
     // (so the ship never shifts while firing). Single drawings: fitted to the ship's length
@@ -13311,7 +13512,7 @@ function endDuel(tellThem) {
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
   game.zombie = false; game.pollen = null; enemy.zombie = false;
-  mazeEnd(true); flood = null; game.pinball = null; game.snake = null; game.vault = null; flyMines.length = 0; game.haunt = null; game.broad = null; ghosts.length = 0;   // the match is over: no maze, the star back, no water, no pinballs
+  mazeEnd(true); flood = null; game.pinball = null; game.snake = null; game.vault = null; flyMines.length = 0; game.haunt = null; game.broad = null; ghosts.length = 0; game.paddle = null;   // the match is over: no maze, the star back, no water, no pinballs
   if (game.docked) undock();
   duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
@@ -13485,6 +13686,7 @@ function updateRival(dt) {
   enemy.power = n.p || 0; enemy.out = !!n.o; enemy.hp = n.hp; enemy.tanks = n.tk; enemy.hidden = !!n.hd;
   enemy.anim = n.an ? { seq: n.an[0], t: n.an[1] + age * 1000 } : null;
   const E = shipById(enemy.ship);
+  if (testFoe() === "none") { enemy.on = false; return; }   // the hangar's "no enemy": not here at all
   // their ship blew up / came back
   if (n.d && enemy.on) {
     enemy.on = false; duel.won++; scoreKill(true);   // a player beaten: the reward
@@ -13645,7 +13847,7 @@ function updateDuel(dt) {
       dv: game.devour ? [game.devour.phase, +(game.devour.x / WW).toFixed(5), +(game.devour.y / WH).toFixed(5), +game.devour.open.toFixed(2), +game.devour.ang.toFixed(2)] : 0,
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
         ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2), creatureLeft(game.surg.c), +(game.surg.c.hp / MAGIC.surgery.hp).toFixed(3)] : [])] : 0,
-      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), vt: vaultNet(), ht: hauntOn() ? 1 : 0, sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
+      kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), vt: vaultNet(), ht: hauntOn() ? 1 : 0, ca: corsairNet(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
@@ -13755,6 +13957,7 @@ function botLost() {
 function botNextShip() { if (botAI.left.length) tryShip(botAI.left[Math.floor(Math.random() * botAI.left.length)]); }
 // the automatic player: steers like a thumb on the joystick, and presses the same keys a person would on a computer
 function botThink(dt) {
+  if (botStill()) return;   // the hangar asked it to keep still, or to keep out
   if (game.stage !== "fly" || duel.stage !== "on" || game.dead || !enemy.on) { botRelease(); return; }
   for (const k in botAI.hold) { botAI.hold[k] -= dt; if (botAI.hold[k] <= 0) { delete botAI.hold[k]; botKey(k, false); } }
   const L = botLevel(), S = shipById(game.ship), st = shipStats(S), seen = !enemy.hidden;
@@ -14246,6 +14449,7 @@ function hangarTap(x, y) {
   for (const c of hangar.cards) if (x > c.x && x < c.x + c.w && y > c.y && y < c.y + c.h) {
     if (c.close) { hangar.open = false; audio.pop(); return; }
     if (c.fleet) { hangar.open = false; fleetOpen(false); audio.pop(); return; }
+    if (c.test) { testTap(c.test); return; }   // a test mode (the hangar stays open)
     tryShip(c.id); hangar.open = false; return;
   }
 }
@@ -14282,7 +14486,8 @@ function drawHangar() {
   if (THREE_SHIPS && profile && !trade.stage) hangar.cards.push({ fleet: true, x: fb.x - fb.r * 1.4, y: fb.y - fb.r * 1.4, w: fb.r * 2.8, h: fb.r * 2.8 });
   // the cards: as many columns as fit
   // as many columns as make the cards biggest on this screen (2 to 4)
-  const top = hangarRow().y + hangarRow().r * 1.3, gap = U * 0.025;
+  drawTestChips();   // the test modes: the enemy, the money
+  const top = testRowBottom() + U * 0.01, gap = U * 0.025;
   let cols = 2, best = 0;
   for (let c = 2; c <= 4; c++) {
     const r = Math.ceil(list.length / c), w = (W - gap * (c + 1)) / c, h = (H - top - gap * (r + 1)) / r, k = Math.min(w, h / 1.15);

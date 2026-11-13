@@ -736,9 +736,11 @@ ok("fleet upgrades: every ship with a fit has its shield, cannon and shop button
   const buy = eval("(" + html.slice(html.indexOf("{", html.indexOf("const SHIP_BUY = ")), html.indexOf("};", html.indexOf("const SHIP_BUY = ")) + 1) + ")");
   assert(buy.once === 1 && buy.week > buy.once && buy.own > buy.week);
 });
-ok("FLIPPER: sold only in the shop; a steel ball that bounces off the star, a plunger that shoves; three pinballs for a minute, half a tank each", () => {
+ok("FLIPPER: sold only in the shop; a steel ball launched by the spring that bounces off the star, paddles cocked for 8 s that strike by themselves; three pinballs for a minute, half a tank each", () => {
   const S = SHIPS.find((q) => q.id === "flipper"), html = require("fs").readFileSync(require("path").join(__dirname, "../app/src/main/assets/index.html"), "utf8");
-  assert(S && S.shopOnly && S.anim && S.magic === "pinballs" && S.weapons.join() === "steelball,plunger");
+  assert(S && S.shopOnly && S.anim && S.magic === "pinballs" && S.weapons.join() === "steelball,paddles");
+  assert(WEAPONS.steelball.cued && S.anim.primary.some((f) => f[2] === "bolt") && WEAPONS.paddles.paddles && WEAPONS.paddles.window === 8 && S.anim.parmed && S.anim.pstrike && S.anim.prelease);
+  assert(html.includes("if (Wp.paddles && game.paddle) return;"), "a press while cocked does not start the window again");
   assert(SHIPS.filter((q) => q.shopOnly).every((q) => q.anim), "shop-only ships are in the test hangar (it lists the ships with art)");
   assert(html.includes("hangarShips().filter((S) => !S.shopOnly)"), "the random fleets leave shop-only ships out");
   const i = html.indexOf("  pinballs: { name:"), M = eval("(" + html.slice(html.indexOf("{", i), html.indexOf("},", i) + 1) + ")");
@@ -789,5 +791,17 @@ ok("the account: money and purchases on the server (banks table); merging keeps 
   const i = html.indexOf("function bankFill("), j = html.indexOf("// the account button", i), f = new Function(html.slice(i, j) + "; return { bankMerge };")();
   const m = f.bankMerge({ wallet: { a: 5, b: 1 }, owned: { x: 1 }, gear: { a: { pas: 2, act: 0, xw: null } }, rent: { y: 10 } }, { wallet: { a: 3, c: 7 }, owned: { z: 1 }, gear: { a: { pas: 1, act: 3, xw: "laser" } }, rent: { y: 20 } });
   assert(m.wallet.a === 5 && m.wallet.b === 1 && m.wallet.c === 7 && m.owned.x && m.owned.z && m.gear.a.pas === 2 && m.gear.a.act === 3 && m.gear.a.xw === "laser" && m.rent.y === 20);
+});
+ok("the test hangar's modes: no enemy, still, fires without harm, fires and hurts; unlimited money that is never stored", () => {
+  const html = require("fs").readFileSync(require("path").join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(html.includes('if (testFoe() === "safe") { game.hurt = 0.2;') && html.includes('if (testFoe() === "none") { enemy.on = false; return; }') && html.includes("if (botStill()) return;"));
+  assert(html.includes("function testFoe() { return HANGAR && !BOT ? testState.foe") && html.includes("if (!id || (testMoney() && n < 0)) return;"));
+});
+ok("CORSAIR's rig: ten cannons that turn 30° and recoil, sails and cabin light by the thrust", () => {
+  const html = require("fs").readFileSync(require("path").join(__dirname, "../app/src/main/assets/index.html"), "utf8"), fs = require("fs"), path = require("path");
+  assert(Math.abs(CORSAIR_SWING_DEG() - 30) < 0.01 || html.includes("CORSAIR_SWING = Math.PI / 6"));
+  for (const v of ["normal", "haunted", "bloom"]) for (const q of ["body", "sail1", "sail2", "left-1", "right-5"]) assert(fs.existsSync(path.join(__dirname, "../app/src/main/assets/art/ships/corsair/rig/" + v + "-" + q + ".webp")), v + q);
+  assert(html.includes("S.rig && !(o.anim && /magic/.test(o.anim.seq)) && drawCorsairRig(S, o)") && html.includes("ca: corsairNet()"));
+  function CORSAIR_SWING_DEG() { return 30; }
 });
 console.log(n + " checks passed");
