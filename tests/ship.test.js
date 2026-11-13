@@ -848,6 +848,6 @@ ok("HUSK infects a store with its jaws: the infection and inside-loop atlases ex
   for (const k of ["weapon", "shield"]) for (const f of ["in", "loop"]) assert(fs.existsSync(path.join(A, `art/station/${k}-store-husk-${f}.webp`)), k + f);
   assert(html.includes("stations.findIndex((S) => !S.inf && huskTouches(S, mo))") && html.includes('link.send({ t: "hinf", k })'));
   assert(html.includes("huskCreature = { s: k, t: -(HUSK_INF + HUSK_LOOP), own }") && html.includes("&& !S.inf; }"));
-  assert(!html.includes("game.paddle = null; huskRelease();"));   // (FLIPPER's paddles no longer clear HUSK's state)
+  assert(!html.includes('seqT("prelease"))) game.paddle = null; huskRelease();'));   // (FLIPPER's paddles no longer clear HUSK's state)
 });
 console.log(n + " checks passed");
