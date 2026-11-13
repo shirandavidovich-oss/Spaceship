@@ -2584,6 +2584,9 @@ const audio = {
   },
   shot(w) {
     if (shop.open) return;   // (in a shop: no firing heard, only the shop's music)
+    // CORSAIR: a pirate ship's thundering cannons; the chain shot: the bow cannon, then the chain whirling away
+    if (w === "broadside") { playClip("audio/corsair/cannon-" + (1 + Math.floor(Math.random() * 3)) + ".ogg", false, 0.55); return; }
+    if (w === "chainshot") { playClip("audio/corsair/chainshot.ogg", false, 0.8); return; }
     // twin cannon: a quick metal snap and a short spring chatter
     if (w === "twin") { this.tone(1900, 0.03, "square", 0.04, 0.5); this.noise(0.06, 0.14, 2600); [0.04, 0.07, 0.1].forEach((d) => this.tone(700, 0.025, "triangle", 0.02, 0.8, d)); }
     // iris: the heavy release (the gear grind and the latch come first, in windUp)
@@ -2991,6 +2994,7 @@ function shipSize() { return U * 0.26; }
 function shopPaused() { return !BOT && !!game.docked && !!duel.bot && game.stage === "fly"; }
 function update(dt) {
   musicTick();   // (the loop for this screen)
+  rowingSound(!BOT && game.ship === "corsair" && !game.dead && game.stage === "fly" && !game.docked && game.thrust !== null && !result.mode && !shopPaused());   // (CORSAIR's rowing loop)
   if (shopPaused()) { time += dt; updateShop(dt); return; }
   if (!BOT && ((game.t % 1) < dt)) filmPreload();   // (once a second: load the film of a ship that is about)
   time += dt; game.t += dt; updateStoreBreaks(dt);
@@ -3125,7 +3129,7 @@ function flyShip(dt) {
     z = clamp(Math.min(dx ? (W / 2 - m) / dx : 1, dy ? (H / 2 - m) / dy : 1, 1), ZOOM_MIN, 1);
   }
   game.zoom = lerp(game.zoom, z, 1 - Math.exp(-dt * (z < game.zoom ? 3 : 1)));
-  audio.engine(game.power);
+  audio.engine(game.ship === "corsair" ? 0 : game.power);   // (CORSAIR rows instead: rowingSound)
 }
 
 // One step of flying for ANY ship (player or enemy): same rules for both, like in Star Control.
@@ -5840,6 +5844,101 @@ function botVaultNear(d) { const T = vaultOf(enemy); return !!T && T.ph !== "fre
 // over the ship hit (a skull for a ball, the skeleton in a bandana for the chain, the captain in his hat for a ghost
 // ship's shot) and gives CORSAIR health: `plain` or `ghost` of the damage. Health past full fills a spare tank, up to
 // CORSAIR_TANKS more than the usual.
+// the CORSAIR Rowing package's oars (its corsair-oars.js, as it came): create() per ship, update(dtMs, throttleHeld) ->
+// { deployment, phase }, draw(ctx, pose, variant) in the ship's 512 px frame, its body's middle at the origin, under the body
+const CorsairOars = (function () {
+  const pivot = 256;
+  const cycleMs = 680;
+  const banks = [206, 246, 286, 326];
+  const palettes = {
+    normal: ['#321b11', '#995a30', '#e8ac60', '#b48b56'],
+    haunted: ['#102b2d', '#3f8b85', '#a7f0dd', '#6fc3b2'],
+    bloom: ['#2e1924', '#8d5057', '#d79291', '#b89a5b']
+  };
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+
+  function create() {
+    let deployment = 0;
+    let phase = 0;
+    return {
+      update(dtMs, throttleHeld) {
+        const elapsed = Math.max(0, dtMs);
+        deployment = clamp(deployment + elapsed / (throttleHeld ? 215 : -270), 0, 1);
+        if (throttleHeld || deployment > 0) {
+          phase = (phase + elapsed * (throttleHeld ? 1 : .55) / cycleMs) % 1;
+        }
+        return {deployment, phase};
+      },
+      reset() { deployment = 0; phase = 0; }
+    };
+  }
+
+  function draw(ctx, pose, variant = 'normal') {
+    const d = pose.deployment * pose.deployment * (3 - 2 * pose.deployment);
+    if (d <= 0) return;
+    const [dark, wood, light, brass] = palettes[variant] || palettes.normal;
+    ctx.save();
+    ctx.globalAlpha *= Math.min(1, d * 4);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const side of [-1, 1]) {
+      for (const [i, y] of banks.entries()) {
+        const turn = (pose.phase + i * .06) % 1;
+        const sweep = Math.cos(turn * Math.PI * 2);
+        const recovery = Math.max(0, -Math.sin(turn * Math.PI * 2));
+        const rootX = side * (i === 0 ? 42 : 45);
+        const angle = 1.25 * (1 - d) + d * (.17 + .42 * sweep);
+        const length = 18 + d * (105 - i * 5 - 16 * recovery);
+        ctx.save();
+        ctx.translate(rootX, y - pivot);
+        ctx.scale(side, 1);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(-6, 0); ctx.lineTo(length * .78, 0);
+        ctx.strokeStyle = dark; ctx.lineWidth = 7; ctx.stroke();
+        ctx.strokeStyle = wood; ctx.lineWidth = 4.5; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, -1.25); ctx.lineTo(length * .75, -1.25);
+        ctx.strokeStyle = light; ctx.lineWidth = 1.25; ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(length*.70, -2);
+        ctx.bezierCurveTo(length*.82, -4, length*.91, -8, length*.98, -6);
+        ctx.quadraticCurveTo(length*1.04, 0, length*.98, 6);
+        ctx.bezierCurveTo(length*.91, 8, length*.82, 4, length*.70, 2);
+        ctx.closePath();
+        const blade = ctx.createLinearGradient(0, -7, 0, 7);
+        blade.addColorStop(0, light); blade.addColorStop(.35, wood); blade.addColorStop(1, dark);
+        ctx.fillStyle = blade; ctx.fill();
+        ctx.strokeStyle = dark; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(length*.75, -.6); ctx.lineTo(length*.98, -.6);
+        ctx.strokeStyle = light; ctx.lineWidth = .8; ctx.stroke();
+        ctx.fillStyle = brass; ctx.fillRect(length*.68, -2.8, 4, 5.6);
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+
+    return { create, draw, cycleMs };
+})();
+// CORSAIR's rowing loop (the package's mix: oars, crew, the captain's "Heave!") instead of the engine while the gas is held;
+// started at the oars' place in their stroke, faded out in about 120 ms when let go
+function rowingSound(on) {
+  const c = audio.ctx; if (!c || BOT) return;
+  if (game.ship === "corsair") { soundBuf("audio/corsair/rowing-loop.ogg"); for (const f of ["cannon-1", "cannon-2", "cannon-3", "chainshot"]) soundBuf("audio/corsair/" + f + ".ogg"); }   // (loaded early)
+  const R = audio.row || (audio.row = { src: null, g: null });
+  if (on && !R.src) {
+    const B = soundBuf("audio/corsair/rowing-loop.ogg"); if (!B) return;
+    const s = c.createBufferSource(), g = c.createGain(), P = game.oarPose;
+    s.buffer = B; s.loop = true; s.loopStart = 0; s.loopEnd = Math.min(B.duration, 4.08);
+    g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(0.9, c.currentTime + 0.06);
+    s.connect(g); g.connect(audio.out); s.start(c.currentTime, P ? P.phase * 0.68 : 0); R.src = s; R.g = g;
+  } else if (!on && R.src) {
+    const s = R.src, g = R.g, now = c.currentTime; R.src = null;
+    g.gain.cancelScheduledValues(now); g.gain.setValueAtTime(g.gain.value, now); g.gain.linearRampToValueAtTime(0, now + 0.12); try { s.stop(now + 0.14); } catch (e) {}
+  }
+}
+// rowing (the gas held, or the oars not yet folded): only the bow's chain shot fires; the broadside and a picked-up weapon wait
+function corsairRowing() { const P = game.oarPose; return game.ship === "corsair" && (game.thrust !== null || !!(P && P.deployment > 0)); }
 const CORSAIR_SWING = Math.PI / 6, CORSAIR_GAP = 0.09, CORSAIR_TANKS = 2, CORSAIR_HEAL = { plain: 0.5, ghost: 1.0 };   // (cannons turn 30° either way)
 const GHOST_FX = { cells: 28, cols: 7, ms: 40, cell: 240, anchor: [0.5, 255 / 320] };
 const ghosts = [];   // { on: game | enemy, v, t, x, y }
@@ -5860,11 +5959,16 @@ function updateCorsair(dt) {
     else if (!H.end && H.t >= t0 + M.last) { H.end = true; game.anim = { seq: "unmagic", t: 0 }; audio.tone(220, 0.8, "sine", 0.04, 0.5); }   // the ghost fades: the frames back
     else if (H.t >= t0 * 2 + M.last) game.haunt = null;
   }
-  if (game.ship === "corsair" && !game.dead) corsairAimStep(dt);
+  if (game.ship === "corsair" && !game.dead && game.stage === "fly") {
+    corsairAimStep(dt);
+    if (!game.oars) game.oars = CorsairOars.create();
+    game.oarPose = game.oars.update(dt * 1000, game.thrust !== null && !game.docked);
+  } else if (game.oars) { game.oars.reset(); game.oarPose = null; }
   const B = game.broad;
   if (B) {
     B.t += dt;
     if (game.dead || game.ship !== "corsair") { game.broad = null; return; }   // destroyed: the rest stay in
+    if (B.n < 5 && corsairRowing()) B.n = 5;   // rowing began mid-volley: the rest are not fired
     while (B.n < 5 && B.t >= B.n * CORSAIR_GAP) {
       const n = B.n++, off = game.cAim[B.side < 0 ? "L" : "R"];
       game.broadAng = game.ang + B.side * Math.PI / 2 + off;   // the way this cannon points now
@@ -5980,6 +6084,10 @@ function drawCorsairRig(S, o) {
   // the thrust, eased in and out over about 240 ms (the sails and the cabin light both follow it)
   let T = clamp(((o.power || 0) - 0.12) / 0.88, 0, 1);
   if (o.vt) { o.vt.sailK = lerp(o.vt.sailK || 0, T, 1 - Math.exp(-(frameDt || 0.016) / 0.08)); T = o.vt.sailK; }
+  // the oars, under everything (their roots hidden by the hull): mine from my throttle, theirs from their thrust
+  if (o.vt === enemy) { if (!enemy.oars) enemy.oars = CorsairOars.create(); enemy.oarPose = enemy.oars.update((frameDt || 0.016) * 1000, (o.power || 0) > 0.2); }
+  const OP = o.vt ? o.vt.oarPose : null;
+  if (OP && OP.deployment > 0) { ctx.save(); ctx.scale(k, k); CorsairOars.draw(ctx, OP, v); ctx.restore(); }
   const flashes = [];
   for (const s of [-1, 1]) for (let n = 0; n < 5; n++) {
     const B = rigBarrel(s, n), off = s < 0 ? aim.L : aim.R, bi = img((s < 0 ? "left-" : "right-") + (n + 1)); if (!bi) continue;
@@ -9142,6 +9250,7 @@ function shoot(i) {
   if (game.strata) return;   // STRATA in its vertical shift: no firing   // BORER in its dive: no firing
   if (game.puff && game.puff.st === "full") { if (game.puff.armed) puffBurst(); return; }   // PUFF: this press lets the spines go
   const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
+  if (S.id === "corsair" && i !== 1 && corsairRowing()) return;   // CORSAIR rowing: only the chain shot (no ammo spent)
   if (Wp.gate && (gateAlive(game.gate) || game.gateWait != null)) return;   // GIMBAL: one gate at a time
   if (Wp.harpoon && (game.hook || game.tether || game.elasso || game.hookWait != null)) return;
   if (Wp.one && (shots.some((q) => q.w === w) || (game.anim && game.anim.pending === w))) return;
@@ -10414,10 +10523,12 @@ function musicTick() {
   for (const k in music.bufs) if (k.startsWith("audio/music/") && k !== "audio/music/" + key + ".ogg") delete music.bufs[k];
 }
 // a one-off sound (the fanfares go to the music volume, the gas to the effects)
-function playClip(path, onMusic) {
+function playClip(path, onMusic, vol) {
   const c = audio.ctx, B = soundBuf(path);
   if (!c || !B) return null;
-  const s = c.createBufferSource(); s.buffer = B; s.connect(onMusic ? audio.mus : audio.out); s.start();
+  const s = c.createBufferSource(); s.buffer = B;
+  if (vol != null) { const g = c.createGain(); g.gain.value = vol; s.connect(g); g.connect(onMusic ? audio.mus : audio.out); } else s.connect(onMusic ? audio.mus : audio.out);
+  s.start();
   return s;
 }
 function preloadSounds() { for (const p of ["audio/result/you-win.ogg", "audio/result/game-over.ogg", "audio/result/gas-launch.ogg", "audio/music/title.ogg", "audio/music/hangar.ogg"]) soundBuf(p); }
@@ -13795,7 +13906,7 @@ function drawFire() {
   const S0 = shipById(game.ship), kit = kitOf(S0);
   for (let b of fireButtons()) {
     if (b.r < 3) continue;
-    const w = slotWeapon(b.i), Wp = WEAPONS[w], ammo = slotAmmo(b.i), ready = ammo >= 1, pressed = game.fire[b.i] !== null;
+    const w = slotWeapon(b.i), Wp = WEAPONS[w], ammo = slotAmmo(b.i), ready = ammo >= 1 && !(game.ship === "corsair" && b.i !== 1 && corsairRowing()), pressed = game.fire[b.i] !== null;
     // the kit's buttons: the plate and icon, the ammo as a ring. Button 3 shows the weapon it carries (drawn in code)
     if (kit) {
       const slot = ["primary", "secondary", "pickup", "pickup"][b.i];

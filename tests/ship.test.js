@@ -870,4 +870,10 @@ ok("ship shop: tapping a chosen ship opens its page (every shop ship has its wor
   assert(html.includes('act: "info", id: chosen.id') && html.includes('if (h.act === "poke")') && html.includes("drawShipInfo()"));
   assert(html.includes("voiceStretch(c, buf, VOICE_SPEED / P.rate)"));
 });
+ok("CORSAIR rows on the gas (the oars, the rowing loop), fires only its chain shot while rowing, and its cannons thunder", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  for (const f of ["rowing-loop", "cannon-1", "cannon-2", "cannon-3", "chainshot"]) assert(fs.existsSync(path.join(A, `audio/corsair/${f}.ogg`)), f);
+  assert(html.includes("const CorsairOars = (function ()") && html.includes('if (S.id === "corsair" && i !== 1 && corsairRowing()) return;'));
+  assert(html.includes("if (B.n < 5 && corsairRowing()) B.n = 5;") && html.includes('if (w === "chainshot") { playClip("audio/corsair/chainshot.ogg"'));
+});
 console.log(n + " checks passed");
