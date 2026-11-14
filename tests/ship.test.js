@@ -972,4 +972,6 @@ ok("DRAKON's split: a random piece flies on (the other is the bomb); split as a 
   html.includes('o.zombie && o.half && S.id === "drakon"') && html.includes('half: m.k === 2 ? "rear" : "front"') && html.includes("drakFlares.push("));
 ok("the test app: a tap on the computer's ship blows it up (not against another phone)", () =>
   html.includes("function testKillTap(x, y)") && html.includes("if (HANGAR && game.stage === \"fly\" && enemy.on && enemy.warp < 0.5 && testKillTap(e.clientX, e.clientY)) return;") && html.includes("if (!duel.bot) return false;"));
+ok("cured of BLOOM, it still carries the pollen against that ship: coughs on (a zombie only while it coughs), till it beats that ship", () =>
+  html.includes("game.carrier = { t: 0 };") && html.includes("coughs = (game.zombie && Q && Q.t != null) || !!game.carrier") && html.includes("zombie: shown === S && (game.zombie || !!game.cough)") && html.includes("zb: game.zombie || game.cough ? 1 : 0"));
 console.log(n + " checks passed");

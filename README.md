@@ -683,7 +683,7 @@ fly as a shot comes back as a fossil shot).
 coughs for 6 s (`audio/bloom/zombie-cough2.ogg`, a recorded cough; `COUGH_ENV` is its loudness), its pollen cloud never
 smaller than BLOOM's own and swelling with the cough's loudness (up to 1.8 times), rippling like sound waves; a ship that breathes it in long enough becomes a zombie too (BLOOM never
 does). Heard and seen on both phones (`zc`). **Cured**: a zombie that destroys a BLOOM is itself again `ZOMBIE.cure`
-(10) s after the next ship shows up. **SKARN as a zombie** opens and slams its jaw and fires with the SKARN BLOOM
+(10) s after the next ship shows up. Cured, it still carries the pollen against that ship: it goes on coughing (every 15 s or so), looking a zombie again only while it coughs, and can still infect it; once it beats that ship it is done coughing. An infected ship is a zombie like any other. **SKARN as a zombie** opens and slams its jaw and fires with the SKARN BLOOM
 package's frames (`art/bloom/skarn/`, `skarnBloomFrame`).
 
 **PALISADE's wall builds itself** — once set, the wall grows: every 2 s a robot arm swings a new ceramic piece onto its end (straight on, or turning left or right, never into itself or the star) and welds it with a lime flash. Each added piece stops shots like the rest, and the magic bursts every piece into fast shards. As it works, the robot croons its wall-lines ("My wonderful wall... my precious!") in a hissing, ring-modulated voice.

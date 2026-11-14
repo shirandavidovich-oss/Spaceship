@@ -9937,6 +9937,7 @@ function hitEnemy(s, Wp) {
 // ---------- kills and money ----------
 const bounty = { t: 0, r: null };
 function scoreKill(player) {
+  game.carrier = null;   // (a cured carrier that beats the ship it coughed at: done coughing)
   if (game.zombie && enemy.ship === "bloom" && !game.zombieCure) game.zombieCure = { t: null };   // a zombie destroyed BLOOM: the cure begins with the next ship
   // every win fills one spare health tank again (it flashes)
   if (game.tanks < TANKS) { game.tanks++; game.tankT = 1; audio.tone(660, 0.12, "triangle", 0.05, 1.5); audio.tone(990, 0.16, "triangle", 0.05, 1.3, 0.1); }
@@ -11134,8 +11135,11 @@ function startCough(mine) {
 function updateZombieCough(dt) {
   soundBuf("audio/bloom/zombie-cough2.ogg");
   if (duel.cough) { duel.cough.t += dt; if (duel.cough.t > ZOMBIE.coughLen || !enemy.on) duel.cough = null; }
-  const Q = game.zombieCure;   // (only a zombie that destroyed BLOOM coughs, once the next ship is here)
-  if (!game.zombie || game.dead || game.stage !== "fly" || !Q || Q.t == null) { game.cough = null; game.coughNext = null; return; }
+  // who coughs: a zombie that destroyed BLOOM, once the next ship is here; cured, it still carries the pollen against
+  // that ship (game.carrier): it coughs on, looking a zombie again while it coughs. Beat that ship: no more coughing
+  if (game.dead) game.carrier = null;
+  const Q = game.zombieCure, coughs = (game.zombie && Q && Q.t != null) || !!game.carrier;
+  if (game.dead || game.stage !== "fly" || !coughs) { game.cough = null; game.coughNext = null; return; }
   if (game.coughNext == null) game.coughNext = ZOMBIE.coughFirst;
   if (!game.cough) { game.coughNext -= dt; if (game.coughNext <= 0) { startCough(true); game.coughNext = ZOMBIE.coughEvery + (Math.random() - 0.5) * 4; } return; }
   const C = game.cough; C.t += dt;
@@ -11154,7 +11158,7 @@ function zombieCureTick(dt) {
   if (Q.t == null) { if (enemy.on && enemy.warp < 0.5) Q.t = 0; return; }
   Q.t += dt;
   if (Q.t >= ZOMBIE.cure) {
-    game.zombie = false; game.zombieCure = null; game.cough = null;
+    game.zombie = false; game.zombieCure = null; game.carrier = { t: 0 };   // (cured, but it still coughs against this ship)
     burstAt(game.x, game.y, 40, ["#ffffff", "#8ff5d8", "#ffd166"], 0.6, 0.9, game.vx, game.vy);
     rings.push({ x: game.x, y: game.y, t: 0, max: 0.6, r: shipSize() * 1.3, c: "#8ff5d8" });
     audio.tone(523, 0.3, "triangle", 0.05, 1); audio.tone(784, 0.4, "triangle", 0.05, 1, 0.12); audio.tone(1047, 0.5, "triangle", 0.05, 1, 0.24); buzz(80);
@@ -13693,7 +13697,7 @@ function draw() {
       const dug = shown === S && game.dive;
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
-        { prep: shown === S && surgPrep() ? game.surg.t : null, kiln: shown === S && game.kiln ? kilnRig(game.kiln.t) : null, strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && game.zombie, power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
+        { prep: shown === S && surgPrep() ? game.surg.t : null, kiln: shown === S && game.kiln ? kilnRig(game.kiln.t) : null, strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && (game.zombie || !!game.cough), power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null, vt: shown === S ? game : null, haunt: shown === S && hauntOn(),
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
@@ -15500,7 +15504,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), tk: game.tanks, d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, zb: game.zombie ? 1 : 0, pn: game.pollen ? +game.pollen.t.toFixed(2) : -1, hf: game.splitUsed ? (game.splitKeep === "front" ? 2 : 1) : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, zb: game.zombie || game.cough ? 1 : 0, pn: game.pollen ? +game.pollen.t.toFixed(2) : -1, hf: game.splitUsed ? (game.splitKeep === "front" ? 2 : 1) : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +(duel.outDmg * (BOT ? botLevel().dmg : 1)).toFixed(1),
       ga: game.pushAng != null ? +game.pushAng.toFixed(3) : 0,
       lh: game.hook ? [+(game.hook.x / WW).toFixed(5), +(game.hook.y / WH).toFixed(5), +game.hook.vx.toFixed(1), +game.hook.vy.toFixed(1)] : 0, lt: game.tether ? Math.max(0.01, +game.tether.t.toFixed(2)) : 0,
