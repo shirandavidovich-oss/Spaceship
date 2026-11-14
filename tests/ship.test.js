@@ -967,4 +967,7 @@ ok("BORER: the magic button while the star mine charges spins the drill; a bite 
   html.includes("function drawBreaches(") && html.includes("function drawDrillAir(") && html.includes('alienSay(DRILL_LINES[i], "vader")') && html.includes('m.t === "br"') && html.includes("if (!game.dive) drillStart(); return; }"));
 ok("BORER's holes sit on DRAKON's remaining piece after its split (and those on the gone front piece go)", () =>
   html.includes("function onPiece(S, split, x, y)") && html.includes("if (halfShip(S, split) && B.y < seamY(S, B.x)) continue;"));
+ok("DRAKON's split: a random piece flies on (the other is the bomb); split as a BLOOM zombie, each piece has its own bloom drawing", () =>
+  html.includes('game.splitKeep = Math.random() < 0.5 ? "front" : "rear"') && html.includes("function drawDrakonBloomHalf(S, half)") &&
+  html.includes('o.zombie && o.half && S.id === "drakon"') && html.includes('half: m.k === 2 ? "rear" : "front"') && html.includes("drakFlares.push("));
 console.log(n + " checks passed");

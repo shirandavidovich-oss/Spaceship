@@ -6833,10 +6833,10 @@ function useMagicNow(which = 0) {
   if (M.look === "split") {   // DRAKON: come apart (the bomb stays), then blow the bomb up. Once a life
     if (game.bomb) { blowBomb(); return; }
     if (game.splitUsed) { audio.nope(); buzz(20); return; }
-    game.splitUsed = true;
-    game.bomb = { x: game.x, y: game.y, ang: game.ang, vx: game.vx * 0.3, vy: game.vy * 0.3, t: 0 };
-    duelSend({ t: "sp", x: +(game.x / WW).toFixed(5), y: +(game.y / WH).toFixed(5), a: +game.ang.toFixed(3) });
-    const n = rotatePt(-0.6, -0.75, game.ang); game.vx += n.x * U * 0.5; game.vy += n.y * U * 0.5;   // the rear piece pushes off
+    game.splitUsed = true; game.splitKeep = Math.random() < 0.5 ? "front" : "rear";   // which piece flies on (and fires) is a surprise; the other is the bomb
+    game.bomb = { x: game.x, y: game.y, ang: game.ang, vx: game.vx * 0.3, vy: game.vy * 0.3, t: 0, half: otherHalf(game.splitKeep) };
+    duelSend({ t: "sp", x: +(game.x / WW).toFixed(5), y: +(game.y / WH).toFixed(5), a: +game.ang.toFixed(3), k: game.splitKeep === "front" ? 2 : 1 });
+    const n = game.splitKeep === "front" ? rotatePt(0.6, -0.75, game.ang) : rotatePt(-0.6, -0.75, game.ang); game.vx += n.x * U * 0.5; game.vy += n.y * U * 0.5;   // the piece that flies on pushes off
     burstAt(game.x, game.y, 26, ["#ffffff", "#ff3fb0", "#ff9ad8"], 0.5, 0.7, game.vx, game.vy);
     audio.sfx(S.sfx, "rift_charge", 0, 0.8); audio.sfx(S.sfx, "anchor_place", 0.15); shake(0.3); buzz(80);
     return;
@@ -9586,6 +9586,7 @@ function spawnShots(w, g, rot) {
     shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * sv, vy: game.vy - Math.cos(dir) * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined });
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
+  if (S.id === "drakon" && game.splitUsed && game.zombie) drakFlares.push({ x, y, ang: game.ang, t: time });
   if (!S.anim) burstAt(x, y, w === "iris" ? 14 : 4, [Wp.color, "#ffffff"], w === "iris" ? 0.25 : 0.12, w === "iris" ? 0.8 : 0.5, game.vx, game.vy);
   // VANTA: the drops carry the liquid's colour; the phase drop uses it up, and leaves with a bang
   if (S.anim && S.anim.ribbon) {
@@ -10590,7 +10591,7 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.translate(x, y); ctx.rotate(ang + bank * 0.15); ctx.scale(size * Math.cos(bank * 0.9), size);
   ctx.lineJoin = "round";
   // engine flames (behind everything)
-  if (!o.out && !S.noFlame) S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
+  if (!o.out && !S.noFlame && o.half !== "front") S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
     const ey = S.engineYs ? S.engineYs[n] : S.engineY;   // a drawing can have its engines at different heights
     // a steam engine's flame is ragged and jumpy
     const rag = S.steam ? (Math.random() - 0.3) * 0.12 * power : 0;
@@ -10608,6 +10609,7 @@ function drawShip(S, x, y, size, o = {}) {
 
   // turned into a zombie by BLOOM's pollen: its zombie art, moving (ZOMBIE_ART). BLOOM: its petals and stamens moving
   if (o.zombie && S.rig) drawCorsairOars(S, o, "bloom");   // (CORSAIR a zombie: it still rows, its oars in BLOOM's colours)
+  if (o.zombie && o.half && S.id === "drakon" && drawDrakonBloomHalf(S, o.half)) { ctx.restore(); return; }   // DRAKON split and a zombie: that piece in BLOOM's growth
   if (o.zombie && drawZombieShip(S, o)) { ctx.restore(); return; }
   if (S.bloom && drawBloomMoving(S, power)) { ctx.restore(); return; }
   if (S.ballast && drawBallastRig(o.tow)) { ctx.restore(); return; }
@@ -11293,6 +11295,27 @@ function drawSkarnBloom(o, size) {
   if (F.fx) { const M = artImage("art/bloom/skarn/muzzle.webp"); if (M) ctx.drawImage(M, sx, sy, c, c, -size / 2, -size / 2, size, size); }
   return true;
 }
+// DRAKON's pieces as BLOOM zombies (art/bloom/drakon-half/, the package's two halves, fitted over the plain pieces:
+// x, y, w in the 512 px drawing's pixels)
+const DRAKON_BLOOM_HALF = { front: { x: 124, y: 32, w: 363.66 }, rear: { x: 48, y: 172, w: 332.31 } };
+function drawDrakonBloomHalf(S, half) {
+  const F = DRAKON_BLOOM_HALF[half], img = artImage("art/bloom/drakon-half/" + half + ".webp");
+  if (!F || !img) return false;
+  const k = S.anim.size / 512;
+  ctx.drawImage(img, (F.x - 256) * k, (F.y - 256) * k, F.w * k, F.w * k);
+  return true;
+}
+// DRAKON split and a zombie: a quick hot-pink flare at the muzzle on each shot (up in 25 ms, gone by 170 ms)
+const drakFlares = [];
+function drawDrakFlares() {
+  for (let i = drakFlares.length - 1; i >= 0; i--) {
+    const F = drakFlares[i], a = time - F.t; if (a > 0.17) { drakFlares.splice(i, 1); continue; }
+    const k = a < 0.025 ? a / 0.025 : 1 - (a - 0.025) / 0.145, p = toScreen(F.x, F.y), s = shipSize() * 0.22;
+    ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.translate(p.x, p.y); ctx.rotate(F.ang);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, s); g.addColorStop(0, `rgba(255,255,255,${k})`); g.addColorStop(0.35, `rgba(255,63,176,${0.9 * k})`); g.addColorStop(1, "rgba(255,63,176,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, -s * 0.3, s * 0.45, s, 0, 0, TAU); ctx.fill(); ctx.restore();
+  }
+}
 function drawZombieShip(S, o) {
   const Z = ZOMBIE_ART[S.id];
   if (!Z || BOT) return false;
@@ -11448,7 +11471,11 @@ function updateBombs(dt) {
   }
 }
 // the bomb's middle (the front piece's middle, not the ship's)
-function bombCenter(B) { const m = rotatePt(0.1 * shipSize(), -0.24 * shipSize(), B.ang); return { x: B.x + m.x, y: B.y + m.y }; }
+function bombCenter(B) { const r = B.half === "rear", m = rotatePt((r ? -0.09 : 0.1) * shipSize(), (r ? 0.17 : -0.24) * shipSize(), B.ang); return { x: B.x + m.x, y: B.y + m.y }; }
+function otherHalf(h) { return h === "front" ? "rear" : "front"; }
+// which piece of DRAKON flies on after its split: mine, theirs (null: whole)
+function myHalf() { return game.splitUsed ? game.splitKeep || "rear" : null; }
+function theirHalf() { const h = enemy.remote && duel.net && duel.net.hf; return h === 2 ? "front" : h ? "rear" : null; }
 function blowBomb() {
   const B = game.bomb, M = MAGIC.split;
   if (!B) return;
@@ -11482,7 +11509,7 @@ function drawBomb(B) {
   ctx.setLineDash([size * 0.06, size * 0.06]); ctx.lineDashOffset = -time * 30; ctx.strokeStyle = `rgba(255,63,176,${0.3 + 0.3 * blink})`; ctx.lineWidth = Math.max(1.5, size * 0.02);
   ctx.beginPath(); ctx.arc(c.x, c.y, size * 0.75, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
   ctx.restore();
-  drawShip(S, p.x, p.y, size, { ang: B.ang, power: 0, bank: 0, half: "front" });
+  drawShip(S, p.x, p.y, size, { ang: B.ang, power: 0, bank: 0, half: B.half || "front", zombie: B === game.bomb ? game.zombie : enemyZombie() });
 }
 // DRAKON's magic button: whole: the ship with a crack down it. Split: a bomb to press. Used: dark
 function drawSplitButton(b, M) {
@@ -11563,8 +11590,9 @@ function theirBreachKey() { return enemy.ship + "|" + duel.won + "|" + (enemy.li
 // DRAKON split (only its rear piece left): where its cut runs (ship-local y at x; the front piece was above it)
 function seamY(S, x) { const [c, sl] = S.anim.seam, k = S.anim.size / 512; return c * k + sl * x; }
 function halfShip(S, split) { return !!(split && S && S.anim && S.anim.seam); }
-// a hole on a split ship goes on the piece that is left: just behind the cut if the drill came at the gone front
-function onPiece(S, split, x, y) { return halfShip(S, split) ? Math.max(y, seamY(S, x) + 0.08) : y; }
+// a hole on a split ship goes on the piece that is left (split: "rear" or "front"): just inside the cut if the drill
+// came at the gone piece
+function onPiece(S, split, x, y) { return !halfShip(S, split) ? y : split === "front" ? Math.min(y, seamY(S, x) - 0.08) : Math.max(y, seamY(S, x) + 0.08); }
 function addBreach(list, x, y, a) { list.push({ x, y, a, t: time }); if (list.length > 4) list.shift(); }
 function updateDrill(dt) {
   const D = MAGIC.drill, S = shipById(game.ship);
@@ -11591,7 +11619,7 @@ function updateDrill(dt) {
   // the bite: one tank, through their shields; the hole where it went in (a little inside their edge), kept on their hull
   harmEnemy(D.dmg);
   const vx = cx - ex, vy = cy - ey, vl = Math.hypot(vx, vy) || 1, c = Math.cos(enemy.ang), s = Math.sin(enemy.ang);
-  const ux = vx / vl, uy = vy / vl, lx = (ux * c + uy * s) * 0.3, ly = onPiece(shipById(enemy.ship), enemy.remote && duel.net && duel.net.hf, lx, (-ux * s + uy * c) * 0.3);
+  const ux = vx / vl, uy = vy / vl, lx = (ux * c + uy * s) * 0.3, ly = onPiece(shipById(enemy.ship), theirHalf(), lx, (-ux * s + uy * c) * 0.3);
   addBreach(breachList(enemy, theirBreachKey()), lx, ly, Math.atan2(ly, lx));
   if (enemy.remote) duelSend({ t: "br", x: +lx.toFixed(3), y: +ly.toFixed(3) });
   const hx = enemy.x + ux * 0.38 * size * esc, hy = enemy.y + uy * 0.38 * size * esc;
@@ -11601,7 +11629,7 @@ function updateDrill(dt) {
 }
 // their BORER's drill bit me: the hole on my hull (the tank came off with their damage), and their laugh
 function drillBitten(m) {
-  m.y = onPiece(shipById(game.ship), game.splitUsed, m.x, m.y);
+  m.y = onPiece(shipById(game.ship), myHalf(), m.x, m.y);
   addBreach(breachList(game, myBreachKey()), m.x, m.y, Math.atan2(m.y, m.x));
   const size = shipSize(), c = Math.cos(game.ang), s = Math.sin(game.ang), wx = (m.x * c - m.y * s) * size * 1.27, wy = (m.x * s + m.y * c) * size * 1.27;
   burstAt(game.x + wx, game.y + wy, 34, ["#fff1bc", "#ffb768", "#ffffff", "#bac6ce"], 0.75, 0.8, game.vx, game.vy);
@@ -11616,7 +11644,7 @@ function drawBreaches(list, x, y, size, ang, S, split) {
   const d = size * 0.26;
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
   for (const B of list) {
-    if (halfShip(S, split) && B.y < seamY(S, B.x)) continue;   // (on DRAKON's front piece, gone)
+    if (halfShip(S, split) && (split === "front" ? B.y > seamY(S, B.x) : B.y < seamY(S, B.x))) continue;   // (on DRAKON's other piece, gone)
     const age = time - B.t, f = age < 0.1 ? 0 : age < 0.34 ? 1 : 2;
     ctx.save(); ctx.translate(B.x * size, B.y * size); ctx.rotate(B.a);
     ctx.drawImage(hole, f * 96, 0, 96, 96, -d / 2, -d / 2, d, d);
@@ -13655,11 +13683,11 @@ function draw() {
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null, vt: shown === S ? game : null, haunt: shown === S && hauntOn(),
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
-          half: shown === S && game.splitUsed ? "rear" : null, glow: shown === S && S.grows ? talusGlow(game.talus.ring) : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : shown === S && game.drillOn ? drillLook(game.drillSpin || 0) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
+          half: shown === S ? myHalf() : null, glow: shown === S && S.grows ? talusGlow(game.talus.ring) : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : shown === S && game.drillOn ? drillLook(game.drillSpin || 0) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
       if (dug) ctx.restore();
       if (shown === S) {   // the holes in my hull; BORER's drill: the air turning round it
         const X = p.x + r.x, Y = p.y + bob + r.y + tradeOffsetY(p.y);
-        drawBreaches(breachList(game, myBreachKey()), X, Y, shipSize() * sc, game.ang, S, game.splitUsed);
+        drawBreaches(breachList(game, myBreachKey()), X, Y, shipSize() * sc, game.ang, S, myHalf());
         if (game.drillOn) drawDrillAir(X, Y, shipSize() * sc, game.ang, game.drillSpin || 0);
       }
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
@@ -13696,7 +13724,7 @@ function draw() {
     drawShots(eshots);
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
-    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawTow(game, game.tow, towRig(game.tow, MAGIC.tow)); if (game.surg) drawSurgery(game, game.surg); if (enemy.remote && duel.surg) drawSurgery(enemy, duel.surg); if (enemy.remote && duel.tow) drawTow(enemy, duel.tow, towRig(duel.tow, MAGIC.tow)); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
+    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawDrakFlares(); drawTow(game, game.tow, towRig(game.tow, MAGIC.tow)); if (game.surg) drawSurgery(game, game.surg); if (enemy.remote && duel.surg) drawSurgery(enemy, duel.surg); if (enemy.remote && duel.tow) drawTow(enemy, duel.tow, towRig(duel.tow, MAGIC.tow)); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -13934,11 +13962,11 @@ function drawEnemy() {
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (enemy.remote && duel.net && duel.net.bb) drawHeldBubble(enemy, duel.net.bb);
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { prep: enemy.remote && duel.surg && duel.surg.phase === "prep" ? duel.surg.t : null, kiln: enemy.remote && duel.kiln ? kilnRig(duel.kiln.t) : null, strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : enemy.remote && duel.net && duel.net.bd ? drillLook(enemy.drillSpin || 0) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
+    drawShip(E, p.x, p.y, size * esc, { prep: enemy.remote && duel.surg && duel.surg.phase === "prep" ? duel.surg.t : null, kiln: enemy.remote && duel.kiln ? kilnRig(duel.kiln.t) : null, strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : enemy.remote && duel.net && duel.net.bd ? drillLook(enemy.drillSpin || 0) : null, half: theirHalf(), cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null, gear: enemy.remote && duel.net ? duel.net.gr : null, vt: enemy.remote ? enemy : null, haunt: enemy.remote && !!duel.net && duel.net.ht === 1 });
     if (dv) ctx.restore();
-    drawBreaches(enemy.on ? breachList(enemy, theirBreachKey()) : null, p.x, p.y, size * esc, enemy.ang, E, enemy.remote && duel.net && duel.net.hf);   // the holes my drill left
+    drawBreaches(enemy.on ? breachList(enemy, theirBreachKey()) : null, p.x, p.y, size * esc, enemy.ang, E, theirHalf());   // the holes my drill left
     if (enemy.remote && duel.net && duel.net.bd) drawDrillAir(p.x, p.y, size * esc, enemy.ang, enemy.drillSpin || 0);
     if (enemy.remote && duel.net && duel.net.fg && E.grows) drawForge(enemy, duel.net.fg, p.x, p.y, E.anim.size / 512 * size * esc);   // their TALUS forging
     if (enemy.remote && duel.net) drawAttachedEgg(enemy, E, enemy.anim, duel.net.ek, p.x, p.y, size * esc);   // their VEXAR's egg forming
@@ -15209,7 +15237,7 @@ function duelLink(event, data) {
   } else if (m.t === "smx") {   // my bomb got them (their phone saw the touch)
     game.starMine = null; game.magicCool = MAGIC.starmine.cool; shatterAt(m.x * WW, m.y * WH, shipById(enemy.ship));
   } else if (m.t === "sp") {   // their DRAKON came apart: its bomb is here
-    bombs.length = 0; bombs.push({ x: m.x * WW, y: m.y * WH, ang: m.a, vx: 0, vy: 0, t: 0 }); audio.sfx("drakon", "rift_charge", 0, 0.6);
+    bombs.length = 0; bombs.push({ x: m.x * WW, y: m.y * WH, ang: m.a, vx: 0, vy: 0, t: 0, half: m.k === 2 ? "rear" : "front" }); audio.sfx("drakon", "rift_charge", 0, 0.6);
   } else if (m.t === "chit") {   // my creature was hit (their phone saw it)
     creatureHurt(m.n || 0);
   } else if (m.t === "cx") {   // their creature was shot down
@@ -15458,7 +15486,7 @@ function updateDuel(dt) {
     const a = game.anim;
     link.send({ t: "s", s: game.ship, ...netPos(game), a: +game.ang.toFixed(3), p: +game.power.toFixed(2), o: game.sputter > 0 ? 1 : 0,
       hp: Math.round(game.hp), tk: game.tanks, d: game.dead > 0 ? 1 : 0, an: a ? [a.seq, Math.round(a.t)] : 0, mp: game.magicPour > 0 ? 1 : 0,
-      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, zb: game.zombie ? 1 : 0, pn: game.pollen ? +game.pollen.t.toFixed(2) : -1, hf: game.splitUsed ? 1 : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
+      hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, sc: game.scramble > 0 ? 1 : 0, zb: game.zombie ? 1 : 0, pn: game.pollen ? +game.pollen.t.toFixed(2) : -1, hf: game.splitUsed ? (game.splitKeep === "front" ? 2 : 1) : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +(duel.outDmg * (BOT ? botLevel().dmg : 1)).toFixed(1),
       ga: game.pushAng != null ? +game.pushAng.toFixed(3) : 0,
       lh: game.hook ? [+(game.hook.x / WW).toFixed(5), +(game.hook.y / WH).toFixed(5), +game.hook.vx.toFixed(1), +game.hook.vy.toFixed(1)] : 0, lt: game.tether ? Math.max(0.01, +game.tether.t.toFixed(2)) : 0,
