@@ -927,4 +927,8 @@ ok("the fleet row: only my ship, a tap: my fleet, a tap: theirs (lost ones cross
   assert(html.includes("let fleetView = 0;") && html.includes("function fleetRowTap() { fleetView = (fleetView + 1) % 3;") && html.includes("theirs: sp[duel.side ? 1 : 0].slice(), theirLost: []"));
   assert(html.includes("hitFleetRow(e.clientX, e.clientY)) { fleetRowTap(); return; }"));
 });
+ok("buying a ship for good or renting one needs the account (signed in), so it is kept on the server by email", () => {
+  const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(html.includes('if (o.kind === "ship" && (shop.mode === "own" || shop.mode === "week") && server.on && !server.signedIn) {') && html.includes("function showAccount(why)"));
+});
 console.log(n + " checks passed");

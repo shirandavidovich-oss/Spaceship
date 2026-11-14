@@ -3981,6 +3981,7 @@ const SHOP_TXT = {
     sayWeapon: "נשק נוסף מחללית אחרת, עם כפתור משלו ליד כפתור הירי. תבחר טוב!", sayShip: "חלליות חדשות לצי של המשחק הזה. תבחר אחת, ואז תאשר.",
     poke: ["אל תיגע בי, יצור משונה!", "ידיים לעצמך, בן אדם!", "היי! אני לא חלק מהסחורה!", "עוד נגיעה אחת ואני מעלה לך את המחירים!", "אתה יודע כמה מחושים אני צריך לנקות עכשיו?", "בכוכב שלי זה נחשב הצעת נישואים. תפסיק!", "אל תיגע! אני רגיש בכל שמונת העורות שלי!"],
     infoW1: "נשק 1", infoW2: "נשק 2", infoMagic: "קסם", infoDmg: "נזק", infoAmmo: "תחמושת", infoMass: "מסה", infoFuel: "דלק", infoSec: "שנ׳", infoClose: "סגירה", infoTap: "לחצו על התמונה לפרטים",
+    signFirst: "חללית לתמיד או להשכרה נרשמת על האימייל שלך. תתחבר קודם, ואז היא שלך!", signWhy: "חללית לתמיד או להשכרה נשמרת בחשבון שלך, כדי שלא תלך לאיבוד אם תחליף או תמחק את המשחק.",
     thanks: ["עסקה מצוינת!", "תהנה מזה, טייס!", "בחירה חכמה!"], cant: "אוי… חסרים לך עוד", coins: "מטבעות",
     soon: "בקרוב", once: "לקרב הזה", week: "שבוע", own: "לתמיד", ownedForever: "שלך לתמיד", rented: "מושכרת", days: "ימים", inFleet: "כבר בצי",
     saySoon: "את זו עוד בונים במספנה. בקרוב אצלי!", sayModes: "לקרב הזה, השכרה לשבוע, או לתמיד: אז היא בצי שלך בכל משחק.",
@@ -3999,6 +4000,7 @@ const SHOP_TXT = {
     sayWeapon: "An extra weapon from another ship, with its own button by the fire button. Choose well!", sayShip: "New ships for this game's fleet. Pick one, then confirm.",
     poke: ["Don't touch me, you freak!", "Hands off, human!", "Hey! I'm not part of the merchandise!", "One more poke and I'm raising your prices!", "Do you know how many tentacles I have to clean now?", "On my planet that's a marriage proposal. Stop it!", "Don't touch! I'm sensitive in all eight of my skins!"],
     infoW1: "Weapon 1", infoW2: "Weapon 2", infoMagic: "Magic", infoDmg: "Damage", infoAmmo: "Ammo", infoMass: "Mass", infoFuel: "Fuel", infoSec: "s", infoClose: "Close", infoTap: "Tap the picture for details",
+    signFirst: "A ship for good or a rental goes on your email. Sign in first, then it's yours!", signWhy: "A ship for good or a rental is kept on your account, so it is never lost if you change phones or delete the game.",
     thanks: ["Excellent deal!", "Enjoy it, pilot!", "Smart choice!"], cant: "Oh… you still need", coins: "coins",
     soon: "Coming soon", once: "This game", week: "A week", own: "Forever", ownedForever: "Yours forever", rented: "Rented", days: "days", inFleet: "In your fleet",
     saySoon: "That one is still in the shipyard. Coming soon!", sayModes: "For this game, rented for a week, or forever: then it is in your fleet every game.",
@@ -4150,7 +4152,7 @@ function drawAccountBtn() {
   ctx.restore();
 }
 // the account page: the email, then the code; signed in: who, and signing out
-function showAccount() {
+function showAccount(why) {   // why: a line saying why to sign in now (buying a ship for good or a rental)
   if (document.getElementById("account")) return;
   const he = LANG === "he", T = (h, e) => he ? h : e;
   const d = document.createElement("div");
@@ -4174,7 +4176,7 @@ function showAccount() {
     return;
   }
   d.innerHTML = box(`<div style="font-size:24px;font-weight:800;margin-bottom:6px">👤 ${T("כניסה עם מייל", "Sign in with email")}</div>
-    <div id="ac-say" style="font-size:15px;color:#9fb4d8;margin-bottom:16px">${T("הכסף והקניות יישמרו בשרת ויחזרו בכל טלפון שתיכנסו ממנו.", "Your money and purchases are kept on the server and come back on any phone you sign in on.")}</div>
+    ${why ? `<div style="font-size:15px;color:#ffd166;margin-bottom:10px">${why}</div>` : ""}<div id="ac-say" style="font-size:15px;color:#9fb4d8;margin-bottom:16px">${T("הכסף והקניות יישמרו בשרת ויחזרו בכל טלפון שתיכנסו ממנו.", "Your money and purchases are kept on the server and come back on any phone you sign in on.")}</div>
     <input id="ac-email" type="email" required placeholder="name@gmail.com" dir="ltr" autocomplete="email" style="${field}">
     <input id="ac-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" dir="ltr" maxlength="10" style="${field};display:none;margin-top:10px;font-size:26px;letter-spacing:8px;text-align:center">
     <div id="ac-err" style="color:#ff6b8a;font-size:14px;min-height:20px;margin-top:6px"></div>
@@ -4702,6 +4704,12 @@ function shopBuy() {
   const o = shopOptions(shop.sel)[shop.opt]; if (!o) return;
   const price = shopPrice(o), have = shopMoney();
   if (!o.ok) { audio.nope(); return; }
+  // a ship for good or rented is kept on the account (the server, by email), so it is never lost with the phone: signed
+  // in first (a ship for this game only, and everything else, does not need it)
+  if (o.kind === "ship" && (shop.mode === "own" || shop.mode === "week") && server.on && !server.signedIn) {
+    shopSay(st("signFirst")); audio.nope(); buzz(20);
+    showAccount((LANG === "he" ? SHOP_TXT.he : SHOP_TXT.en).signWhy); return;
+  }
   if (have < price) { shopSay(`${st("cant")} ${(price - have).toLocaleString("en-US")} ${st("coins")}`, `${SHOP_TXT.en.cant} ${(price - have).toLocaleString("en-US")} ${SHOP_TXT.en.coins}`); audio.nope(); buzz(20); return; }
   shop.busy = true;   // (no paying twice: the button waits until this is done)
   shopSpend(price);

@@ -661,7 +661,8 @@ another goes back to just my ship (`fleetView`, `shownFleet`).
 **The economy** (`SHOP`): the game pays a tenth of what it used to (`SHOP.earn` 0.1 of a win's reward; the welcome gift,
 practice drones, gold comets and minerals a tenth too). Coins are planned to sell at `COIN_USD` (10,000 coins a dollar),
 so a ship of your own costs about 3 dollars (`SHOP.ship` x `SHIP_BUY.own`: 25,600 to 33,600 coins), and a one-time
-offer of every ship for good for `ALL_SHIPS_USD` (10 dollars). Selling for real money is not built yet: it needs the
+offer of every ship for good for `ALL_SHIPS_USD` (10 dollars). A ship bought for good or rented needs the player signed in (the sign-in opens, with why), so it is kept on
+the server by email and never lost with a phone. Selling for real money is not built yet: it needs the
 game in Google Play (a developer account), Google Play Billing in the app, and the server checking each purchase.
 
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
