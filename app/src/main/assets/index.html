@@ -3688,8 +3688,10 @@ function floodHeld() { return !!flood && flood.t < MAGIC.flood.fill + MAGIC.floo
 function surfaceY() { return lerp(WH * MAGIC.flood.bottom, WH / 2, floodLevel()); }
 function bandY(y) { return y > WH * (MAGIC.flood.bottom + 0.01) ? y - WH : y; }   // (the strip past the bottom counts as above the top)
 function inWater(o) { return !!flood && floodLevel() > 0 && bandY(o.y) > surfaceY(); }
-function floodRole() { if (!flood) return null; if (flood.owner === "me") return game.ship === "boiler" ? "diver" : "air"; return game.ship === "xeltar" ? "swimmer" : "air"; }
-function floodXeltar() { return !!flood && (flood.owner === "me" ? enemy.ship === "xeltar" : game.ship === "xeltar"); }   // XELTAR is in it: a plain fight
+// the ships that may swim in BOILER's water ("swimmer"): XELTAR, and LYTH on its water jets. With one in it, a plain fight
+const SWIMMERS = ["xeltar", "lyth"];
+function floodRole() { if (!flood) return null; if (flood.owner === "me") return game.ship === "boiler" ? "diver" : "air"; return SWIMMERS.includes(game.ship) ? "swimmer" : "air"; }
+function floodXeltar() { return !!flood && SWIMMERS.includes(flood.owner === "me" ? enemy.ship : game.ship); }   // a swimmer (XELTAR, LYTH) is in it: a plain fight
 function floodSafe() { return floodHeld() && flood.owner === "me" && game.ship === "boiler" && !floodXeltar(); }   // my BOILER cannot be hurt
 function enemyDiver() { return !!flood && flood.owner === "them" && enemy.on && enemy.ship === "boiler" && !floodXeltar(); }
 function splashAt(x, y, n, big) {

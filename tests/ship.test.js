@@ -983,6 +983,6 @@ ok("THUL's cannonball breaks a maze wall; LYTH on a LARIAT's rope: its grinder r
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets");
   for (const f of ["art/ships/lyth/jets/mounts_00.webp", "art/ships/lyth/jets/pumps_16.webp"]) assert(fs.existsSync(path.join(A, f)), f);
   assert(html.includes('if (s.w === "iris" && list === shots && game.ship === "brass" && h.box) { mazeCut(h.box.c, h.box.s, true);') && html.includes("if (tied) ropeCut(true);") &&
-    html.includes("const LYTH_JETS = { slow: 0.7, deploy: 0.46, retract: 0.35") && html.includes('drawLythJets(S, o.jets, "mounts")') && html.includes("if (wet) st.top *= LYTH_JETS.slow;"));
+    html.includes("const LYTH_JETS = { slow: 0.7, deploy: 0.46, retract: 0.35") && html.includes('drawLythJets(S, o.jets, "mounts")') && html.includes("if (wet) st.top *= LYTH_JETS.slow;") && html.includes('const SWIMMERS = ["xeltar", "lyth"];'));
 });
 console.log(n + " checks passed");
