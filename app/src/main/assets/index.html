@@ -3063,7 +3063,7 @@ function update(dt) {
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
-  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateDrill(dt); updateGimbal(dt); updateLariat(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
+  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateDrill(dt); updateLythJets(dt); updateGimbal(dt); updateLariat(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
   updateReso(dt); updatePollen(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
@@ -3200,6 +3200,10 @@ function moveShip(o, S, c, dt) {
   if (o === game && game.soak && game.soak.boost) { const M = magicOf(S); st.push *= M.boost; st.top *= M.boost; }   // ORIAN charged: twice as fast
   if (o === game && game.lassoed) st.turn *= ELASSO.turn;
   if (o === game && game.paraT > 0) st.push *= 1 - MAGIC.breach.paraCut;   // HUSK's parasite on my engine
+  if (S.id === "lyth") {   // LYTH in water (its jets): 70% of its top speed; crossing in, it loses 30% of its speed at once
+    const wet = inWater(o); if (wet && !o.lythWet) { o.vx *= LYTH_JETS.slow; o.vy *= LYTH_JETS.slow; } o.lythWet = wet;
+    if (wet) st.top *= LYTH_JETS.slow;
+  }
   if (o === game && game.ship === "xeltar" && floodXeltar() && inWater(o)) { const k = MAGIC.flood.xeltar; st.push *= k; st.top *= k; st.turn *= k; }   // XELTAR in BOILER's water: at home   // held by LARIAT's rope: turning takes twice as long
   // the fuller the tank, the stronger the engine and the faster the ship: worth waiting for a full (white) button
   const tank = clamp((o.fuel == null ? st.fuel : o.fuel) / st.fuel, 0, 1);
@@ -3544,6 +3548,8 @@ function mazeShot(list, k, s, Wp, dt) {
     if (near) audio.tone(1300 + Math.random() * 400, 0.04, "square", 0.025, 0.6);
     return false;
   }
+  // THUL's cannonball (mine) breaks the stretch of iron it hits (BORER's cut: on both phones)
+  if (s.w === "iris" && list === shots && game.ship === "brass" && h.box) { mazeCut(h.box.c, h.box.s, true); list.splice(k, 1); return true; }
   // stopped: it splashes on the iron
   burstAt(cx, cy, 9, ["#ffd27a", "#ff8a2e", "#ffffff", "#5a4030"], 0.3, 0.45);
   if (near) audio.tone(180, 0.05, "square", 0.03, 0.5);
@@ -6921,7 +6927,9 @@ function useMagicNow(which = 0) {
   }
   if (M.look === "grinder") {   // LYTH: only if the enemy is near enough (and the ring is home)
     if (game.grind) return;
-    if (!grindReach() || game.ring) { audio.nope(); buzz(25); game.rangeT = 0.8; return; }
+    const tied = !!game.lassoed && enemy.on && enemy.warp < 0.5;   // (on a LARIAT's rope: the grinder reaches it wherever it is, and tears the rope)
+    if ((!grindReach() && !tied) || game.ring) { audio.nope(); buzz(25); game.rangeT = 0.8; return; }
+    if (tied) ropeCut(true);
     const dx = wrapDelta(enemy.x - game.x, WW), dy = wrapDelta(enemy.y - game.y, WH), d = Math.hypot(dx, dy) || 1;
     game.magicCool = M.cool;
     game.grind = { t: 0, phase: "pull", spin: 0, teeth: 0, ox: dx, oy: dy, nx: dx / d, ny: dy / d, tick: 0 };
@@ -10615,7 +10623,7 @@ function drawShip(S, x, y, size, o = {}) {
   ctx.translate(x, y); ctx.rotate(ang + bank * 0.15); ctx.scale(size * Math.cos(bank * 0.9), size);
   ctx.lineJoin = "round";
   // engine flames (behind everything)
-  if (!o.out && !S.noFlame && o.half !== "front") S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
+  if (!o.out && !S.noFlame && o.half !== "front" && !(o.jets > 0)) S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
     const ey = S.engineYs ? S.engineYs[n] : S.engineY;   // a drawing can have its engines at different heights
     // a steam engine's flame is ragged and jumpy
     const rag = S.steam ? (Math.random() - 0.3) * 0.12 * power : 0;
@@ -10663,6 +10671,7 @@ function drawShip(S, x, y, size, o = {}) {
   if (o.gear && o.gear[0]) drawUpgrade(S, "shield");   // the shop's shield, behind the hull
   if (S.clockwork && o.gear && o.gear[1]) drawUpgrade(S, "cannon");   // (GIMBAL returns below: its cannon now)
   if (S.clockwork && drawClockwork(S, ang)) { ctx.restore(); return; }
+  if (o.jets > 0 && S.id === "lyth") drawLythJets(S, o.jets, "mounts");   // (LYTH's water jets: the arms behind the hull)
   if (S.rig && !(o.anim && /magic/.test(o.anim.seq)) && drawCorsairRig(S, o)) { if (o.gear && o.gear[1]) drawUpgrade(S, "cannon"); ctx.restore(); return; }   // CORSAIR: its parts (the change into a ghost ship: its frames)   // GIMBAL: drawn in its moving layers
   if (img) {
     // ships with frames: always the whole 512 canvas, centered on its pivot, same size for every frame
@@ -10677,6 +10686,7 @@ function drawShip(S, x, y, size, o = {}) {
       ctx.save(); ctx.translate(-img.width * k / 2, -img.height * k / 2); ctx.scale(img.width * k / 512, img.height * k / 512);
       FresnelBeacon.draw(ctx, img, time * 1000); ctx.restore();
     } else ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
+    if (o.jets > 0 && S.id === "lyth") drawLythJets(S, o.jets, "pumps");   // (and the pumps over it)
     if (S.vaultDoors && o.vt) drawVaultDoors(o.vt, S);
     if (S.huskArt && o.vt) drawHuskFlash(o.vt, S);   // VAULT's doors (and the star in it)
     if (o.gear && o.gear[1] && !S.clockwork) drawUpgrade(S, "cannon");   // the shop's extra cannon, over the hull
@@ -11595,6 +11605,49 @@ const palFx = [];
 function startWall(S) {
   game.palDeploy = { t: 0, launch: null }; game.anim = { seq: "roof", t: 0 };
   audio.tone(180, 0.4, "square", 0.03, 1.5); audio.tone(420, 0.25, "triangle", 0.03, 1.3, 0.3); buzz(25);   // the plates sliding, the arms
+}
+// ---------- LYTH's water jets (art/ships/lyth/jets/, the package's 17 frames over the 512 px drawing) ----------
+// In BOILER's water the side panels split and two arms swing out from the aft shoulders, each with a jet-ski pump
+// (460 ms; back in over 350 ms, from wherever they are). In the water: 70% of its top speed, no flame; pushing, the
+// pumps blow streams of bubbles aft, rising a little and gone at the surface
+const LYTH_JETS = { slow: 0.7, deploy: 0.46, retract: 0.35, rate: 52, nozzles: [[51, 368], [461, 368]], life: [0.3, 0.75], rad: [1.4, 4.2], aft: [125, 220], spread: 30 };
+const jetBubbles = [];
+function updateLythJets(dt) {
+  const J = LYTH_JETS;
+  for (const o of [game, enemy]) {
+    const ship = o === game ? game.ship : enemy.ship;
+    if (ship !== "lyth" || (o === enemy && !enemy.on) || (o === game && game.dead)) { o.jets = 0; continue; }
+    const wet = inWater(o);
+    o.jets = wet ? Math.min(1, (o.jets || 0) + dt / J.deploy) : Math.max(0, (o.jets || 0) - dt / J.retract);
+    if (!wet || o.jets < 1 || BOT) { o.bubAcc = 0; continue; }
+    const pw = o.power || 0; if (pw < 0.05) continue;
+    o.bubAcc = (o.bubAcc || 0) + J.rate * pw * dt;
+    const k = shipById("lyth").anim.size / 512 * shipSize() * (o === enemy ? enemyScale() : 1), c = Math.cos(o.ang), s = Math.sin(o.ang);
+    for (; o.bubAcc >= 1; o.bubAcc--) for (const [nx, ny] of J.nozzles) {
+      const lx = (nx - 256) * k, ly = (ny - 256) * k, sp = (J.aft[0] + Math.random() * (J.aft[1] - J.aft[0])) * k, lat = (Math.random() - 0.5) * 2 * J.spread * k;
+      jetBubbles.push({ x: o.x + lx * c - ly * s, y: o.y + lx * s + ly * c, vx: o.vx * 0.3 + (-s * sp) + c * lat, vy: o.vy * 0.3 + (c * sp) + s * lat,
+        r: (J.rad[0] + Math.random() * (J.rad[1] - J.rad[0])) * k, t: 0, life: J.life[0] + Math.random() * (J.life[1] - J.life[0]), white: Math.random() < 0.2 });
+    }
+  }
+  for (let i = jetBubbles.length - 1; i >= 0; i--) {
+    const B = jetBubbles[i]; B.t += dt; const d = Math.exp(-dt * 3); B.vx *= d; B.vy = B.vy * d - U * 0.25 * dt;   // (slowing, rising)
+    B.x = wrapX(B.x + B.vx * dt); B.y = wrapY(B.y + B.vy * dt);
+    if (B.t > B.life || !inWater(B)) jetBubbles.splice(i, 1);
+  }
+  if (jetBubbles.length > 400) jetBubbles.splice(0, jetBubbles.length - 400);
+}
+function drawLythJets(S, p, layer) {
+  const f = Math.round(Math.max(0, Math.min(1, p)) * 16), img = artImage("art/ships/lyth/jets/" + layer + "_" + String(f).padStart(2, "0") + ".webp");
+  if (!img) return;
+  const k = S.anim.size / 512; ctx.drawImage(img, -256 * k, -256 * k, 512 * k, 512 * k);
+}
+function drawJetBubbles() {
+  for (const B of jetBubbles) {
+    const p = toScreen(B.x, B.y), a = 1 - B.t / B.life, r = Math.max(0.8, B.r);
+    ctx.globalAlpha = a; ctx.fillStyle = B.white ? "rgba(255,255,255,0.85)" : "rgba(150,235,240,0.35)"; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
+    if (!B.white) { ctx.strokeStyle = "rgba(220,255,255,0.9)"; ctx.lineWidth = Math.max(0.6, r * 0.3); ctx.stroke(); }
+  }
+  ctx.globalAlpha = 1;
 }
 // ---------- BORER's drill (the magic button, while the star mine charges) ----------
 const DRILL_LINES = ["I'd drill ya! Heh heh heh... ha ha ha ha!", "Hold still... I'd drill ya! Mwa ha ha ha!", "I'll drill right through ya! Heh heh heh heh!",
@@ -13761,7 +13814,7 @@ function draw() {
       drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { prep: shown === S && surgPrep() ? game.surg.t : null, kiln: shown === S && game.kiln ? kilnRig(game.kiln.t) : null, strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && (game.zombie || !!game.cough), power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null, vt: shown === S ? game : null, haunt: shown === S && hauntOn(),
-          talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
+          talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0, jets: shown === S ? game.jets || 0 : 0,
           winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
           half: shown === S ? myHalf() : null, glow: shown === S && S.grows ? talusGlow(game.talus.ring) : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : shown === S && game.drillOn ? drillLook(game.drillSpin || 0) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
       if (dug) ctx.restore();
@@ -13804,7 +13857,7 @@ function draw() {
     drawShots(eshots);
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
-    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawDrakFlares(); drawTow(game, game.tow, towRig(game.tow, MAGIC.tow)); if (game.surg) drawSurgery(game, game.surg); if (enemy.remote && duel.surg) drawSurgery(enemy, duel.surg); if (enemy.remote && duel.tow) drawTow(enemy, duel.tow, towRig(duel.tow, MAGIC.tow)); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
+    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawDrakFlares(); drawJetBubbles(); drawTow(game, game.tow, towRig(game.tow, MAGIC.tow)); if (game.surg) drawSurgery(game, game.surg); if (enemy.remote && duel.surg) drawSurgery(enemy, duel.surg); if (enemy.remote && duel.tow) drawTow(enemy, duel.tow, towRig(duel.tow, MAGIC.tow)); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -14044,7 +14097,7 @@ function drawEnemy() {
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
     drawShip(E, p.x, p.y, size * esc, { prep: enemy.remote && duel.surg && duel.surg.phase === "prep" ? duel.surg.t : null, kiln: enemy.remote && duel.kiln ? kilnRig(duel.kiln.t) : null, strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : enemy.remote && duel.net && duel.net.bd ? drillLook(enemy.drillSpin || 0) : null, half: theirHalf(), cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
-      grind: enemy.remote ? duel.grind : null, gear: enemy.remote && duel.net ? duel.net.gr : null, vt: enemy.remote ? enemy : null, haunt: enemy.remote && !!duel.net && duel.net.ht === 1 });
+      grind: enemy.remote ? duel.grind : null, jets: enemy.jets || 0, gear: enemy.remote && duel.net ? duel.net.gr : null, vt: enemy.remote ? enemy : null, haunt: enemy.remote && !!duel.net && duel.net.ht === 1 });
     if (dv) ctx.restore();
     drawBreaches(enemy.on ? breachList(enemy, theirBreachKey()) : null, p.x, p.y, size * esc, enemy.ang, E, theirHalf());   // the holes my drill left
     if (enemy.remote && duel.net && duel.net.bd) drawDrillAir(p.x, p.y, size * esc, enemy.ang, enemy.drillSpin || 0);

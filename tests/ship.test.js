@@ -979,4 +979,10 @@ ok("the weapon bought at the station fires (button 4 has its own barrel count)",
 ok("BORER's drill chews through a LARIAT's rope round it (the ends whip back; that LARIAT has no harpoon this life) and, 3 s against a maze wall, cuts it away (sparks, rising pitch)", () =>
   html.includes("rope: 0.35, bore: 3 }") && html.includes("function ropeCut(mine)") && html.includes("function mazeCut(c, s, mine)") && html.includes('m.t === "lcut"') && html.includes('m.t === "mzc"') &&
   html.includes("if (Wp.harpoon && game.harpoonCut)") && html.includes("L.src.playbackRate.value = game.drillWall"));
+ok("THUL's cannonball breaks a maze wall; LYTH on a LARIAT's rope: its grinder reaches from anywhere and tears the rope; LYTH's water jets", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets");
+  for (const f of ["art/ships/lyth/jets/mounts_00.webp", "art/ships/lyth/jets/pumps_16.webp"]) assert(fs.existsSync(path.join(A, f)), f);
+  assert(html.includes('if (s.w === "iris" && list === shots && game.ship === "brass" && h.box) { mazeCut(h.box.c, h.box.s, true);') && html.includes("if (tied) ropeCut(true);") &&
+    html.includes("const LYTH_JETS = { slow: 0.7, deploy: 0.46, retract: 0.35") && html.includes('drawLythJets(S, o.jets, "mounts")') && html.includes("if (wet) st.top *= LYTH_JETS.slow;"));
+});
 console.log(n + " checks passed");

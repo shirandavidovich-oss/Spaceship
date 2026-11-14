@@ -698,6 +698,8 @@ package's frames (`art/bloom/skarn/`, `skarnBloomFrame`).
 
 **Test app: tap to blow it up** — in the DEV app, a finger on the computer's ship (or the practice one) blows it up at once, to test what comes after (a cure, the next ship, the fleet). Never against another phone.
 
+**THUL breaks maze walls** — its cannonball (button 2) knocks out the stretch of maze iron it hits (on both phones, its torn ends glowing). **LYTH against LARIAT's rope** — on a LARIAT's rope, LYTH's grinder works from any distance (the rope brings it in) and tears the rope as it starts; that LARIAT has no harpoon for the rest of that life. **LYTH's water jets** — in BOILER's water, two jet-ski pumps swing out on arms from its aft shoulders (art/ships/lyth/jets/, the package's frames: 460 ms out, 350 ms back, reversing from wherever they are); in the water it has 70% of its top speed (and loses 30% of its speed crossing in), no flame, and pushing blows pale aqua bubbles aft from both nozzles, rising and gone at the surface.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the
