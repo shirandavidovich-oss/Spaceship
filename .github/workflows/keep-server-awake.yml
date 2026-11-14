@@ -15,6 +15,6 @@ jobs:
         run: |
           URL="https://tzzrdrfolzxuptmgtpfh.supabase.co"
           KEY="sb_publishable_zzf2ysxbet8Qx0lW2dwWrA_OxS7CwZX"
-          code=$(curl -s -o /dev/null -w "%{http_code}" "$URL/rest/v1/profiles?select=id&limit=1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$URL/rest/v1/profiles?select=email&limit=1" -H "apikey: $KEY")
           echo "server answered $code"
-          test "$code" -lt 500
+          test "$code" -eq 200
