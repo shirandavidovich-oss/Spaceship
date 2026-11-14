@@ -991,4 +991,6 @@ ok("the carrier: a test-hangar trigger, the film on both phones (\"cv\"), 20 int
     "audio/carrier/whoosh.ogg", "audio/carrier/brake.ogg", "audio/carrier/air.ogg", "audio/carrier/reverse.ogg", "audio/carrier/laser.ogg", "audio/carrier/approach.ogg", "audio/carrier/roar.ogg"]) assert(fs.existsSync(path.join(A, f)), f);
   assert(html.includes("fighters: 20,") && html.includes('if (c.event === "carrier")') && html.includes('m.t === "cv"') && html.includes("rd: raiderNet()") && html.includes('alienSay(C.lines[K.said][1], "radio")') && html.includes('carrier: 20 }'));
 });
+ok("the raid: once a match when either side has lost half its fleet; its music slowly takes over 4.5 s before; a darker arena, star streaks, the hull's shadow, cinema bars", () =>
+  html.includes("function raidCheck()") && html.includes("prelude: 4.5,") && html.includes('const slow = key === "carrier"') && html.includes("function drawCarrierOver()") && html.includes("duel.raidDone = false;"));
 console.log(n + " checks passed");

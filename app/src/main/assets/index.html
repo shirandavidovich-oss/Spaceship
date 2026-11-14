@@ -4099,8 +4099,8 @@ function botStill() {
   return true;
 }
 const TEST_TXT = {
-  he: { fight: "יורה עם נזק", safe: "יורה, בלי נזק", still: "אויב עומד", none: "בלי אויב", money: "💰 כסף ללא הגבלה", pickFoe: "🤖 בחר חללית למחשב", carrier: "🛸 חללית האם מגיעה", pickFoeOn: "🤖 הקש חללית למחשב (שוב: אקראי)" },
-  en: { fight: "Fires & hurts", safe: "Fires, no harm", still: "Still enemy", none: "No enemy", money: "💰 Unlimited money", pickFoe: "🤖 Pick the computer's ship", carrier: "🛸 The carrier arrives", pickFoeOn: "🤖 Tap its ship (again: random)" }
+  he: { fight: "יורה עם נזק", safe: "יורה, בלי נזק", still: "אויב עומד", none: "בלי אויב", money: "💰 כסף ללא הגבלה", pickFoe: "🤖 בחר חללית למחשב", carrier: "🛸 הפשיטה", pickFoeOn: "🤖 הקש חללית למחשב (שוב: אקראי)" },
+  en: { fight: "Fires & hurts", safe: "Fires, no harm", still: "Still enemy", none: "No enemy", money: "💰 Unlimited money", pickFoe: "🤖 Pick the computer's ship", carrier: "🛸 The raid", pickFoeOn: "🤖 Tap its ship (again: random)" }
 };
 // the chips: the four enemy modes on one row (one lit), the money under them
 function testChips() {
@@ -10819,11 +10819,11 @@ function soundBuf(path) {
   }
   return null;
 }
-function fadeVoice(v) {
+function fadeVoice(v, d = 0.45) {
   if (!v) return;
   const c = audio.ctx, now = c.currentTime, g = v.fade.gain;
-  g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.linearRampToValueAtTime(0, now + 0.45);
-  try { v.src.stop(now + 0.47); } catch (e) {}
+  g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.linearRampToValueAtTime(0, now + d);
+  try { v.src.stop(now + d + 0.02); } catch (e) {}
 }
 // every frame: the loop the screen wants. It changes only when the wanted one changes (and once it has loaded)
 function musicTick() {
@@ -10835,14 +10835,15 @@ function musicTick() {
   if (!c || c.state !== "running" || !audio.mus) return;
   if ((music.on ? music.on.key : null) === key) return;
   if (key === null) { fadeVoice(music.on); music.on = null; return; }
+  const slow = key === "carrier" || (music.on && music.on.key === "carrier") ? 4 : 0.45;   // (the raid: the music slowly gives way to its own, and back)
   const B = soundBuf("audio/music/" + key + ".ogg");
   if (!B) return;   // (still loading: next frame)
   const now = c.currentTime, src = c.createBufferSource(), fade = c.createGain();
   src.buffer = B; src.loop = true; src.loopStart = 0; src.loopEnd = Math.min(B.duration, MUSIC[key]);
   src.connect(fade); fade.connect(audio.mus);
-  fade.gain.setValueAtTime(0, now); fade.gain.linearRampToValueAtTime(1, now + 0.45);
+  fade.gain.setValueAtTime(0, now); fade.gain.linearRampToValueAtTime(1, now + slow);
   src.start(now);
-  fadeVoice(music.on);
+  fadeVoice(music.on, slow);
   music.on = { key, src, fade };
   // keep only this loop decoded (each one is several MB): the others are fetched again when wanted
   for (const k in music.bufs) if (k.startsWith("audio/music/") && k !== "audio/music/" + key + ".ogg") delete music.bufs[k];
@@ -11632,7 +11633,7 @@ const CARRIER = {
   proj: { slope: -0.32, vs: 1.23, axisY: 360 }, approachEnd: 3.1, passEnd: 13.1, stop: 13.62, revStart: 13.77, reveal: 16.77,
   startFocus: 645, speed: 1330, stopFocus: 14290.8,
   passPose: { px: 440, py: 347, scale: 0.9916, depth: 0.00039 }, revealPose: { focus: 276, px: 267, py: 311, scale: 0.58, depth: 0.00066 },
-  shove: [2.55, 2.85], tiles: 9, tileW: 2044, launchAt: 16.85, launchGap: 0.16, fighters: 20, fly: 3.4, fadeOut: 1.0,
+  shove: [2.55, 2.85], prelude: 4.5, tiles: 9, tileW: 2044, launchAt: 16.85, launchGap: 0.16, fighters: 20, fly: 3.4, fadeOut: 1.0,
   bays: [[920, 694], [1130, 690], [1390, 665]],
   lines: [[17.1, "Johnny, do you hear me?"], [18.9, "Loud and clear! Prepare to fight!"], [21.0, "Red squadron, form up. Targets in sight!"], [23.2, "Engage! Engage!"]]
 };
@@ -11652,17 +11653,17 @@ function carrierImgs() {
 function startCarrier(mine) {
   if (game.stage !== "fly") return;
   carrierImgs();
-  carrier = { t: 0, slot: mine ? 0 : 1, launched: 0, fx: [], whoosh: -1, said: 0, shoved: false };
+  carrier = { t: -CARRIER.prelude, slot: mine ? 0 : 1, launched: 0, fx: [], whoosh: -1, said: 0, shoved: false };   // (t < 0: the prelude, only the music changing)
   if (mine) duelSend({ t: "cv" });
-  playClip("audio/carrier/approach.ogg", false, 0.9);
 }
 // the projection's pose at time t (reference pixels)
 function carrierPose(t) {
   const C = CARRIER, P = C.passPose, R = C.revealPose;
+  if (t < 0) return { focus: 0, px: 1190, py: 135, scale: 0, depth: 0.00068, glow: 0, blur: 0 };
   if (t < C.approachEnd) {
     const u = clamp((t - 0.56) / (C.approachEnd - 0.56), 0, 1);
     return { focus: C.startFocus * Math.pow(u, 5.23), px: 1190 + (P.px - 1190) * Math.pow(u, 2.95), py: 135 + (P.py - 135) * Math.pow(u, 2.7),
-      scale: 0.0016 + 0.99 * Math.pow(u, 4.2), depth: 0.00068 + (P.depth - 0.00068) * u, glow: 1 - u, blur: 0 };
+      scale: 0.0016 + 0.99 * Math.pow(u, 4.2), depth: 0.00068 + (P.depth - 0.00068) * u, glow: Math.min(1, t / 0.5) * (1 - u), blur: 0 };
   }
   if (t < C.passEnd) return { focus: C.startFocus + C.speed * (t - C.approachEnd), px: P.px, py: P.py, scale: P.scale, depth: P.depth, glow: 0, blur: 1 };
   if (t < C.revStart) {
@@ -11679,10 +11680,24 @@ function carrierProject(Pz, V, x, y) {
   if (z <= 0.04) return null;
   return { x: V.ox + V.s * (Pz.px + Pz.scale * dx / z), y: V.oy + V.s * (Pz.py + Pz.scale * (C.slope * dx + C.vs * dy) / z), z };
 }
+// the raid in a match: once, as soon as either side has lost half its fleet (against the computer: once a level).
+// Against a phone, the bottom player's phone sets it off (both see it)
+function raidCheck() {
+  if (BOT || carrier || duel.stage !== "on" || duel.raidDone || game.stage !== "fly" || !enemy.on) return;
+  if (realDuel() && duel.side) return;
+  let mineN = 0, mineL = 0, theirN = 0, theirL = 0;
+  if (duel.bot) { mineN = camp.mine.length; mineL = camp.lost.length; theirN = camp.theirs.length; theirL = camp.theirs.length - camp.left.length; }
+  else if (duel.fleet) { mineN = duel.fleet.mine.length; mineL = duel.fleet.lost.length; theirN = (duel.fleet.theirs || []).length; theirL = (duel.fleet.theirLost || []).length; }
+  if ((mineN > 1 && mineL >= mineN / 2) || (theirN > 1 && theirL >= theirN / 2)) { duel.raidDone = true; startCarrier(true); }
+}
 function updateCarrier(dt) {
+  raidCheck();
   if (carrier && game.stage !== "fly") { carrier = null; raiders.length = 0; rshots.length = 0; }
   if (carrier) {
     const C = CARRIER, K = carrier, t0 = K.t; K.t += dt; const t = K.t, at = (x) => t0 < x && t >= x;
+    if (at(0)) playClip("audio/carrier/approach.ogg", false, 0.9);
+    if (t < 0) { updateRaiders(dt); return; }   // (the prelude)
+    if (t > C.approachEnd && t < C.passEnd) shake(0.16);   // (the whole arena trembling as it goes by)
     // the shove: once, as the hull rushes past (the second player a little after the first)
     if (!K.shoved && t >= C.shove[K.slot] && !game.dead) { K.shoved = true; game.vx += -0.45 * U; game.vy += 0.95 * U; shake(0.9); buzz(220); }
     // the sounds: the hull's roar, a "vush" for each deck going by, the brakes, the air, backing off
@@ -11812,6 +11827,16 @@ function drawCarrierScene() {
   const K = carrier, C = CARRIER, Pz = carrierPose(K.t), V = carrierView(), z = game.zoom || 1;
   const fade = K.out ? Math.max(0, 1 - K.out / C.fadeOut) : 1;
   ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1 / z, 1 / z); ctx.translate(-W / 2, -H / 2);
+  const film = Math.min(1, Math.max(0, K.t) / 0.6) * fade, pass = K.t > C.approachEnd - 0.3 && K.t < C.passEnd + 0.5 ? Math.min(1, (K.t - C.approachEnd + 0.3) / 0.5, (C.passEnd + 0.5 - K.t) / 0.5) : 0;
+  if (film > 0) { ctx.fillStyle = `rgba(0,0,6,${0.18 * film + 0.17 * pass})`; ctx.fillRect(-W, -H, W * 3, H * 3); }   // the arena darkens (more as it rushes by)
+  if (pass > 0) {   // the stars stretched into streaks, streaming the way the hull goes
+    ctx.save(); ctx.strokeStyle = `rgba(200,215,255,${0.5 * pass})`; ctx.lineCap = "round";
+    for (let i = 0; i < 70; i++) {
+      const sp = W * (1.5 + (i * 37 % 11) / 4), y = ((i * 97.13) % 1) * H || (i * 131.7 % H), x = ((((i * 211.7) % W) - K.t * sp) % (W * 1.3) + W * 1.3) % (W * 1.3) - W * 0.15, L = sp * 0.06;
+      ctx.lineWidth = 1 + (i % 3) * 0.6; ctx.beginPath(); ctx.moveTo(x, (i * 131.7) % H); ctx.lineTo(x + L, (i * 131.7) % H - L * 0.3); ctx.stroke();
+    }
+    ctx.restore();
+  }
   ctx.globalAlpha = fade;
   if (Pz.glow > 0.01) {   // the far point: a cold glow among the stars
     const gx = Math.min(W - U * 0.05, V.ox + V.s * 1190), gy = V.oy + V.s * 135, r = U * (0.03 + 0.1 * (1 - Pz.glow));
@@ -11842,6 +11867,18 @@ function drawCarrierScene() {
     if (top > 0) drawFighter(x, y, len, Math.atan2(dx, -dy), "top", "boost", F.t, top);
   }
   ctx.restore();
+}
+// over the arena (the ships too): the hull's shadow sweeping across while it rushes by, and the cinema's black bars
+function drawCarrierOver() {
+  if (!carrier || carrier.t < 0) return;
+  const K = carrier, C = CARRIER, fade = K.out ? Math.max(0, 1 - K.out / C.fadeOut) : 1, Pz = carrierPose(K.t), V = carrierView();
+  if (K.t > C.approachEnd - 0.4 && K.t < C.revStart + 1.5) {   // the shadow: below the hull's lower edge
+    const a = carrierProject(Pz, V, Pz.focus + 200, 760);
+    if (a) { const y0 = a.y, g = ctx.createLinearGradient(0, y0 - H * 0.05, 0, y0 + H * 0.3), k = Math.min(1, (K.t - C.approachEnd + 0.4) / 0.6, (C.revStart + 1.5 - K.t) / 1.5) * 0.45;
+      g.addColorStop(0, `rgba(0,0,8,${k})`); g.addColorStop(1, "rgba(0,0,8,0)"); ctx.fillStyle = g; ctx.fillRect(0, y0 - H * 0.05, W, H * 0.35); }
+  }
+  const bar = H * 0.085 * Math.min(1, K.t / 0.6) * fade;
+  if (bar > 0.5) { ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, W, bar); ctx.fillRect(0, H - bar, W, bar); }
 }
 function drawHull(Pz, V, off) {
   const step = 40, H2 = 760;
@@ -14126,6 +14163,7 @@ function draw() {
     drawParts();
     drawRings();
     ctx.restore();
+    drawCarrierOver();
     drawMazeHud(); drawFloodHud();
     drawResultTitle();   // YOU WIN / GAME OVER: over the arena, under the buttons
     if (enemyShown()) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
@@ -15572,7 +15610,7 @@ function duelLink(event, data) {
       if (!duel.fleet.mine.includes(game.ship)) tryShip(duel.fleet.mine[0]);
       setTimeout(() => { if (realDuel()) openPicker("start"); }, 0);
     }
-    duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.outDmg = 0; eshots.length = 0; duel.roundStart = game.t + 3;
+    duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.raidDone = false; duel.outDmg = 0; eshots.length = 0; duel.roundStart = game.t + 3;
     duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.gate = null;
     for (let k = eggs.length - 1; k >= 0; k--) eggs.splice(k, 1);
     hunters.length = 0; shots.length = 0; crate.on = false;
@@ -16143,7 +16181,7 @@ function stopMatch() {
   duel.stage = null; duel.bot = false; pipe.on = false; pipe.other = null; pipe.inbox.length = 0;
 }
 function campWon() {   // the computer's whole fleet is beaten: the next level
-  camp.lvl++; camp.left = camp.theirs.slice(); camp.banner = 3.5;
+  camp.lvl++; camp.left = camp.theirs.slice(); camp.banner = 3.5; duel.raidDone = false;   // (a new level: a new raid)
   if (!game.dead) game.hp = SHIP_HP;   // a reward: full health
   const bw = botWindow(); if (bw && bw.botCmd) bw.botCmd({ t: "level", lvl: camp.lvl, fleet: camp.theirs });
   audio.reveal(3); buzz(200);
