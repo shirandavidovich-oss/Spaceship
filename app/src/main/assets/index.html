@@ -4038,16 +4038,21 @@ function st(k) { return (SHOP_TXT[LANG] || SHOP_TXT.he)[k]; }
 // it is, doing nothing) | "none" (no enemy: it waits far off, out of the game). money: coins and minerals without end
 // (nothing is spent, the real bank is not touched, so none of it reaches the server). Kept on the phone (TEST_KEY).
 const TEST_KEY = "spaceship.test";
-const testState = (() => { try { const t = JSON.parse(LS.getItem(TEST_KEY)); if (t && typeof t === "object") return { foe: ["fight", "safe", "still", "none"].includes(t.foe) ? t.foe : "fight", money: !!t.money }; } catch (e) {} return { foe: "fight", money: false }; })();
-function saveTest() { try { LS.setItem(TEST_KEY, JSON.stringify(testState)); } catch (e) {} }
+const testState = (() => { try { const t = JSON.parse(LS.getItem(TEST_KEY)); if (t && typeof t === "object") return { foe: ["fight", "safe", "still", "none"].includes(t.foe) ? t.foe : "fight", money: !!t.money, foeShip: typeof t.foeShip === "string" ? t.foeShip : null, pickFoe: false }; } catch (e) {} return { foe: "fight", money: false, foeShip: null, pickFoe: false }; })();
+function saveTest() { try { LS.setItem(TEST_KEY, JSON.stringify({ foe: testState.foe, money: testState.money, foeShip: testState.foeShip })); } catch (e) {} }
 function testFoe() { return HANGAR && !BOT ? testState.foe : "fight"; }
 function testMoney() { return HANGAR && !BOT && testState.money; }
 let botTest = "fight";   // (in the computer's window: what the hangar asked of it)
 window.setBotTest = (m) => { botTest = m; };
+// the hangar's "🤖 computer's ship": the ship the computer flies (null: its own, at random from its fleet). Changed now
+// (it switches at once, a fresh ship), and its next ships too
+function testFoeShip() { return HANGAR && !BOT && testState.foeShip && shipById(testState.foeShip) ? testState.foeShip : null; }
+let botShipWant = null;
+window.setBotShip = (id) => { if (id === botShipWant) return; botShipWant = id; if (id && game.ship !== id && !game.dead && game.stage === "fly") tryShip(id); };
 let testT = 0;
 function testTick(dt) {   // tell the computer, now and then
   testT -= dt; if (testT > 0) return; testT = 0.5;
-  const bw = botWindow(); if (bw && bw.setBotTest) try { bw.setBotTest(testFoe()); } catch (e) {}
+  const bw = botWindow(); if (bw && bw.setBotTest) try { bw.setBotTest(testFoe()); if (bw.setBotShip) bw.setBotShip(testFoeShip()); } catch (e) {}
 }
 // the computer told to keep still (or to keep out of the game, far off on the other side of space): no keys, no moving
 function botStill() {
@@ -4060,26 +4065,26 @@ function botStill() {
   return true;
 }
 const TEST_TXT = {
-  he: { fight: "יורה עם נזק", safe: "יורה, בלי נזק", still: "אויב עומד", none: "בלי אויב", money: "💰 כסף ללא הגבלה" },
-  en: { fight: "Fires & hurts", safe: "Fires, no harm", still: "Still enemy", none: "No enemy", money: "💰 Unlimited money" }
+  he: { fight: "יורה עם נזק", safe: "יורה, בלי נזק", still: "אויב עומד", none: "בלי אויב", money: "💰 כסף ללא הגבלה", pickFoe: "🤖 בחר חללית למחשב", pickFoeOn: "🤖 הקש חללית למחשב (שוב: אקראי)" },
+  en: { fight: "Fires & hurts", safe: "Fires, no harm", still: "Still enemy", none: "No enemy", money: "💰 Unlimited money", pickFoe: "🤖 Pick the computer's ship", pickFoeOn: "🤖 Tap its ship (again: random)" }
 };
 // the chips: the four enemy modes on one row (one lit), the money under them
 function testChips() {
   const R = hangarRow(), h = R.r * 1.15, gap = U * 0.018, w = (W - U * 0.06 - gap * 3) / 4, x0 = U * 0.03, list = [];
   ["none", "still", "safe", "fight"].forEach((m, i) => list.push({ foe: m, x: x0 + i * (w + gap), y: R.y - h / 2, w, h }));
-  const mw = Math.min(W * 0.6, w * 2.2); list.push({ money: true, x: (W - mw) / 2, y: R.y + h * 0.85, w: mw, h });
+  const mw = (W - U * 0.06 - gap) / 2; list.push({ money: true, x: x0, y: R.y + h * 0.85, w: mw, h }, { pickFoe: true, x: x0 + mw + gap, y: R.y + h * 0.85, w: mw, h });
   return list;
 }
-function testRowBottom() { const c = testChips(); const m = c[c.length - 1]; return m.y + m.h; }
+function testRowBottom() { const c = testChips(); const m = c[c.length - 1]; return m.y + m.h; }   // (the second row's chips are as low)
 function drawTestChips() {
   const T = TEST_TXT[LANG] || TEST_TXT.he;
   ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
   for (const c of testChips()) {
-    const on = c.money ? testState.money : testState.foe === c.foe, col = c.money ? "#ffd166" : c.foe === "fight" ? "#ff8a6a" : c.foe === "safe" ? "#7dffb0" : "#7cc8ff";
+    const on = c.pickFoe ? testState.pickFoe || !!testFoeShip() : c.money ? testState.money : testState.foe === c.foe, col = c.pickFoe ? "#ff6ad5" : c.money ? "#ffd166" : c.foe === "fight" ? "#ff8a6a" : c.foe === "safe" ? "#7dffb0" : "#7cc8ff";
     ctx.fillStyle = on ? hexA(col, 0.22) : "rgba(10,12,32,0.8)"; ctx.strokeStyle = on ? col : "rgba(124,140,255,0.45)"; ctx.lineWidth = on ? 2.5 : 1.5;
     roundRect(c.x, c.y, c.w, c.h, c.h / 2); ctx.fill(); ctx.stroke();
     let f = Math.round(c.h * 0.42); ctx.font = `${on ? 800 : 600} ${f}px Rubik, Arial, sans-serif`;
-    const txt = c.money ? T.money : T[c.foe];
+    const txt = c.pickFoe ? (testState.pickFoe ? T.pickFoeOn : testFoeShip() ? "🤖 " + shipById(testFoeShip()).name : T.pickFoe) : c.money ? T.money : T[c.foe];
     while (f > 8 && ctx.measureText(txt).width > c.w - c.h * 0.5) { f--; ctx.font = `${on ? 800 : 600} ${f}px Rubik, Arial, sans-serif`; }
     ctx.fillStyle = on ? "#ffffff" : "#9fb4d8"; ctx.fillText(txt, c.x + c.w / 2, c.y + c.h / 2 + 1);
     hangar.cards.push({ test: c, x: c.x, y: c.y, w: c.w, h: c.h });
@@ -4087,7 +4092,7 @@ function drawTestChips() {
   ctx.restore();
 }
 function testTap(c) {
-  if (c.money) testState.money = !testState.money; else testState.foe = c.foe;
+  if (c.pickFoe) testState.pickFoe = !testState.pickFoe; else if (c.money) testState.money = !testState.money; else testState.foe = c.foe;
   saveTest(); testT = 0; audio.pop(); buzz(10);
 }
 
@@ -9856,7 +9861,7 @@ function updateAnim(dt) {
 function waitsForFrames(i) {
   if (game.forge && i === 1) return true;   // TALUS still forging a boulder
   if (game.palDeploy || game.palMagic) return true;   // PALISADE: one action at a time
-  if (i === 1 && game.palWall && slotWeapon(1) && WEAPONS[slotWeapon(1)].palWall) return true;   // (one wall at a time)
+  if (i === 1 && (game.palWall || time < (game.palRest || 0)) && slotWeapon(1) && WEAPONS[slotWeapon(1)].palWall) return true;   // (one wall at a time, and a rest after it)
   if (game.inked > 0) return true;   // inked: its guns are clogged
   if (game.rw) return true;   // going back in time
   if (game.flipT >= 0 && i < 2) return true;   // RIVET turning: nothing fires until the new nose locks
@@ -11524,6 +11529,7 @@ function startWall(S) {
 function updatePalisade(dt) {
   const D = game.palDeploy, size = shipSize();
   for (let i = palFx.length - 1; i >= 0; i--) if ((palFx[i].t += dt) > 0.544) palFx.splice(i, 1);
+  for (let i = palFrags.length - 1; i >= 0; i--) { const F = palFrags[i]; F.x += F.vx * dt; F.y += F.vy * dt; F.a += F.va * dt; if ((F.t += dt) > 0.7) palFrags.splice(i, 1); }
   if (duel.palWall) duel.palWall.t += dt;
   if (D) {
     if (game.dead) game.palDeploy = null;
@@ -11553,7 +11559,7 @@ function updatePalisade(dt) {
     if (G.t >= M.end || game.dead) game.palMagic = null;
   }
 }
-function palWallGone() { if (!game.palWall) return; game.palWall = null; duelSend({ t: "pw", on: 0 }); audio.tone(200, 0.2, "triangle", 0.03, 0.5); }
+function palWallGone() { if (!game.palWall) return; game.palWall = null; game.palRest = time + PALG.rest; duelSend({ t: "pw", on: 0 }); audio.tone(200, 0.2, "triangle", 0.03, 0.5); }
 // the wall breaks into seven shards, fanned straight out the way it faces
 // (the wall-growth package) every unit bursts from its own middle, its shards fanned the way that unit faces: twice as
 // fast, as far and as hard as the old shards (pshard2); a piece still being built is dropped
@@ -11572,7 +11578,7 @@ function palShatter(W) {
   }
   palFx.push({ x: W.x, y: W.y, ang: W.ang, t: 0 });
   duelSend({ t: "px", x: +(W.x / WW).toFixed(5), y: +(W.y / WH).toFixed(5), a: +W.ang.toFixed(3) });
-  game.palWall = null; duelSend({ t: "pw", on: 0 });
+  game.palWall = null; game.palRest = time + PALG.rest; duelSend({ t: "pw", on: 0 });
   audio.noise(0.3, 0.25, 3000); audio.tone(900, 0.2, "triangle", 0.04, 0.4); shake(0.5); buzz(120);
 }
 // a shot this step against the walls: its own ricochet bolt banks off its own wall (once), other own shots pass,
@@ -11604,20 +11610,31 @@ function palShot(list, k, s, Wp, dt) {
       audio.tone(1300, 0.08, "square", 0.04, 0.5);
     }
     if (mine && list === eshots) palHit();   // the bot's shot: one lamp less (a rival's: their phone tells me, "pwh")
-    if (!mine && list === shots) { duelSend({ t: "pwh" }); W.charges--; }   // my shot on their wall
+    if (!mine && list === shots) { duelSend({ t: "pwh" }); W.charges--; W.flash = 0.25; palChip(W); }   // my shot on their wall
     audio.tone(240, 0.06, "square", 0.04, 0.5);
     return false;   // (it flies on, back at its shooter)
   }
   return false;
 }
-function palHit() { const W = game.palWall; if (!W) return; W.charges--; W.flash = 0.25; buzz(30); if (W.charges <= 0) palWallGone(); }
+function palHit() { const W = game.palWall; if (!W) return; W.charges--; W.flash = 0.25; palChip(W); buzz(30); if (W.charges <= 0) palWallGone(); }
+// a hit on a wall breaks its newest piece off (the tip, or the piece the arm is carrying), in a spray of ceramic: both
+// phones do it on the same hit, so both walls stay the same
+function palChip(W) {
+  if (!W.segs) return;
+  let G = null;
+  if (W.build) { G = palUnitWorld(W, W.build.g, W.segs.length); W.build = null; W.next = PALG.delay; }
+  else if (W.segs.length > 3) { G = palUnitWorld(W, W.segs[W.segs.length - 1], W.segs.length - 1); W.segs.pop(); W.next = PALG.delay; }
+  if (G) { burstAt(G.x, G.y, 14, ["#ffffff", "#e8e4f0", "#b9b2a6"], 0.35, 0.5); palFrags.push(...[0, 1, 2, 3].map(() => ({ x: G.x, y: G.y, vx: (Math.random() - 0.5) * U * 1.2, vy: (Math.random() - 0.5) * U * 1.2, a: Math.random() * TAU, va: (Math.random() - 0.5) * 12, k: 1 + Math.floor(Math.random() * 6), t: 0 }))); }
+  if (Math.hypot(wrapDelta(W.x - game.x, WW), wrapDelta(W.y - game.y, WH)) < U * 2.4) audio.noise(0.12, 0.12, 2400);
+}
+const palFrags = [];   // the broken-off pieces' fragments (art/ships/palisade/grow/fragment-0k), tumbling out for 0.7 s
 // ---- the wall builds itself (the PALISADE Wall Growth package, art/ships/palisade/grow/). The set wall is three units
 // (W.segs, in the wall's own frame: x along it, y across, in ship-lengths; h: the way each unit points, 0 +x, 1 +y,
 // 2 -x, 3 -y, first to tip; it grows from the tip, W.dir: which end). Every PALG.delay s a little arm lifts out of the
 // tip, takes a new panel, swings it on straight ahead or turned left or right (one at random that touches no unit and
 // no star) and welds it (PALG.build s); then it is solid and the new tip. It stops enemy shots like the rest, and the
 // magic bursts every unit. A robot's voice crows over it now and then (WALL_LINES, VOICE_FX.gollum)
-const PALG = { delay: 0.95, build: 1.05, retry: 1 };   // (a new piece every 2 s)
+const PALG = { delay: 0.95, build: 1.05, retry: 1, rest: 6 };   // (a new piece every 2 s; rest: no new wall for 6 s after one goes)
 const PAL_DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const WALL_LINES = ["Building myself, yesss!", "My wonderful wall!", "My beauty... my precious!", "Growing, growing, yesss!", "Nobody touches my wall!", "Ssso beautiful, my wall!", "We builds it, we does!"];
 function palSegsInit(W, dir) {
@@ -11754,6 +11771,11 @@ function drawPalisade() {
   drawPalWall(game.palWall, true, game.palDeploy ? PAL.end - PAL.cue : 0);
   drawPalWall(duel.palWall, false, 0);
   drawPalGrowth(game.palWall, true); drawPalGrowth(duel.palWall, false);
+  for (const F of palFrags) {
+    const im = artImage("art/ships/palisade/grow/fragment-0" + F.k + ".webp"), p = toScreen(F.x, F.y), k = size / 384 * PAL.w / 3 * 1.2;
+    if (!im) continue;
+    ctx.save(); ctx.globalAlpha = 1 - F.t / 0.7; ctx.translate(p.x, p.y); ctx.rotate(F.a); ctx.drawImage(im, -im.width * k / 2, -im.height * k / 2, im.width * k, im.height * k); ctx.restore();
+  }
   if (game.palDeploy) drawCarrier(game.palDeploy.t * 1000, game, game.palDeploy.launch);
   if (enemy.remote && duel.net && duel.net.pd) drawCarrier(duel.net.pd, enemy, duel.net.pd >= 560 ? duel.palLaunch : null);
   for (const F of palFx) {
@@ -15378,7 +15400,7 @@ window.botCmd = (c) => {
     botAI.lvl = c.lvl; botAI.left = c.fleet.slice(); botRelease();
     if (duel.stage) endDuel(false);
     duel.stage = null;
-    tryShip(botAI.left[Math.floor(Math.random() * botAI.left.length)]);
+    tryShip(botShipWant || botAI.left[Math.floor(Math.random() * botAI.left.length)]);
     game.stage = "fly"; game.dead = 0; game.pick = false; placeShip();
     duelButton();
   } else if (c.t === "level") {   // the player beat its whole fleet: it comes back stronger, with all its ships
@@ -15393,7 +15415,7 @@ function botLost() {
   try { parent.botEvent({ t: "left", left: botAI.left }); } catch (e) {}
   if (!botAI.left.length) { game.dead = 1e9; try { parent.botEvent({ t: "out" }); } catch (e) {} }   // stays out until the next level
 }
-function botNextShip() { if (botAI.left.length) tryShip(botAI.left[Math.floor(Math.random() * botAI.left.length)]); }
+function botNextShip() { if (botShipWant) tryShip(botShipWant); else if (botAI.left.length) tryShip(botAI.left[Math.floor(Math.random() * botAI.left.length)]); }
 // the automatic player: steers like a thumb on the joystick, and presses the same keys a person would on a computer
 function botThink(dt) {
   if (botStill()) return;   // the hangar asked it to keep still, or to keep out
@@ -15927,6 +15949,9 @@ function hangarTap(x, y) {
     if (c.close) { hangar.open = false; audio.pop(); return; }
     if (c.fleet) { hangar.open = false; fleetOpen(false); audio.pop(); return; }
     if (c.test) { testTap(c.test); return; }   // a test mode (the hangar stays open)
+    if (testState.pickFoe) {   // the computer's ship: this one (the same again: back to random); the hangar stays open
+      testState.foeShip = testState.foeShip === c.id ? null : c.id; testState.pickFoe = false; saveTest(); testT = 0; audio.pop(); buzz(10); return;
+    }
     tryShip(c.id); hangar.open = false; return;
   }
 }
@@ -15972,9 +15997,11 @@ function drawHangar() {
   }
   const rows = Math.ceil(list.length / cols), cw = (W - gap * (cols + 1)) / cols, ch = Math.min((H - top - gap * (rows + 1)) / rows, cw * 1.25);
   list.forEach((S, i) => {
-    const x = gap + (i % cols) * (cw + gap), y = top + gap + Math.floor(i / cols) * (ch + gap), R = RARITY[S.rarity], mine = S.id === game.ship;
-    ctx.fillStyle = mine ? "rgba(79,195,255,0.18)" : "rgba(20,24,52,0.9)"; roundRect(x, y, cw, ch, ch * 0.08); ctx.fill();
-    ctx.strokeStyle = mine ? "#4fc3ff" : R.color; ctx.lineWidth = mine ? 3 : 1.5; ctx.stroke();
+    const x = gap + (i % cols) * (cw + gap), y = top + gap + Math.floor(i / cols) * (ch + gap), R = RARITY[S.rarity], mine = S.id === game.ship, foe = S.id === testFoeShip();
+    ctx.fillStyle = mine ? "rgba(79,195,255,0.18)" : foe ? "rgba(255,106,213,0.16)" : "rgba(20,24,52,0.9)"; roundRect(x, y, cw, ch, ch * 0.08); ctx.fill();
+    ctx.strokeStyle = mine ? "#4fc3ff" : foe ? "#ff6ad5" : R.color; ctx.lineWidth = mine || foe ? 3 : 1.5; ctx.stroke();
+    if (foe) { ctx.save(); ctx.font = `${Math.round(ch * 0.1)}px Rubik, Arial, sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("🤖", x + ch * 0.04, y + ch * 0.04); ctx.restore(); }
+    if (testState.pickFoe && !foe) { ctx.save(); ctx.strokeStyle = "rgba(255,106,213," + (0.35 + 0.3 * Math.sin(time * 6)) + ")"; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); roundRect(x + 3, y + 3, cw - 6, ch - 6, ch * 0.07); ctx.stroke(); ctx.restore(); }
     // the ship, hovering and turning a little
     const sz = Math.min(cw, ch) * 0.48;
     drawShip(S, x + cw / 2, y + ch * 0.38 + Math.sin(time * 2 + i) * ch * 0.015, sz, { power: 0.35, ang: Math.sin(time * 0.8 + i) * 0.25 });
