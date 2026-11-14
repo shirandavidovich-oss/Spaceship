@@ -955,7 +955,9 @@ ok("PALISADE's wall builds itself every 2 s: an arm welds a piece on, a robot sa
   html.includes("const PALG = { delay: 0.95, build: 1.05, retry: 1 };") && html.includes('alienSay(WALL_LINES[i], "gollum")') &&
   html.includes("gollum: { rate:") && html.includes("pshard2:") && html.includes('t: "pg"') && html.includes("art/ships/palisade/grow/"));
 ok("PALISADE: a hit breaks off the wall's newest piece; 6 s rest before the next wall; the hangar picks the computer's ship", () =>
-  html.includes("max: 14 }") && !html.includes("> PAL.life) palWallGone()") &&
+  html.includes("max: 30,") && !html.includes("> PAL.life) palWallGone()") &&
   html.includes("function palChip(W)") && html.includes("rest: 6 }") && html.includes("time < (game.palRest || 0)") &&
   html.includes("window.setBotShip = ") && html.includes("tryShip(botShipWant ||") && html.includes("pickFoe: true"));
+ok("PALISADE's magic: one great blast round the whole wall (1.5 tanks inside it), the wall grows to 30 pieces", () =>
+  html.includes("max: 30, boom: 150 }") && html.includes("function palCircle(W)") && html.includes("function palBoom(") && html.includes("palBoomHurt(PALG.boom)") && html.includes("r: +(C.r / U).toFixed(4)"));
 console.log(n + " checks passed");

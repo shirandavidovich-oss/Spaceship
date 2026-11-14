@@ -11529,7 +11529,8 @@ function startWall(S) {
 function updatePalisade(dt) {
   const D = game.palDeploy, size = shipSize();
   for (let i = palFx.length - 1; i >= 0; i--) if ((palFx[i].t += dt) > 0.544) palFx.splice(i, 1);
-  for (let i = palFrags.length - 1; i >= 0; i--) { const F = palFrags[i]; F.x += F.vx * dt; F.y += F.vy * dt; F.a += F.va * dt; if ((F.t += dt) > 0.7) palFrags.splice(i, 1); }
+  for (let i = palFrags.length - 1; i >= 0; i--) { const F = palFrags[i]; F.x += F.vx * dt; F.y += F.vy * dt; F.a += F.va * dt; if ((F.t += dt) > (F.life || 0.7)) palFrags.splice(i, 1); }
+  for (let i = palBlasts.length - 1; i >= 0; i--) if ((palBlasts[i].t += dt) > 1.1) palBlasts.splice(i, 1);
   if (duel.palWall) duel.palWall.t += dt;
   if (D) {
     if (game.dead) game.palDeploy = null;
@@ -11562,24 +11563,43 @@ function updatePalisade(dt) {
 function palWallGone() { if (!game.palWall) return; game.palWall = null; game.palRest = time + PALG.rest; duelSend({ t: "pw", on: 0 }); audio.tone(200, 0.2, "triangle", 0.03, 0.5); }
 // the wall breaks into seven shards, fanned straight out the way it faces
 // (the wall-growth package) every unit bursts from its own middle, its shards fanned the way that unit faces: twice as
-// fast, as far and as hard as the old shards (pshard2); a piece still being built is dropped
+// (now: one great blast round the whole wall, palBoom: 1.5 tanks to a ship inside it); a piece being built is dropped
 function palShatter(W) {
-  const M = MAGIC.ceramic, Wp = WEAPONS.pshard2, size = shipSize(), v = Wp.speed * U;
   W.build = null;
-  for (const G of palUnits(W)) {
-    const n = 3;
-    for (let i = 0; i < n; i++) {
-      const side = i - (n - 1) / 2, a = G.ang + side * M.fan * 1.6, o = rotatePt(side * G.hw * 0.6 * size, 0, G.ang);
-      const q = { w: "pshard2", x: G.x + o.x, y: G.y + o.y, vx: Math.sin(a) * v, vy: -Math.cos(a) * v, life: 0 };
-      shots.push(q);
-      if (duel.stage === "on") { q.id = ++shotSeq; duelSend({ t: "f", w: "pshard2", ...netPos(q), s: game.ship, id: q.id }); }
-    }
-    if (G.i >= 3) burstAt(G.x, G.y, 10, ["#ffffff", "#e8e4f0", "#dfff83"], 0.35, 0.5);
-  }
+  const C = palCircle(W);
+  palBoom(C.x, C.y, C.r, palUnits(W), true);
   palFx.push({ x: W.x, y: W.y, ang: W.ang, t: 0 });
-  duelSend({ t: "px", x: +(W.x / WW).toFixed(5), y: +(W.y / WH).toFixed(5), a: +W.ang.toFixed(3) });
+  duelSend({ t: "px", x: +(W.x / WW).toFixed(5), y: +(W.y / WH).toFixed(5), a: +W.ang.toFixed(3), cx: +(C.x / WW).toFixed(5), cy: +(C.y / WH).toFixed(5), r: +(C.r / U).toFixed(4) });
   game.palWall = null; game.palRest = time + PALG.rest; duelSend({ t: "pw", on: 0 });
-  audio.noise(0.3, 0.25, 3000); audio.tone(900, 0.2, "triangle", 0.04, 0.4); shake(0.5); buzz(120);
+}
+// the circle round the whole wall (its middle: the units' middle; out to the farthest unit's end)
+function palCircle(W) {
+  const us = palUnits(W), size = shipSize(), o = us[0];
+  let sx = 0, sy = 0;
+  for (const G of us) { sx += wrapDelta(G.x - o.x, WW); sy += wrapDelta(G.y - o.y, WH); }
+  const cx = wrapX(o.x + sx / us.length), cy = wrapY(o.y + sy / us.length);
+  let r = 0;
+  for (const G of us) r = Math.max(r, Math.hypot(wrapDelta(G.x - cx, WW), wrapDelta(G.y - cy, WH)) + G.hw * size);
+  return { x: cx, y: cy, r: Math.max(r, PAL.w / 2 * size) };
+}
+// the magic's blast (on both phones): a fireball and a shock ring out to R, a storm of ceramic shards to the edge of it;
+// whoever's ship is inside (not the wall's own) loses a tank and a half
+const palBlasts = [];
+function palBoom(x, y, R, units, mine) {
+  palBlasts.push({ x, y, R, t: 0 });
+  for (const G of units) for (let i = 0; i < 6; i++) {   // shards from every piece, flying out to the circle's edge
+    const a = Math.random() * TAU, sp = (0.45 + Math.random() * 0.55) * R / 0.9;
+    palFrags.push({ x: G.x, y: G.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, a: Math.random() * TAU, va: (Math.random() - 0.5) * 16, k: 1 + Math.floor(Math.random() * 6), t: 0, life: 0.9, big: 1.3 });
+  }
+  for (let i = 0; i < 6; i++) burstAt(x + (Math.random() - 0.5) * R, y + (Math.random() - 0.5) * R, 16, ["#ffffff", "#ffe08a", "#ff9a3c", "#e8e4f0"], 0.9, 1.2);
+  const d = Math.hypot(wrapDelta(game.x - x, WW), wrapDelta(game.y - y, WH));
+  if (d < R * 2.5) { audio.noise(0.9, 0.45, 700); audio.noise(0.35, 0.3, 4000); audio.tone(55, 0.8, "sawtooth", 0.07, 0.4); audio.tone(110, 0.5, "square", 0.04, 0.5, 0.05); }
+  shake(d < R * 1.5 ? 1 : 0.5); buzz(200);
+  if (!mine && d < R) palBoomHurt(PALG.boom);
+}
+// damage past one bar: the bar, then a tank (damageShip refills the bar from a tank when it runs out)
+function palBoomHurt(n) {
+  for (let k = 0; k < 4 && n > 0.01 && !game.dead; k++) { const c = Math.min(n, game.hp); damageShip(c); n -= c; if (c <= 0) break; }
 }
 // a shot this step against the walls: its own ricochet bolt banks off its own wall (once), other own shots pass,
 // enemy shots are stopped (and use up a lamp). True: the shot is gone
@@ -11634,7 +11654,7 @@ const palFrags = [];   // the broken-off pieces' fragments (art/ships/palisade/g
 // tip, takes a new panel, swings it on straight ahead or turned left or right (one at random that touches no unit and
 // no star) and welds it (PALG.build s); then it is solid and the new tip. It stops enemy shots like the rest, and the
 // magic bursts every unit. A robot's voice crows over it now and then (WALL_LINES, VOICE_FX.gollum)
-const PALG = { delay: 0.95, build: 1.05, retry: 1, rest: 6, max: 14 };   // (a new piece every 2 s; rest: no new wall for 6 s after one goes)
+const PALG = { delay: 0.95, build: 1.05, retry: 1, rest: 6, max: 30, boom: 150 };   // (boom: the magic's blast, 1.5 tanks, inside the circle round the wall)   // (a new piece every 2 s; rest: no new wall for 6 s after one goes)
 const PAL_DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const WALL_LINES = ["Building myself, yesss!", "My wonderful wall!", "My beauty... my precious!", "Growing, growing, yesss!", "Nobody touches my wall!", "Ssso beautiful, my wall!", "We builds it, we does!"];
 function palSegsInit(W, dir) {
@@ -11685,7 +11705,7 @@ function palGrow(W, dt, mine) {
     return;
   }
   if (!mine) return;   // (theirs: started by their messages)
-  if (W.segs.length >= PALG.max) return;   // (as long as it gets: 14 pieces)
+  if (W.segs.length >= PALG.max) return;   // (as long as it gets: 30 pieces)
   W.next -= dt;
   if (W.next > 0) return;
   const C = palCandidates(W);
@@ -11775,7 +11795,19 @@ function drawPalisade() {
   for (const F of palFrags) {
     const im = artImage("art/ships/palisade/grow/fragment-0" + F.k + ".webp"), p = toScreen(F.x, F.y), k = size / 384 * PAL.w / 3 * 1.2;
     if (!im) continue;
-    ctx.save(); ctx.globalAlpha = 1 - F.t / 0.7; ctx.translate(p.x, p.y); ctx.rotate(F.a); ctx.drawImage(im, -im.width * k / 2, -im.height * k / 2, im.width * k, im.height * k); ctx.restore();
+    const kk = k * (F.big || 1);
+    ctx.save(); ctx.globalAlpha = Math.max(0, 1 - F.t / (F.life || 0.7)); ctx.translate(p.x, p.y); ctx.rotate(F.a); ctx.drawImage(im, -im.width * kk / 2, -im.height * kk / 2, im.width * kk, im.height * kk); ctx.restore();
+  }
+  for (const B of palBlasts) {   // the magic's blast: a white-hot core, a fireball, a shock ring out to the circle's edge
+    const p = toScreen(B.x, B.y), q = Math.min(1, B.t / 0.45), e = 1 - Math.pow(1 - q, 3), R = B.R, f = Math.max(0, 1 - B.t / 1.1);
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R * (0.35 + 0.65 * e));
+    g.addColorStop(0, `rgba(255,255,255,${0.95 * f})`); g.addColorStop(0.25, `rgba(255,230,150,${0.85 * f})`); g.addColorStop(0.6, `rgba(255,130,50,${0.55 * f})`); g.addColorStop(1, "rgba(120,40,160,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, R * (0.35 + 0.65 * e), 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = `rgba(255,240,210,${0.9 * f})`; ctx.lineWidth = Math.max(3, R * 0.06 * f); ctx.beginPath(); ctx.arc(p.x, p.y, R * e, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = `rgba(223,255,131,${0.5 * f})`; ctx.lineWidth = Math.max(2, R * 0.025); ctx.beginPath(); ctx.arc(p.x, p.y, R * e * 0.82, 0, TAU); ctx.stroke();
+    ctx.restore();
   }
   if (game.palDeploy) drawCarrier(game.palDeploy.t * 1000, game, game.palDeploy.launch);
   if (enemy.remote && duel.net && duel.net.pd) drawCarrier(duel.net.pd, enemy, duel.net.pd >= 560 ? duel.palLaunch : null);
@@ -15039,6 +15071,7 @@ function duelLink(event, data) {
   } else if (m.t === "pl") { duel.palLaunch = { x: m.x * WW, y: m.y * WH, ang: m.a };
   } else if (m.t === "pwh") { palHit();   // my wall stopped one of their shots (their phone saw it)
   } else if (m.t === "px") { palFx.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0 });
+    if (m.r != null) palBoom(m.cx * WW, m.cy * WH, m.r * U, duel.palWall && duel.palWall.segs ? palUnits(duel.palWall) : [{ x: m.cx * WW, y: m.cy * WH }], false);   // their wall's blast
   } else if (m.t === "fs") {   // their MIRAGE's false star (it bends my shots too)
     lenses.push({ x: m.x * WW, y: m.y * WH, t: 0, mine: false }); lensSound();
     while (lenses.filter((q) => !q.mine).length > MAGIC.lens.count) lenses.splice(lenses.findIndex((q) => !q.mine), 1);
