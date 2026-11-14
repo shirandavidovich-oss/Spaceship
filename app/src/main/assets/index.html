@@ -12071,7 +12071,7 @@ function starGap() {   // from my ship's edge to the star's surface, in ship-len
 function startDive(S, M) {
   if (game.dead) return;
   const why = starMineCheck(starGap(), !!(game.dive || game.starMine), M);
-  if (why !== "ok") { audio.nope(); buzz(25); game.smFail = { t: 0.9, why }; return; }
+  if (why !== "ok") { game.smFail = { t: 0.9, why }; if (!game.dive) drillStart(); return; }   // (no star mine here: the drill spins instead, the magic kept)
   const dx = wrapDelta(game.x - WW / 2, WW), dy = wrapDelta(game.y - WH / 2, WH), d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
   const R = planetR(), size = shipSize(), cx = game.x - dx, cy = game.y - dy, face = Math.atan2(-ux, uy);
   game.dive = { t: 0, planted: false, ux, uy, J: { x: game.x, y: game.y, ang: game.ang, turn: wrapAngle(face - game.ang),
