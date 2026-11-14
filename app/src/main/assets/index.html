@@ -11546,7 +11546,7 @@ function updatePalisade(dt) {
     }
   }
   const W = game.palWall;
-  if (W && (W.t += dt) > PAL.life) palWallGone();
+  if (W) W.t += dt;   // (it stays till its magic bursts it: no time limit; it goes only with the ship, or a new ship)
   if (game.palWall) palGrow(game.palWall, dt, true);   // it builds itself
   if (duel.palWall) palGrow(duel.palWall, dt, false);   // (theirs: each new piece as their phone sends it)
   const G = game.palMagic, M = MAGIC.ceramic;
@@ -11610,13 +11610,13 @@ function palShot(list, k, s, Wp, dt) {
       audio.tone(1300, 0.08, "square", 0.04, 0.5);
     }
     if (mine && list === eshots) palHit();   // the bot's shot: one lamp less (a rival's: their phone tells me, "pwh")
-    if (!mine && list === shots) { duelSend({ t: "pwh" }); W.charges--; W.flash = 0.25; palChip(W); }   // my shot on their wall
+    if (!mine && list === shots) { duelSend({ t: "pwh" }); W.charges = Math.max(0, W.charges - 1); W.flash = 0.25; palChip(W); }   // my shot on their wall
     audio.tone(240, 0.06, "square", 0.04, 0.5);
     return false;   // (it flies on, back at its shooter)
   }
   return false;
 }
-function palHit() { const W = game.palWall; if (!W) return; W.charges--; W.flash = 0.25; palChip(W); buzz(30); if (W.charges <= 0) palWallGone(); }
+function palHit() { const W = game.palWall; if (!W) return; W.charges = Math.max(0, W.charges - 1); W.flash = 0.25; palChip(W); buzz(30); }   // (it never falls to shots: only its magic bursts it)
 // a hit on a wall breaks its newest piece off (the tip, or the piece the arm is carrying), in a spray of ceramic: both
 // phones do it on the same hit, so both walls stay the same
 function palChip(W) {
@@ -11634,7 +11634,7 @@ const palFrags = [];   // the broken-off pieces' fragments (art/ships/palisade/g
 // tip, takes a new panel, swings it on straight ahead or turned left or right (one at random that touches no unit and
 // no star) and welds it (PALG.build s); then it is solid and the new tip. It stops enemy shots like the rest, and the
 // magic bursts every unit. A robot's voice crows over it now and then (WALL_LINES, VOICE_FX.gollum)
-const PALG = { delay: 0.95, build: 1.05, retry: 1, rest: 6 };   // (a new piece every 2 s; rest: no new wall for 6 s after one goes)
+const PALG = { delay: 0.95, build: 1.05, retry: 1, rest: 6, max: 14 };   // (a new piece every 2 s; rest: no new wall for 6 s after one goes)
 const PAL_DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const WALL_LINES = ["Building myself, yesss!", "My wonderful wall!", "My beauty... my precious!", "Growing, growing, yesss!", "Nobody touches my wall!", "Ssso beautiful, my wall!", "We builds it, we does!"];
 function palSegsInit(W, dir) {
@@ -11685,6 +11685,7 @@ function palGrow(W, dt, mine) {
     return;
   }
   if (!mine) return;   // (theirs: started by their messages)
+  if (W.segs.length >= PALG.max) return;   // (as long as it gets: 14 pieces)
   W.next -= dt;
   if (W.next > 0) return;
   const C = palCandidates(W);
@@ -11694,7 +11695,7 @@ function palGrow(W, dt, mine) {
 // the added units (the first three are the wall drawn as it was set), and the arm building the next one, in the wall's frame
 function drawPalGrowth(W, mine) {
   if (!W || !W.segs) return;
-  const size = shipSize(), p = toScreen(W.x, W.y), L = PAL.w / 3, D = PAL.d, unit = artImage("art/ships/palisade/grow/wall-unit.webp"), fade = Math.max(0, Math.min(1, (PAL.life - W.t) / 0.6));
+  const size = shipSize(), p = toScreen(W.x, W.y), L = PAL.w / 3, D = PAL.d, unit = artImage("art/ships/palisade/grow/wall-unit.webp"), fade = 1;
   ctx.save(); ctx.globalAlpha = fade; ctx.translate(p.x, p.y); ctx.rotate(W.ang); ctx.scale(size, size);
   const panel = (x, y, a, al) => {
     ctx.save(); ctx.globalAlpha = fade * al; ctx.translate(x, y); ctx.rotate(a);
@@ -11749,7 +11750,7 @@ function drawCarrier(ms, o, launch) {
 // a set wall: a ceramic slab, violet-edged, with a lamp for each shot it can still stop; theirs tinted pink
 function drawPalWall(W, mine, from) {
   if (!W) return;
-  const size = shipSize(), p = toScreen(W.x, W.y), w = PAL.w * size, d = PAL.d * size, fade = Math.min(1, (PAL.life - W.t) / 0.6, (W.t - from) / 0.15 + 1);
+  const size = shipSize(), p = toScreen(W.x, W.y), w = PAL.w * size, d = PAL.d * size, fade = Math.min(1, (W.t - from) / 0.15 + 1);
   if (W.t < from) return;
   ctx.save(); ctx.globalAlpha = Math.max(0, fade); ctx.translate(p.x, p.y); ctx.rotate(W.ang);
   ctx.shadowColor = mine ? "rgba(181,160,255,0.8)" : "rgba(255,122,184,0.8)"; ctx.shadowBlur = size * 0.15;
