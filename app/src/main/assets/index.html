@@ -1607,9 +1607,11 @@ const MAGIC = {
   // NIMBUS's rainbow: an arc that flies out (`speed` ship-lengths a second for `life` s); touching a ship it does `dmg`
   //   once, and NIMBUS takes back `heal` health
   rainbow: { name: "קשת בענן", look: "rainbow", cool: 9, speed: 2.4, life: 1.25, dmg: 20, heal: 10, color: "#ffb3e6" },
-  // VANTA's tint: each tap (every `cool` s) turns the liquid the next colour (VANTA_TINTS): the next phase drop does
-  //   `mult` times its damage for that colour, and firing it uses the colour up (back to lime). After white: lime again
-  tint:  { name: "צבע הנוזל", look: "tint", cool: 4, color: "#caff38", mult: [1, 1.4, 1.9, 2.6] },
+  // VANTA's tint: each tap (every `cool` s) turns the liquid the next colour (VANTA_TINTS: lime, blue, red, white; it
+  //   stops at white). Both weapons hit harder: the marking drops `mult` times (blue +50%, red +70%, white +100%), and
+  //   the phase drop does `phase` health whatever its size (lime half a tank, blue one, red 1.5, white 2). Firing the
+  //   phase drop uses the colour up (back to lime): one chance to hit with it
+  tint:  { name: "צבע הנוזל", look: "tint", cool: 4, color: "#caff38", mult: [1, 1.5, 1.7, 2], phase: [50, 100, 150, 200] },
   ink:   { name: "ענן דיו", pour: 0, hide: 4, cool: 12, look: "ink", color: "#8a7fd6", dmg: 15, stun: 20 },
   // ZORIAN's anchor: one tap and the ship stops (`brake`) and spins in place by itself (`spin`: radians a second) for
   //   `hold` seconds (a second tap ends it sooner); then `cool` seconds to recharge. A thread laid while it spins is
@@ -6859,8 +6861,9 @@ function useMagicNow(which = 0) {
     audio.sfx(S.sfx, "flip"); buzz(30);
     return;
   }
-  if (M.look === "tint") {   // VANTA: the liquid turns the next colour
-    game.vtint = ((game.vtint || 0) + 1) % VANTA_TINTS.length; game.magicCool = M.cool;
+  if (M.look === "tint") {   // VANTA: the liquid turns the next colour (white is the last: it stays white till the phase drop is fired)
+    if ((game.vtint || 0) >= VANTA_TINTS.length - 1) { audio.nope(); return; }
+    game.vtint = (game.vtint || 0) + 1; game.magicCool = M.cool;
     if (game.vtint) tintPreload(game.vtint);
     const T = VANTA_TINTS[game.vtint];
     burstAt(game.x, game.y, 24, T.fx, 0.4, 0.8, game.vx, game.vy);
@@ -8243,9 +8246,9 @@ function shotScale(s, Wp) { return s.sz ? s.sz : Wp.swell ? 1 + (Wp.grow - 1) * 
 function shotHit(s, Wp) {
   if (s.ch != null && Wp.dmgMax) return { ...Wp, dmg: Math.round(Wp.dmg + Wp.dmgMax * s.ch), knock: Wp.knock + Wp.knockMax * s.ch };   // PUFF's bubble: by its size
   const thin = Wp.swell ? 1 - Wp.thin * swellOf(s, Wp) : 1;
-  if (!Wp.phase) return thin < 1 ? { ...Wp, dmg: Math.max(1, Math.round(Wp.dmg * thin)) } : Wp;
+  if (!Wp.phase) { const m = Wp.tag && s.lvl ? MAGIC.tint.mult[s.lvl] : 1; return thin < 1 || m > 1 ? { ...Wp, dmg: Math.max(1, Math.round(Wp.dmg * thin * m)) } : Wp; }   // (VANTA's marking drop: its colour's boost)
   const T = VANTA_TINTS[s.lvl || 0];
-  return { ...Wp, dmg: Math.round((s.boost ? Wp.boost : Wp.dmg) * MAGIC.tint.mult[s.lvl || 0] * thin), color: T.color };
+  return { ...Wp, dmg: MAGIC.tint.phase[s.lvl || 0], color: T.color };   // (VANTA's phase drop: its colour's damage, all of it)
 }
 // VANTA's phase drop on its way: a glowing trail in its colour (more once boosted; white: flames)
 function phaseTrail(s) {
@@ -9305,10 +9308,15 @@ function damageShip(n, src) {
   if (src !== "env" && floodSafe()) { floodShield(); return; }   // BOILER in its flood: the enemy cannot hurt it (src "env": walls, the star)
   if (game.docked || game.undockT > 0 || practiceOn()) return;   // in the station, just out of it, or practising: safe
   if (src !== "env") { n = shieldsTake(n); if (n <= 0) return; }   // the station's shields
+  const over = Math.max(0, n - game.hp);   // (more than the bar holds: the rest comes off the next tank's bar)
   game.hp = Math.max(0, game.hp - n); game.hurt = 0.35;
   shake(0.25 + n / 40); audio.hurt(); buzz(60 + n * 3);
   if (game.hp <= 0 && game.tanks > 0) {   // a spare tank empties and fills the bar again
     game.tanks--; game.hp = SHIP_HP; game.tankT = 1;
+    for (let o = over; o > 0.01; ) {   // the rest off the next bars, tank after tank
+      if (o < SHIP_HP) { game.hp = SHIP_HP - o; break; }
+      o -= SHIP_HP; if (game.tanks <= 0) { game.hp = 0; blowUpShip(); return; } game.tanks--; game.hp = SHIP_HP;
+    }
     audio.tone(330, 0.35, "sine", 0.06, 2.2); buzz(120);
     return;
   }

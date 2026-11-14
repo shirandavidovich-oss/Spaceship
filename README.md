@@ -690,6 +690,8 @@ package's frames (`art/bloom/skarn/`, `skarnBloomFrame`).
 
 **PALISADE's wall breaks as it is hit** — every enemy shot it stops puts out a lamp *and* breaks off its newest piece (or the one the arm is carrying) in a spray of ceramic fragments; four hits and it falls. The wall never times out and never falls to shots (four hits put out its lamps; it keeps standing): it stays till its own magic bursts it (or the ship is lost), growing to at most 30 pieces. Its magic is one great blast: a white-hot fireball and a shock ring out to the circle round the whole wall, a storm of ceramic shards flying to its edge and fading — any enemy ship inside the circle loses a tank and a half. After it goes the next one waits 6 s, so the computer can no longer stand behind wall after wall. **Test hangar: 🤖 the computer's ship** — tap the chip, then a ship: the computer flies it at once and after every loss (the same ship again: back to random).
 
+**VANTA's colours** — each magic tap turns the liquid one colour on (lime → blue → red → white, and it stays white). Both weapons hit harder: the marking drops +50% blue, +70% red, +100% white; the phase drop does half a tank lime, one tank blue, 1.5 red and 2 tanks white — and firing it uses the colour up, so the white drop is one chance. Damage bigger than the bar left now carries on into the next tanks.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

@@ -960,4 +960,6 @@ ok("PALISADE: a hit breaks off the wall's newest piece; 6 s rest before the next
   html.includes("window.setBotShip = ") && html.includes("tryShip(botShipWant ||") && html.includes("pickFoe: true"));
 ok("PALISADE's magic: one great blast round the whole wall (1.5 tanks inside it), the wall grows to 30 pieces", () =>
   html.includes("max: 30, boom: 150 }") && html.includes("function palCircle(W)") && html.includes("function palBoom(") && html.includes("palBoomHurt(PALG.boom)") && html.includes("r: +(C.r / U).toFixed(4)"));
+ok("VANTA's colours: marking drops +50/+70/+100%, the phase drop half a tank, 1, 1.5, 2 tanks; damage carries into the next tank", () =>
+  html.includes("mult: [1, 1.5, 1.7, 2], phase: [50, 100, 150, 200] }") && html.includes("dmg: MAGIC.tint.phase[s.lvl || 0]") && html.includes("const over = Math.max(0, n - game.hp);"));
 console.log(n + " checks passed");
