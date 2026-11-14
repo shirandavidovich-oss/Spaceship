@@ -965,4 +965,6 @@ ok("VANTA's colours: marking drops +50/+70/+100%, the phase drop half a tank, 1,
 ok("BORER: the magic button while the star mine charges spins the drill; a bite takes a tank and leaves a hole; a masked laughing voice", () =>
   html.includes("drill: { spin: 4.7, dmg: 100,") && html.includes('if (S.id === "borer" && M && game.magicCool > 0 && !game.dead && !game.dive) { drillStart(); return; }') &&
   html.includes("function drawBreaches(") && html.includes("function drawDrillAir(") && html.includes('alienSay(DRILL_LINES[i], "vader")') && html.includes('m.t === "br"') && html.includes("if (!game.dive) drillStart(); return; }"));
+ok("BORER's holes sit on DRAKON's remaining piece after its split (and those on the gone front piece go)", () =>
+  html.includes("function onPiece(S, split, x, y)") && html.includes("if (halfShip(S, split) && B.y < seamY(S, B.x)) continue;"));
 console.log(n + " checks passed");
