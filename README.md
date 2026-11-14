@@ -660,7 +660,7 @@ another goes back to just my ship (`fleetView`, `shownFleet`). The coins (this s
 CONNECT when there is room (an opened Fold, or just my ship's icon), else under the icons (`drawWallet`).
 
 **The economy** (`SHOP`): the game pays a tenth of what it used to (`SHOP.earn` 0.1 of a win's reward; the welcome gift,
-practice drones, gold comets and minerals a tenth too). Coins are planned to sell at `COIN_USD` (10,000 coins a dollar),
+practice drones, gold comets and minerals a tenth too). Shields and extra weapons cost a tenth too (`pasPrice`, `actPrice`, `weapons`). Coins are planned to sell at `COIN_USD` (10,000 coins a dollar),
 so a ship of your own costs about 3 dollars (`SHOP.ship` x `SHIP_BUY.own`: 25,600 to 33,600 coins), and a one-time
 offer of every ship for good for `ALL_SHIPS_USD` (10 dollars). A ship bought for good or rented needs the player signed in (the sign-in opens, with why), so it is kept on
 the server by email and never lost with a phone. Selling for real money is not built yet: it needs the
