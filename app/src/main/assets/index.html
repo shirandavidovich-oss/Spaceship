@@ -1500,7 +1500,7 @@ const MAGIC = {
   // BORER's drill (the magic button while the star mine is still charging): held, the drill spins (`spin` turns a
   //   second) and bores into a ship its tip touches: `dmg` (one tank) for each bite, a new bite only after the tip has
   //   left them (or `again` s on). `tip`: the tip's reach, ship-lengths. The bite leaves a hole in their hull
-  drill: { spin: 4.7, dmg: 100, tip: 0.035, again: 0.9, min: 0.35, say: 7 },
+  drill: { spin: 4.7, dmg: 100, tip: 0.035, again: 0.9, min: 0.35, say: 7, rope: 0.35, bore: 3 },   // rope: s to chew through a LARIAT's rope round it; bore: s against a maze wall to cut it
   starmine: { name: "מוקש כוכב", look: "starmine", cool: 3, reach: 0.55, depth: 0.4, out: 0.1, legs: 450, windup: 340, inside: 840, plant: 1030, exit: 1120, end: 1780, color: "#4dff9a" },
   // MIRAGE: false star. After its 480 ms charge a lens opens `ahead` ship-lengths in front of the nose and stays `life` s.
   //   Every shot (anyone's) within `radius` ship-lengths is pulled toward its middle: `strength` / (d² + soft²), at most
@@ -3625,6 +3625,13 @@ function drawMaze() {
     const c = ((i % G.cols) + G.cols) % G.cols + (((j % G.rows) + G.rows) % G.rows) * G.cols;
     if (G.E[c]) wall((i + 1) * cw - T / 2, j * ch - T / 2, (i + 1) * cw + T / 2, (j + 1) * ch + T / 2, false);
     if (G.S[c]) wall(i * cw - T / 2, (j + 1) * ch - T / 2, (i + 1) * cw + T / 2, (j + 1) * ch + T / 2, true);
+  }
+  // where BORER's drill cut the iron: the torn ends white-hot, cooling over 2 s
+  for (const q of maze.cuts || []) {
+    q.t += 1 / 60; if (q.t > 2) continue;
+    const i = q.c % G.cols, j = Math.floor(q.c / G.cols), hot = 1 - q.t / 2;
+    const ends = q.s === "E" ? [[(i + 1) * cw, j * ch], [(i + 1) * cw, (j + 1) * ch]] : [[i * cw, (j + 1) * ch], [(i + 1) * cw, (j + 1) * ch]];
+    for (const [ex, ey] of ends) { const p = toScreen(ex, ey), g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, T * 2.2); g.addColorStop(0, `rgba(255,245,200,${hot})`); g.addColorStop(0.4, `rgba(255,140,40,${0.8 * hot})`); g.addColorStop(1, "rgba(255,60,10,0)"); ctx.fillStyle = g; ctx.fillRect(p.x - T * 2.2, p.y - T * 2.2, T * 4.4, T * 4.4); }
   }
   // the passages LABYRINTH melts: white-hot lips, a cyan seam (only it may pass), closing behind it
   for (const m of melts) {
@@ -9529,6 +9536,7 @@ function shoot(i) {
   const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
   if (S.id === "corsair" && i !== 1 && corsairRowing()) return;   // CORSAIR rowing: only the chain shot (no ammo spent)
   if (Wp.gate && (gateAlive(game.gate) || game.gateWait != null)) return;   // GIMBAL: one gate at a time
+  if (Wp.harpoon && game.harpoonCut) { if (time - (game.cutNope || -9) > 0.6) { game.cutNope = time; audio.nope(); buzz(20); } return; }   // LARIAT: its rope was cut by a drill: no harpoon this life
   if (Wp.harpoon && (game.hook || game.tether || game.elasso || game.hookWait != null)) return;
   if (Wp.one && (shots.some((q) => q.w === w) || (game.anim && game.anim.pending === w))) return;
   if (Wp.paddles && game.paddle) return;   // FLIPPER: cocked already (the window is not started again)   // COURIER: one capsule at a time   // LARIAT: one hook or cable at a time
@@ -10200,7 +10208,8 @@ function larPull(o, dt) {
 }
 function updateLariat(dt) {
   const u = larU();
-  if (game.dead) { larLetGo(); game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.lassoed = null; game.ldash = null; }
+  if (game.dead) { larLetGo(); game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.lassoed = null; game.ldash = null; game.harpoonCut = false; }
+  if (game.harpoonCut && game.ship === "lariat") game.ammo[1] = 0;   // (its harpoon button empty: the rope is gone)
   larDash(dt);
   if (game.elasso) { game.elasso.t += dt; if (!enemy.on || game.ship !== "lariat" || game.elasso.t >= ELASSO.hold || enemyAloft()) larLetGo(); }   // (their STRATA rising: the rope slips off)   // 30 s up, or their ship is gone: let go
   if (game.lassoed) { game.lassoed.t += dt; if (!enemy.on || game.lassoed.t >= ELASSO.hold + 1) game.lassoed = null; }   // (+1 s: in case their "let go" is lost)
@@ -10413,7 +10422,8 @@ function drawShipLasso(holder, held, t) {
 function drawLariat() {
   larPreload();
   if (game.elasso && enemy.on && !game.dead) drawShipLasso(game, enemy, game.elasso.t);   // my LARIAT holding their ship
-  if (game.lassoed && enemy.on && !game.dead) drawShipLasso(enemy, game, game.lassoed.t);   // their LARIAT holding mine
+  if (game.lassoed && enemy.on && !game.dead) drawShipLasso(enemy, game, game.lassoed.t);
+  drawRopeSnaps(1 / 60);   // their LARIAT holding mine
   if (game.ship === "lariat" && !game.dead) drawCable(game, game.hook, !!game.tether);
   if (enemy.on && enemy.ship === "lariat") drawCable(enemy, enemy.lhook, !!enemy.ltether);
   drawLasso();
@@ -11620,8 +11630,21 @@ function updateDrill(dt) {
   const near = enemy.on && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < U * 2.2;
   loopClip("drill", "audio/borer/drill.ogg", !!game.drillOn, 2.0, 0.6);
   loopClip("edrill", "audio/borer/drill.ogg", !game.drillOn && near && !!(enemy.remote && duel.net && duel.net.bd), 2.0, 0.35);
-  if (!game.drillOn) { game.drillTip = null; game.drillTouch = false; return; }
+  const L = loops.drill; if (L && L.src) L.src.playbackRate.value = game.drillWall ? 1 + 0.6 * Math.min(1, game.drillWall.t / D.bore) : 1;   // (higher as it bores into iron)
+  if (!game.drillOn) { game.drillTip = null; game.drillTouch = false; game.drillWall = null; game.ropeChew = 0; return; }
   game.drillSpin = (game.drillSpin || 0) + dt * D.spin;
+  // a LARIAT's rope round me: the drill chews through it, and that LARIAT has no harpoon any more
+  if (game.lassoed && enemy.on) { game.ropeChew = (game.ropeChew || 0) + dt; if (game.ropeChew >= D.rope) ropeCut(true); } else game.ropeChew = 0;
+  // in a maze, the tip against the iron: sparks, the drill's pitch rising; after `bore` s the wall is cut away
+  { const sz = shipSize(), tp = { x: game.x + Math.sin(game.ang) * 0.5 * sz, y: game.y - Math.cos(game.ang) * 0.5 * sz }, b = maze && wallBound() ? inWall(tp.x, tp.y, sz * 0.05) : null;
+    if (!b) game.drillWall = null;
+    else {
+      const key = b.c + b.s; if (!game.drillWall || game.drillWall.key !== key) game.drillWall = { key, t: 0 };
+      game.drillWall.t += dt;
+      if (Math.random() < dt * 30) burstAt(tp.x, tp.y, 3, ["#ffffff", "#fff2c0", "#ffb347", "#ff6a1a"], 0.35, 0.5, -Math.sin(game.ang) * U * 0.3, Math.cos(game.ang) * U * 0.3);
+      if (Math.random() < dt * 4) audio.noise(0.08, 0.05, 3000 + game.drillWall.t * 1500);
+      if (game.drillWall.t >= D.bore) { mazeCut(b.c, b.s, true); game.drillWall = null; }
+    } }
   if (Math.random() < dt * 14) burstAt(game.x + Math.sin(game.ang) * 0.5 * shipSize(), game.y - Math.cos(game.ang) * 0.5 * shipSize(), 1, ["#cfe8e0", "#9fb8b0"], 0.18, 0.4, game.vx, game.vy);
   // the tip, swept from where it was to where it is now, against their hull
   const size = shipSize(), tip = { x: game.x + Math.sin(game.ang) * 0.5 * size, y: game.y - Math.cos(game.ang) * 0.5 * size };
@@ -11644,6 +11667,45 @@ function updateDrill(dt) {
   burstAt(hx, hy, 34, ["#fff1bc", "#ffb768", "#ffffff", "#bac6ce"], 0.75, 0.8, enemy.vx, enemy.vy);
   burstAt(hx, hy, 8, ["#8a9aa0", "#5c6a70"], 0.4, 1.2, enemy.vx, enemy.vy);
   playClip("audio/borer/bite.ogg", false, 0.9); shake(0.55); buzz(160);
+}
+// the rope cut: my drill through their LARIAT's rope round me (mine: tell them), or their drill through mine.
+// The two ends whip back to their ships, frayed (ropeSnaps)
+const ropeSnaps = [];
+function ropeCut(mine) {
+  const holder = mine ? enemy : game, held = mine ? game : enemy, s = larSocket(holder);
+  ropeSnaps.push({ ax: s.x, ay: s.y, bx: held.x, by: held.y, t: 0 });
+  const cx = held.x + wrapDelta(s.x - held.x, WW) * 0.18, cy = held.y + wrapDelta(s.y - held.y, WH) * 0.18;
+  burstAt(cx, cy, 22, ["#eaa276", "#ffd9b8", "#ffffff", "#7a4a30"], 0.5, 0.7);
+  audio.noise(0.12, 0.25, 5000); audio.tone(950, 0.1, "triangle", 0.05, 0.4); audio.tone(180, 0.15, "square", 0.04, 0.6, 0.03); shake(0.3); buzz(90);
+  if (mine) { game.lassoed = null; game.ropeChew = 0; duelSend({ t: "lcut" }); }
+  else { game.elasso = null; game.harpoonCut = true; }   // (no "let go" to send: they cut it)
+}
+function drawRopeSnaps(dt) {
+  for (let i = ropeSnaps.length - 1; i >= 0; i--) {
+    const F = ropeSnaps[i]; F.t += dt; if (F.t > 0.6) { ropeSnaps.splice(i, 1); continue; }
+    const e = 1 - Math.pow(1 - Math.min(1, F.t / 0.45), 3), fade = 1 - Math.max(0, (F.t - 0.35) / 0.25), w = Math.max(2, shipSize() * 0.025);
+    const dx = wrapDelta(F.ax - F.bx, WW), dy = wrapDelta(F.ay - F.by, WH), cx = F.bx + dx * 0.18, cy = F.by + dy * 0.18;
+    for (const [ox, oy, fx, fy] of [[F.ax, F.ay, cx, cy], [F.bx, F.by, cx, cy]]) {   // each end whips back to its ship, curling
+      const ex = ox + wrapDelta(fx - ox, WW) * (1 - e), ey = oy + wrapDelta(fy - oy, WH) * (1 - e), p0 = toScreen(ox, oy), p1 = toScreen(ex, ey);
+      const nx = -(p1.y - p0.y), ny = p1.x - p0.x, curl = Math.sin(F.t * 30) * 0.35 * (1 - e);
+      ctx.save(); ctx.globalAlpha = fade; ctx.lineCap = "round";
+      ctx.strokeStyle = "rgba(40,28,22,0.9)"; ctx.lineWidth = w * 1.5; ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.quadraticCurveTo((p0.x + p1.x) / 2 + nx * curl, (p0.y + p1.y) / 2 + ny * curl, p1.x, p1.y); ctx.stroke();
+      ctx.strokeStyle = "#eaa276"; ctx.lineWidth = w; ctx.stroke();
+      ctx.strokeStyle = "#ffd9b8"; ctx.lineWidth = Math.max(1, w * 0.35);   // the frayed end
+      for (let k = 0; k < 4; k++) { const a = Math.atan2(p1.y - p0.y, p1.x - p0.x) + (k - 1.5) * 0.5; ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p1.x + Math.cos(a) * w * 2.2, p1.y + Math.sin(a) * w * 2.2); ctx.stroke(); }
+      ctx.restore();
+    }
+  }
+}
+// BORER's drill through a maze wall: that stretch of iron is gone (on both phones), its torn ends glowing a while
+function mazeCut(c, s, mine) {
+  if (!maze) return;
+  maze.M[s][c] = 0;
+  (maze.cuts || (maze.cuts = [])).push({ c, s, t: 0 });
+  const { cw, ch } = mazeCells(), i = c % maze.cols, j = Math.floor(c / maze.cols), x = s === "E" ? (i + 1) * cw : (i + 0.5) * cw, y = s === "E" ? (j + 0.5) * ch : (j + 1) * ch;
+  burstAt(x, y, 50, ["#ffffff", "#fff2c0", "#ffb347", "#ff6a1a", "#5a4030"], 0.9, 0.9);
+  if (Math.hypot(wrapDelta(x - game.x, WW), wrapDelta(y - game.y, WH)) < U * 2) { audio.tone(120, 0.4, "square", 0.06, 0.4); audio.noise(0.5, 0.25, 1500); shake(0.5); buzz(140); }
+  if (mine) duelSend({ t: "mzc", c, s, sd: maze.seed });
 }
 // their BORER's drill bit me: the hole on my hull (the tank came off with their damage), and their laugh
 function drillBitten(m) {
@@ -15244,6 +15306,8 @@ function duelLink(event, data) {
   } else if (m.t === "pg") { if (duel.palWall && duel.palWall.segs) palStartBuild(duel.palWall, { x: m.x, y: m.y, h: m.h }, false);   // their wall building a piece
   } else if (m.t === "pl") { duel.palLaunch = { x: m.x * WW, y: m.y * WH, ang: m.a };
   } else if (m.t === "pwh") { palHit();   // my wall stopped one of their shots (their phone saw it)
+  } else if (m.t === "lcut") { if (game.elasso) ropeCut(false);   // their BORER's drill cut my LARIAT's rope round it
+  } else if (m.t === "mzc") { if (maze && maze.seed === m.sd) mazeCut(m.c, m.s, false);   // their BORER cut a maze wall
   } else if (m.t === "br") { drillBitten(m);   // their BORER's drill bit my hull
   } else if (m.t === "px") { palFx.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0 });
     if (m.r != null) palBoom(m.cx * WW, m.cy * WH, m.r * U, duel.palWall && duel.palWall.segs ? palUnits(duel.palWall) : [{ x: m.cx * WW, y: m.cy * WH }], false);   // their wall's blast
@@ -16154,6 +16218,7 @@ function tryShip(id) {
   game.ship = id; game.zombie = false; game.pollen = null;
   if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; game.kiln = null; if (game.surg && game.surg.c) creatureFalls(game.surg.c); game.surg = null;   // (BALLAST's asteroid already flying goes on)
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
+  game.harpoonCut = false;   // (a new ship: a new rope)
   game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   game.soak = null; game.magicCool = 0; game.magicPour = 0; game.hidden = 0; game.magicWait = false; game.fire = [null, null, null, null];
   game.talus = { stage: 0, from: 0, t: 99, ring: 0, contact: false, colors: [] };

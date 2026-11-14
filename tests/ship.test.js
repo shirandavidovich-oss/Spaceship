@@ -976,4 +976,7 @@ ok("cured of BLOOM, it still carries the pollen against that ship: coughs on (a 
   html.includes("game.carrier = { t: 0 };") && html.includes("coughs = (game.zombie && Q && Q.t != null) || !!game.carrier") && html.includes("zombie: shown === S && (game.zombie || !!game.cough)") && html.includes("zb: game.zombie || game.cough ? 1 : 0"));
 ok("the weapon bought at the station fires (button 4 has its own barrel count)", () =>
   html.includes("barrel: [0, 0, 0, 0],") && html.includes("((game.barrel[i] = (game.barrel[i] || 0) + 1) - 1) % guns.length"));
+ok("BORER's drill chews through a LARIAT's rope round it (the ends whip back; that LARIAT has no harpoon this life) and, 3 s against a maze wall, cuts it away (sparks, rising pitch)", () =>
+  html.includes("rope: 0.35, bore: 3 }") && html.includes("function ropeCut(mine)") && html.includes("function mazeCut(c, s, mine)") && html.includes('m.t === "lcut"') && html.includes('m.t === "mzc"') &&
+  html.includes("if (Wp.harpoon && game.harpoonCut)") && html.includes("L.src.playbackRate.value = game.drillWall"));
 console.log(n + " checks passed");
