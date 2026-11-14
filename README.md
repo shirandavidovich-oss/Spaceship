@@ -656,7 +656,8 @@ for a newer copy in the background once a start), so a replaced file gets a new 
 
 **The fleet row** under the health bar shows only the ship I fly. A tap on it shows my whole fleet (as before), another
 tap the other player's fleet (the computer's or the other phone's: its ship now in red, its lost ships crossed out), and
-another goes back to just my ship (`fleetView`, `shownFleet`).
+another goes back to just my ship (`fleetView`, `shownFleet`). The coins (this ship's and the total) sit in that row between the icons and
+CONNECT when there is room (an opened Fold, or just my ship's icon), else under the icons (`drawWallet`).
 
 **The economy** (`SHOP`): the game pays a tenth of what it used to (`SHOP.earn` 0.1 of a win's reward; the welcome gift,
 practice drones, gold comets and minerals a tenth too). Coins are planned to sell at `COIN_USD` (10,000 coins a dollar),

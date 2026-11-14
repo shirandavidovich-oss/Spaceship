@@ -4559,10 +4559,15 @@ function drawPracticeNote() {
 function drawWallet() {
   if (BOT) return;
   const L = fleetRowLayout(), f = Math.round(U * 0.03);
-  const ys = L.pos.filter(Boolean).map((p) => p.y), y = (ys.length ? Math.max(...ys) + L.sz : U * 0.12) + f * 1.1, x = L.pos[0] ? L.pos[0].x : U * 0.03;
   const txt = `🪙 ${wallet(game.ship).toLocaleString("en-US")}   ·   Σ ${totalMoney().toLocaleString("en-US")}`;
   ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = "ltr";
   const w = ctx.measureText(txt).width + f * 1.2;
+  // in the top row, between the ship icons and CONNECT, when the icons all fit on that line and there is room (an opened
+  // Fold, or just my ship's icon): no line of its own under them, so the screen stays clear. Else under the icons
+  const P = L.pos.filter(Boolean), one = P.length && P.every((p) => p.y === P[0].y), endX = P.length ? P[P.length - 1].x + L.sz + L.gap : L.x0;
+  let x, y;
+  if (one && endX + w <= L.connect.x - L.gap) { x = endX; y = L.y0 + (FLEET_ICON * MM) / 2; }
+  else { const ys = P.map((p) => p.y); y = (ys.length ? Math.max(...ys) + L.sz : U * 0.12) + f * 1.1; x = P[0] ? P[0].x : U * 0.03; }
   ctx.fillStyle = "rgba(10,12,32,0.65)"; roundRect(x, y - f * 0.75, w, f * 1.5, f * 0.5); ctx.fill();
   ctx.fillStyle = bounty.t > 2.6 ? "#ffffff" : "#ffd166"; ctx.fillText(txt, x + f * 0.6, y);
   ctx.restore();
