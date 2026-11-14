@@ -948,7 +948,7 @@ ok("SKARN spits back exactly what it caught: each shot as its own weapon (homing
 ok("a zombie that destroyed BLOOM coughs pollen once the next ship is here (6 s of the recorded cough, the cloud from BLOOM's size swelling with its loudness) and infects; a zombie that destroys BLOOM is cured 10 s after the next ship; SKARN's zombie jaw and firing", () => {
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
   for (const f of ["audio/bloom/zombie-cough2.ogg", "art/bloom/skarn/jaw.webp", "art/bloom/skarn/fire.webp", "art/bloom/skarn/muzzle.webp"]) assert(fs.existsSync(path.join(A, f)), f);
-  assert(html.includes("Object.assign(ZOMBIE, { coughEvery: 15, coughFirst: 1.5, coughLen: 6.0, coughGrow: 0.8, cure: 10 });") && html.includes("!Q || Q.t == null) { game.cough = null;"));
+  assert(html.includes("Object.assign(ZOMBIE, { coughEvery: 15, coughFirst: 1.5, coughLen: 6.0, coughGrow: 0.8, cure: 10 });") && html.includes("!coughs) { game.cough = null;"));
   assert(html.includes('if (game.zombie && enemy.ship === "bloom" && !game.zombieCure) game.zombieCure = { t: null };') && html.includes('} else if (m.t === "zc") { startCough(false);'));
 });
 ok("PALISADE's wall builds itself every 2 s: an arm welds a piece on, a robot says its precious-wall lines", () =>
