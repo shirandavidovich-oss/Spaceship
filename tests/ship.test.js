@@ -970,4 +970,6 @@ ok("BORER's holes sit on DRAKON's remaining piece after its split (and those on 
 ok("DRAKON's split: a random piece flies on (the other is the bomb); split as a BLOOM zombie, each piece has its own bloom drawing", () =>
   html.includes('game.splitKeep = Math.random() < 0.5 ? "front" : "rear"') && html.includes("function drawDrakonBloomHalf(S, half)") &&
   html.includes('o.zombie && o.half && S.id === "drakon"') && html.includes('half: m.k === 2 ? "rear" : "front"') && html.includes("drakFlares.push("));
+ok("the test app: a tap on the computer's ship blows it up (not against another phone)", () =>
+  html.includes("function testKillTap(x, y)") && html.includes("if (HANGAR && game.stage === \"fly\" && enemy.on && enemy.warp < 0.5 && testKillTap(e.clientX, e.clientY)) return;") && html.includes("if (!duel.bot) return false;"));
 console.log(n + " checks passed");

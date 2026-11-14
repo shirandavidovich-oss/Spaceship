@@ -2883,12 +2883,25 @@ cv.addEventListener("pointerdown", (e) => {
       return;
     }
   }
+  if (HANGAR && game.stage === "fly" && enemy.on && enemy.warp < 0.5 && testKillTap(e.clientX, e.clientY)) return;   // the test app: a tap on the other ship blows it up
   swipe ={ id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
   if (game.stage === "gift" && hitGift(e.clientX, e.clientY)) { tapGift(); swipe = null; return; }
   if (game.stage === "opening" && game.t > 2.2) { toFly(); swipe = null; return; }
   const p = zoomed(shipScreen());
   if (game.stage === "fly" && Math.hypot(e.clientX - p.x, e.clientY - p.y) < shipSize() * 0.6 * game.zoom) { game.card = 2.5; audio.pop(); }
 });
+// the test app only: a finger on the other ship (the computer's, or the practice one) blows it up at once, to see what
+// comes after. Not against another phone
+function testKillTap(x, y) {
+  const p = zoomed(toScreen(enemy.x, enemy.y));
+  if (Math.hypot(x - p.x, y - p.y) > shipSize() * 0.6 * enemyScale() * game.zoom) return false;
+  if (enemy.remote) {
+    if (!duel.bot) return false;
+    const bw = botWindow(); if (!bw || !bw.blowUpShip) return false;
+    try { bw.blowUpShip(); } catch (err) { return false; }
+  } else { enemy.hp = 0; destroyEnemy(); }
+  buzz(40); return true;
+}
 // dragging the thumb on the thrust button steers, like a joystick
 cv.addEventListener("pointermove", (e) => {
   if (dialMove(e)) return;

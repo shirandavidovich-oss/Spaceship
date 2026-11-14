@@ -696,6 +696,8 @@ package's frames (`art/bloom/skarn/`, `skarnBloomFrame`).
 
 **DRAKON's split is a surprise** — which piece flies on and fights is random each time: the rear (as before) or the cockpit half, and the other piece is left as the bomb (its blink and ring round its own middle). The cockpit half alone has no engine flames. Split and a BLOOM zombie (in either order), each piece is drawn in its own bloom growth (art/bloom/drakon-half/, the package's two halves fitted over the plain pieces), the bomb too, and a split zombie's shots leave a quick hot-pink flare at the muzzle.
 
+**Test app: tap to blow it up** — in the DEV app, a finger on the computer's ship (or the practice one) blows it up at once, to test what comes after (a cure, the next ship, the fleet). Never against another phone.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the
