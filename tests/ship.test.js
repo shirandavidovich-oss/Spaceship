@@ -998,4 +998,9 @@ ok("the raid's effects: the flyover shadow on the star and ships, six stern engi
   for (const f of ["dust-streak", "flyover-shadow", "hangar-atlas", "hangar-spill", "red-beacon", "thruster-bloom", "thruster-nozzle"]) assert(fs.existsSync(path.join(A, "art/carrier/fx/" + f + ".webp")), f);
   assert(html.includes("function drawBeacons(") && html.includes("function drawEngines(") && html.includes("function drawDoors(") && html.includes("function beaconList()") && html.includes("const CFX = {"));
 });
+ok("the raid's film: a camera fitted to the screen (wider lens and tilt on a tall phone), the hull on its own sharp layer in fine strips, full-size tiles only near the camera, blur and glow tiles, shading with distance", () => {
+  const A = path.join(__dirname, "../app/src/main/assets");
+  for (const k of ["hi", "mb", "glow"]) for (const i of [0, 8]) assert(fs.existsSync(path.join(A, "art/carrier/hull/" + k + "/hull-0" + i + ".webp")), k + i);
+  assert(html.includes("function carrierCam()") && html.includes("function filmLayer()") && html.includes("function filmFree()") && html.includes("function hullTile(i, kind, peek)") && html.includes("function hullEvict(all)") && html.includes("function hullGrad(") && html.includes("function drawHull(g, Pz, V, kind, tol, alphaAt)") && html.includes('g.globalCompositeOperation = "source-atop"') && html.includes("try { filmLite = true; filmFree(); } catch (e2) {}"));
+});
 console.log(n + " checks passed");

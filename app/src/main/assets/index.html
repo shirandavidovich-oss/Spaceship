@@ -2330,6 +2330,7 @@ cv.addEventListener("contextlost", (e) => {
   noteIssue("screen lost (memory)"); lostAt = performance.now();
   try { e.preventDefault(); } catch (e2) {}
   try { artPurge(0); } catch (e2) {}
+  try { filmLite = true; filmFree(); } catch (e2) {}   // (the raid's film: its layer and full-size tiles let go, and kept light from now on)
   setTimeout(() => { if (lostAt && !BOT) { noteIssue("screen lost (memory), reloaded"); location.reload(); } }, 3000);
 });
 cv.addEventListener("contextrestored", () => { lostAt = 0; noteIssue("screen lost (memory), came back"); try { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); makeStars(); } catch (e) {} });
@@ -11687,14 +11688,39 @@ function startCarrier(mine) {
   carrier = { t: -CARRIER.prelude, slot: mine ? 0 : 1, launched: 0, fx: [], whoosh: -1, said: 0, shoved: false };   // (t < 0: the prelude, only the music changing)
   if (mine) duelSend({ t: "cv" });
 }
+// ---- the film's camera ----
+// A tall screen (a folded phone held upright: tall = 1; square or wide: 0) gets a wider lens (the far end drawn closer
+// together, the near end larger) and a tilted camera, so the hull fills it corner to corner and still shows whole at the
+// end. Three views, blended along the clock: the approach (the far point on screen), the pass (the hull filling the
+// screen, the camera pushing in a little and swaying), the reveal (the whole silhouette fitted to this screen)
+const CAM = { key: "", v: null };
+function carrierCam() {
+  const key = W + "x" + H; if (CAM.key === key) return CAM.v;
+  const C = CARRIER, Pr = C.proj, tall = W > 0 ? clamp((H / W - 1) / 1.1, 0, 1) : 0, rad = Math.PI / 180, wide = 1 + 0.9 * tall;
+  const P = Object.assign({}, C.passPose, { depth: C.passPose.depth * wide }), R = Object.assign({}, C.revealPose, { depth: C.revealPose.depth * (1 + 0.8 * tall) });
+  const view = (s, roll, ax, ay, sx, sy) => { const cr = Math.cos(roll), sr = Math.sin(roll); return { s, roll, ox: sx - s * (ax * cr - ay * sr), oy: sy - s * (ax * sr + ay * cr) }; };
+  const s0 = Math.min(W / 1010, H / 720) || 1, sP = Math.max(s0, H * 0.6 / 925);
+  const app = view(lerp(s0, sP, 0.5), -(2 + 4 * tall) * rad, 1190, 135, W * 0.8, H * 0.27);
+  const pass = view(sP, -(3 + 6 * tall) * rad, P.px, P.py, W * 0.36, H * 0.47);
+  // the reveal: the whole silhouette (mast tops to keel, bow to stern) inside 95% of the width and 62% of the height
+  const roll = -(2 + 12 * tall) * rad, cr = Math.cos(roll), sr = Math.sin(roll); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (let x = 0; x <= 17300; x += 173) for (const y of [215, 760]) {
+    const dx = x - R.focus, z = 1 + R.depth * dx, rx = R.px + R.scale * dx / z, ry = R.py + R.scale * (Pr.slope * dx + Pr.vs * (y - Pr.axisY)) / z, X = rx * cr - ry * sr, Y = rx * sr + ry * cr;
+    x0 = Math.min(x0, X); x1 = Math.max(x1, X); y0 = Math.min(y0, Y); y1 = Math.max(y1, Y);
+  }
+  const sR = Math.min(W * 0.95 / (x1 - x0), H * 0.62 / (y1 - y0)) || 1;
+  const rev = { s: sR, roll, ox: W / 2 - sR * (x0 + x1) / 2, oy: H * 0.45 - sR * (y0 + y1) / 2 };
+  CAM.key = key; CAM.v = { tall, wide, P, R, app, pass, rev };
+  return CAM.v;
+}
 // the projection's pose at time t (reference pixels)
 function carrierPose(t) {
-  const C = CARRIER, P = C.passPose, R = C.revealPose;
-  if (t < 0) return { focus: 0, px: 1190, py: 135, scale: 0, depth: 0.00068, glow: 0, blur: 0 };
+  const C = CARRIER, cam = carrierCam(), P = cam.P, R = cam.R, far = 0.00068 * cam.wide;
+  if (t < 0) return { focus: 0, px: 1190, py: 135, scale: 0, depth: far, glow: 0, blur: 0 };
   if (t < C.approachEnd) {
     const u = clamp((t - 0.56) / (C.approachEnd - 0.56), 0, 1);
     return { focus: C.startFocus * Math.pow(u, 5.23), px: 1190 + (P.px - 1190) * Math.pow(u, 2.95), py: 135 + (P.py - 135) * Math.pow(u, 2.7),
-      scale: 0.0016 + 0.99 * Math.pow(u, 4.2), depth: 0.00068 + (P.depth - 0.00068) * u, glow: Math.min(1, t / 0.5) * (1 - u), blur: 0 };
+      scale: 0.0016 + 0.99 * Math.pow(u, 4.2), depth: far + (P.depth - far) * u, glow: Math.min(1, t / 0.5) * (1 - u), blur: clamp((u - 0.8) / 0.2, 0, 1) };
   }
   if (t < C.passEnd) return { focus: C.startFocus + C.speed * (t - C.approachEnd), px: P.px, py: P.py, scale: P.scale, depth: P.depth, glow: 0, blur: 1 };
   if (t < C.revStart) {
@@ -11704,13 +11730,58 @@ function carrierPose(t) {
   const k = smoothStep((t - C.revStart) / (C.reveal - C.revStart)), L = (a, b) => a + (b - a) * k;
   return { focus: L(C.stopFocus, R.focus), px: L(P.px, R.px), py: L(P.py, R.py), scale: L(P.scale, R.scale), depth: L(P.depth, R.depth), glow: 0, blur: 0 };
 }
-// reference pixels -> this screen (uniform, the whole revealed carrier fitting the width or the height)
-function carrierView() { const s = Math.min(W / 1010, H / 720); return { s, ox: W / 2 - 572 * s, oy: H / 2 - 377 * s }; }
+// reference pixels -> this screen at time t: uniform scale `s`, the camera's roll (cr, sr), then (ox, oy)
+function carrierView(t = carrier ? carrier.t : 99) {
+  const C = CARRIER, cam = carrierCam(), px = W * 0.36, py = H * 0.47; let a, b, k, zoom = 1, sway = 0;
+  if (t < C.approachEnd) { a = cam.app; b = cam.pass; k = Math.pow(clamp((t - 0.56) / (C.approachEnd - 0.56), 0, 1), 2.4); }
+  else {
+    a = cam.pass; b = cam.rev; k = smoothStep((t - C.revStart) / (C.reveal - C.revStart));
+    zoom = 1 + 0.08 * clamp((t - C.approachEnd) / (C.passEnd - C.approachEnd), 0, 1) * (1 - k);   // (pushing in while it streams by)
+    sway = 0.014 * Math.sin((t - C.approachEnd) * 0.7) * (1 - k);
+  }
+  let s = lerp(a.s, b.s, k), ox = lerp(a.ox, b.ox, k), oy = lerp(a.oy, b.oy, k); const roll = lerp(a.roll, b.roll, k) + sway;
+  if (zoom !== 1 || sway) {   // (both about the point the hull passes through)
+    const c = Math.cos(sway), n = Math.sin(sway), ux = (ox - px) * zoom, uy = (oy - py) * zoom;
+    ox = px + ux * c - uy * n; oy = py + ux * n + uy * c; s *= zoom;
+  }
+  return { s, ox, oy, roll, cr: Math.cos(roll), sr: Math.sin(roll) };
+}
 function carrierProject(Pz, V, x, y) {
   const C = CARRIER.proj, dx = x - Pz.focus, dy = y - C.axisY, z = 1 + Pz.depth * dx;
   if (z <= 0.04) return null;
-  return { x: V.ox + V.s * (Pz.px + Pz.scale * dx / z), y: V.oy + V.s * (Pz.py + Pz.scale * (C.slope * dx + C.vs * dy) / z), z };
+  const rx = Pz.px + Pz.scale * dx / z, ry = Pz.py + Pz.scale * (C.slope * dx + C.vs * dy) / z;
+  return { x: V.ox + V.s * (rx * V.cr - ry * V.sr), y: V.oy + V.s * (rx * V.sr + ry * V.cr), z };
 }
+// the hull's pictures, each loaded when it is first wanted: "lo" (half size, all nine kept through the film), "hi" (the
+// package's full size: only the one or two tiles near the camera), "mb" (blurred along the hull, for the rush) and
+// "glow" (its lights alone, softened, drawn adding light). hi and mb are let go 2.5 s after they were last drawn
+const hullHot = new Set();
+let filmLite = false;   // (the screen was lost once, or a phone short of memory: no full-size tiles, a smaller layer)
+function hullTile(i, kind, peek) {
+  const src = "art/carrier/hull/" + (kind === "lo" ? "" : kind + "/") + "hull-0" + i + ".webp";
+  if (peek && !artCache[src]) return null;
+  const im = artImage(src);
+  if (kind === "lo") return im;
+  if (kind !== "glow") hullHot.add(src);
+  if (!im) return null;
+  if (im._dec === undefined) { im._dec = 0; const done = () => { im._dec = 1; }; try { im.decode().then(done, done); } catch (e) { done(); } }   // (decoded ahead: no stutter on its first frame)
+  return im._dec ? im : null;
+}
+function hullEvict(all) {
+  for (const src of hullHot) if (all || !(time - (artUsed[src] ?? -1e9) < 2.5)) { delete artCache[src]; delete artUsed[src]; hullHot.delete(src); }
+}
+// the film's own drawing surface: the hull is drawn on it at the screen's full sharpness, lit and shaded there (the far
+// end fading into the dark, the star's light, its lamps), then laid into the arena behind the ships. Only while it plays
+const cfilm = { cv: null, g: null, s: 1 };
+function filmLayer() {
+  let s = Math.min(filmLite ? 1.5 : DPR, Math.sqrt((filmLite ? 1.2e6 : 2.4e6) / Math.max(1, W * H)));
+  const w = Math.max(1, Math.round(W * s)), h = Math.max(1, Math.round(H * s));
+  if (!cfilm.cv) { cfilm.cv = document.createElement("canvas"); cfilm.g = cfilm.cv.getContext("2d"); }
+  if (cfilm.cv.width !== w || cfilm.cv.height !== h) { cfilm.cv.width = w; cfilm.cv.height = h; }
+  cfilm.s = w / W;
+  return cfilm.g;
+}
+function filmFree() { if (cfilm.cv) { cfilm.cv.width = cfilm.cv.height = 1; cfilm.cv = cfilm.g = null; } hullEvict(true); }
 // the raid in a match: once, as soon as either side has lost half its fleet (against the computer: once a level).
 // Against a phone, the bottom player's phone sets it off (both see it)
 function raidCheck() {
@@ -11724,17 +11795,18 @@ function raidCheck() {
 function updateCarrier(dt) {
   raidCheck();
   if (carrier && game.stage !== "fly") { carrier = null; raiders.length = 0; rshots.length = 0; }
+  if (!carrier && cfilm.cv) filmFree();   // (the film over: its layer and full-size tiles let go)
   if (carrier) {
     const C = CARRIER, K = carrier, t0 = K.t; K.t += dt; const t = K.t, at = (x) => t0 < x && t >= x;
     if (at(0)) playClip("audio/carrier/approach.ogg", false, 0.9);
     if (t < 0) { updateRaiders(dt); return; }   // (the prelude)
     if (t > C.approachEnd && t < C.passEnd) shake(0.16);   // (the whole arena trembling as it goes by)
     // the shove: once, as the hull rushes past (the second player a little after the first)
-    if (!K.shoved && t >= C.shove[K.slot] && !game.dead) { K.shoved = true; game.vx += -0.45 * U; game.vy += 0.95 * U; shake(0.9); buzz(220); }
+    if (!K.shoved && t >= C.shove[K.slot] && !game.dead) { K.shoved = true; game.vx += -0.45 * U; game.vy += 0.95 * U; shake(1.2); buzz(220); }
     // the sounds: the hull's roar, a "vush" for each deck going by, the brakes, the air, backing off
     loopClip("croar", "audio/carrier/roar.ogg", !BOT && t > 2.6 && t < C.passEnd + 0.3, 2.0, 0.75);
     if (t > C.approachEnd - 0.4 && t < C.passEnd) { const w = Math.floor(carrierPose(t).focus / (C.tileW / 2)); if (w !== K.whoosh) { if (K.whoosh >= 0) playClip("audio/carrier/whoosh.ogg", false, 0.85); K.whoosh = w; } }
-    if (at(C.passEnd)) { playClip("audio/carrier/brake.ogg", false, 1); playClip("audio/carrier/air.ogg", false, 0.7); shake(0.7); }
+    if (at(C.passEnd)) { playClip("audio/carrier/brake.ogg", false, 1); playClip("audio/carrier/air.ogg", false, 0.7); shake(1); }
     if (at(C.stop)) playClip("audio/carrier/air.ogg", false, 0.9);
     if (at(C.revStart)) playClip("audio/carrier/reverse.ogg", false, 0.9);
     // the pilots on the radio
@@ -11851,53 +11923,119 @@ function drawRaiders() {
   }
   ctx.restore();
 }
-// the film, in screen space (the zoom undone): the far glow, the hull in narrow projected strips (blurred while it
-// rushes past), the bays lighting up, the fighters flying out and down to the players
+// the film, in screen space (the zoom undone): the far glow, the star streaks in three depths, the hull on its own
+// sharp layer (fine projected strips, blurred along itself while it rushes past, shaded with distance, its lamps
+// glowing), the engines, lights and doors, then the fighters flying out and down to the players
 function drawCarrierScene() {
-  if (!carrier) return;
-  const K = carrier, C = CARRIER, Pz = carrierPose(K.t), V = carrierView(), z = game.zoom || 1;
+  if (!carrier) { if (cfilm.cv) filmFree(); return; }
+  const K = carrier, C = CARRIER, t = K.t, Pz = carrierPose(t), V = carrierView(t), z = game.zoom || 1;
   const fade = K.out ? Math.max(0, 1 - K.out / C.fadeOut) : 1;
   ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1 / z, 1 / z); ctx.translate(-W / 2, -H / 2);
-  const film = Math.min(1, Math.max(0, K.t) / 0.6) * fade, pass = K.t > C.approachEnd - 0.3 && K.t < C.passEnd + 0.5 ? Math.min(1, (K.t - C.approachEnd + 0.3) / 0.5, (C.passEnd + 0.5 - K.t) / 0.5) : 0;
-  if (film > 0) { ctx.fillStyle = `rgba(0,0,6,${0.18 * film + 0.17 * pass})`; ctx.fillRect(-W, -H, W * 3, H * 3); }   // the arena darkens (more as it rushes by)
-  if (pass > 0) {   // the stars stretched into streaks, streaming the way the hull goes
-    ctx.save(); ctx.strokeStyle = `rgba(200,215,255,${0.5 * pass})`; ctx.lineCap = "round";
-    for (let i = 0; i < 70; i++) {
-      const sp = W * (1.5 + (i * 37 % 11) / 4), y = ((i * 97.13) % 1) * H || (i * 131.7 % H), x = ((((i * 211.7) % W) - K.t * sp) % (W * 1.3) + W * 1.3) % (W * 1.3) - W * 0.15, L = sp * 0.06;
-      ctx.lineWidth = 1 + (i % 3) * 0.6; ctx.beginPath(); ctx.moveTo(x, (i * 131.7) % H); ctx.lineTo(x + L, (i * 131.7) % H - L * 0.3); ctx.stroke();
-    }
+  const film = Math.min(1, Math.max(0, t) / 0.6) * fade, pass = t > C.approachEnd - 0.5 && t < C.passEnd + 0.5 ? Math.min(1, (t - C.approachEnd + 0.5) / 0.5, (C.passEnd + 0.5 - t) / 0.5) : 0;
+  if (film > 0) { ctx.fillStyle = `rgba(0,0,6,${0.22 * film + 0.4 * pass})`; ctx.fillRect(-W, -H, W * 3, H * 3); }   // the arena darkens (much more as it covers the sky)
+  const ax0 = carrierProject(Pz, V, Pz.focus, 490), ax1 = carrierProject(Pz, V, Pz.focus + 200, 490), axis = ax0 && ax1 ? Math.atan2(ax1.y - ax0.y, ax1.x - ax0.x) : -0.3;   // (the way the hull runs on screen)
+  if (pass > 0) {   // the stars stretched into streaks along the hull's way: far ones short and slow, near ones long and fast
+    const R = Math.hypot(W, H) / 2 + 20;
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(axis); ctx.lineCap = "round";
+    [[44, 0.5, 0.035, 1, 0.3], [30, 1.3, 0.09, 1.5, 0.45], [12, 3.1, 0.24, 2.4, 0.6]].forEach(([n, sp, len, lw, al], j) => {
+      ctx.strokeStyle = `rgba(${200 - j * 10},${215 - j * 5},255,${al * pass})`; ctx.lineWidth = lw;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const h1 = (i * 0.61803 + j * 0.37) % 1, h2 = (i * 0.75488 + j * 0.19) % 1, L = len * R * (0.7 + 0.6 * h2), span = 2 * R + L;
+        const x = R - ((h2 * span + t * sp * R * (0.8 + 0.4 * h1)) % span), y = (h1 * 2 - 1) * R;
+        ctx.moveTo(x, y); ctx.lineTo(x + L, y);
+      }
+      ctx.stroke();
+    });
     ctx.restore();
   }
   ctx.globalAlpha = fade;
-  if (Pz.glow > 0.01) {   // the far point: a cold glow among the stars
-    const gx = Math.min(W - U * 0.05, V.ox + V.s * 1190), gy = V.oy + V.s * 135, r = U * (0.03 + 0.1 * (1 - Pz.glow));
+  if (Pz.glow > 0.01) {   // the far point: a cold glow among the stars, a thin flare across it
+    const far = carrierProject({ focus: 0, px: 1190, py: 135, scale: 0, depth: 0 }, V, 0, 360), gx = clamp(far.x, U * 0.05, W - U * 0.05), gy = far.y, r = U * (0.03 + 0.1 * (1 - Pz.glow));
     const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, r * 3); g.addColorStop(0, `rgba(220,235,255,${Pz.glow})`); g.addColorStop(0.3, `rgba(140,170,255,${0.5 * Pz.glow})`); g.addColorStop(1, "rgba(80,100,200,0)");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(gx, gy, r * 3, 0, TAU); ctx.fill();
+    const fl = ctx.createLinearGradient(gx - r * 9, 0, gx + r * 9, 0); fl.addColorStop(0, "rgba(150,180,255,0)"); fl.addColorStop(0.5, `rgba(215,230,255,${0.5 * Pz.glow})`); fl.addColorStop(1, "rgba(150,180,255,0)");
+    ctx.fillStyle = fl; ctx.fillRect(gx - r * 9, gy - Math.max(0.5, r * 0.04), r * 18, Math.max(1, r * 0.08));
   }
+  if (t > 1.4 && t < C.approachEnd) { hullTile(0, "hi"); hullTile(0, "mb"); }   // (the bow's pictures ready before it arrives)
   if (Pz.scale > 0.004) {
-    const blur = Pz.blur * V.s * 26;   // (the motion blur: two faint copies along the way it moves)
-    if (blur > 1) { ctx.globalAlpha = fade * 0.22; drawHull(Pz, V, blur); drawHull(Pz, V, -blur); }
-    ctx.globalAlpha = fade; drawHull(Pz, V, 0);
-    drawBeacons(Pz, V, blur, fade); drawEngines(Pz, V, K.t, fade); drawDoors(Pz, V, K.t, fade);
+    const g = filmLayer(), S = cfilm.s;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = "source-over"; g.globalAlpha = 1; g.clearRect(0, 0, cfilm.cv.width, cfilm.cv.height);
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = Pz.blur > 0.5 ? "medium" : "high";
+    // the hull: sharp, then (rushing past) the blurred one over most of it
+    drawHull(g, Pz, V, "sharp", 1);
+    if (Pz.blur > 0.02) { g.globalAlpha = 0.5 * Pz.blur; drawHull(g, Pz, V, "mb", 1.5); g.globalAlpha = 1; }
+    // its light, only where the hull is: the far end sinking into the dark, the power dipping as it stops and coming
+    // back along the hull from the bow, the star's light on the metal near it
+    const dip = smoothStep((t - C.passEnd) / 0.45), front = -700 + 19400 * smoothStep((t - C.revStart - 0.2) / 1.9), lit = (x) => 1 - dip * (1 - clamp((front - x) / 800, 0, 1));
+    g.setTransform(S, 0, 0, S, 0, 0); g.globalCompositeOperation = "source-atop";
+    const shade = hullGrad(g, Pz, V, (x, zz) => { const fog = zz > 1 ? 0.66 * (1 - Math.pow(zz, -0.75)) : 0; return `rgba(4,6,18,${(1 - (1 - fog) * (1 - 0.45 * (1 - lit(x))) * (1 - 0.6 * Pz.glow)).toFixed(3)})`; });
+    if (shade) { g.fillStyle = shade; g.fillRect(0, 0, W, H); }
+    if (dip > 0 && front > -700 && front < 18000) {   // (the wave of light itself)
+      const wave = hullGrad(g, Pz, V, (x) => `rgba(255,214,160,${(0.34 * Math.exp(-Math.pow((x - front) / 520, 2))).toFixed(3)})`, front);
+      if (wave) { g.fillStyle = wave; g.fillRect(0, 0, W, H); }
+    }
+    const sun = zoomed(toScreen(WW / 2, WH / 2)), sr = Math.max(planetR() * z * 3.2, U * 0.55), sg = g.createRadialGradient(sun.x, sun.y, 0, sun.x, sun.y, sr);
+    sg.addColorStop(0, "rgba(215,225,255,0.26)"); sg.addColorStop(0.45, "rgba(190,205,255,0.1)"); sg.addColorStop(1, "rgba(190,205,255,0)");
+    g.fillStyle = sg; g.fillRect(0, 0, W, H);
+    // its lamps and windows glowing (adding light), dimmed while the power is down
+    g.globalCompositeOperation = "lighter"; g.globalAlpha = 0.85;
+    drawHull(g, Pz, V, "glow", 4, (x) => 0.25 + 0.75 * lit(x) + (dip > 0 ? 0.6 * Math.exp(-Math.pow((x - front) / 520, 2)) : 0));
+    g.globalCompositeOperation = "source-over"; g.globalAlpha = 1;
+    drawBeacons(g, Pz, V, Pz.blur * V.s * 26, axis, lit); drawEngines(g, Pz, V, t); drawDoors(g, Pz, V, t);
+    ctx.globalAlpha = fade; ctx.drawImage(cfilm.cv, 0, 0, W, H);
+    hullEvict(false);
   }
   ctx.globalAlpha = 1;
-  // the fighters' films: out of the bay (side view, a speck), swinging down and growing to their size at the player
+  // the fighters' films: a flash at the bay, then out (side view, a speck), swinging down and growing to their size at
+  // the player, a violet trail behind
   for (const F of K.fx) {
     const u = Math.min(1, F.t / C.fly), e = u * u * (3 - 2 * u), p0 = carrierProject(Pz, V, F.bay[0], F.bay[1]); if (!p0) continue;
     const T = F.toMe ? game : enemy, h = zoomed(toScreen(T.x + Math.cos(F.a) * U, T.y + Math.sin(F.a) * U));
     const cx = (p0.x + h.x) / 2 + (F.i % 2 ? -1 : 1) * W * 0.25, cy = Math.max(p0.y, h.y) + H * 0.18;   // (a swing out toward the camera)
-    const x = (1 - e) * (1 - e) * p0.x + 2 * (1 - e) * e * cx + e * e * h.x, y = (1 - e) * (1 - e) * p0.y + 2 * (1 - e) * e * cy + e * e * h.y;
-    const dx = 2 * (1 - e) * (cx - p0.x) + 2 * e * (h.x - cx), dy = 2 * (1 - e) * (cy - p0.y) + 2 * e * (h.y - cy), len = shipSize() * RAID.size * z * (0.08 + 0.92 * e * e);
-    const top = clamp((u - 0.65) / 0.3, 0, 1);
+    const at = (q) => [(1 - q) * (1 - q) * p0.x + 2 * (1 - q) * q * cx + q * q * h.x, (1 - q) * (1 - q) * p0.y + 2 * (1 - q) * q * cy + q * q * h.y];
+    const [x, y] = at(e), dx = 2 * (1 - e) * (cx - p0.x) + 2 * e * (h.x - cx), dy = 2 * (1 - e) * (cy - p0.y) + 2 * e * (h.y - cy), len = shipSize() * RAID.size * z * (0.1 + 0.9 * e * e);
+    const top = clamp((u - 0.65) / 0.3, 0, 1), spill = cfxImg("hangar-spill");
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    if (F.t < 0.3) {   // (the launch flash)
+      const k = 1 - F.t / 0.3, r = V.s * 70 * (0.5 + 0.8 * (1 - k));
+      const fg = ctx.createRadialGradient(p0.x, p0.y, 0, p0.x, p0.y, r); fg.addColorStop(0, `rgba(255,244,220,${0.95 * k})`); fg.addColorStop(0.35, `rgba(255,170,80,${0.55 * k})`); fg.addColorStop(1, "rgba(255,120,40,0)");
+      ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(p0.x, p0.y, r, 0, TAU); ctx.fill();
+      if (spill) { ctx.globalAlpha = 0.7 * k; ctx.drawImage(spill, p0.x - r * 2.2, p0.y - r * 0.5, r * 4.4, r * 1.0); ctx.globalAlpha = 1; }
+    }
+    if (u < 0.97) {   // (the trail: where it was a moment ago)
+      const us = Math.max(0, (F.t - 0.2) / C.fly), [tx, ty] = at(us * us * (3 - 2 * us)), tg = ctx.createLinearGradient(x, y, tx, ty);
+      tg.addColorStop(0, `rgba(190,170,255,${0.75 * (1 - top * 0.6)})`); tg.addColorStop(0.3, "rgba(120,90,255,0.35)"); tg.addColorStop(1, "rgba(90,60,255,0)");
+      ctx.strokeStyle = tg; ctx.lineWidth = Math.max(1.2, len * 0.11); ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty); ctx.stroke();
+    }
+    ctx.restore();
     if (top < 1) drawFighter(x, y, len, Math.atan2(dy, dx) + Math.PI, "side", "boost", F.t, 1 - top);
     if (top > 0) drawFighter(x, y, len, Math.atan2(dx, -dy), "top", "boost", F.t, top);
   }
   ctx.restore();
 }
-// over the arena (the ships too): the hull's shadow sweeping across while it rushes by, and the cinema's black bars
+// a gradient along the hull's line on screen, its colour from the hull's own x (and depth z) at 22 points (and at `extra`)
+function hullGrad(g, Pz, V, colorAt, extra) {
+  const xa = Math.max(0, Pz.focus + (0.2 - 1) / Pz.depth), xb = 17300; if (xa >= xb - 10) return null;
+  const za = 1 + Pz.depth * (xa - Pz.focus), zb = 1 + Pz.depth * (xb - Pz.focus), A = carrierProject(Pz, V, xa, 490), B = carrierProject(Pz, V, xb, 490);
+  if (!A || !B) return null;
+  const dx = B.x - A.x, dy = B.y - A.y, L2 = dx * dx + dy * dy; if (L2 < 4) return null;
+  const xs = []; for (let k = 0; k <= 22; k++) xs.push(Pz.focus + (za * Math.pow(zb / za, k / 22) - 1) / Pz.depth);
+  if (extra != null) for (const d of [-900, -520, -260, 0, 260, 520, 900]) { const x = extra + d; if (x > xa && x < xb) xs.push(x); }
+  xs.sort((a, b) => a - b);
+  const gr = g.createLinearGradient(A.x, A.y, B.x, B.y); let last = 0;
+  for (const x of xs) {
+    const p = carrierProject(Pz, V, x, 490); if (!p) continue;
+    last = Math.max(last, clamp(((p.x - A.x) * dx + (p.y - A.y) * dy) / L2, 0, 1));
+    gr.addColorStop(last, colorAt(x, p.z));
+  }
+  return gr;
+}
+// over the arena (the ships too): the hull's shadow sweeping across while it rushes by, the near dust, the flash as it
+// arrives, the dark closing in from the corners, and the cinema's black bars
 function drawCarrierOver() {
   if (!carrier || carrier.t < 0) return;
-  const K = carrier, C = CARRIER, fade = K.out ? Math.max(0, 1 - K.out / C.fadeOut) : 1, Pz = carrierPose(K.t), V = carrierView();
+  const K = carrier, C = CARRIER, fade = K.out ? Math.max(0, 1 - K.out / C.fadeOut) : 1, Pz = carrierPose(K.t), V = carrierView(K.t);
   const S = CFX.shadow, sh = cfxImg("flyover-shadow");
   if (sh && K.t > S.from && K.t < S.to) {   // the hull's shadow: only on the star's disc and the ships (a mask moving with the hull)
     const a = carrierProject(Pz, V, Pz.focus + 150, 760), b = carrierProject(Pz, V, Pz.focus + 450, 760);
@@ -11913,82 +12051,130 @@ function drawCarrierOver() {
       }
     }
   }
-  // the dust near the camera: two bands streaming past (the nearer longer, faster, fewer)
+  // the dust near the camera: two bands streaming past (the nearer longer, faster, fewer), along the tilted camera
   const Dd = CFX.dust, dimg = cfxImg("dust-streak");
   if (dimg && K.t > Dd.from && K.t < Dd.to) {
-    const ramp = Math.min(1, (K.t - Dd.from) / 0.4, K.t < C.passEnd ? 1 : (Dd.to - K.t) / (Dd.to - C.passEnd)), dl = Math.hypot(Dd.dir[0], Dd.dir[1]), ux = Dd.dir[0] / dl, uy = Dd.dir[1] / dl, ang = Math.atan2(uy, ux);
+    const ramp = Math.min(1, (K.t - Dd.from) / 0.4, K.t < C.passEnd ? 1 : (Dd.to - K.t) / (Dd.to - C.passEnd)), dl = Math.hypot(Dd.dir[0], Dd.dir[1]), ux = (Dd.dir[0] * V.cr - Dd.dir[1] * V.sr) / dl, uy = (Dd.dir[0] * V.sr + Dd.dir[1] * V.cr) / dl, ang = Math.atan2(uy, ux);
     const now = time, dt = Math.min(0.1, now - (K.dustT || now)); K.dustT = now;
     if (!K.dust) K.dust = Dd.layers.map(([sp, n, asp, th]) => Array.from({ length: n }, () => ({ x: Math.random() * W * 1.2, y: Math.random() * H, a: 0.35 + Math.random() * 0.5, tilt: (Math.random() - 0.5) * 0.12, sp, asp, th })));
     ctx.save(); ctx.globalCompositeOperation = "lighter";
     for (const band of K.dust) for (const q of band) {
       q.x += ux * q.sp * V.s * dt; q.y += uy * q.sp * V.s * dt;
-      if (q.x < -W * 0.3 || q.y > H * 1.2) { q.x = W * (1 + Math.random() * 0.3); q.y = Math.random() * H * 1.1 - H * 0.2; }
+      if (q.x < -W * 0.3 || q.y > H * 1.2) { if (Math.random() < W / (W + H * 0.5)) { q.x = W * (1 + Math.random() * 0.3); q.y = Math.random() * H * 1.1 - H * 0.2; } else { q.x = Math.random() * W * 1.2; q.y = -H * (0.05 + Math.random() * 0.15); } }
       const th = q.th * V.s * 1.4, len = th * q.asp * 2.2;
       ctx.globalAlpha = q.a * ramp * fade; ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(ang + q.tilt); ctx.drawImage(dimg, -len / 2, -th * 2.5, len, th * 5); ctx.restore();
     }
     ctx.restore();
   }
+  // the light: a cold flash as the bow arrives, a violet one as the engines light; the corners closing in
+  const film = Math.min(1, K.t / 0.6) * fade, pass = K.t > C.approachEnd - 0.5 && K.t < C.passEnd + 0.5 ? Math.min(1, (K.t - C.approachEnd + 0.5) / 0.5, (C.passEnd + 0.5 - K.t) / 0.5) : 0;
+  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.hypot(W, H) * 0.24, W / 2, H / 2, Math.hypot(W, H) * 0.56);
+  vg.addColorStop(0, "rgba(0,0,8,0)"); vg.addColorStop(1, `rgba(0,0,8,${(0.42 + 0.28 * pass) * film})`);
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  const f1 = K.t > C.shove[0] ? 0.5 * Math.exp(-(K.t - C.shove[0]) / 0.22) : 0, f2 = K.t > CFX.engines.at ? 0.2 * Math.exp(-(K.t - CFX.engines.at) / 0.3) : 0;
+  if (f1 > 0.01) { ctx.fillStyle = `rgba(214,228,255,${f1 * fade})`; ctx.fillRect(0, 0, W, H); }
+  if (f2 > 0.01) { ctx.fillStyle = `rgba(150,130,255,${f2 * fade})`; ctx.fillRect(0, 0, W, H); }
   const bar = H * 0.085 * Math.min(1, K.t / 0.6) * fade;
   if (bar > 0.5) { ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, W, bar); ctx.fillRect(0, H - bar, W, bar); }
 }
-// the red lights: each its own beat (one in four dim and steady), streaked with the blur while it rushes by
-function drawBeacons(Pz, V, blur, fade) {
+// the red lights: each its own beat (one in four dim and steady), streaked along the hull with the blur while it
+// rushes by, out while the power is down (`lit`)
+function drawBeacons(g, Pz, V, blur, axis, lit) {
   const L = beaconList(), img = cfxImg("red-beacon"); if (!L || !img) return;
-  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  g.save(); g.globalCompositeOperation = "lighter";
   for (const b of L) {
     const p = carrierProject(Pz, V, b.x, b.y); if (!p || p.x < -20 || p.x > W + 20 || p.y < -20 || p.y > H + 20) continue;
-    const on = b.steady ? 0.3 : 0.15 + 0.85 * Math.max(0, Math.sin(TAU * (time / b.period + b.phase)) * 1.6 - 0.6), s = Math.max(2.5, 55 * V.s * Pz.scale / p.z);
-    ctx.globalAlpha = Math.min(1, on) * fade;
+    const on = b.steady ? 0.3 : 0.15 + 0.85 * Math.max(0, Math.sin(TAU * (time / b.period + b.phase)) * 1.6 - 0.6), s = Math.max(3, 62 * V.s * Pz.scale / p.z);
+    g.globalAlpha = Math.min(1, on) * lit(b.x);
     const st = blur > 1 ? 1 + blur / s * 1.6 : 1;   // (a streak at speed)
-    ctx.save(); ctx.translate(p.x, p.y); ctx.scale(st, 1); ctx.drawImage(img, -s / 2, -s / 2, s, s); ctx.restore();
+    g.save(); g.translate(p.x, p.y); g.rotate(axis); g.scale(st, 1); g.drawImage(img, -s / 2, -s / 2, s, s); g.restore();
   }
-  ctx.restore();
+  g.restore();
 }
-// six engines at the stern, lighting one after another as it backs off (35 ms apart, 200 ms each), idling after
-function drawEngines(Pz, V, t, fade) {
+// six engines at the stern, lighting one after another as it backs off (35 ms apart, 200 ms each, each with a flare as it
+// catches), burning hard while it backs away, idling after; a thin flare of light across the whole bank
+function drawEngines(g, Pz, V, t) {
   const E = CFX.engines; if (t < E.at - 0.1) return;
   const a = carrierProject(Pz, V, E.stern[0], E.stern[1]), noz = cfxImg("thruster-nozzle"), blo = cfxImg("thruster-bloom"); if (!a || !noz || !blo) return;
   const inView = clamp((W + V.s * 30 - a.x) / (V.s * 60), 0, 1) * clamp((a.x + V.s * 30) / (V.s * 60), 0, 1); if (inView <= 0) return;
-  const k = V.s * 1.25, idle = t > CARRIER.reveal ? 0.55 + 0.1 * Math.sin(time * 7) : 1;
-  E.offs.forEach(([ox, oy], j) => {
+  const k = V.s * 1.25 * (1 + 0.45 * carrierCam().tall), burn = 1 - smoothStep((t - CARRIER.reveal + 0.6) / 1.2), idle = (0.55 + 0.1 * Math.sin(time * 7)) + 0.45 * burn;
+  let sum = 0;
+  E.offs.forEach(([ex, ey], j) => {
     const ig = clamp((t - E.at - j * 0.035) / 0.2, 0, 1); if (ig <= 0) return;
-    const x = a.x + ox * k, y = a.y + oy * k, bw = E.bloom * k * (0.7 + 0.5 * ig) * (0.9 + 0.1 * Math.sin(time * 40 + j)), nw = E.nozzle * k, nh = nw * 148 / 200;
-    ctx.save(); ctx.globalAlpha = fade * inView * Math.min(1, ig * idle); ctx.globalCompositeOperation = "lighter"; ctx.drawImage(blo, x - bw / 2, y - bw / 2, bw, bw); ctx.restore();
-    ctx.save(); ctx.globalAlpha = fade * inView; ctx.drawImage(noz, x - nw / 2, y - nh / 2, nw, nh); ctx.restore();
+    const flare = Math.exp(-Math.max(0, t - E.at - j * 0.035 - 0.12) / 0.25);   // (catching)
+    const x = a.x + (ex * V.cr - ey * V.sr) * k, y = a.y + (ex * V.sr + ey * V.cr) * k, bw = E.bloom * k * (0.8 + 0.5 * ig + 0.35 * burn + 1.5 * flare * ig) * (0.9 + 0.1 * Math.sin(time * 40 + j)), nw = E.nozzle * k, nh = nw * 148 / 200;
+    g.save(); g.globalAlpha = inView * Math.min(1, ig * idle + flare * ig); g.globalCompositeOperation = "lighter"; g.drawImage(blo, x - bw / 2, y - bw / 2, bw, bw); g.restore();
+    g.save(); g.globalAlpha = inView; g.translate(x, y); g.rotate(V.roll); g.drawImage(noz, -nw / 2, -nh / 2, nw, nh); g.restore();
+    sum += ig * (idle + flare) / 6;
   });
+  if (sum > 0.02) {   // (the flare across the bank)
+    const w = E.bloom * k * (5 + 5 * burn), h = E.bloom * k * 0.5;
+    g.save(); g.globalCompositeOperation = "lighter"; g.globalAlpha = inView * Math.min(1, 0.55 * sum); g.translate(a.x - 11 * k, a.y - 8 * k); g.drawImage(blo, -w / 2, -h / 2, w, h); g.restore();
+  }
 }
 // the three hangar doors: closed to open in six stages 0.48 s before the bay's first launch, open till 0.8 s after its
-// last, the orange light inside spilling out as they open
-function drawDoors(Pz, V, t, fade) {
-  const D = CFX.doors, atlas = cfxImg("hangar-atlas"), spill = cfxImg("hangar-spill"); if (!atlas || t < CARRIER.reveal - 1) return;
+// last, the orange light inside spilling out as they open. The package's widths and angles are for its own final
+// pose: here they follow the hull's projection (this screen's lens and tilt)
+function drawDoors(g, Pz, V, t) {
+  const D = CFX.doors, atlas = cfxImg("hangar-atlas"), spill = cfxImg("hangar-spill"), Pr = CARRIER.proj, R0 = CARRIER.revealPose; if (!atlas || t < CARRIER.reveal - 1) return;
   CARRIER.bays.forEach(([bx, by], bi) => {
     const ts = []; for (let i = bi; i < CARRIER.fighters; i += 3) ts.push(CARRIER.launchAt + i * CARRIER.launchGap);
     const first = ts[0], last = ts[ts.length - 1] + D.hold;
     const open = t < first - D.open ? 0 : t < first ? (t - first + D.open) / D.open : t < last ? 1 : Math.max(0, 1 - (t - last) / D.open);
     const p = carrierProject(Pz, V, bx, by); if (!p) return;
-    const w = D.widths[bi] * V.s, h = w * 160 / 256, f = Math.min(5, Math.round(open * 5)), ang = D.angles[bi] * Math.PI / 180;
-    ctx.save(); ctx.globalAlpha = fade; ctx.translate(p.x, p.y); ctx.rotate(ang);
-    if (open > 0 && spill) { ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = fade * open; ctx.drawImage(spill, -w * 1.1, -w * 0.15, w * 2.2, w * 2.2); ctx.restore(); }   // (out and down from the opening)
-    ctx.drawImage(atlas, f * 256, 0, 256, 160, -w / 2, -h / 2, w, h);
-    ctx.restore();
+    const z0 = 1 + R0.depth * (bx - R0.focus), dy = by - Pr.axisY, sl0 = Pr.slope - Pr.vs * dy * R0.depth, sl = Pr.slope - Pr.vs * dy * Pz.depth;
+    const rel = (Pz.scale / (p.z * p.z) * Math.hypot(1, sl)) / (R0.scale / (z0 * z0) * Math.hypot(1, sl0));
+    const w = D.widths[bi] * V.s * rel, h = w * 160 / 256, f = Math.min(5, Math.round(open * 5)), ang = D.angles[bi] * Math.PI / 180 + Math.atan(sl) - Math.atan(sl0) + V.roll;
+    g.save(); g.translate(p.x, p.y); g.rotate(ang);
+    if (open > 0 && spill) { g.save(); g.globalCompositeOperation = "lighter"; g.globalAlpha = open * (0.85 + 0.15 * Math.sin(time * 9 + bi)); g.drawImage(spill, -w * 1.5, -w * 0.2, w * 3, w * 3); g.restore(); }   // (out and down from the opening)
+    g.drawImage(atlas, f * 256, 0, 256, 160, -w / 2, -h / 2, w, h);
+    g.restore();
   });
 }
-function drawHull(Pz, V, off) {
-  const step = 40, H2 = 760;
-  for (let i = 0; i < CARRIER.tiles; i++) {
-    const img = artImage("art/carrier/hull/hull-0" + i + ".webp"); if (!img) continue;
-    const L0 = i * CARRIER.tileW, LW = i === 8 ? 948 : CARRIER.tileW;
-    for (let x0 = 0; x0 < LW; x0 += step) {
-      const x1 = Math.min(LW, x0 + step), a = carrierProject(Pz, V, L0 + x0, 0), b = carrierProject(Pz, V, L0 + x1, 0), c = carrierProject(Pz, V, L0 + x0, H2);
-      if (!a || !b || !c) continue;
-      if (Math.max(a.x, b.x) + off < -10 || Math.min(a.x, b.x) + off > W + 10) continue;
-      const sw = (x1 - x0) / 2, sx = 1 + x0 / 2;
-      ctx.save();
-      ctx.transform((b.x - a.x) / sw, (b.y - a.y) / sw, (c.x - a.x) / 380, (c.y - a.y) / 380, a.x + off, a.y);
-      ctx.drawImage(img, sx, 0, Math.min(sw + 0.7, img.width - sx), 380, 0, 0, Math.min(sw + 0.7, img.width - sx), 380);
-      ctx.restore();
+// the hull on the film's layer `g`. The package's projection keeps every column of the hull upright and only changes
+// its height with distance, so it is drawn in thin upright strips, each fitted at its own middle (around the hull's
+// waist, y = 490) and only as wide as keeps its edges within `tol` device pixels of the true shape: about 9 px on
+// screen wherever it is (no steps along the silhouette), each overlapping the next by a pixel (no seams).
+// kind: "sharp" (the full-size tile where the hull is large on screen and that tile has loaded; the half-size one
+// otherwise), "mb" (blurred along the hull), "glow" (its lights; `alphaAt(x)`: how bright along the hull)
+function drawHull(g, Pz, V, kind, tol, alphaAt) {
+  const C = CARRIER, Pr = C.proj, S = cfilm.s, yc = 490, t = carrier ? carrier.t : 99, base = g.globalAlpha;
+  const xMin = Pz.focus + (0.08 - 1) / Pz.depth, k0 = S * V.s * Pz.scale;   // (device px per hull px at z = 1)
+  for (let i = 0; i < C.tiles; i++) {
+    const L0 = i * C.tileW, LW = i === 8 ? 948 : C.tileW, xa = Math.max(L0, xMin), xb = L0 + LW; if (xa >= xb) continue;
+    // on screen at all? (its four corners, the near end clipped at the camera)
+    let bx0 = 1e9, bx1 = -1e9, by0 = 1e9, by1 = -1e9;
+    for (const x of [xa, xb]) for (const y of [150, 760]) { const p = carrierProject(Pz, V, x, y); if (!p) continue; bx0 = Math.min(bx0, p.x); bx1 = Math.max(bx1, p.x); by0 = Math.min(by0, p.y); by1 = Math.max(by1, p.y); }
+    if (bx1 < -8 || bx0 > W + 8 || by1 < -8 || by0 > H + 8) continue;
+    const zN = 1 + Pz.depth * (xa - Pz.focus), dens = k0 / zN;
+    let img = null, kx = 0.5, ky = 0.5, pad = 1;   // (texels per hull px across and down, the bleed before the tile's own x = 0)
+    if (kind === "mb") { img = hullTile(i, "mb"); kx = 0.25; ky = 1; pad = 2; }
+    else if (kind === "glow") { img = hullTile(i, "glow"); kx = ky = 0.25; pad = 2; }
+    else {
+      if (dens > 0.75 && !filmLite) img = hullTile(i, "hi", !(t < C.revStart + 0.3 || i === 0));   // (backing off, only the bow's is fetched anew)
+      if (img) { kx = ky = 1; pad = 2; } else img = hullTile(i, "lo");
+    }
+    if (!img) continue;
+    const iw = img.width, ih = img.height;
+    for (let x = xa; x < xb - 0.01;) {
+      const z = 1 + Pz.depth * (x - Pz.focus), hs = k0 * Pr.vs * 540 / z, step = clamp(tol * 4 * z / (hs * Pz.depth), 4, 160), x1 = Math.min(xb, x + step);
+      const xm = (x + x1) / 2, dxm = xm - Pz.focus, zm = 1 + Pz.depth * dxm, dyc = yc - Pr.axisY;
+      const ax = Pz.scale / (zm * zm), ay = Pz.scale * (Pr.slope - Pr.vs * dyc * Pz.depth) / (zm * zm), bY = Pz.scale * Pr.vs / zm;   // (the hull's x and y, in reference px, here)
+      const rxm = Pz.px + Pz.scale * dxm / zm, rym = Pz.py + Pz.scale * (Pr.slope * dxm + Pr.vs * dyc) / zm;
+      const sx = V.ox + V.s * (rxm * V.cr - rym * V.sr), sy = V.oy + V.s * (rxm * V.sr + rym * V.cr), m = hs / S + 24 + (x1 - x) * ax * V.s;
+      if (sx > -m && sx < W + m && sy > -m && sy < H + m) {
+        const a = ax / kx, b = ay / kx, d = bY / ky, e = rxm + ax * (L0 - xm - pad / kx), f = rym + ay * (L0 - xm - pad / kx) - bY * yc, q = S * V.s;
+        const u0 = (x - L0) * kx + pad, uw = Math.min((x1 - x) * kx + kx * zm * zm / k0 * 1.1, iw - u0);   // (a device pixel of overlap)
+        if (uw > 0) {
+          if (alphaAt) g.globalAlpha = base * Math.min(1, alphaAt(xm));
+          g.setTransform(q * (V.cr * a - V.sr * b), q * (V.sr * a + V.cr * b), q * (-V.sr * d), q * (V.cr * d), S * V.ox + q * (V.cr * e - V.sr * f), S * V.oy + q * (V.sr * e + V.cr * f));
+          g.drawImage(img, u0, 0, uw, ih, u0, 0, uw, ih);
+        }
+      }
+      x = x1;
     }
   }
+  g.globalAlpha = base;
 }
 // ---------- LYTH's water jets (art/ships/lyth/jets/, the package's 17 frames over the 512 px drawing) ----------
 // In BOILER's water the side panels split and two arms swing out from the aft shoulders, each with a jet-ski pump
