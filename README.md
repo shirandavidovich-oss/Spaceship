@@ -669,6 +669,12 @@ game in Google Play (a developer account), Google Play Billing in the app, and t
 **Playing lying down**: with the phone held nearly upright (more than `LIE_ON` 72° from flat) tilting does nothing and
 the thrust button alone steers; tipped back under `LIE_OFF` 62° tilting steers again. A short note shows each change.
 
+**The screen never stays black.** An explosion film that shows no picture within 2 s, stops moving for 1.5 s or runs
+past its length ends by itself, and a tap anywhere skips it (`cineWatch`). Pictures not drawn for 40 s are let go
+(`artPurge`), the HUSK atlases load only while its arm or alien is out, and if the screen's drawing surface is lost
+(the phone short of graphics memory) every picture is let go at once and, if it does not come back within 3 s, the
+game reloads. The last problem noted shows small at the bottom of the title screen (`noteIssue`).
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

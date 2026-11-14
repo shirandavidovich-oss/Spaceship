@@ -2311,8 +2311,16 @@ addEventListener("resize", resize);
 // goes on). Note it (shown in the test hangar), and when it comes back, set it up again
 const ISSUE_KEY = "orbit-break.lastIssue";
 function noteIssue(what) { try { localStorage.setItem(ISSUE_KEY, new Date().toLocaleTimeString() + " " + String(what).slice(0, 160)); } catch (e) {} }
-cv.addEventListener("contextlost", () => noteIssue("screen lost (memory)"));
-cv.addEventListener("contextrestored", () => { noteIssue("screen lost (memory), came back"); try { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); makeStars(); } catch (e) {} });
+// the screen's drawing surface lost (the phone short of graphics memory): every picture let go at once so it can come
+// back; not back within 3 s, the game reloads (better than a black screen with only the sound)
+let lostAt = 0;
+cv.addEventListener("contextlost", (e) => {
+  noteIssue("screen lost (memory)"); lostAt = performance.now();
+  try { e.preventDefault(); } catch (e2) {}
+  try { artPurge(0); } catch (e2) {}
+  setTimeout(() => { if (lostAt && !BOT) { noteIssue("screen lost (memory), reloaded"); location.reload(); } }, 3000);
+});
+cv.addEventListener("contextrestored", () => { lostAt = 0; noteIssue("screen lost (memory), came back"); try { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); makeStars(); } catch (e) {} });
 
 // The computer opponent is this same game running a second time, hidden, inside the page (see THE COMPUTER PLAYER).
 // That copy is the "bot": it plays like a second phone, so it has every weapon and magic a player has.
@@ -4407,7 +4415,7 @@ function undock() {
 }
 function drawStation() {
   if (game.stage === "gift" || game.stage === "opening" || game.stage === "title") return;
-  if (game.ship === "husk" || (enemy.on && enemy.ship === "husk")) for (const S of stations) { artImage(stationLook(S).huskIn); artImage(stationLook(S).huskLoop); artImage(stationLook(S).huskEmpty); }   // (HUSK about: its infection's frames)
+  if (huskOf(game) || huskOf(enemy) || huskCreature) for (const S of stations) { artImage(stationLook(S).huskIn); artImage(stationLook(S).huskLoop); artImage(stationLook(S).huskEmpty); }   // (HUSK's arm out, or its alien about: its infection's frames)
   const lit = canDock(), z = game.zoom || 1;
   for (const S of stations) {
     const L = stationLook(S), sz = stationSize(S), P = stationPos(S), p = toScreen(P.x, P.y);
@@ -10689,8 +10697,16 @@ function artImage(src) {
   if (BOT) return null;   // the bot draws nothing, so it loads no pictures
   let a = artCache[src];
   if (!a) { a = artCache[src] = new Image(); a.src = src; }
+  artUsed[src] = time;
   return a.complete && a.naturalWidth ? a : null;
 }
+// pictures not drawn for `idle` s are let go (their memory back to the phone; drawn again later: loaded again, from the
+// phone's own copy). Every 10 s; all of them at once if the screen is lost
+const artUsed = {};
+function artPurge(idle) {
+  for (const src in artCache) if (!(time - (artUsed[src] ?? -1e9) < idle)) { delete artCache[src]; delete artUsed[src]; }   // (only forgotten: one still held somewhere keeps working)
+}
+setInterval(() => { try { if (!BOT) artPurge(40); } catch (e) {} }, 10000);
 const RESULT_ART = {"win":{"title":"YOU WIN","width":2059,"height":393,"static":"art/ui/result/win-static.webp","letters":[{"src":"art/ui/result/win-01-y.webp","x":0,"y":0,"w":367,"h":393,"char":"Y"},{"src":"art/ui/result/win-02-o.webp","x":261,"y":0,"w":395,"h":393,"char":"O"},{"src":"art/ui/result/win-03-u.webp","x":577,"y":0,"w":422,"h":393,"char":"U"},{"src":"art/ui/result/win-04-w.webp","x":1029,"y":0,"w":506,"h":393,"char":"W","mechanical":{"upper":{"src":"art/ui/result/win-04-w-upper.webp","x":1041,"y":0,"w":494,"h":212},"lower":{"src":"art/ui/result/win-04-w-lower.webp","x":1029,"y":200,"w":445,"h":193},"contacts":[{"x":1151,"y":200},{"x":1364,"y":200}]}},{"src":"art/ui/result/win-05-i.webp","x":1435,"y":0,"w":265,"h":393,"char":"I"},{"src":"art/ui/result/win-06-n.webp","x":1620,"y":0,"w":439,"h":393,"char":"N"}]},"loss":{"title":"GAME OVER","width":2113,"height":330,"static":"art/ui/result/loss-static.webp","letters":[{"src":"art/ui/result/loss-01-g.webp","x":0,"y":0,"w":325,"h":330,"char":"G"},{"src":"art/ui/result/loss-02-a.webp","x":227,"y":0,"w":308,"h":330,"char":"A"},{"src":"art/ui/result/loss-03-m.webp","x":495,"y":0,"w":368,"h":330,"char":"M"},{"src":"art/ui/result/loss-04-e.webp","x":791,"y":0,"w":309,"h":330,"char":"E"},{"src":"art/ui/result/loss-05-o.webp","x":1095,"y":0,"w":295,"h":330,"char":"O"},{"src":"art/ui/result/loss-06-v.webp","x":1374,"y":0,"w":281,"h":330,"char":"V","mechanical":{"upper":{"src":"art/ui/result/loss-06-v-upper.webp","x":1379,"y":0,"w":276,"h":180},"lower":{"src":"art/ui/result/loss-06-v-lower.webp","x":1374,"y":168,"w":224,"h":162},"contacts":[{"x":1433,"y":168},{"x":1543,"y":168}]}},{"src":"art/ui/result/loss-07-e.webp","x":1571,"y":0,"w":299,"h":330,"char":"E"},{"src":"art/ui/result/loss-08-r.webp","x":1794,"y":0,"w":319,"h":330,"char":"R"}]}};
 // ======================================================================
 //  ORBIT BREAK: the title screen, the music and the two sound dials, the CONNECT button, YOU WIN / GAME OVER
@@ -10852,12 +10868,27 @@ function playShipFilm(id) {
       try { URL.revokeObjectURL(cine.urls[id]); } catch (e) {} delete cine.urls[id]; };   // (its memory back)
     v.addEventListener("ended", done); v.addEventListener("error", done);
     v.addEventListener("pointerdown", (e) => { e.preventDefault(); done(); });   // a tap skips it
-    document.body.appendChild(v); cine.el = v; cine.on = true;
+    document.body.appendChild(v); cine.el = v; cine.on = true; cine.done = done; cine.t = 0; cine.seen = -1; cine.still = 0;
     game.thrust = null; game.stick = null; game.fire = [null, null, null, null];
     v.play().catch(() => { v.muted = true; v.play().catch(done); });   // (sound blocked: play it silent)
   }, 650);
   return true;
 }
+// the film must never leave the screen black: it ends by itself if it does not start showing pictures within 2 s, stops
+// moving for 1.5 s, or runs past its length (or 12 s); a tap anywhere skips it too
+function cineWatch(dt) {
+  const v = cine.el; if (!v || !cine.done) return;
+  cine.t += dt;
+  const ct = v.currentTime || 0;
+  if (ct > cine.seen + 0.01) { cine.seen = ct; cine.still = 0; } else cine.still += dt;
+  const len = isFinite(v.duration) && v.duration > 0 ? v.duration + 1.5 : 12;
+  let why = null;
+  if (cine.t > 2 && (!v.videoWidth || v.readyState < 2)) why = "film: no picture";
+  else if (cine.t > 2 && cine.still > 1.5 && !v.ended) why = "film: stuck";
+  else if (cine.t > Math.min(len, 14)) why = "film: too long";
+  if (why) { noteIssue(why); cine.done(); }
+}
+addEventListener("pointerdown", () => { if (cine.on && cine.done) cine.done(); }, true);   // (a tap anywhere skips the film)
 // ---- the title screen (the main menu): the game's name, VEXAR, tap to start ----
 // where the title's parts go. A tall screen (a phone held upright, a folded Fold): one column, the name, then the shop
 // banner, then the dials. A wide or square screen (an opened Fold, a phone on its side): two columns above the dials,
@@ -10880,6 +10911,8 @@ function drawTitle() {
   ctx.shadowBlur = 0; ctx.direction = textDir();
   ctx.font = `700 ${Math.round(f * 0.36)}px Rubik, Arial, sans-serif`; ctx.fillStyle = `rgba(143,245,216,${0.6 + 0.4 * Math.sin(time * 3)})`;
   ctx.fillText(tr("tapStart"), T.cx, T.cy + s * 0.62 + f * 1.1);
+  { let iss = null; try { iss = localStorage.getItem(ISSUE_KEY); } catch (e) {}   // the last problem the game noted, small at the bottom (for telling Claude)
+    if (iss) { ctx.font = `500 ${Math.max(9, Math.round(U * 0.018))}px Rubik, Arial, sans-serif`; ctx.fillStyle = "rgba(255,138,138,0.55)"; ctx.direction = "ltr"; ctx.fillText("⚠ " + iss, W / 2, H - U * 0.02); } }
   ctx.restore();
 }
 // the main menu's way into the ship shop (the Shop Entry package): the weapon store's picture as a wide banner under
@@ -15737,7 +15770,7 @@ let last = performance.now(), frameDt = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; frameDt = dt;
   requestAnimationFrame(frame);   // first: an error below must never stop the game
-  if (cine.on) { musicTick(); return; }   // a ship's film is playing over the game: everything waits
+  if (cine.on) { musicTick(); cineWatch(dt); return; }   // a ship's film is playing over the game: everything waits
   try { update(dt); } catch (e) { console.error("update:", e && e.stack || e); }
   // the computer player moves on with every frame of the page (it has no frames of its own)
   if (bot.ready && !shopPaused()) { const bw = botWindow(); try { bw && bw.botTick && bw.botTick(dt); } catch (e) { console.error("computer player:", e && e.stack || e); } }

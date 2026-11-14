@@ -936,4 +936,9 @@ ok("playing lying down (the phone nearly upright): tilt does nothing, the thrust
   assert(html.includes("const LIE_ON = 72, LIE_OFF = 62;") && html.includes("const c = tilt.lying ? { side: 0, fwd: 0 } : controlFromTilt(tilt);") && html.includes("drawLieNote();"));
   assert(controlFromTilt({ pitch: HOLD_ANGLE, roll: 0 }).fwd === 0);
 });
+ok("the screen never stays black: a film that shows nothing, sticks or runs long ends by itself; a lost screen frees pictures (reloads if it does not come back); unused pictures let go", () => {
+  const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(html.includes("if (cine.on) { musicTick(); cineWatch(dt); return; }") && html.includes("function cineWatch(dt)"));
+  assert(html.includes("try { artPurge(0); } catch (e2) {}") && html.includes("location.reload();") && html.includes("artPurge(40)"));
+});
 console.log(n + " checks passed");
