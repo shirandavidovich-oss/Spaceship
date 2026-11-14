@@ -931,4 +931,9 @@ ok("buying a ship for good or renting one needs the account (signed in), so it i
   const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
   assert(html.includes('if (o.kind === "ship" && (shop.mode === "own" || shop.mode === "week") && server.on && !server.signedIn) {') && html.includes("function showAccount(why)"));
 });
+ok("playing lying down (the phone nearly upright): tilt does nothing, the thrust button steers; tipped back, tilt again", () => {
+  const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(html.includes("const LIE_ON = 72, LIE_OFF = 62;") && html.includes("const c = tilt.lying ? { side: 0, fwd: 0 } : controlFromTilt(tilt);") && html.includes("drawLieNote();"));
+  assert(controlFromTilt({ pitch: HOLD_ANGLE, roll: 0 }).fwd === 0);
+});
 console.log(n + " checks passed");

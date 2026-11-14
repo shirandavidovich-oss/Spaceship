@@ -456,6 +456,9 @@ const ZOMBIE_ART = {"brass":{"kind":"thul","sprite":"zombie-thul-top.webp"},"vex
 // ======================================================================
 const HOLD_ANGLE = 35;   // degrees from flat: how people usually hold the phone. At this angle the ship stays still
 const DEAD_ZONE  = 4;    // degrees around HOLD_ANGLE (and around level side-to-side) that still count as "still"
+// playing lying down: the phone held nearly upright (more than LIE_ON degrees from flat). Then tilting does nothing and
+// the thrust button alone steers; tipped back under LIE_OFF degrees, tilting steers again
+const LIE_ON = 72, LIE_OFF = 62;
 const FULL_TILT  = 22;   // degrees past the dead zone that give full engine power
 const GIFT_TAPS  = 3;    // taps on the gift until it opens
 const SWIPE_UP   = 0.18; // swipe-up length (part of the screen height) that asks to trade
@@ -2328,7 +2331,7 @@ function buzz(ms) { try { native && native.vibrate(ms); } catch (e) {} }
 const LANG_KEY = "orbit-break.language";
 let LANG = (() => { try { const v = LS.getItem(LANG_KEY); return v === "en" || v === "he" ? v : "he"; } catch (e) { return "he"; } })();
 const STR = {
-  he: { flood: "ציד הצפה", maze: "מבוך", tapStart: "לחצו כדי להתחיל", nextLevel: (n) => `הבא: שלב ${n}`, streak: (m) => `רצף ×${m}`, zombie: "🧟 זומבי: פגיעה 50% · ירי 60% · בלי קסם", hacked: (s) => `⚠ תקלה! הנשקים מושבתים · ${s} ⚠`, scrambled: (n) => `♪ הניווט שובש · ${n} ♪`,
+  he: { lieOn: "🛏 משחק בשכיבה: ההטיה כבויה, היגוי בכפתור הגז", lieOff: "📱 ההטיה חזרה לפעול", flood: "ציד הצפה", maze: "מבוך", tapStart: "לחצו כדי להתחיל", nextLevel: (n) => `הבא: שלב ${n}`, streak: (m) => `רצף ×${m}`, zombie: "🧟 זומבי: פגיעה 50% · ירי 60% · בלי קסם", hacked: (s) => `⚠ תקלה! הנשקים מושבתים · ${s} ⚠`, scrambled: (n) => `♪ הניווט שובש · ${n} ♪`,
     closer: "קרוב יותר לכוכב", mineIn: "המוקש כבר בכוכב", rarity: (r) => "חללית " + r, victory: "ניצחון!",
     levelUp: (n) => `שלב ${n}: צי המחשב חוזר, חזק יותר`, fleetLost: "כל הצי שלך הובס", reached: (n) => `הגעת לשלב ${n}`, newGame: "משחק חדש",
     pickFirst: "בחר חללית מהצי שלך", pickNext: "בחר את החללית הבאה", leftOf: (a, b, n) => `נשארו ${a} מתוך ${b}  ·  שלב ${n}`,
@@ -2337,7 +2340,7 @@ const STR = {
     offline: "בלי חשבון: הכול נשמר רק בטלפון הזה · החלפות וקרבות עם טלפון קרוב", noMagic: "בלי קסם", inUse: "✈ בשימוש",
     tradeDrag: "החלפה: גררו לכאן חללית שתרצו להחליף", tradeBoth: "ההחלפה קורית רק אם גם השחקן השני מציע חללית ושניכם מסכימים",
     hangar: "האנגר בדיקות", hangarNote: "לבדיקה בלבד: הבחירה לא נשמרת. במשחק כל שחקן מקבל חללית אחת", noMagicYet: "בלי קסם עדיין" },
-  en: { flood: "FLOOD HUNT", maze: "MAZE", tapStart: "Tap to start", nextLevel: (n) => `Next: level ${n}`, streak: (m) => `Streak ×${m}`, zombie: "🧟 Zombie: hits 50% · fire 60% · no magic", hacked: (s) => `⚠ MALFUNCTION! Weapons offline · ${s} ⚠`, scrambled: (n) => `♪ Steering scrambled · ${n} ♪`,
+  en: { lieOn: "🛏 Lying down: tilt off, steer with the thrust button", lieOff: "📱 Tilt control is back", flood: "FLOOD HUNT", maze: "MAZE", tapStart: "Tap to start", nextLevel: (n) => `Next: level ${n}`, streak: (m) => `Streak ×${m}`, zombie: "🧟 Zombie: hits 50% · fire 60% · no magic", hacked: (s) => `⚠ MALFUNCTION! Weapons offline · ${s} ⚠`, scrambled: (n) => `♪ Steering scrambled · ${n} ♪`,
     closer: "Get closer to the star", mineIn: "The mine is already in the star", rarity: (r) => r + " ship", victory: "Victory!",
     levelUp: (n) => `Level ${n}: the computer's fleet returns, stronger`, fleetLost: "Your whole fleet is down", reached: (n) => `You reached level ${n}`, newGame: "New game",
     pickFirst: "Choose a ship from your fleet", pickNext: "Choose your next ship", leftOf: (a, b, n) => `${a} of ${b} left  ·  level ${n}`,
@@ -3035,7 +3038,11 @@ function update(dt) {
   if (game.stage === "gift") gift.hint += dt;
   game.card = Math.max(0, game.card - dt);
 
-  const c = controlFromTilt(tilt);
+  const wasLying = tilt.lying;
+  tilt.lying = tilt.have && tilt.pitch <= 120 && (tilt.lying ? tilt.pitch > LIE_OFF : tilt.pitch > LIE_ON);
+  if (tilt.lying !== !!wasLying && game.stage === "fly") { tilt.lieNote = 2.5; audio.pop(); }   // (a note on screen as it changes)
+  tilt.lieNote = Math.max(0, (tilt.lieNote || 0) - dt);
+  const c = tilt.lying ? { side: 0, fwd: 0 } : controlFromTilt(tilt);   // lying down: no tilt, the thrust button steers
   game.side = c.side; game.fwd = c.fwd;
 
 
@@ -11225,6 +11232,15 @@ function drawHacked(x, y, size, k) {
   }
   ctx.restore();
 }
+// playing lying down: a short note when tilt control goes off or comes back
+function drawLieNote() {
+  if (!(tilt.lieNote > 0) || BOT) return;
+  const a = Math.min(1, tilt.lieNote / 0.4), f = Math.round(Math.min(W, H) * 0.032), txt = tilt.lying ? tr("lieOn") : tr("lieOff");
+  ctx.save(); ctx.globalAlpha = a; ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
+  const w = ctx.measureText(txt).width + f * 1.4, y = H * 0.2;
+  ctx.fillStyle = "rgba(10,12,32,0.8)"; roundRect(W / 2 - w / 2, y - f * 0.9, w, f * 1.8, f * 0.9); ctx.fill();
+  ctx.fillStyle = "#bff6ff"; ctx.fillText(txt, W / 2, y); ctx.restore();
+}
 function drawHackNote() {
   if (!(game.hacked > 0) || game.dead) return;
   ctx.save(); ctx.font = `bold ${Math.round(Math.min(W, H) * 0.035)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top";
@@ -13264,7 +13280,7 @@ function draw() {
     drawCard(shown, Math.min(1, game.card * 2));
     drawRadar();
     drawHealth();
-    drawScrambleNote(); drawHackNote(); drawZombieNote();
+    drawScrambleNote(); drawHackNote(); drawZombieNote(); drawLieNote();
     if (game.flash > 0) { ctx.save(); ctx.globalAlpha = Math.min(0.7, game.flash * 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     if (!game.dead && !result.mode && !game.docked) { drawThrust(); drawFire(); drawMagic(); drawShieldBtn(); drawDockPrompt(); }
     else if (result.mode) drawThrust();   // (the gas, to kick the letters)
