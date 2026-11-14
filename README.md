@@ -686,6 +686,8 @@ does). Heard and seen on both phones (`zc`). **Cured**: a zombie that destroys a
 (10) s after the next ship shows up. **SKARN as a zombie** opens and slams its jaw and fires with the SKARN BLOOM
 package's frames (`art/bloom/skarn/`, `skarnBloomFrame`).
 
+**PALISADE's wall builds itself** — once set, the wall grows: every 2 s a robot arm swings a new ceramic piece onto its end (straight on, or turning left or right, never into itself or the star) and welds it with a lime flash. Each added piece stops shots like the rest, and the magic bursts every piece into fast shards. As it works, the robot croons its wall-lines ("My wonderful wall... my precious!") in a hissing, ring-modulated voice.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

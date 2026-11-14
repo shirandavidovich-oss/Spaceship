@@ -1317,6 +1317,8 @@ const WEAPONS = {
   ricochet: { name: "קליע ניתור", dmg: 9, speed: 3.0, life: 0.9, cool: 0.38, ammo: 16, refill: 6, r: 0.022, color: "#dfff83" },
   wall:    { name: "הצבת קיר",   dmg: 0, speed: 0, life: 0, cool: 4.6, ammo: 2, refill: 8, r: 0, color: "#e8e4f0", palWall: true },
   pshard:  { name: "שבר קרמי",   dmg: 12, speed: 2.4, life: 0.6, cool: 1, ammo: 1, r: 0.025, color: "#f2eee6" },
+  // the shards of a wall that built itself (each unit bursts): twice as fast (so twice as far, the same life) and twice the damage
+  pshard2: { name: "שבר קרמי",   dmg: 24, speed: 4.8, life: 0.6, cool: 1, ammo: 1, r: 0.025, color: "#f2eee6" },
   magnet:  { name: "כדורי מגנט", dmg: 7,  speed: 1.0, life: 6.0, cool: 4.5, ammo: 1, refill: 4.5, r: 0.06, color: "#ff6ad5", pellets: 8, fan: 5.5, magnet: 1.6,
              colors: ["#ff5a5a", "#ffb347", "#fff275", "#6dff8a", "#38d8ff", "#6a7dff", "#c86bff", "#ff6ad5"] },
   nails:   { name: "מסמרי מוקש", dmg: 14, speed: 2.0, life: 0, cool: 3.2, ammo: 2, refill: 6, r: 0.05, color: "#ffb347", mines: 4, fan: 0.9,
@@ -4636,7 +4638,8 @@ const VOICE_SPEED = 1.3;
 // monster: FRANKENSTEIN's creature, deep and slow (heard outside the shops: `anywhere`, at its own `speed`)
 const VOICE_FX = { alien: { rate: 0.86, ring: 55, dry: 0.35, echo: 0.032 }, kip: { rate: 1.12, ring: 90, dry: 0.5, echo: 0.02 }, brass: { rate: 0.74, ring: 32, dry: 0.4, echo: 0.045 },
   monster: { rate: 0.62, ring: 28, dry: 0.82, echo: 0.07, speed: 1.0, anywhere: true, gain: 2.4 },
-  robot: { rate: 1.0, ring: 46, dry: 0.12, echo: 0.014, speed: 1.15, anywhere: true, gain: 2.2 } };   // (a GLITCH malfunction's mayday)
+  robot: { rate: 1.0, ring: 46, dry: 0.12, echo: 0.014, speed: 1.15, anywhere: true, gain: 2.2 },
+  gollum: { rate: 1.32, ring: 64, dry: 0.6, echo: 0.018, speed: 0.95, anywhere: true, gain: 2.2 } };   // (PALISADE's wall: a thin hissing creature's voice, a little robotic)   // (a GLITCH malfunction's mayday)
 // GLITCH's malfunction: the stricken ship's computer calls for help (heard on both phones)
 const MAYDAY_LINES = ["We've got a malfunction! Mayday, mayday!", "System failure! Mayday, mayday!", "Weapons offline! Mayday, mayday!", "Malfunction! Malfunction! Mayday!", "Warning! Weapons jammed! Mayday, mayday!"];
 function maydaySay() { if (shop.open) return; let i; do { i = Math.floor(Math.random() * MAYDAY_LINES.length); } while (i === maydaySay.last && MAYDAY_LINES.length > 1); maydaySay.last = i; alienSay(MAYDAY_LINES[i], "robot"); }
@@ -11525,8 +11528,8 @@ function updatePalisade(dt) {
       if (!D.launch && D.t >= PAL.launch) { D.launch = { x: game.x, y: game.y, ang: game.ang }; duelSend({ t: "pl", x: +(game.x / WW).toFixed(5), y: +(game.y / WH).toFixed(5), a: +game.ang.toFixed(3) }); }
       if (t0 < PAL.cue && D.t >= PAL.cue) {   // set down: solid from now on
         const L = D.launch, W = { x: (((L.x + Math.sin(L.ang) * PAL.dist * size) % WW) + WW) % WW, y: (((L.y - Math.cos(L.ang) * PAL.dist * size) % WH) + WH) % WH, ang: L.ang, charges: PAL.charges, t: 0 };
-        game.palWall = W;
-        duelSend({ t: "pw", on: 1, x: +(W.x / WW).toFixed(5), y: +(W.y / WH).toFixed(5), a: +W.ang.toFixed(3) });
+        palSegsInit(W, Math.random() < 0.5 ? 0 : 2); game.palWall = W;
+        duelSend({ t: "pw", on: 1, x: +(W.x / WW).toFixed(5), y: +(W.y / WH).toFixed(5), a: +W.ang.toFixed(3), dr: W.dir });
         audio.tone(90, 0.2, "square", 0.06, 0.6); audio.noise(0.12, 0.1, 1200); shake(0.2); buzz(50);
       }
       if (D.t >= PAL.end) game.palDeploy = null;
@@ -11534,6 +11537,8 @@ function updatePalisade(dt) {
   }
   const W = game.palWall;
   if (W && (W.t += dt) > PAL.life) palWallGone();
+  if (game.palWall) palGrow(game.palWall, dt, true);   // it builds itself
+  if (duel.palWall) palGrow(duel.palWall, dt, false);   // (theirs: each new piece as their phone sends it)
   const G = game.palMagic, M = MAGIC.ceramic;
   if (G) {
     const t0 = G.t; G.t += dt;
@@ -11546,13 +11551,20 @@ function updatePalisade(dt) {
 }
 function palWallGone() { if (!game.palWall) return; game.palWall = null; duelSend({ t: "pw", on: 0 }); audio.tone(200, 0.2, "triangle", 0.03, 0.5); }
 // the wall breaks into seven shards, fanned straight out the way it faces
+// (the wall-growth package) every unit bursts from its own middle, its shards fanned the way that unit faces: twice as
+// fast, as far and as hard as the old shards (pshard2); a piece still being built is dropped
 function palShatter(W) {
-  const M = MAGIC.ceramic, Wp = WEAPONS.pshard, size = shipSize(), v = Wp.speed * U;
-  for (let i = 0; i < M.shards; i++) {
-    const side = i - (M.shards - 1) / 2, a = W.ang + side * M.fan, o = rotatePt(side * 15 * PAL.u * size, -9 * PAL.u * size, W.ang);
-    const q = { w: "pshard", x: W.x + o.x, y: W.y + o.y, vx: Math.sin(a) * v, vy: -Math.cos(a) * v, life: 0 };
-    shots.push(q);
-    if (duel.stage === "on") { q.id = ++shotSeq; duelSend({ t: "f", w: "pshard", ...netPos(q), s: game.ship, id: q.id }); }
+  const M = MAGIC.ceramic, Wp = WEAPONS.pshard2, size = shipSize(), v = Wp.speed * U;
+  W.build = null;
+  for (const G of palUnits(W)) {
+    const n = 3;
+    for (let i = 0; i < n; i++) {
+      const side = i - (n - 1) / 2, a = G.ang + side * M.fan * 1.6, o = rotatePt(side * G.hw * 0.6 * size, 0, G.ang);
+      const q = { w: "pshard2", x: G.x + o.x, y: G.y + o.y, vx: Math.sin(a) * v, vy: -Math.cos(a) * v, life: 0 };
+      shots.push(q);
+      if (duel.stage === "on") { q.id = ++shotSeq; duelSend({ t: "f", w: "pshard2", ...netPos(q), s: game.ship, id: q.id }); }
+    }
+    if (G.i >= 3) burstAt(G.x, G.y, 10, ["#ffffff", "#e8e4f0", "#dfff83"], 0.35, 0.5);
   }
   palFx.push({ x: W.x, y: W.y, ang: W.ang, t: 0 });
   duelSend({ t: "px", x: +(W.x / WW).toFixed(5), y: +(W.y / WH).toFixed(5), a: +W.ang.toFixed(3) });
@@ -11568,10 +11580,13 @@ function palShot(list, k, s, Wp, dt) {
     const own = mine ? list === shots : list === duel.shots;
     if (own && !(s.w === "ricochet" && !s.bounced)) continue;
     if (s.back) continue;   // (sent back already: it passes)
-    const p = { x: wrapDelta(s.x - W.x, WW), y: wrapDelta(s.y - W.y, WH) }, d = { x: s.vx * dt, y: s.vy * dt }, r = (Wp.r || 0) * size * shotScale(s, Wp);
-    const H = palInteract(W.ang, p, d, PAL.w / 2 * size + r, PAL.d / 2 * size + r);
+    const d = { x: s.vx * dt, y: s.vy * dt }, r = (Wp.r || 0) * size * shotScale(s, Wp);
+    let H = null, p = null, cx = 0, cy = 0;
+    for (const G of palUnits(W)) {   // every unit of it (the first three: the wall as it was set)
+      const q = { x: wrapDelta(s.x - G.x, WW), y: wrapDelta(s.y - G.y, WH) }, h = palInteract(G.ang, q, d, G.hw * size + r, G.hd * size + r);
+      if (h && (!H || h.entry < H.entry)) { H = h; p = q; cx = G.x + q.x + d.x * h.entry; cy = G.y + q.y + d.y * h.entry; }
+    }
     if (!H) continue;
-    const cx = W.x + p.x + d.x * H.entry, cy = W.y + p.y + d.y * H.entry;
     if (own) {   // banks off the face it struck, at the same speed
       const sp = s.vx * H.normal.x + s.vy * H.normal.y;
       s.vx -= 2 * sp * H.normal.x; s.vy -= 2 * sp * H.normal.y; s.x = cx; s.y = cy; s.bounced = true; s.bt = time;
@@ -11592,6 +11607,115 @@ function palShot(list, k, s, Wp, dt) {
   return false;
 }
 function palHit() { const W = game.palWall; if (!W) return; W.charges--; W.flash = 0.25; buzz(30); if (W.charges <= 0) palWallGone(); }
+// ---- the wall builds itself (the PALISADE Wall Growth package, art/ships/palisade/grow/). The set wall is three units
+// (W.segs, in the wall's own frame: x along it, y across, in ship-lengths; h: the way each unit points, 0 +x, 1 +y,
+// 2 -x, 3 -y, first to tip; it grows from the tip, W.dir: which end). Every PALG.delay s a little arm lifts out of the
+// tip, takes a new panel, swings it on straight ahead or turned left or right (one at random that touches no unit and
+// no star) and welds it (PALG.build s); then it is solid and the new tip. It stops enemy shots like the rest, and the
+// magic bursts every unit. A robot's voice crows over it now and then (WALL_LINES, VOICE_FX.gollum)
+const PALG = { delay: 0.95, build: 1.05, retry: 1 };   // (a new piece every 2 s)
+const PAL_DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+const WALL_LINES = ["Building myself, yesss!", "My wonderful wall!", "My beauty... my precious!", "Growing, growing, yesss!", "Nobody touches my wall!", "Ssso beautiful, my wall!", "We builds it, we does!"];
+function palSegsInit(W, dir) {
+  const L = PAL.w / 3, sx = dir === 2 ? -1 : 1;
+  W.dir = dir; W.segs = [-1, 0, 1].map((i) => ({ x: i * L * sx, y: 0, h: dir })); W.next = PALG.delay; W.build = null;
+}
+function palBox(g) { const L = PAL.w / 3, D = PAL.d, ho = g.h % 2 === 0, hx = (ho ? L : D) / 2, hy = (ho ? D : L) / 2; return { l: g.x - hx, r: g.x + hx, t: g.y - hy, b: g.y + hy }; }
+function palOverlap(a, b) { return Math.min(a.r, b.r) - Math.max(a.l, b.l) > 1e-6 && Math.min(a.b, b.b) - Math.max(a.t, b.t) > 1e-6; }
+// a unit of wall W in the world: { x, y, ang (its length along (cos, sin)), hw, hd (half length, half thickness, ship-lengths), i }
+function palUnitWorld(W, g, i) {
+  const size = shipSize(), c = Math.cos(W.ang), s = Math.sin(W.ang);
+  return { x: (((W.x + (g.x * c - g.y * s) * size) % WW) + WW) % WW, y: (((W.y + (g.x * s + g.y * c) * size) % WH) + WH) % WH, ang: W.ang + (g.h % 2 ? Math.PI / 2 : 0), hw: PAL.w / 6, hd: PAL.d / 2, i };
+}
+function palUnits(W) { return W.segs ? W.segs.map((g, i) => palUnitWorld(W, g, i)) : [{ x: W.x, y: W.y, ang: W.ang, hw: PAL.w / 2, hd: PAL.d / 2, i: 0 }]; }
+function palFree(W, g) {
+  const G = palUnitWorld(W, g, 0);
+  return starGone() || Math.hypot(wrapDelta(G.x - WW / 2, WW), wrapDelta(G.y - WH / 2, WH)) > planetR() + PAL.w / 6 * shipSize();
+}
+function palCandidates(W) {
+  const L = PAL.w / 3, D = PAL.d, end = W.segs[W.segs.length - 1], o = PAL_DIRS[end.h], boxes = W.segs.map(palBox);
+  return [0, -1, 1].flatMap((turn) => {
+    const h = (end.h + turn + 4) % 4, nx = PAL_DIRS[h], elbow = (L - D) / 2, reach = (L + D) / 2;
+    const g = turn === 0 ? { x: end.x + L * o[0], y: end.y + L * o[1], h } : { x: end.x + elbow * o[0] + reach * nx[0], y: end.y + elbow * o[1] + reach * nx[1], h };
+    return boxes.some((b) => palOverlap(palBox(g), b)) || !palFree(W, g) ? [] : [g];
+  });
+}
+function palStartBuild(W, g, mine) {
+  W.build = { g, t: 0, tip: W.segs[W.segs.length - 1] };
+  const near = Math.hypot(wrapDelta(W.x - game.x, WW), wrapDelta(W.y - game.y, WH)) < U * 2.4;
+  if (near) { audio.tone(320, 0.12, "square", 0.025, 1.6); audio.tone(640, 0.08, "triangle", 0.02, 1.2, 0.18); }   // (the arm's servos)
+  if (near && time - (palStartBuild.said || -9) > 5) { palStartBuild.said = time; let i; do { i = Math.floor(Math.random() * WALL_LINES.length); } while (i === palStartBuild.last && WALL_LINES.length > 1); palStartBuild.last = i; alienSay(WALL_LINES[i], "gollum"); }
+  if (mine) duelSend({ t: "pg", x: +g.x.toFixed(4), y: +g.y.toFixed(4), h: g.h });
+}
+function palGrow(W, dt, mine) {
+  if (!W.segs) return;
+  const B = W.build;
+  if (B) {
+    B.t += dt;
+    if (B.t >= PALG.build) {   // welded on: solid, and the new tip
+      W.build = null; W.next = PALG.delay;
+      if (!mine || palFree(W, B.g)) {
+        W.segs.push(B.g);
+        const G = palUnitWorld(W, B.g, W.segs.length - 1);
+        burstAt(G.x, G.y, 8, ["#dfff83", "#ffffff"], 0.25, 0.35);
+        if (Math.hypot(wrapDelta(W.x - game.x, WW), wrapDelta(W.y - game.y, WH)) < U * 2.4) { audio.noise(0.08, 0.08, 3000); audio.tone(180, 0.1, "square", 0.04, 0.6); }
+      } else W.next = PALG.retry;
+    }
+    return;
+  }
+  if (!mine) return;   // (theirs: started by their messages)
+  W.next -= dt;
+  if (W.next > 0) return;
+  const C = palCandidates(W);
+  if (!C.length) { W.next = PALG.retry; return; }
+  palStartBuild(W, C[Math.floor(Math.random() * C.length)], true);
+}
+// the added units (the first three are the wall drawn as it was set), and the arm building the next one, in the wall's frame
+function drawPalGrowth(W, mine) {
+  if (!W || !W.segs) return;
+  const size = shipSize(), p = toScreen(W.x, W.y), L = PAL.w / 3, D = PAL.d, unit = artImage("art/ships/palisade/grow/wall-unit.webp"), fade = Math.max(0, Math.min(1, (PAL.life - W.t) / 0.6));
+  ctx.save(); ctx.globalAlpha = fade; ctx.translate(p.x, p.y); ctx.rotate(W.ang); ctx.scale(size, size);
+  const panel = (x, y, a, al) => {
+    ctx.save(); ctx.globalAlpha = fade * al; ctx.translate(x, y); ctx.rotate(a);
+    if (!mine) { ctx.shadowColor = "rgba(255,122,184,0.8)"; ctx.shadowBlur = 0.12 * size; }
+    if (unit) ctx.drawImage(unit, -L / 2, -D / 2, L, D); else { ctx.fillStyle = "#e2ddd2"; ctx.fillRect(-L / 2, -D / 2, L, D); }
+    ctx.restore();
+  };
+  W.segs.forEach((g, i) => { if (i >= 3) panel(g.x, g.y, g.h * Math.PI / 2, 1); });
+  const B = W.build;
+  if (B) {
+    const P = palArmPose(B.t / PALG.build, B.tip, B.g, L, D), px = L / 384;   // (art pixels to wall units)
+    panel(P.panel.x, P.panel.y, P.panel.angle, P.panel.alpha);
+    const seg = (src, a, b, s0, s1, hgt) => {   // a link from a to b: its start and end pixels on them
+      const im = artImage("art/ships/palisade/grow/" + src + ".webp"); if (!im) return;
+      const len = Math.hypot(b.x - a.x, b.y - a.y), k = len / ((s1 - s0) || 1);
+      ctx.save(); ctx.globalAlpha = fade * P.armAlpha; ctx.translate(a.x, a.y); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
+      ctx.drawImage(im, -s0 * k, -hgt / 2 * k, im.width * k, im.height * k); ctx.restore();
+    };
+    seg("arm-upper", P.hinge, P.elbow, 14, 143, 46); seg("arm-forearm", P.elbow, P.wrist, 14, 129, 40);
+    const base = artImage("art/ships/palisade/grow/arm-base.webp"), claw = artImage("art/ships/palisade/grow/arm-claw.webp");
+    if (base) { ctx.save(); ctx.globalAlpha = fade * P.armAlpha; ctx.drawImage(base, P.hinge.x - 43 * px, P.hinge.y - 43 * px, 86 * px, 86 * px); ctx.restore(); }
+    if (claw) { ctx.save(); ctx.globalAlpha = fade * P.armAlpha; ctx.translate(P.wrist.x, P.wrist.y); ctx.rotate(Math.atan2(P.wrist.y - P.elbow.y, P.wrist.x - P.elbow.x)); ctx.drawImage(claw, -29 * px, -38 * px, 92 * px, 76 * px); ctx.restore(); }
+    if (P.weld > 0) {   // the lime weld at the seam
+      const o = PAL_DIRS[B.tip.h], sx = B.tip.x + o[0] * L / 2, sy = B.tip.y + o[1] * L / 2, r = D * 1.4;
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r); g.addColorStop(0, `rgba(255,255,255,${P.weld})`); g.addColorStop(0.4, `rgba(223,255,131,${0.8 * P.weld})`); g.addColorStop(1, "rgba(223,255,131,0)");
+      ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU); ctx.fill(); ctx.globalCompositeOperation = "source-over";
+    }
+  }
+  ctx.restore();
+}
+// the arm's pose at t (0..1 of the build): the package's assemblyPose (arm-motion.mjs), in the wall's frame
+function palArmPose(t, tip, next, length, width) {
+  const sm = (x) => { const q = Math.min(1, Math.max(0, x)); return q * q * (3 - 2 * q); }, mx = (a, b, k) => a + (b - a) * k;
+  const angle = tip.h * Math.PI / 2, target = next.h * Math.PI / 2, turn = Math.atan2(Math.sin(target - angle), Math.cos(target - angle));
+  const dx = Math.cos(angle), dy = Math.sin(angle), nx = -dy, ny = dx, side = turn > 0.01 ? -1 : turn < -0.01 ? 1 : -1;
+  const open = sm(t / 0.15) * (1 - sm((t - 0.78) / 0.22)), rotate = sm((t - 0.12) / 0.28), carry = sm((t - 0.35) / 0.35);
+  const hover = length * (Math.abs(turn) > 0.01 ? 0.62 : 0.45) * (1 - carry), px = next.x + Math.cos(target) * hover, py = next.y + Math.sin(target) * hover;
+  const hinge = { x: tip.x + nx * side * width * 0.33 * open, y: tip.y + ny * side * width * 0.33 * open };
+  const wrist = { x: mx(px, hinge.x, sm((t - 0.78) / 0.22)), y: mx(py, hinge.y, sm((t - 0.78) / 0.22)) };
+  const elbow = { x: mx(hinge.x, wrist.x, 0.44) + nx * side * width * 1.55 * open, y: mx(hinge.y, wrist.y, 0.44) + ny * side * width * 1.55 * open };
+  return { hinge, elbow, wrist, armAlpha: open, panel: { x: px, y: py, angle: angle + turn * rotate, alpha: sm((t - 0.12) / 0.16) }, weld: Math.max(0, 1 - Math.abs((t - 0.74) / 0.1)) };
+}
 // the arms flying the wall out (o: the ship; launch: where it was at 0.56 s)
 function drawCarrier(ms, o, launch) {
   const P = palCarrier(ms);
@@ -11625,6 +11749,7 @@ function drawPalisade() {
   // my wall shows once the arms have let go (the carrier is drawn till then); theirs when it is set
   drawPalWall(game.palWall, true, game.palDeploy ? PAL.end - PAL.cue : 0);
   drawPalWall(duel.palWall, false, 0);
+  drawPalGrowth(game.palWall, true); drawPalGrowth(duel.palWall, false);
   if (game.palDeploy) drawCarrier(game.palDeploy.t * 1000, game, game.palDeploy.launch);
   if (enemy.remote && duel.net && duel.net.pd) drawCarrier(duel.net.pd, enemy, duel.net.pd >= 560 ? duel.palLaunch : null);
   for (const F of palFx) {
@@ -14882,6 +15007,8 @@ function duelLink(event, data) {
     duel.thread = { w: m.w, t: m.at, paths: m.p.map((q) => q.map(([x, y]) => ({ x: x * WW, y: y * WH }))) };
   } else if (m.t === "pw") {   // their PALISADE's wall set (on) / gone (0)
     duel.palWall = m.on ? { x: m.x * WW, y: m.y * WH, ang: m.a, charges: PAL.charges, t: 0 } : null;
+    if (duel.palWall) palSegsInit(duel.palWall, m.dr || 0);
+  } else if (m.t === "pg") { if (duel.palWall && duel.palWall.segs) palStartBuild(duel.palWall, { x: m.x, y: m.y, h: m.h }, false);   // their wall building a piece
   } else if (m.t === "pl") { duel.palLaunch = { x: m.x * WW, y: m.y * WH, ang: m.a };
   } else if (m.t === "pwh") { palHit();   // my wall stopped one of their shots (their phone saw it)
   } else if (m.t === "px") { palFx.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0 });

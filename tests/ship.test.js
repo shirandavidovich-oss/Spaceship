@@ -951,4 +951,7 @@ ok("zombies cough pollen (about every 15 s, 4 s of coughs, the cloud swelling wi
   assert(html.includes("Object.assign(ZOMBIE, { coughEvery: 15, coughLen: 4.0, coughR: 0.75, cure: 10 });"));
   assert(html.includes('if (game.zombie && enemy.ship === "bloom" && !game.zombieCure) game.zombieCure = { t: null };') && html.includes('} else if (m.t === "zc") { startCough(false);'));
 });
+ok("PALISADE's wall builds itself every 2 s: an arm welds a piece on, a robot says its precious-wall lines", () =>
+  html.includes("const PALG = { delay: 0.95, build: 1.05, retry: 1 };") && html.includes('alienSay(WALL_LINES[i], "gollum")') &&
+  html.includes("gollum: { rate:") && html.includes("pshard2:") && html.includes('t: "pg"') && html.includes("art/ships/palisade/grow/"));
 console.log(n + " checks passed");
