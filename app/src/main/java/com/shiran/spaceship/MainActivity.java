@@ -90,6 +90,19 @@ public class MainActivity extends Activity implements SensorEventListener {
             @Override
             public void onPageFinished(WebView view, String url) { pageReady = true; }
 
+            // the page's drawing process died (most often the phone taking its memory back): note it for the page
+            // (shown on the title screen) and start the game over cleanly, instead of a black screen or a closed app
+            @Override
+            public boolean onRenderProcessGone(WebView view, android.webkit.RenderProcessGoneDetail detail) {
+                boolean crashed = detail != null && detail.didCrash();
+                getSharedPreferences("ship", MODE_PRIVATE).edit().putString("crash",
+                        new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(new java.util.Date())
+                        + (crashed ? " app crashed" : " phone took the memory back")).apply();
+                pageReady = false;
+                main.post(() -> recreate());
+                return true;
+            }
+
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
                 if (!"ship.game".equals(req.getUrl().getHost())) return null;
@@ -286,6 +299,15 @@ public class MainActivity extends Activity implements SensorEventListener {
         // the sellers' voices: can it speak; speak `text` (English) into tts/<id>.wav, then ttsDone(id, ok) on the page
         @JavascriptInterface
         public boolean ttsReady() { return ttsReady; }
+
+        /** How the page last ended, if it was torn down (onRenderProcessGone); "" if not. Asked once: then forgotten. */
+        @JavascriptInterface
+        public String lastCrash() {
+            android.content.SharedPreferences sp = getSharedPreferences("ship", MODE_PRIVATE);
+            String c = sp.getString("crash", "");
+            if (!c.isEmpty()) sp.edit().remove("crash").apply();
+            return c;
+        }
 
         @JavascriptInterface
         public void ttsMake(String id, String text) {

@@ -2313,6 +2313,10 @@ addEventListener("resize", resize);
 // goes on). Note it (shown in the test hangar), and when it comes back, set it up again
 const ISSUE_KEY = "orbit-break.lastIssue";
 function noteIssue(what) { try { localStorage.setItem(ISSUE_KEY, new Date().toLocaleTimeString() + " " + String(what).slice(0, 160)); } catch (e) {} }
+// what was going on, every 2 s (kept on the phone): after a crash, the note says what was on screen when it happened
+const CRUMB_KEY = "orbit-break.crumb";
+setInterval(() => { try { if (!BOT && typeof game !== "undefined") localStorage.setItem(CRUMB_KEY, [game.ship, game.stage, typeof enemy !== "undefined" && enemy.ship || "", game.magicT > 0 ? "magic" : "", typeof cine !== "undefined" && cine.on ? "film" : "", Object.keys(artCache).length + "pics"].filter(Boolean).join(" ")); } catch (e) {} }, 2000);
+try { const c = window.ShipNative && ShipNative.lastCrash ? ShipNative.lastCrash() : ""; if (c) noteIssue(c + " — during: " + (localStorage.getItem(CRUMB_KEY) || "?")); } catch (e) {}
 // the screen's drawing surface lost (the phone short of graphics memory): every picture let go at once so it can come
 // back; not back within 3 s, the game reloads (better than a black screen with only the sound)
 let lostAt = 0;
