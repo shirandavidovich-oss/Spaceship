@@ -2779,7 +2779,7 @@ const game = {
   ammo: [0, 0],     // shots left in weapons 1 and 2
   cool: [0, 0, 0, 0],  // seconds until each button can fire again (4: the shop's extra weapon)
   fire: [null, null, null, null],   // the finger holding each fire button (pointer id), or null
-  barrel: [0, 0, 0],          // which barrel fires next (the twin cannon takes turns)
+  barrel: [0, 0, 0, 0],       // which barrel fires next (the twin cannon takes turns), for each of the four buttons
   loot: null,       // weapon 3, picked up from a destroyed enemy: { w, ammo, show }
   kills: 0,
   sputter: 0,       // seconds the steam engine's fire stays out
@@ -9563,7 +9563,7 @@ function shoot(i) {
     } else audio.jaws();
     return;
   }
-  const guns = i === 3 && UPGRADE_FIT[S.id] ? [[UPGRADE_FIT[S.id][3], UPGRADE_FIT[S.id][4]]] : gunsOf(S, w), b = Wp.both || Wp.alt ? 0 : game.barrel[i]++ % guns.length;   // (button 4: from the extra cannon)   // (alt: a burst always starts on the left)
+  const guns = i === 3 && UPGRADE_FIT[S.id] ? [[UPGRADE_FIT[S.id][3], UPGRADE_FIT[S.id][4]]] : gunsOf(S, w), b = Wp.both || Wp.alt ? 0 : ((game.barrel[i] = (game.barrel[i] || 0) + 1) - 1) % guns.length;   // (button 4: from the extra cannon)   // (alt: a burst always starts on the left)
   // the firing frames do not cut into the ship's other sequences (the heavy cannon, the smoke hatches, the jaw...)
   if (A && A.mech && A.mech[w] && !(game.flipT >= 0)) game.anim = { seq: A.mech[w], t: 0 };   // RIVET: the part that fires moves
   if (A && A.primary && i === 0 && !(game.anim && game.anim.seq !== "primary"))

@@ -974,4 +974,6 @@ ok("the test app: a tap on the computer's ship blows it up (not against another 
   html.includes("function testKillTap(x, y)") && html.includes("if (HANGAR && game.stage === \"fly\" && enemy.on && enemy.warp < 0.5 && testKillTap(e.clientX, e.clientY)) return;") && html.includes("if (!duel.bot) return false;"));
 ok("cured of BLOOM, it still carries the pollen against that ship: coughs on (a zombie only while it coughs), till it beats that ship", () =>
   html.includes("game.carrier = { t: 0 };") && html.includes("coughs = (game.zombie && Q && Q.t != null) || !!game.carrier") && html.includes("zombie: shown === S && (game.zombie || !!game.cough)") && html.includes("zb: game.zombie || game.cough ? 1 : 0"));
+ok("the weapon bought at the station fires (button 4 has its own barrel count)", () =>
+  html.includes("barrel: [0, 0, 0, 0],") && html.includes("((game.barrel[i] = (game.barrel[i] || 0) + 1) - 1) % guns.length"));
 console.log(n + " checks passed");
