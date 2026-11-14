@@ -945,4 +945,10 @@ ok("SKARN spits back exactly what it caught: each shot as its own weapon (homing
   const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
   assert(html.includes("trapGain(s.x, s.y, s.w)") && html.includes('link.send({ t: "caught", x: s.x / WW, y: s.y / WH, w: s.w })') && html.includes("spitSalvo(S, T.stored, T.caught || [])"));
 });
+ok("zombies cough pollen (about every 15 s, 4 s of coughs, the cloud swelling with each) and infect; a zombie that destroys BLOOM is cured 10 s after the next ship; SKARN's zombie jaw and firing", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
+  for (const f of ["audio/bloom/zombie-cough.ogg", "art/bloom/skarn/jaw.webp", "art/bloom/skarn/fire.webp", "art/bloom/skarn/muzzle.webp"]) assert(fs.existsSync(path.join(A, f)), f);
+  assert(html.includes("Object.assign(ZOMBIE, { coughEvery: 15, coughLen: 4.0, coughR: 0.75, cure: 10 });"));
+  assert(html.includes('if (game.zombie && enemy.ship === "bloom" && !game.zombieCure) game.zombieCure = { t: null };') && html.includes('} else if (m.t === "zc") { startCough(false);'));
+});
 console.log(n + " checks passed");

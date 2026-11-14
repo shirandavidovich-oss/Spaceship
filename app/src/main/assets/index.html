@@ -9897,6 +9897,7 @@ function hitEnemy(s, Wp) {
 // ---------- kills and money ----------
 const bounty = { t: 0, r: null };
 function scoreKill(player) {
+  if (game.zombie && enemy.ship === "bloom" && !game.zombieCure) game.zombieCure = { t: null };   // a zombie destroyed BLOOM: the cure begins with the next ship
   // every win fills one spare health tank again (it flashes)
   if (game.tanks < TANKS) { game.tanks++; game.tankT = 1; audio.tone(660, 0.12, "triangle", 0.05, 1.5); audio.tone(990, 0.16, "triangle", 0.05, 1.3, 0.1); }
   game.streak = (game.streak || 0) + 1;
@@ -10580,7 +10581,7 @@ function drawShip(S, x, y, size, o = {}) {
 
   // turned into a zombie by BLOOM's pollen: its zombie art, moving (ZOMBIE_ART). BLOOM: its petals and stamens moving
   if (o.zombie && S.rig) drawCorsairOars(S, o, "bloom");   // (CORSAIR a zombie: it still rows, its oars in BLOOM's colours)
-  if (o.zombie && drawZombieShip(S)) { ctx.restore(); return; }
+  if (o.zombie && drawZombieShip(S, o)) { ctx.restore(); return; }
   if (S.bloom && drawBloomMoving(S, power)) { ctx.restore(); return; }
   if (S.ballast && drawBallastRig(o.tow)) { ctx.restore(); return; }
   if (S.kiln && drawKilnRig(o.kiln)) { ctx.restore(); return; }
@@ -11069,8 +11070,77 @@ function drawResultButtons() {
 //   BLOOM itself never turns (it is the flower).
 const ZOMBIE = { dmg: 0.5, rate: 0.6 };   // dmg: how hard its shots hit (50%; it was 20%). rate: how fast it fires and its ammo refills (60%: only 40% fewer shots; it was 20%)
 function pollenRadius(t, M) { return M.range * Math.min(1, t / M.grow) * shipSize(); }
+// A zombie coughs its pollen out now and again (every ZOMBIE.coughEvery s, give or take 2): about 4 s of coughs
+// (ZOMBIE_COUGH: start, length, strength; the cough sound audio/bloom/zombie-cough.ogg has the same ones), its pollen
+// cloud swelling with each cough and shrinking between them, like a speaker's sound waves. A ship that breathes it in
+// (as long as BLOOM's pollen takes) becomes a zombie too. Cured: a zombie that destroys a BLOOM is itself again
+// ZOMBIE.cure s after the next ship shows up
+const ZOMBIE_COUGH = [[0.0, 0.42, 1.0], [0.62, 0.36, 0.75], [1.18, 0.48, 1.0], [2.05, 0.4, 0.85], [2.75, 0.55, 1.0], [3.55, 0.35, 0.6]];
+Object.assign(ZOMBIE, { coughEvery: 15, coughLen: 4.0, coughR: 0.75, cure: 10 });
+function coughLevel(t) {   // 0..1: how hard it coughs at t s into the fit
+  let v = 0;
+  for (const [s, d, a] of ZOMBIE_COUGH) { const u = t - s; if (u >= 0 && u < d + 0.25) v = Math.max(v, a * Math.min(1, u / 0.012) * Math.exp(-u * 5.5 / d)); }
+  return v;
+}
+function coughRadius(t) { return MAGIC.pollen.range * ZOMBIE.coughR * (0.3 + 0.7 * coughLevel(t)) * shipSize(); }
+function startCough(mine) {
+  if (mine) { game.cough = { t: 0, hit: 0 }; if (enemy.remote) link.send({ t: "zc" }); }
+  else duel.cough = { t: 0 };
+  const P = mine ? game : enemy;
+  if (Math.hypot(wrapDelta(P.x - game.x, WW), wrapDelta(P.y - game.y, WH)) < U * 2.5) playClip("audio/bloom/zombie-cough.ogg", false, mine ? 0.8 : 0.6);
+}
+function updateZombieCough(dt) {
+  soundBuf("audio/bloom/zombie-cough.ogg");
+  if (duel.cough) { duel.cough.t += dt; if (duel.cough.t > ZOMBIE.coughLen || !enemy.on) duel.cough = null; }
+  if (!game.zombie || game.dead || game.stage !== "fly") { game.cough = null; game.coughNext = null; return; }
+  if (game.coughNext == null) game.coughNext = ZOMBIE.coughEvery * (0.5 + Math.random() * 0.4);
+  if (!game.cough) { game.coughNext -= dt; if (game.coughNext <= 0) { startCough(true); game.coughNext = ZOMBIE.coughEvery + (Math.random() - 0.5) * 4; } return; }
+  const C = game.cough; C.t += dt;
+  if (C.t > ZOMBIE.coughLen) { game.cough = null; return; }
+  if (Math.random() < dt * 40 * coughLevel(C.t)) { const a = Math.random() * TAU, r = coughRadius(C.t) * Math.random(); burstAt(game.x + Math.cos(a) * r, game.y + Math.sin(a) * r, 1, ["#ffe08a", "#b9fff2", "#ff9ad8"], 0.12, 0.6, game.vx, game.vy); }
+  if (!enemy.on || enemy.warp >= 0.5 || enemy.ship === "bloom" || enemyZombie() || C.done) return;   // (BLOOM never turns)
+  const d = Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH));
+  if (d > coughRadius(C.t) + shipSize() * 0.3) return;
+  C.hit += dt;
+  if (C.hit >= MAGIC.pollen.infect) { C.done = true; zombifyEnemy(); }
+}
+// a zombie that destroyed BLOOM: the cure starts when the next ship shows up, and takes ZOMBIE.cure s
+function zombieCureTick(dt) {
+  const Q = game.zombieCure; if (!Q) return;
+  if (!game.zombie || game.dead) { game.zombieCure = null; return; }
+  if (Q.t == null) { if (enemy.on && enemy.warp < 0.5) Q.t = 0; return; }
+  Q.t += dt;
+  if (Q.t >= ZOMBIE.cure) {
+    game.zombie = false; game.zombieCure = null; game.cough = null;
+    burstAt(game.x, game.y, 40, ["#ffffff", "#8ff5d8", "#ffd166"], 0.6, 0.9, game.vx, game.vy);
+    rings.push({ x: game.x, y: game.y, t: 0, max: 0.6, r: shipSize() * 1.3, c: "#8ff5d8" });
+    audio.tone(523, 0.3, "triangle", 0.05, 1); audio.tone(784, 0.4, "triangle", 0.05, 1, 0.12); audio.tone(1047, 0.5, "triangle", 0.05, 1, 0.24); buzz(80);
+  }
+}
+// the cough's pollen round a zombie (mine, or theirs: drawn here)
+function drawCough(x, y, t) {
+  const r = coughRadius(t), lvl = coughLevel(t), fade = Math.min(1, (ZOMBIE.coughLen - t) / 0.5), cols = ["#ffe08a", "#b9fff2", "#ff9ad8", "#fff5ce"];
+  if (r <= 0 || fade <= 0) return;
+  ctx.save();
+  const g = ctx.createRadialGradient(x, y, r * 0.1, x, y, r);
+  g.addColorStop(0, `rgba(255,224,138,${(0.12 + 0.25 * lvl) * fade})`); g.addColorStop(0.8, `rgba(185,255,242,${(0.06 + 0.12 * lvl) * fade})`); g.addColorStop(1, "rgba(185,255,242,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  for (let k = 0; k < 3; k++) {   // its edge, rippling out like sound waves with each cough
+    const rr = r * (0.55 + 0.22 * k + 0.08 * Math.sin(time * 9 - k)), al = (0.45 - k * 0.12) * (0.4 + 0.6 * lvl) * fade;
+    ctx.strokeStyle = `rgba(255,154,216,${al})`; ctx.lineWidth = Math.max(1.5, shipSize() * 0.02 * (1 + lvl)); ctx.beginPath(); ctx.arc(x, y, rr, 0, TAU); ctx.stroke();
+  }
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 90; i++) {
+    const h1 = Math.abs((Math.sin(i * 12.9898) * 43758.5453) % 1), h2 = Math.abs((Math.sin(i * 78.233) * 12543.123) % 1);
+    const u = (h2 + t * 0.5) % 1, a = h1 * TAU + t * (i % 2 ? 0.5 : -0.4), q = Math.sqrt(u) * r;
+    ctx.globalAlpha = fade * (0.4 + 0.5 * lvl) * (u < 0.85 ? 1 : (1 - u) / 0.15);
+    ctx.fillStyle = cols[i % 4]; ctx.beginPath(); ctx.arc(x + Math.cos(a) * q, y + Math.sin(a) * q, Math.max(1, shipSize() * (0.011 + (i % 3) * 0.005)), 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
 function enemyZombie() { return enemy.remote ? !!(duel.net && duel.net.zb) : !!enemy.zombie; }
 function updatePollen(dt) {
+  updateZombieCough(dt); zombieCureTick(dt);
   const M = MAGIC.pollen, P = game.pollen;
   if (!P) return;
   P.t += dt;
@@ -11176,10 +11246,31 @@ function drawBloomMoving(S, power) {
   return BloomMotion.draw(ctx, bloomArt.petals, performance.now(), { flow: Math.max(flow * 0.9, bloomArt.pose.flow), side: 0 }, { size: S.anim.size });
 }
 function zombieImg(S) { const Z = ZOMBIE_ART[S.id]; return Z ? artImage("art/bloom/" + Z.sprite) : null; }
-function drawZombieShip(S) {
+// SKARN as BLOOM's zombie (the SKARN BLOOM Jaw Fire package, art/bloom/skarn/: 6 x 4 atlases of 512 px frames, 30 ms
+// each): its jaw opening (frames 0-8, held at 8 while it catches) and slamming shut (16-23), and its firing (the fire
+// body with the muzzle flash over it; the flash's frame 12 at the shot). null: no animation now (its moving zombie art)
+function skarnBloomFrame(v) {
+  const A = v && v.anim; if (!A) return null;
+  const t = A.t || 0;
+  if (A.seq === "primary") return { atlas: "fire", i: clamp(12 + Math.floor((t - 76) / 30), 0, 23), fx: true };   // (the shot leaves at 76 ms: frame 12)
+  if (A.seq === "spit") return { atlas: "fire", i: clamp(Math.floor(t / 15), 0, 23), fx: true };
+  if (A.seq === "open") return { atlas: "jaw", i: Math.min(8, Math.floor(t / 30)) };
+  if (A.seq === "slam") return { atlas: "jaw", i: Math.min(23, 16 + Math.floor(t / 30)) };
+  return null;
+}
+function drawSkarnBloom(o, size) {
+  const F = skarnBloomFrame(o && o.vt); if (!F) return false;
+  const A = artImage("art/bloom/skarn/" + F.atlas + ".webp"); if (!A) return false;
+  const c = A.width / 6, sx = (F.i % 6) * c, sy = Math.floor(F.i / 6) * c;
+  ctx.drawImage(A, sx, sy, c, c, -size / 2, -size / 2, size, size);
+  if (F.fx) { const M = artImage("art/bloom/skarn/muzzle.webp"); if (M) ctx.drawImage(M, sx, sy, c, c, -size / 2, -size / 2, size, size); }
+  return true;
+}
+function drawZombieShip(S, o) {
   const Z = ZOMBIE_ART[S.id];
   if (!Z || BOT) return false;
   const size = (S.anim ? 512 * S.anim.size / (S.anim.base || 512) : 1) * (Z.scale || 1), now = performance.now();   // (scale: a zombie drawing smaller in its canvas than the ship's own)
+  if (S.id === "skarn") { artImage("art/bloom/skarn/jaw.webp"); artImage("art/bloom/skarn/fire.webp"); artImage("art/bloom/skarn/muzzle.webp"); if (drawSkarnBloom(o, size)) return true; }
   let A = bloomArt.z[S.id], R = { thul: "ZombieThulMotion", vexar: "ZombieVexarMotion", lyth: "ZombieLythMotion", fleet: "ZombieFleetMotion" }[Z.kind];
   R = globalThis[R];
   if (!A && R) {
@@ -13275,6 +13366,7 @@ function draw() {
       if (game.inked > 0) drawInkOn(p.x, p.y, shipSize(), game.inked / MAGIC.ink.stun, 0.4);
       drawScramble(p.x, p.y, shipSize(), game.scramble);
       if (game.pollen) drawPollen(p.x, p.y, game.pollen.t);
+      if (game.cough) drawCough(p.x, p.y, game.cough.t);   // (a zombie coughing its pollen)
       drawRewind(p.x, p.y, shipSize(), !!game.rw);
       if (game.charged > 0) {   // just charged by its thundercloud: a golden glow
         const g = ctx.createRadialGradient(p.x, p.y, shipSize() * 0.2, p.x, p.y, shipSize() * 0.9);
@@ -13543,6 +13635,7 @@ function drawEnemy() {
     if (E.clouds) drawNimbusClouds(enemy, enemy.remote ? enemy.anim : null, "enemy");
     drawScramble(p.x, p.y, size, Math.max(enemy.scramble || 0, enemy.remote && duel.net && duel.net.sc ? 1 : 0));
     if (enemy.remote && duel.net && duel.net.pn >= 0) drawPollen(p.x, p.y, duel.net.pn + (performance.now() - duel.net.at) / 1000);
+    if (duel.cough && enemy.on) drawCough(p.x, p.y, duel.cough.t);   // (their zombie coughing)
     drawHacked(p.x, p.y, size, Math.max(enemy.hacked || 0, enemy.remote && duel.net && duel.net.hk ? 1 : 0));
     if (enemy.remote) drawRing(duel.ring, E);
     if (enemy.remote) drawDevour(enemy, E, duel.devour);
@@ -14834,6 +14927,7 @@ function duelLink(event, data) {
     spawnRainbow(true, m.x * WW, m.y * WH, m.a);
   } else if (m.t === "fleetout") {   // the other player has lost every ship: I won
     openResult("win");
+  } else if (m.t === "zc") { startCough(false);   // their zombie coughing (its pollen drawn round their ship here)
   } else if (m.t === "zb") {   // their BLOOM's pollen got me: a zombie until this ship blows up
     becomeZombie();
   } else if (m.t === "hk") {   // their GLITCH's pulse hit me: my next firing turns a quarter

@@ -679,6 +679,13 @@ game reloads. The last problem noted shows small at the bottom of the title scre
 is just those, as many as were caught, each flying as its own weapon (a homing shot homes again; a weapon that does not
 fly as a shot comes back as a fossil shot).
 
+**Zombies cough**: a zombie coughs its pollen out about every 15 s (`ZOMBIE.coughEvery`): 4 s of coughs
+(`ZOMBIE_COUGH`, the same as in `audio/bloom/zombie-cough.ogg`), its pollen cloud swelling with each cough and shrinking
+between them, rippling like sound waves; a ship that breathes it in long enough becomes a zombie too (BLOOM never
+does). Heard and seen on both phones (`zc`). **Cured**: a zombie that destroys a BLOOM is itself again `ZOMBIE.cure`
+(10) s after the next ship shows up. **SKARN as a zombie** opens and slams its jaw and fires with the SKARN BLOOM
+package's frames (`art/bloom/skarn/`, `skarnBloomFrame`).
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the
