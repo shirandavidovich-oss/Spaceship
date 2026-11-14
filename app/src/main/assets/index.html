@@ -5136,7 +5136,7 @@ function drawShop() {
 // every: seconds between comets on average (random); first: the first not before this. speed: x an average ship's top
 // speed. life: seconds before it burns out. hp: hits it takes. len: the rock's length (ship-lengths). gold: share of
 // gold comets. coins: [least, most] (a value is least + (most - least) * u^coinCurve, rounded to 50: low values common)
-const COMET = { every: 60, first: 20, speed: 1.15, life: 24, hp: 36, len: 1.5, gold: 0.8, coins: [10, 100], coinCurve: 2.4, fps: 25,
+const COMET = { every: 60, first: 20, speed: 1.15, life: 24, hp: 36, len: 1.5, gold: 0.8, coins: [10, 50], coinCurve: 2.4, fps: 25,
   // the atlases (halved: 192 x 368 frames; the rock is 90 px long, from row 15 to 105; its middle at 96, 60)
   frame: { w: 192, h: 368, cols: 6, n: 24, rock: 90, ax: 96, ay: 60 } };
 // the four rare-earth minerals: their names, colours, how often a crystal comet carries each (`odds`), and what one is
