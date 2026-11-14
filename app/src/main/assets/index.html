@@ -8418,7 +8418,7 @@ function updateEnemyShots(dt) {
     }
     // SKARN's open jaw: caught (and it powers up SKARN's shards)
     if (trapOpen()) suckShot(game, S, s, dt);   // pulled toward the open mouth
-    if (trapOpen() && inMouth(game, S, s, dt)) { trapGain(s.x, s.y); eshots.splice(k, 1); continue; }
+    if (trapOpen() && inMouth(game, S, s, dt)) { trapGain(s.x, s.y, s.w); eshots.splice(k, 1); continue; }
     // into your ship
     if (!game.dead && Math.hypot(wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH)) < size * 0.42 * shipScale() + Wp.r * shotScale(s, Wp) * size) {
       burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 6, [Wp.color, "#ffffff"], 0.3, 0.6, game.vx, game.vy);
@@ -8514,8 +8514,9 @@ function drawRiftBursts() {
 // each shot it catches also powers up its shards (button 1): +35% damage a level, up to 5 levels, for POWER_TIME
 // seconds after the last catch. The shards grow and glow redder with it
 const POWER_TIME = 15, POWER_STEP = 0.35;
-// game.trap: { mode: idle | opening | catch | slam | loaded | spit, t: seconds in this mode, stored: shots held }
-function trapOf() { const S = shipById(game.ship); return S.anim && S.anim.trap ? (game.trap || (game.trap = { mode: "idle", t: 0, stored: 0 })) : null; }
+// game.trap: { mode: idle | opening | catch | slam | loaded | spit, t: seconds in this mode, stored: shots held,
+//   caught: the weapon of each shot held, in order (spat back as just those) }
+function trapOf() { const S = shipById(game.ship); return S.anim && S.anim.trap ? (game.trap || (game.trap = { mode: "idle", t: 0, stored: 0, caught: [] })) : null; }
 function trapPress() {
   const T = trapOf(), S = shipById(game.ship);
   if (!T || game.dead) return;
@@ -8541,7 +8542,7 @@ function updateTrap(dt) {
   }
   if (T.mode === "slam" && T.t >= 0.23) { T.mode = T.stored ? "loaded" : "idle"; T.t = 0; }
   if (T.mode === "spit") {
-    if (!T.fired && T.t >= 0.135) { T.fired = true; spitSalvo(S, T.stored); T.stored = 0; }
+    if (!T.fired && T.t >= 0.135) { T.fired = true; spitSalvo(S, T.stored, T.caught || []); T.stored = 0; T.caught = []; }
     if (T.t >= 0.36) { T.mode = "idle"; T.t = 0; }
   }
 }
@@ -8576,10 +8577,10 @@ function drawSuck(o, S) {
   ctx.restore();
 }
 // one more shot held in the jaw (it slams shut when full)
-function trapGain(x, y) {
+function trapGain(x, y, w) {
   const T = game.trap, S = shipById(game.ship);
   if (!T || T.mode !== "catch" || T.stored >= S.anim.trap.max) return;
-  T.stored++;
+  T.stored++; (T.caught || (T.caught = [])).push(w && WEAPONS[w] ? w : "fossil");   // (the weapon it was: spat back as the same)
   T.power = Math.min(S.anim.trap.max, (T.power || 0) + 1); T.powerT = POWER_TIME;   // every catch powers up the shards
   const P = S.anim.trap, M = magicOf(S);   // and refills the guns and speeds the magic along
   weaponsOf(S).forEach((w, i) => { game.ammo[i] = Math.min(WEAPONS[w].ammo, game.ammo[i] + WEAPONS[w].ammo * P.ammo); });
@@ -8590,16 +8591,20 @@ function trapGain(x, y) {
   if (T.stored >= S.anim.trap.max) trapClose();
 }
 function trapOpen() { const T = game.trap; return !!T && T.mode === "catch" && T.stored < shipById(game.ship).anim.trap.max && !game.dead; }
-// the salvo: one fossil shot for each one caught, from the mouth, fanned around the heading; the ship kicks back
-function spitSalvo(S, n) {
+// the salvo: each shot caught spat back as the very weapon it was (a homing shot homes again, its speed and damage its
+// own), as many as were caught, from the mouth, fanned around the heading; the ship kicks back. A weapon that does not
+// fly as a shot (no speed): a fossil shot instead
+function spitSalvo(S, n, caught = []) {
   if (n <= 0) return;
-  const Wp = WEAPONS.fossil, size = shipSize(), made = [];
+  const size = shipSize(), made = [];
   for (let i = 0; i < n; i++) {
+    let w = caught[i] || "fossil"; if (!WEAPONS[w] || !(WEAPONS[w].speed > 0)) w = "fossil";
+    const Wp = WEAPONS[w];
     const k = i - (n - 1) / 2, m = rotatePt(k * 19 / 512 * S.anim.size * size, -162 / 512 * S.anim.size * size, game.ang), a = game.ang + k * 0.116;
-    const s = { w: "fossil", x: game.x + m.x, y: game.y + m.y, vx: game.vx + Math.sin(a) * Wp.speed * U, vy: game.vy - Math.cos(a) * Wp.speed * U, life: 0, id: ++shotSeq };
+    const s = { w, x: game.x + m.x, y: game.y + m.y, vx: game.vx + Math.sin(a) * Wp.speed * U, vy: game.vy - Math.cos(a) * Wp.speed * U, life: 0, id: ++shotSeq, spat: true };
     shots.push(s); made.push(s);
   }
-  for (const s of made) duelSend({ t: "f", w: "fossil", ...netPos(s), s: S.id, id: s.id });
+  for (const s of made) duelSend({ t: "f", w: s.w, ...netPos(s), s: S.id, id: s.id });
   game.vx -= Math.sin(game.ang) * U * 0.05 * n; game.vy += Math.cos(game.ang) * U * 0.05 * n;
   audio.sfx(S.sfx, "spit_fire"); shake(0.2 + n * 0.08); buzz(60 + n * 20);
 }
@@ -9423,7 +9428,7 @@ function updateWeapons(dt) {
     if (enemy.remote && enemy.on && duel.net && duel.net.kc && shipById(enemy.ship).anim && shipById(enemy.ship).anim.trap) suckShot(enemy, shipById(enemy.ship), s, dt);
     if (enemy.remote && enemy.on && duel.net && duel.net.kc && shipById(enemy.ship).anim && shipById(enemy.ship).anim.trap &&
         inMouth(enemy, shipById(enemy.ship), s, dt)) {
-      link.send({ t: "caught", x: s.x / WW, y: s.y / WH }); duel.net.kc = 0;   // (one per message; the next state says if it is still open)
+      link.send({ t: "caught", x: s.x / WW, y: s.y / WH, w: s.w }); duel.net.kc = 0;   // (one per message; the next state says if it is still open)
       burstAt(s.x, s.y, 8, ["#ff8a5a", "#ffffff"], 0.2, 0.4); shots.splice(k, 1); continue;
     }
     // into their FRANKENSTEIN's creature (it is shot down part by part; their phone counts its power)
@@ -14861,7 +14866,7 @@ function duelLink(event, data) {
     enemy.x = x; enemy.y = y; if (duel.net) { duel.net.x = m.x; duel.net.y = m.y; duel.net.at = performance.now(); }
     audio.sfx("drakon", "rift_jump", 0, 0.7);
   } else if (m.t === "caught") {   // my SKARN's jaw caught one of their shots (their phone saw it fly in)
-    trapGain(m.x * WW, m.y * WH);
+    trapGain(m.x * WW, m.y * WH, m.w);
   } else if (m.t === "nova") {   // their ORIAN's light blast: the flash, and my ship shaken (their phone sends the damage)
     duel.nova = { t: 0 }; shake(1.2); buzz(300); audio.boom();
     game.vx += (Math.random() - 0.5) * U * 0.8; game.vy += (Math.random() - 0.5) * U * 0.8;

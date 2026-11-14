@@ -675,6 +675,10 @@ past its length ends by itself, and a tap anywhere skips it (`cineWatch`). Pictu
 (the phone short of graphics memory) every picture is let go at once and, if it does not come back within 3 s, the
 game reloads. The last problem noted shows small at the bottom of the title screen (`noteIssue`).
 
+**SKARN spits back what it caught**: each shot caught in its jaw is kept as its weapon (`trap.caught`), and the salvo
+is just those, as many as were caught, each flying as its own weapon (a homing shot homes again; a weapon that does not
+fly as a shot comes back as a fossil shot).
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the

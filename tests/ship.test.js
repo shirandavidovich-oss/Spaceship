@@ -941,4 +941,8 @@ ok("the screen never stays black: a film that shows nothing, sticks or runs long
   assert(html.includes("if (cine.on) { musicTick(); cineWatch(dt); return; }") && html.includes("function cineWatch(dt)"));
   assert(html.includes("try { artPurge(0); } catch (e2) {}") && html.includes("location.reload();") && html.includes("artPurge(40)"));
 });
+ok("SKARN spits back exactly what it caught: each shot as its own weapon (homing ones home), as many as it caught", () => {
+  const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(html.includes("trapGain(s.x, s.y, s.w)") && html.includes('link.send({ t: "caught", x: s.x / WW, y: s.y / WH, w: s.w })') && html.includes("spitSalvo(S, T.stored, T.caught || [])"));
+});
 console.log(n + " checks passed");
