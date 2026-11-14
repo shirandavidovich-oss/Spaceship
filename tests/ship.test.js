@@ -993,4 +993,9 @@ ok("the carrier: a test-hangar trigger, the film on both phones (\"cv\"), 20 int
 });
 ok("the raid: once a match when either side has lost half its fleet; its music slowly takes over 4.5 s before; a darker arena, star streaks, the hull's shadow, cinema bars", () =>
   html.includes("function raidCheck()") && html.includes("prelude: 4.5,") && html.includes('const slow = key === "carrier"') && html.includes("function drawCarrierOver()") && html.includes("duel.raidDone = false;"));
+ok("the raid's effects: the flyover shadow on the star and ships, six stern engines, blinking red lights, hangar doors with spill, near-camera dust", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets");
+  for (const f of ["dust-streak", "flyover-shadow", "hangar-atlas", "hangar-spill", "red-beacon", "thruster-bloom", "thruster-nozzle"]) assert(fs.existsSync(path.join(A, "art/carrier/fx/" + f + ".webp")), f);
+  assert(html.includes("function drawBeacons(") && html.includes("function drawEngines(") && html.includes("function drawDoors(") && html.includes("function beaconList()") && html.includes("const CFX = {"));
+});
 console.log(n + " checks passed");
