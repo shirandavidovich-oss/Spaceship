@@ -1,0 +1,20 @@
+name: Keep the server awake
+
+# Supabase pauses a free project after 7 days with no activity. Every 3 days this asks the server's database
+# something small (the public key, the same one the game uses), so it never goes quiet that long.
+on:
+  schedule:
+    - cron: "23 4 */3 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask the database
+        run: |
+          URL="https://tzzrdrfolzxuptmgtpfh.supabase.co"
+          KEY="sb_publishable_zzf2ysxbet8Qx0lW2dwWrA_OxS7CwZX"
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$URL/rest/v1/profiles?select=id&limit=1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          echo "server answered $code"
+          test "$code" -lt 500
