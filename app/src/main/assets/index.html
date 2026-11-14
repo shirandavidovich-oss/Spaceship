@@ -10898,7 +10898,7 @@ function menuShopLayout() {
   const btnW = bw * 0.34, btnH = btnW * 211 / 744;
   return { x, y, w: bw, h: bh, btn: { x: x + bw * 0.06, y: y + bh * 0.7, w: btnW, h: btnH } };
 }
-function hitMenuShop(x, y) { const L = menuShopLayout(), b = L.btn; return L.h > U * 0.2 && x > b.x - 8 && x < b.x + b.w + 8 && y > b.y - 8 && y < b.y + b.h + 8; }
+function hitMenuShop(x, y) { const L = menuShopLayout(); return L.h > U * 0.2 && x > L.x && x < L.x + L.w && y > L.y && y < L.y + L.h; }   // (anywhere on the banner, not only its SHOP button)
 function drawMenuShop() {
   if (BOT || shop.open) return;
   const L = menuShopLayout(); if (L.h < U * 0.2) return;   // (no room: a very wide screen)
