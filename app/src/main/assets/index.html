@@ -11669,7 +11669,13 @@ function beaconList() {
   return carrierBeacons;
 }
 // the fighters: hit points, speed (screens a second), how often they charge and fire, their shots
-const RAID = { size: 0.62, hp: 15, speed: 1.15, accel: 1.6, turn: 3.2, cool: [2.6, 4.4], charge: 0.6, range: 2.6, dmg: 3, shotSpeed: 2.3, shotLife: 1.3 };
+// The raiders are BASTIONs (art/carrier/bastion/, the BASTION package at half size), heavy assault ships: a four-barrel
+// volley (14 frames at 24 fps, a shot on frames 0, 3, 6, 9 from the shoulder turrets in turn) and, close in, the armored
+// ram (19 frames at 20 fps: the lunge on frame 5, its hit window till frame 14; one hit, a shove). They are scattered
+// over the whole map when they leave the carrier, and hunt their player from there
+const RAID = { size: 0.95, hp: 34, speed: 0.8, accel: 1.0, turn: 1.9, cool: [5.0, 8.0], range: 2.5, dmg: 1.5, shotSpeed: 2.4, shotLife: 1.4,
+  volley: { frames: 14, fps: 24, shots: [[0, 0], [3, 2], [6, 1], [9, 3]] }, ram: { frames: 19, fps: 20, lunge: 5, end: 14, near: 1.25, push: 1.7, dmg: 14, knock: 1.0, cool: 6 },
+  muzzles: [[126, 125], [141, 125], [243, 125], [258, 125]], pivot: [191, 192], len: 298 };
 let carrier = null;          // { t, slot (0: I started it), launched, fx: [launch films] }
 const raiders = [];          // mine to fly: { id, x, y, vx, vy, ang, hp, tgt: "me" | "foe", cool, charge, born, orbit }
 const rshots = [];           // their bolts { x, y, vx, vy, life, tgt, own }
@@ -11677,8 +11683,8 @@ let raidSeq = 0;
 function carrierOn() { return !!carrier || raiders.length > 0 || !!(duel.net && duel.net.rd && duel.net.rd.length); }
 function carrierImgs() {
   for (let i = 0; i < CARRIER.tiles; i++) artImage("art/carrier/hull/hull-0" + i + ".webp");
-  for (const f of ["top-idle", "top-boost", "top-attack_charge", "side-idle", "side-boost"]) artImage("art/carrier/fighter/" + f + ".webp");
-  for (const f of ["approach", "whoosh", "air", "brake", "reverse", "laser", "roar"]) soundBuf("audio/carrier/" + f + ".ogg");
+  for (const f of ["top-idle", "top-volley", "top-ram", "side-idle"]) artImage("art/carrier/bastion/" + f + ".webp");
+  for (const f of ["pass", "whoosh", "air", "brake", "reverse", "laser"]) soundBuf("audio/carrier/" + f + ".ogg");
   for (const f of ["dust-streak", "flyover-shadow", "hangar-atlas", "hangar-spill", "red-beacon", "thruster-bloom", "thruster-nozzle"]) cfxImg(f);
   soundBuf("audio/music/carrier.ogg");
 }
@@ -11798,14 +11804,14 @@ function updateCarrier(dt) {
   if (!carrier && cfilm.cv) filmFree();   // (the film over: its layer and full-size tiles let go)
   if (carrier) {
     const C = CARRIER, K = carrier, t0 = K.t; K.t += dt; const t = K.t, at = (x) => t0 < x && t >= x;
-    if (at(0)) playClip("audio/carrier/approach.ogg", false, 0.9);
+    if (at(-2.5)) playClip("audio/carrier/pass.ogg", false, 1);   // (the owner's recording of it going by: its peak lands on the pass)
     if (t < 0) { updateRaiders(dt); return; }   // (the prelude)
     if (t > C.approachEnd && t < C.passEnd) shake(0.16);   // (the whole arena trembling as it goes by)
     // the shove: once, as the hull rushes past (the second player a little after the first)
     if (!K.shoved && t >= C.shove[K.slot] && !game.dead) { K.shoved = true; game.vx += -0.45 * U; game.vy += 0.95 * U; shake(1.2); buzz(220); }
     // the sounds: the hull's roar, a "vush" for each deck going by, the brakes, the air, backing off
-    loopClip("croar", "audio/carrier/roar.ogg", !BOT && t > 2.6 && t < C.passEnd + 0.3, 2.0, 0.75);
-    if (t > C.approachEnd - 0.4 && t < C.passEnd) { const w = Math.floor(carrierPose(t).focus / (C.tileW / 2)); if (w !== K.whoosh) { if (K.whoosh >= 0) playClip("audio/carrier/whoosh.ogg", false, 0.85); K.whoosh = w; } }
+
+    if (t > C.approachEnd - 0.4 && t < C.passEnd) { const w = Math.floor(carrierPose(t).focus / (C.tileW / 2)); if (w !== K.whoosh) { if (K.whoosh >= 0) playClip("audio/carrier/whoosh.ogg", false, 0.45); K.whoosh = w; } }
     if (at(C.passEnd)) { playClip("audio/carrier/brake.ogg", false, 1); playClip("audio/carrier/air.ogg", false, 0.7); shake(1); }
     if (at(C.stop)) playClip("audio/carrier/air.ogg", false, 0.9);
     if (at(C.revStart)) playClip("audio/carrier/reverse.ogg", false, 0.9);
@@ -11815,7 +11821,8 @@ function updateCarrier(dt) {
     while (K.launched < C.fighters && t >= C.launchAt + K.launched * C.launchGap) {
       const i = K.launched++, mineT = i % 2 === K.slot, foeLocal = enemy.on && !enemy.remote;
       const tgt = mineT ? "me" : enemy.remote ? null : foeLocal ? "foe" : "me";   // (null: the other phone flies it)
-      K.fx.push({ i, bay: CARRIER.bays[i % 3], t: 0, tgt, toMe: mineT || !enemy.on, a: Math.random() * TAU });
+      let wx, wy, n = 0; do { wx = Math.random() * WW; wy = Math.random() * WH; } while (n++ < 30 && (Math.hypot(wrapDelta(wx - game.x, WW), wrapDelta(wy - game.y, WH)) < U * 2.2 || (enemy.on && Math.hypot(wrapDelta(wx - enemy.x, WW), wrapDelta(wy - enemy.y, WH)) < U * 2.2)));
+      K.fx.push({ i, bay: CARRIER.bays[i % 3], t: 0, tgt, toMe: mineT || !enemy.on, a: Math.random() * TAU, wx, wy });   // (wx, wy: where on the map it goes; most fly off the screen)
       playClip("audio/carrier/laser.ogg", false, 0.55);
     }
     for (let k = K.fx.length - 1; k >= 0; k--) {
@@ -11828,9 +11835,8 @@ function updateCarrier(dt) {
 }
 // a fighter's film is over: it is in the arena now, near its player
 function raiderBorn(F) {
-  const T = F.tgt === "foe" ? enemy : game, d = U * (0.9 + Math.random() * 0.6);
-  raiders.push({ id: (BOT ? "b" : "p") + (++raidSeq), x: wrapX(T.x + Math.cos(F.a) * d), y: wrapY(T.y + Math.sin(F.a) * d), vx: -Math.cos(F.a) * U * 0.5, vy: -Math.sin(F.a) * U * 0.5,
-    ang: Math.atan2(-Math.cos(F.a), Math.sin(F.a)), hp: RAID.hp, tgt: F.tgt, cool: RAID.cool[0] + Math.random() * (RAID.cool[1] - RAID.cool[0]), charge: -1, born: time,
+  raiders.push({ id: (BOT ? "b" : "p") + (++raidSeq), x: F.wx, y: F.wy, vx: Math.cos(F.a) * U * 0.2, vy: Math.sin(F.a) * U * 0.2,
+    ang: Math.atan2(Math.cos(F.a), -Math.sin(F.a)), hp: RAID.hp, tgt: F.tgt, cool: RAID.cool[0] + Math.random() * (RAID.cool[1] - RAID.cool[0]), charge: -1, ram: -1, ramCool: 3, born: time,
     orbit: { a: F.a, r: 1.3 + Math.random() * 1.2, w: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.3) } });
 }
 function raiderTarget(r) { return r.tgt === "foe" ? (enemy.on ? enemy : null) : game.dead ? null : game; }
@@ -11846,11 +11852,28 @@ function updateRaiders(dt) {
       const gd = Math.hypot(gx, gy) || 1, want = Math.min(RAID.speed * U, gd * 1.6);
       ax = gx / gd * want - r.vx; ay = gy / gd * want - r.vy;
       const tx = wrapDelta(T.x - r.x, WW), ty = wrapDelta(T.y - r.y, WH), td = Math.hypot(tx, ty);
-      r.cool -= dt;
-      if (r.charge < 0 && r.cool <= 0 && td < RAID.range * U) { r.charge = 0; }
+      r.cool -= dt; r.ramCool -= dt;
+      const V = RAID.volley, M = RAID.ram;
+      // close in: the armored ram (the lunge at frame 5, one hit and a shove while the window is open)
+      if (r.ram < 0 && r.charge < 0 && r.ramCool <= 0 && td < size * M.near * 1.6 && Math.random() < dt * 1.5) { r.ram = 0; r.rammed = false; }
+      if (r.ram >= 0) {
+        const f0 = r.ram * M.fps; r.ram += dt; const f1 = r.ram * M.fps; face = Math.atan2(tx, -ty);
+        if (f0 < M.lunge && f1 >= M.lunge) { const a = Math.atan2(tx, -ty); r.ang = a; r.vx = Math.sin(a) * M.push * U; r.vy = -Math.cos(a) * M.push * U; }   // (locked on: straight at them)
+        if (f1 >= M.lunge && f1 < M.end && !r.rammed && td < size * (0.5 + RAID.size * 0.5)) {
+          r.rammed = true; const nx = tx / (td || 1), ny = ty / (td || 1);
+          if (r.tgt === "foe") { harmEnemy(M.dmg); if (!enemy.remote) { enemy.vx += nx * M.knock * U; enemy.vy += ny * M.knock * U; } }
+          else { damageShip(M.dmg); game.vx += nx * M.knock * U; game.vy += ny * M.knock * U; }
+          burstAt(T.x - nx * size * 0.4, T.y - ny * size * 0.4, 24, ["#ffffff", "#ffb347", "#8a9a70"], 0.6, 0.7); shake(0.6);
+        }
+        if (f1 >= M.lunge && f1 < M.end) { ax = 0; ay = 0; }   // (the lunge: no steering, it charges straight on)
+        if (f1 >= M.frames) { r.ram = -1; r.ramCool = M.cool; }
+      }
+      // in reach: the four-barrel volley, turned to them (a shot on frames 0, 3, 6, 9, each once)
+      if (r.charge < 0 && r.ram < 0 && r.cool <= 0 && td < RAID.range * U) { r.charge = 0; }
       if (r.charge >= 0) {
-        face = Math.atan2(tx, -ty); r.charge += dt;
-        if (r.charge >= RAID.charge) { raiderFire(r, tx / (td || 1), ty / (td || 1)); r.charge = -1; r.cool = RAID.cool[0] + Math.random() * (RAID.cool[1] - RAID.cool[0]); }
+        face = Math.atan2(tx, -ty); const f0 = r.charge * V.fps; r.charge += dt; const f1 = r.charge * V.fps;
+        for (const [fr, mz] of V.shots) if ((f0 < fr || (fr === 0 && r.charge - dt <= 0)) && f1 >= fr) raiderFire(r, tx / (td || 1), ty / (td || 1), mz);
+        if (f1 >= V.frames) { r.charge = -1; r.cool = RAID.cool[0] + Math.random() * (RAID.cool[1] - RAID.cool[0]); }
       }
     } else { ax = -r.vx; ay = -r.vy; }
     const al = Math.hypot(ax, ay), amax = RAID.accel * U;
@@ -11878,9 +11901,9 @@ function updateRaiders(dt) {
   for (const q of updateRaiders.prev || []) if (!ids.has(q[0])) raiderBoom(q[1] * WW, q[2] * WH);
   updateRaiders.prev = now;
 }
-function raiderFire(r, ux, uy) {
-  const size = shipSize() * RAID.size, side = (r.side = -(r.side || 1)), c = Math.cos(r.ang), s = Math.sin(r.ang);
-  const lx = side * 0.085 * size, ly = -0.1 * size, x = r.x + lx * c - ly * s, y = r.y + lx * s + ly * c, v = RAID.shotSpeed * U;
+function raiderFire(r, ux, uy, mz = 0) {
+  const size = shipSize() * RAID.size, c = Math.cos(r.ang), s = Math.sin(r.ang), M = RAID.muzzles[mz];
+  const lx = (M[0] - RAID.pivot[0]) / RAID.len * size, ly = (M[1] - RAID.pivot[1]) / RAID.len * size, x = r.x + lx * c - ly * s, y = r.y + lx * s + ly * c, v = RAID.shotSpeed * U;
   rshots.push({ x, y, vx: ux * v + r.vx * 0.3, vy: uy * v + r.vy * 0.3, life: 0, tgt: r.tgt, own: true });
   if (enemy.remote) duelSend({ t: "rf", x: +(x / WW).toFixed(4), y: +(y / WH).toFixed(4), vx: +(ux * RAID.shotSpeed).toFixed(3), vy: +(uy * RAID.shotSpeed).toFixed(3) });
   if (Math.hypot(wrapDelta(x - game.x, WW), wrapDelta(y - game.y, WH)) < U * 2) playClip("audio/carrier/laser.ogg", false, 0.25);
@@ -11899,22 +11922,23 @@ function raiderShot(s, Wp) {
   }
   return false;
 }
-function raiderNet() { return raiders.length ? raiders.map((r) => [r.id, +(r.x / WW).toFixed(4), +(r.y / WH).toFixed(4), +r.ang.toFixed(2), r.charge >= 0 ? 1 : 0]) : 0; }
+function raiderNet() { return raiders.length ? raiders.map((r) => [r.id, +(r.x / WW).toFixed(4), +(r.y / WH).toFixed(4), +r.ang.toFixed(2), r.charge >= 0 ? 1 : r.ram >= 0 ? 2 : 0]) : 0; }
 // ---- drawing ----
 // a fighter's frame (the package's atlases at half size: 192 px cells, 4 across) at (x, y) screen, `len` long, turned `ang`
 function drawFighter(x, y, len, ang, view, anim, t, alpha = 1) {
-  const A = { idle: [16, 16, true], boost: [12, 18, false], attack_charge: [12, 20, false] }[anim], img = artImage("art/carrier/fighter/" + view + "-" + anim + ".webp");
+  anim = anim === "boost" ? "idle" : anim === "attack_charge" ? "volley" : anim;   // (BASTION: idle, volley, ram)
+  const A = { idle: [12, 12, true], volley: [14, 24, false], ram: [19, 20, false] }[anim], img = artImage("art/carrier/bastion/" + view + "-" + anim + ".webp");
   if (!img || len < 1) return;
-  const n = A[2] ? Math.floor(t * A[1]) % A[0] : Math.min(A[0] - 1, Math.floor(t * A[1])), sx = (n % 4) * 192, sy = Math.floor(n / 4) * 192, piv = view === "top" ? [96, 110.5] : [101.5, 92];
-  const k = len / 150;   // (the craft is about 150 of the cell's 192 px)
+  const n = A[2] ? Math.floor(t * A[1]) % A[0] : Math.min(A[0] - 1, Math.floor(t * A[1])), sx = (n % 4) * 192, sy = Math.floor(n / 4) * 192, piv = view === "top" ? [95.5, 96] : [97.5, 99.5];
+  const k = len / (view === "top" ? 149 : 143);   // (the ship is about 149 of the cell's 192 px, 143 side on)
   ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(ang);
   ctx.drawImage(img, sx, sy, 192, 192, -piv[0] * k, -piv[1] * k, 192 * k, 192 * k);
   ctx.restore();
 }
 function drawRaiders() {
   const size = shipSize() * RAID.size;
-  for (const r of raiders) { const p = toScreen(r.x, r.y); drawFighter(p.x, p.y, size, r.ang, "top", r.charge >= 0 ? "attack_charge" : time - r.born < 1.2 ? "boost" : "idle", r.charge >= 0 ? r.charge : time - r.born); }
-  for (const q of (duel.net && duel.net.rd) || []) { const p = toScreen(q[1] * WW, q[2] * WH); drawFighter(p.x, p.y, size, q[3], "top", q[4] ? "attack_charge" : "idle", q[4] ? (time * 1.6) % 0.6 : time); }
+  for (const r of raiders) { const p = toScreen(r.x, r.y); drawFighter(p.x, p.y, size, r.ang, "top", r.ram >= 0 ? "ram" : r.charge >= 0 ? "volley" : "idle", r.ram >= 0 ? r.ram : r.charge >= 0 ? r.charge : time - r.born); }
+  for (const q of (duel.net && duel.net.rd) || []) { const p = toScreen(q[1] * WW, q[2] * WH); drawFighter(p.x, p.y, size, q[3], "top", q[4] === 2 ? "ram" : q[4] ? "volley" : "idle", q[4] === 2 ? (time % 0.95) : q[4] ? time % 0.58 : time); }
   ctx.save(); ctx.lineCap = "round";
   for (const b of rshots) {   // red bolts
     const p = toScreen(b.x, b.y), v = Math.hypot(b.vx, b.vy) || 1, L = size * 0.35;
@@ -11991,7 +12015,7 @@ function drawCarrierScene() {
   // the player, a violet trail behind
   for (const F of K.fx) {
     const u = Math.min(1, F.t / C.fly), e = u * u * (3 - 2 * u), p0 = carrierProject(Pz, V, F.bay[0], F.bay[1]); if (!p0) continue;
-    const T = F.toMe ? game : enemy, h = zoomed(toScreen(T.x + Math.cos(F.a) * U, T.y + Math.sin(F.a) * U));
+    const h = zoomed(toScreen(F.wx, F.wy));
     const cx = (p0.x + h.x) / 2 + (F.i % 2 ? -1 : 1) * W * 0.25, cy = Math.max(p0.y, h.y) + H * 0.18;   // (a swing out toward the camera)
     const at = (q) => [(1 - q) * (1 - q) * p0.x + 2 * (1 - q) * q * cx + q * q * h.x, (1 - q) * (1 - q) * p0.y + 2 * (1 - q) * q * cy + q * q * h.y];
     const [x, y] = at(e), dx = 2 * (1 - e) * (cx - p0.x) + 2 * e * (h.x - cx), dy = 2 * (1 - e) * (cy - p0.y) + 2 * e * (h.y - cy), len = shipSize() * RAID.size * z * (0.1 + 0.9 * e * e);
