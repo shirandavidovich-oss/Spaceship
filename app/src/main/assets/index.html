@@ -11099,30 +11099,31 @@ function drawResultButtons() {
 //   BLOOM itself never turns (it is the flower).
 const ZOMBIE = { dmg: 0.5, rate: 0.6 };   // dmg: how hard its shots hit (50%; it was 20%). rate: how fast it fires and its ammo refills (60%: only 40% fewer shots; it was 20%)
 function pollenRadius(t, M) { return M.range * Math.min(1, t / M.grow) * shipSize(); }
-// A zombie coughs its pollen out now and again (every ZOMBIE.coughEvery s, give or take 2): about 4 s of coughs
-// (ZOMBIE_COUGH: start, length, strength; the cough sound audio/bloom/zombie-cough.ogg has the same ones), its pollen
-// cloud swelling with each cough and shrinking between them, like a speaker's sound waves. A ship that breathes it in
-// (as long as BLOOM's pollen takes) becomes a zombie too. Cured: a zombie that destroys a BLOOM is itself again
-// ZOMBIE.cure s after the next ship shows up
-const ZOMBIE_COUGH = [[0.0, 0.42, 1.0], [0.62, 0.36, 0.75], [1.18, 0.48, 1.0], [2.05, 0.4, 0.85], [2.75, 0.55, 1.0], [3.55, 0.35, 0.6]];
-Object.assign(ZOMBIE, { coughEvery: 15, coughLen: 4.0, coughR: 0.75, cure: 10 });
-function coughLevel(t) {   // 0..1: how hard it coughs at t s into the fit
-  let v = 0;
-  for (const [s, d, a] of ZOMBIE_COUGH) { const u = t - s; if (u >= 0 && u < d + 0.25) v = Math.max(v, a * Math.min(1, u / 0.012) * Math.exp(-u * 5.5 / d)); }
-  return v;
+// A zombie that destroyed BLOOM, once the next ship shows up (while its cure runs, game.zombieCure), coughs its pollen
+// out: first `coughFirst` s in, then every ZOMBIE.coughEvery s (give or take 2): 6 s of coughs (the sound
+// audio/bloom/zombie-cough2.ogg; COUGH_ENV: how loud it is, 25 steps a second, smoothed). Its pollen cloud is never
+// smaller than BLOOM's own and swells with each cough by up to `coughGrow` more, like a speaker's sound waves. A ship
+// that breathes it in (as long as BLOOM's pollen takes) becomes a zombie too. Cured ZOMBIE.cure s after that ship shows up
+const COUGH_ENV = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.13,0.24,0.18,0.24,0.18,0.13,0.08,0.05,0.02,0,0.03,0.03,0,0.02,0.01,0,0.13,0.84,0.68,0.54,0.46,0.54,0.53,0.42,0.33,0.25,0.31,0.49,0.39,0.3,0.23,0.17,0.12,0.53,0.42,0.33,0.29,0.22,0.55,0.44,0.34,0.26,0.66,0.52,0.41,0.32,0.25,0.35,0.27,0.2,0.66,0.53,0.42,0.33,0.25,0.19,0.31,0.26,0.19,0.14,0.09,0.05,0.02,0.02,0.01,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.25,0.49,1,0.81,0.65,0.52,0.41,0.32,0.25,0.18,0.2,0.18,0.31,0.44,0.35,0.27,0.2,0.55,0.43,0.34,0.26,0.19,0.2,0.33,0.26,0.36,0.46,0.36,0.28,0.21,0.15,0.1,0.11,0.45,0.51,0.4,0.31,0.24,0.18,0.12,0.08,0.08,0.07,0.08];
+Object.assign(ZOMBIE, { coughEvery: 15, coughFirst: 1.5, coughLen: 6.0, coughGrow: 0.8, cure: 10 });
+function coughLevel(t) {   // 0..1: how hard it coughs at t s into the fit (the sound's own loudness)
+  const f = t * 25, i = Math.floor(f);
+  if (i < 0 || i >= COUGH_ENV.length - 1) return 0;
+  return COUGH_ENV[i] + (COUGH_ENV[i + 1] - COUGH_ENV[i]) * (f - i);
 }
-function coughRadius(t) { return MAGIC.pollen.range * ZOMBIE.coughR * (0.3 + 0.7 * coughLevel(t)) * shipSize(); }
+function coughRadius(t) { return MAGIC.pollen.range * (1 + ZOMBIE.coughGrow * coughLevel(t)) * shipSize(); }
 function startCough(mine) {
   if (mine) { game.cough = { t: 0, hit: 0 }; if (enemy.remote) link.send({ t: "zc" }); }
   else duel.cough = { t: 0 };
   const P = mine ? game : enemy;
-  if (Math.hypot(wrapDelta(P.x - game.x, WW), wrapDelta(P.y - game.y, WH)) < U * 2.5) playClip("audio/bloom/zombie-cough.ogg", false, mine ? 0.8 : 0.6);
+  if (Math.hypot(wrapDelta(P.x - game.x, WW), wrapDelta(P.y - game.y, WH)) < U * 2.5) playClip("audio/bloom/zombie-cough2.ogg", false, mine ? 0.8 : 0.6);
 }
 function updateZombieCough(dt) {
-  soundBuf("audio/bloom/zombie-cough.ogg");
+  soundBuf("audio/bloom/zombie-cough2.ogg");
   if (duel.cough) { duel.cough.t += dt; if (duel.cough.t > ZOMBIE.coughLen || !enemy.on) duel.cough = null; }
-  if (!game.zombie || game.dead || game.stage !== "fly") { game.cough = null; game.coughNext = null; return; }
-  if (game.coughNext == null) game.coughNext = ZOMBIE.coughEvery * (0.5 + Math.random() * 0.4);
+  const Q = game.zombieCure;   // (only a zombie that destroyed BLOOM coughs, once the next ship is here)
+  if (!game.zombie || game.dead || game.stage !== "fly" || !Q || Q.t == null) { game.cough = null; game.coughNext = null; return; }
+  if (game.coughNext == null) game.coughNext = ZOMBIE.coughFirst;
   if (!game.cough) { game.coughNext -= dt; if (game.coughNext <= 0) { startCough(true); game.coughNext = ZOMBIE.coughEvery + (Math.random() - 0.5) * 4; } return; }
   const C = game.cough; C.t += dt;
   if (C.t > ZOMBIE.coughLen) { game.cough = null; return; }

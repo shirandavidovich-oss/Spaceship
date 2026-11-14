@@ -679,9 +679,9 @@ game reloads. The last problem noted shows small at the bottom of the title scre
 is just those, as many as were caught, each flying as its own weapon (a homing shot homes again; a weapon that does not
 fly as a shot comes back as a fossil shot).
 
-**Zombies cough**: a zombie coughs its pollen out about every 15 s (`ZOMBIE.coughEvery`): 4 s of coughs
-(`ZOMBIE_COUGH`, the same as in `audio/bloom/zombie-cough.ogg`), its pollen cloud swelling with each cough and shrinking
-between them, rippling like sound waves; a ship that breathes it in long enough becomes a zombie too (BLOOM never
+**Zombies cough**: only a zombie that destroyed BLOOM, once the next ship shows up (while its cure runs): 1.5 s in it
+coughs for 6 s (`audio/bloom/zombie-cough2.ogg`, a recorded cough; `COUGH_ENV` is its loudness), its pollen cloud never
+smaller than BLOOM's own and swelling with the cough's loudness (up to 1.8 times), rippling like sound waves; a ship that breathes it in long enough becomes a zombie too (BLOOM never
 does). Heard and seen on both phones (`zc`). **Cured**: a zombie that destroys a BLOOM is itself again `ZOMBIE.cure`
 (10) s after the next ship shows up. **SKARN as a zombie** opens and slams its jaw and fires with the SKARN BLOOM
 package's frames (`art/bloom/skarn/`, `skarnBloomFrame`).
