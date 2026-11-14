@@ -8726,6 +8726,7 @@ function novaBlast(S, M) {
   game.nova = { t: 0 };
   shake(1.2); buzz(400); audio.sfx(S.sfx, "solar_beam"); audio.boom();
   burstAt(game.x, game.y, 120, ["#ffffff", "#fff8ce", "#ffcc63", "#ffad35"], 2.0, 1.4, game.vx, game.vy);
+  if (carrierOn()) raidArea(game.x, game.y, U * 3, M.dmg);   // (the nova: every fighter near enough to see it)
   if (enemy.on && enemy.warp < 0.5) {
     const dx = wrapDelta(enemy.x - game.x, WW), dy = wrapDelta(enemy.y - game.y, WH), d = Math.hypot(dx, dy) || 1;
     hitEnemy({ x: enemy.x, y: enemy.y, vx: dx / d * U, vy: dy / d * U }, { dmg: M.dmg, color: "#fff1ba" });
@@ -11536,6 +11537,7 @@ function blowBomb() {
   const c = bombCenter(B);
   duelSend({ t: "bx", x: +(c.x / WW).toFixed(5), y: +(c.y / WH).toFixed(5) });
   bigBlast(c, M);
+  if (carrierOn()) raidArea(c.x, c.y, M.blast * shipSize(), M.dmg * 0.8);
   if (!enemy.on || enemy.warp >= 0.5) return;
   const size = shipSize(), dx = wrapDelta(enemy.x - c.x, WW), dy = wrapDelta(enemy.y - c.y, WH), d = Math.hypot(dx, dy), R = M.blast * size;
   if (d > R + size * 0.4) return;
@@ -11634,7 +11636,7 @@ const CARRIER = {
   proj: { slope: -0.32, vs: 1.23, axisY: 360 }, approachEnd: 3.1, passEnd: 13.1, stop: 13.62, revStart: 13.77, reveal: 16.77,
   startFocus: 645, speed: 1330, stopFocus: 14290.8,
   passPose: { px: 440, py: 347, scale: 0.9916, depth: 0.00039 }, revealPose: { focus: 276, px: 267, py: 311, scale: 0.58, depth: 0.00066 },
-  shove: [2.55, 2.85], prelude: 4.5, tiles: 9, tileW: 2044, launchAt: 16.85, launchGap: 0.16, fighters: 20, fly: 3.4, fadeOut: 1.0,
+  shove: [2.55, 2.85], prelude: 4.5, tiles: 9, tileW: 2044, launchAt: 16.85, launchGap: 0.4, fighters: 4, fly: 3.4, fadeOut: 1.0,
   bays: [[920, 694], [1130, 690], [1390, 665]],
   lines: [[17.1, "Johnny, do you hear me?"], [18.9, "Loud and clear! Prepare to fight!"], [21.0, "Red squadron, form up. Targets in sight!"], [23.2, "Engage! Engage!"]]
 };
@@ -11673,8 +11675,8 @@ function beaconList() {
 // volley (14 frames at 24 fps, a shot on frames 0, 3, 6, 9 from the shoulder turrets in turn) and, close in, the armored
 // ram (19 frames at 20 fps: the lunge on frame 5, its hit window till frame 14; one hit, a shove). They are scattered
 // over the whole map when they leave the carrier, and hunt their player from there
-const RAID = { size: 0.95, hp: 34, speed: 0.8, accel: 1.0, turn: 1.9, cool: [5.0, 8.0], range: 2.5, dmg: 1.5, shotSpeed: 2.4, shotLife: 1.4,
-  volley: { frames: 14, fps: 24, shots: [[0, 0], [3, 2], [6, 1], [9, 3]] }, ram: { frames: 19, fps: 20, lunge: 5, end: 14, near: 1.25, push: 1.7, dmg: 14, knock: 1.0, cool: 6 },
+const RAID = { size: 1.0, hp: 100, speed: 1.0, accel: 1.3, turn: 2.4, cool: [2.2, 3.6], range: 2.5, dmg: 6, shotSpeed: 2.4, shotLife: 1.4,
+  volley: { frames: 14, fps: 24, shots: [[0, 0], [3, 2], [6, 1], [9, 3]] }, ram: { frames: 19, fps: 20, lunge: 5, end: 14, near: 1.25, push: 1.8, dmg: 25, knock: 1.1, cool: 5 },
   muzzles: [[126, 125], [141, 125], [243, 125], [258, 125]], pivot: [191, 192], len: 298 };
 let carrier = null;          // { t, slot (0: I started it), launched, fx: [launch films] }
 const raiders = [];          // mine to fly: { id, x, y, vx, vy, ang, hp, tgt: "me" | "foe", cool, charge, born, orbit }
@@ -11840,8 +11842,36 @@ function raiderBorn(F) {
     orbit: { a: F.a, r: 1.3 + Math.random() * 1.2, w: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.3) } });
 }
 function raiderTarget(r) { return r.tgt === "foe" ? (enemy.on ? enemy : null) : game.dead ? null : game; }
+// my weapons against the raid's ships. Shots: raiderShot (in the shots' loop). Everything else that tests the enemy
+// where it is (beams, rings, mines, rails, waves, storms, rainbows, steam, eggs, dashes, threads, crosses...): each of
+// those updates is run once more for each fighter, with the enemy stood in its place for that moment (a tiny dt, the
+// damage caught instead of dealt), and what it would have taken goes to the fighter (theirs: told to their phone).
+// The blasts (torpedo, DRAKON's bomb, the light nova, PALISADE's wall, BORER's drill) hit them through raidArea
+const RAID_FNS = () => [updateBeam, updateCrosses, updateThread, updateDash, updateRing, updateEggs, updateMines, updateRail, updateWaves, updateStorms, updateRainbows, updateSteam, updatePieces, updatePaddles, larDash, updatePuff];
+function raidProxy() {
+  const list = raiders.map((r) => ({ r, x: r.x, y: r.y, vx: r.vx, vy: r.vy, ang: r.ang })).concat(((duel.net && duel.net.rd) || []).map((q) => ({ q, x: q[1] * WW, y: q[2] * WH, vx: 0, vy: 0, ang: q[3] })));
+  if (!list.length || game.dead || game.stage !== "fly") return;
+  const keys = ["x", "y", "vx", "vy", "ang", "on", "warp", "remote", "hp", "hurt", "spin", "markT", "talus", "hacked", "inked"], save = {};
+  for (const k of keys) save[k] = enemy[k];
+  const H = harmEnemy, TK = tankEnemy, DE = destroyEnemy, net = duel.net; let acc = 0;
+  harmEnemy = (n) => { if (n > 0 && n < 9999) acc += n; }; tankEnemy = () => { acc += SHIP_HP; }; destroyEnemy = () => {}; duel.net = null;
+  try {
+    for (const it of list) {
+      Object.assign(enemy, { x: it.x, y: it.y, vx: it.vx, vy: it.vy, ang: it.ang, on: true, warp: 0, remote: false, hp: 9999, talus: null }); acc = 0;
+      for (const f of RAID_FNS()) { try { f(1e-4); } catch (e) {} }
+      if (acc > 0) { if (it.r) { it.r.hp -= acc; burstAt(it.x, it.y, 6, ["#ffffff", "#ffd27a"], 0.25, 0.4); } else duelSend({ t: "rh", id: it.q[0], d: Math.round(acc) }); }
+    }
+  } finally { for (const k of keys) enemy[k] = save[k]; harmEnemy = H; tankEnemy = TK; destroyEnemy = DE; duel.net = net; }
+}
+// a blast of mine at (x, y), reach R: every fighter in it takes dmg (theirs: told to their phone)
+function raidArea(x, y, R, dmg) {
+  const rr = shipSize() * RAID.size * 0.35;
+  for (const r of raiders) if (Math.hypot(wrapDelta(r.x - x, WW), wrapDelta(r.y - y, WH)) < R + rr) { r.hp -= dmg; burstAt(r.x, r.y, 10, ["#ffffff", "#ffb347"], 0.35, 0.5); }
+  for (const q of (duel.net && duel.net.rd) || []) if (Math.hypot(wrapDelta(q[1] * WW - x, WW), wrapDelta(q[2] * WH - y, WH)) < R + rr) duelSend({ t: "rh", id: q[0], d: Math.round(dmg) });
+}
 function updateRaiders(dt) {
   const size = shipSize();
+  if (!BOT) raidProxy();
   for (let k = raiders.length - 1; k >= 0; k--) {
     const r = raiders[k], T = raiderTarget(r);
     if (r.hp <= 0) { raiderBoom(r.x, r.y); raiders.splice(k, 1); continue; }
@@ -12296,6 +12326,7 @@ function updateDrill(dt) {
   // the tip, swept from where it was to where it is now, against their hull
   const size = shipSize(), tip = { x: game.x + Math.sin(game.ang) * 0.5 * size, y: game.y - Math.cos(game.ang) * 0.5 * size };
   const prev = game.drillTip || tip; game.drillTip = tip;
+  for (const r of raiders) if (time > (r.drillT || 0) && Math.hypot(wrapDelta(r.x - tip.x, WW), wrapDelta(r.y - tip.y, WH)) < size * RAID.size * 0.4) { r.drillT = time + D.again; r.hp -= D.dmg; burstAt(tip.x, tip.y, 26, ["#fff1bc", "#ffb768", "#ffffff"], 0.7, 0.8); playClip("audio/borer/bite.ogg", false, 0.9); }   // (the raid's ships bite too)
   if (!enemy.on || enemy.warp >= 0.5 || enemyAloft() || enemyDocked()) { game.drillTouch = false; return; }
   const esc = enemyScale(), R = size * 0.42 * esc + D.tip * size;
   const ex = wrapDelta(enemy.x - tip.x, WW), ey = wrapDelta(enemy.y - tip.y, WH), ax = wrapDelta(prev.x - tip.x, WW), ay = wrapDelta(prev.y - tip.y, WH);
@@ -12444,6 +12475,7 @@ function palShatter(W) {
   W.build = null;
   const C = palCircle(W);
   palBoom(C.x, C.y, C.r, palUnits(W), true);
+  if (carrierOn()) raidArea(C.x, C.y, C.r, PALG.boom);
   palFx.push({ x: W.x, y: W.y, ang: W.ang, t: 0 });
   duelSend({ t: "px", x: +(W.x / WW).toFixed(5), y: +(W.y / WH).toFixed(5), a: +W.ang.toFixed(3), cx: +(C.x / WW).toFixed(5), cy: +(C.y / WH).toFixed(5), r: +(C.r / U).toFixed(4) });
   game.palWall = null; game.palRest = time + PALG.rest; duelSend({ t: "pw", on: 0 });
@@ -13098,6 +13130,7 @@ function torpedoBlast(s, Wp, mine) {
   burstAt(s.x, s.y, 46, ["#ffffff", "#ffe08a", "#ffb03a", "#ff6a1a", "#6a4a3a"], 1.0, 1.1);
   rings.push({ x: s.x, y: s.y, t: 0, max: 0.4, r: R, c: "#ffb03a" }, { x: s.x, y: s.y, t: -0.06, max: 0.45, r: R * 1.2, c: "#ffffff" });
   audio.boom(); shake(0.6); buzz(mine ? 140 : 80);
+  if (mine && carrierOn()) raidArea(s.x, s.y, R, Wp.blastDmg * 0.7);
   if (!mine || !enemy.on || enemy.warp >= 0.5) return;
   const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH), d = Math.hypot(dx, dy);
   if (d >= R + size * 0.3) return;

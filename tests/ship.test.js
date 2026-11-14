@@ -989,7 +989,7 @@ ok("the carrier: a test-hangar trigger, the film on both phones (\"cv\"), 20 int
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets");
   for (const f of ["art/carrier/hull/hull-00.webp", "art/carrier/hull/hull-08.webp", "art/carrier/bastion/top-idle.webp", "art/carrier/bastion/side-idle.webp", "art/carrier/bastion/top-volley.webp", "art/carrier/bastion/top-ram.webp", "audio/music/carrier.ogg",
     "audio/carrier/whoosh.ogg", "audio/carrier/brake.ogg", "audio/carrier/air.ogg", "audio/carrier/reverse.ogg", "audio/carrier/laser.ogg", "audio/carrier/pass.ogg"]) assert(fs.existsSync(path.join(A, f)), f);
-  assert(html.includes("fighters: 20,") && html.includes('if (c.event === "carrier")') && html.includes('m.t === "cv"') && html.includes("rd: raiderNet()") && html.includes('alienSay(C.lines[K.said][1], "radio")') && html.includes('carrier: 20 }'));
+  assert(html.includes("fighters: 4,") && html.includes('if (c.event === "carrier")') && html.includes('m.t === "cv"') && html.includes("rd: raiderNet()") && html.includes('alienSay(C.lines[K.said][1], "radio")') && html.includes('carrier: 20 }'));
 });
 ok("the raid: once a match when either side has lost half its fleet; its music slowly takes over 4.5 s before; a darker arena, star streaks, the hull's shadow, cinema bars", () =>
   html.includes("function raidCheck()") && html.includes("prelude: 4.5,") && html.includes('const slow = key === "carrier"') && html.includes("function drawCarrierOver()") && html.includes("duel.raidDone = false;"));
@@ -1006,4 +1006,6 @@ ok("the raid's film: a camera fitted to the screen (wider lens and tilt on a tal
 ok("the raid's ships are BASTIONs scattered over the map (four-barrel volley, armored ram); the owner's pass recording", () =>
   html.includes("volley: { frames: 14, fps: 24, shots: [[0, 0], [3, 2], [6, 1], [9, 3]] }") && html.includes("ram: { frames: 19, fps: 20, lunge: 5, end: 14") &&
   html.includes('if (at(-2.5)) playClip("audio/carrier/pass.ogg", false, 1);') && html.includes("const h = zoomed(toScreen(F.wx, F.wy));"));
+ok("the raid: 4 BASTIONs with a regular ship's strength; every weapon reaches them (the proxy run for beams, rings, mines, rails...; raidArea for blasts; the drill)", () =>
+  html.includes("function raidProxy()") && html.includes("const RAID_FNS = () => [updateBeam,") && html.includes("function raidArea(x, y, R, dmg)") && html.includes("hp: 100, speed: 1.0"));
 console.log(n + " checks passed");
