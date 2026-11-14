@@ -1497,6 +1497,10 @@ const MAGIC = {
   //   the bomb is used. A new body in the middle takes the bomb away
   //   `legs`: first, while it turns to the star, four legs unfold from its sides and reach for the surface (ms); the
   //   timings after it count from then
+  // BORER's drill (the magic button while the star mine is still charging): held, the drill spins (`spin` turns a
+  //   second) and bores into a ship its tip touches: `dmg` (one tank) for each bite, a new bite only after the tip has
+  //   left them (or `again` s on). `tip`: the tip's reach, ship-lengths. The bite leaves a hole in their hull
+  drill: { spin: 4.7, dmg: 100, tip: 0.035, again: 0.9, min: 0.35, say: 7 },
   starmine: { name: "מוקש כוכב", look: "starmine", cool: 3, reach: 0.55, depth: 0.4, out: 0.1, legs: 450, windup: 340, inside: 840, plant: 1030, exit: 1120, end: 1780, color: "#4dff9a" },
   // MIRAGE: false star. After its 480 ms charge a lens opens `ahead` ship-lengths in front of the nose and stays `life` s.
   //   Every shot (anyone's) within `radius` ship-lengths is pulled toward its middle: `strength` / (d² + soft²), at most
@@ -3046,7 +3050,7 @@ function update(dt) {
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
-  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateGimbal(dt); updateLariat(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
+  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateDrill(dt); updateGimbal(dt); updateLariat(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
   updateReso(dt); updatePollen(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
@@ -4650,7 +4654,8 @@ const VOICE_SPEED = 1.3;
 const VOICE_FX = { alien: { rate: 0.86, ring: 55, dry: 0.35, echo: 0.032 }, kip: { rate: 1.12, ring: 90, dry: 0.5, echo: 0.02 }, brass: { rate: 0.74, ring: 32, dry: 0.4, echo: 0.045 },
   monster: { rate: 0.62, ring: 28, dry: 0.82, echo: 0.07, speed: 1.0, anywhere: true, gain: 2.4 },
   robot: { rate: 1.0, ring: 46, dry: 0.12, echo: 0.014, speed: 1.15, anywhere: true, gain: 2.2 },
-  gollum: { rate: 1.32, ring: 64, dry: 0.6, echo: 0.018, speed: 0.95, anywhere: true, gain: 2.2 } };   // (PALISADE's wall: a thin hissing creature's voice, a little robotic)   // (a GLITCH malfunction's mayday)
+  gollum: { rate: 1.32, ring: 64, dry: 0.6, echo: 0.018, speed: 0.95, anywhere: true, gain: 2.2 },
+  vader: { rate: 0.66, ring: 20, dry: 0.8, echo: 0.05, speed: 0.92, anywhere: true, gain: 2.6 } };   // (BORER's drill: deep, slow, inside a mask)   // (PALISADE's wall: a thin hissing creature's voice, a little robotic)   // (a GLITCH malfunction's mayday)
 // GLITCH's malfunction: the stricken ship's computer calls for help (heard on both phones)
 const MAYDAY_LINES = ["We've got a malfunction! Mayday, mayday!", "System failure! Mayday, mayday!", "Weapons offline! Mayday, mayday!", "Malfunction! Malfunction! Mayday!", "Warning! Weapons jammed! Mayday, mayday!"];
 function maydaySay() { if (shop.open) return; let i; do { i = Math.floor(Math.random() * MAYDAY_LINES.length); } while (i === maydaySay.last && MAYDAY_LINES.length > 1); maydaySay.last = i; alienSay(MAYDAY_LINES[i], "robot"); }
@@ -6781,6 +6786,7 @@ function useMagicNow(which = 0) {
     }
     return;
   }
+  if (S.id === "borer" && M && game.magicCool > 0 && !game.dead && !game.dive) { drillStart(); return; }   // BORER: the star mine still charging, so the drill spins
   if (!M || game.magicCool > 0 || game.dead) return;
   if (M.look === "shatter") { useShatter(S, M); return; }
   if (M.look === "anchor") {   // ZORIAN: a tap anchors it (it stops and spins); a second tap lets it go
@@ -9952,6 +9958,7 @@ function drawBounty() {
   ctx.restore();
 }
 function destroyEnemy() {
+  enemy.breaches = [];   // (BORER's holes go with the ship)
   const E = shipById(enemy.ship);
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
   enemy.on = false; enemy.respawn = RESPAWN; game.kills++; enemy.markT = 0; scoreKill(false); enemy.rw = null; enemy.rwHist = [];
@@ -11533,6 +11540,105 @@ const palFx = [];
 function startWall(S) {
   game.palDeploy = { t: 0, launch: null }; game.anim = { seq: "roof", t: 0 };
   audio.tone(180, 0.4, "square", 0.03, 1.5); audio.tone(420, 0.25, "triangle", 0.03, 1.3, 0.3); buzz(25);   // the plates sliding, the arms
+}
+// ---------- BORER's drill (the magic button, while the star mine charges) ----------
+const DRILL_LINES = ["I'd drill ya! Heh heh heh... ha ha ha ha!", "Hold still... I'd drill ya! Mwa ha ha ha!", "I'll drill right through ya! Heh heh heh heh!",
+  "Nowhere to run... I'd drill ya! Ha ha ha ha!", "Ahh... I'd drill ya. Heh heh heh... ha ha ha!"];
+function drillSay() {
+  if (time < (drillSay.next || 0)) return; drillSay.next = time + MAGIC.drill.say;
+  let i; do { i = Math.floor(Math.random() * DRILL_LINES.length); } while (i === drillSay.last && DRILL_LINES.length > 1); drillSay.last = i;
+  playClip("audio/borer/breath.ogg", false, 0.7); alienSay(DRILL_LINES[i], "vader");
+}
+function drillStart() {
+  if (!game.drillOn) { game.drillOn = true; game.drillTip = null; game.drillTouch = false; drillSay(); buzz(25); }
+  game.drillMin = MAGIC.drill.min;
+}
+// the drill's frame (BORER's own 24 turning frames), turned `spin` turns
+function drillLook(spin) { return { frame: Math.floor((((spin % 1) + 1) % 1) * 24) % 24, mix: 1 }; }
+// a hole in a hull: where (ship-local, in ship-lengths; the nose is -y) and the way its surface faces; kept on the ship
+// till it is lost or changed (key). At most four
+function breachList(o, key) { if (o.breachKey !== key) { o.breachKey = key; o.breaches = []; } return o.breaches; }
+function myBreachKey() { return game.ship + "|" + duel.lost + "|" + (game.lives || 0); }
+function theirBreachKey() { return enemy.ship + "|" + duel.won + "|" + (enemy.lives || 0); }
+function addBreach(list, x, y, a) { list.push({ x, y, a, t: time }); if (list.length > 4) list.shift(); }
+function updateDrill(dt) {
+  const D = MAGIC.drill, S = shipById(game.ship);
+  if (game.drillOn && (game.ship !== "borer" || game.dead || game.dive || game.stage !== "fly" || (game.magicFinger === null && (game.drillMin -= dt) <= 0))) game.drillOn = false;
+  if (game.dead) game.breaches = [];
+  if (enemy.remote && duel.net && duel.net.bd) enemy.drillSpin = (enemy.drillSpin || 0) + dt * D.spin;
+  const near = enemy.on && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < U * 2.2;
+  loopClip("drill", "audio/borer/drill.ogg", !!game.drillOn, 2.0, 0.6);
+  loopClip("edrill", "audio/borer/drill.ogg", !game.drillOn && near && !!(enemy.remote && duel.net && duel.net.bd), 2.0, 0.35);
+  if (!game.drillOn) { game.drillTip = null; game.drillTouch = false; return; }
+  game.drillSpin = (game.drillSpin || 0) + dt * D.spin;
+  if (Math.random() < dt * 14) burstAt(game.x + Math.sin(game.ang) * 0.5 * shipSize(), game.y - Math.cos(game.ang) * 0.5 * shipSize(), 1, ["#cfe8e0", "#9fb8b0"], 0.18, 0.4, game.vx, game.vy);
+  // the tip, swept from where it was to where it is now, against their hull
+  const size = shipSize(), tip = { x: game.x + Math.sin(game.ang) * 0.5 * size, y: game.y - Math.cos(game.ang) * 0.5 * size };
+  const prev = game.drillTip || tip; game.drillTip = tip;
+  if (!enemy.on || enemy.warp >= 0.5 || enemyAloft() || enemyDocked()) { game.drillTouch = false; return; }
+  const esc = enemyScale(), R = size * 0.42 * esc + D.tip * size;
+  const ex = wrapDelta(enemy.x - tip.x, WW), ey = wrapDelta(enemy.y - tip.y, WH), ax = wrapDelta(prev.x - tip.x, WW), ay = wrapDelta(prev.y - tip.y, WH);
+  const L2 = ax * ax + ay * ay, u = L2 ? clamp(((ex - ax) * -ax + (ey - ay) * -ay) / L2, 0, 1) : 1;
+  const cx = ax * (1 - u), cy = ay * (1 - u), d = Math.hypot(ex - cx, ey - cy);
+  if (d > R * 1.25) { game.drillTouch = false; return; }   // (apart again: the next touch is a new bite)
+  if (d > R || game.drillTouch || time < (game.drillNext || 0)) return;
+  game.drillTouch = true; game.drillNext = time + D.again;
+  // the bite: one tank, through their shields; the hole where it went in (a little inside their edge), kept on their hull
+  harmEnemy(D.dmg);
+  const vx = cx - ex, vy = cy - ey, vl = Math.hypot(vx, vy) || 1, c = Math.cos(enemy.ang), s = Math.sin(enemy.ang);
+  const ux = vx / vl, uy = vy / vl, lx = (ux * c + uy * s) * 0.3, ly = (-ux * s + uy * c) * 0.3;
+  addBreach(breachList(enemy, theirBreachKey()), lx, ly, Math.atan2(ly, lx));
+  if (enemy.remote) duelSend({ t: "br", x: +lx.toFixed(3), y: +ly.toFixed(3) });
+  const hx = enemy.x + ux * 0.38 * size * esc, hy = enemy.y + uy * 0.38 * size * esc;
+  burstAt(hx, hy, 34, ["#fff1bc", "#ffb768", "#ffffff", "#bac6ce"], 0.75, 0.8, enemy.vx, enemy.vy);
+  burstAt(hx, hy, 8, ["#8a9aa0", "#5c6a70"], 0.4, 1.2, enemy.vx, enemy.vy);
+  playClip("audio/borer/bite.ogg", false, 0.9); shake(0.55); buzz(160);
+}
+// their BORER's drill bit me: the hole on my hull (the tank came off with their damage), and their laugh
+function drillBitten(m) {
+  addBreach(breachList(game, myBreachKey()), m.x, m.y, Math.atan2(m.y, m.x));
+  const size = shipSize(), c = Math.cos(game.ang), s = Math.sin(game.ang), wx = (m.x * c - m.y * s) * size * 1.27, wy = (m.x * s + m.y * c) * size * 1.27;
+  burstAt(game.x + wx, game.y + wy, 34, ["#fff1bc", "#ffb768", "#ffffff", "#bac6ce"], 0.75, 0.8, game.vx, game.vy);
+  playClip("audio/borer/bite.ogg", false, 0.9); drillSay();
+}
+// the holes on a ship (x, y: where it is drawn; size: its length; ang: its turn): the dark hole, then its torn rim
+// (art/ships/borer/breach/: three stages, small and hot, torn at 0.10 s, cooled at 0.34 s)
+function drawBreaches(list, x, y, size, ang) {
+  if (!list || !list.length) return;
+  const hole = artImage("art/ships/borer/breach/hole.webp"), rim = artImage("art/ships/borer/breach/rim.webp");
+  if (!hole || !rim) return;
+  const d = size * 0.26;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+  for (const B of list) {
+    const age = time - B.t, f = age < 0.1 ? 0 : age < 0.34 ? 1 : 2;
+    ctx.save(); ctx.translate(B.x * size, B.y * size); ctx.rotate(B.a);
+    ctx.drawImage(hole, f * 96, 0, 96, 96, -d / 2, -d / 2, d, d);
+    ctx.drawImage(rim, f * 96, 0, 96, 96, -d / 2, -d / 2, d, d);
+    if (age < 0.6) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 1 - age / 0.6; const g = ctx.createRadialGradient(0, 0, 0, 0, 0, d * 0.6); g.addColorStop(0, "rgba(255,190,90,0.9)"); g.addColorStop(1, "rgba(255,90,20,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, d * 0.6, 0, TAU); ctx.fill(); }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+// the air round the turning drill: thin swirls winding round it from the collar to the tip, and specks of dust riding them
+function drawDrillAir(x, y, size, ang, spin) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(size, size);
+  ctx.lineCap = "round";
+  for (let k = 0; k < 7; k++) {
+    const yy = -0.06 - k * 0.07, w = 0.27 * (1 - k * 0.11) + 0.05, ph = spin * TAU + k * 0.9;
+    for (let j = 0; j < 2; j++) {
+      const a0 = ph + j * Math.PI;
+      ctx.strokeStyle = `rgba(${j ? "190,255,225" : "235,245,255"},${0.32 - k * 0.025})`; ctx.lineWidth = 0.012;
+      ctx.beginPath();
+      for (let q = 0; q <= 10; q++) { const a = a0 + q * 0.16, px = Math.cos(a) * w, py = yy + Math.sin(a) * w * 0.22 - q * 0.004; q ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.stroke();
+    }
+  }
+  for (let k = 0; k < 10; k++) {   // dust on the swirl
+    const a = spin * TAU * 1.3 + k * 2.4, yy = -0.08 - ((k * 0.061 + spin * 0.4) % 0.45), w = 0.28 * (1 - (-yy - 0.06) / 0.55) + 0.05;
+    const px = Math.cos(a) * w, py = yy + Math.sin(a) * w * 0.22;
+    ctx.fillStyle = `rgba(220,240,235,${Math.sin(a) > 0 ? 0.65 : 0.25})`; ctx.beginPath(); ctx.arc(px, py, 0.009, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
 }
 function updatePalisade(dt) {
   const D = game.palDeploy, size = shipSize();
@@ -13542,8 +13648,13 @@ function draw() {
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null, vt: shown === S ? game : null, haunt: shown === S && hauntOn(),
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0,
           winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
-          half: shown === S && game.splitUsed ? "rear" : null, glow: shown === S && S.grows ? talusGlow(game.talus.ring) : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
+          half: shown === S && game.splitUsed ? "rear" : null, glow: shown === S && S.grows ? talusGlow(game.talus.ring) : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : shown === S && game.drillOn ? drillLook(game.drillSpin || 0) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
       if (dug) ctx.restore();
+      if (shown === S) {   // the holes in my hull; BORER's drill: the air turning round it
+        const X = p.x + r.x, Y = p.y + bob + r.y + tradeOffsetY(p.y);
+        drawBreaches(breachList(game, myBreachKey()), X, Y, shipSize() * sc, game.ang);
+        if (game.drillOn) drawDrillAir(X, Y, shipSize() * sc, game.ang, game.drillSpin || 0);
+      }
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
       if (shown === S) drawBeam2(game, S, game.beam);
       if (shown === S) drawDevour(game, S, game.devour);
@@ -13816,10 +13927,12 @@ function drawEnemy() {
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (enemy.remote && duel.net && duel.net.bb) drawHeldBubble(enemy, duel.net.bb);
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { prep: enemy.remote && duel.surg && duel.surg.phase === "prep" ? duel.surg.t : null, kiln: enemy.remote && duel.kiln ? kilnRig(duel.kiln.t) : null, strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
+    drawShip(E, p.x, p.y, size * esc, { prep: enemy.remote && duel.surg && duel.surg.phase === "prep" ? duel.surg.t : null, kiln: enemy.remote && duel.kiln ? kilnRig(duel.kiln.t) : null, strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : enemy.remote && duel.net && duel.net.bd ? drillLook(enemy.drillSpin || 0) : null, half: enemy.remote && duel.net && duel.net.hf ? "rear" : null, cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null, gear: enemy.remote && duel.net ? duel.net.gr : null, vt: enemy.remote ? enemy : null, haunt: enemy.remote && !!duel.net && duel.net.ht === 1 });
     if (dv) ctx.restore();
+    drawBreaches(enemy.on ? breachList(enemy, theirBreachKey()) : null, p.x, p.y, size * esc, enemy.ang);   // the holes my drill left
+    if (enemy.remote && duel.net && duel.net.bd) drawDrillAir(p.x, p.y, size * esc, enemy.ang, enemy.drillSpin || 0);
     if (enemy.remote && duel.net && duel.net.fg && E.grows) drawForge(enemy, duel.net.fg, p.x, p.y, E.anim.size / 512 * size * esc);   // their TALUS forging
     if (enemy.remote && duel.net) drawAttachedEgg(enemy, E, enemy.anim, duel.net.ek, p.x, p.y, size * esc);   // their VEXAR's egg forming
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
@@ -15078,6 +15191,7 @@ function duelLink(event, data) {
   } else if (m.t === "pg") { if (duel.palWall && duel.palWall.segs) palStartBuild(duel.palWall, { x: m.x, y: m.y, h: m.h }, false);   // their wall building a piece
   } else if (m.t === "pl") { duel.palLaunch = { x: m.x * WW, y: m.y * WH, ang: m.a };
   } else if (m.t === "pwh") { palHit();   // my wall stopped one of their shots (their phone saw it)
+  } else if (m.t === "br") { drillBitten(m);   // their BORER's drill bit my hull
   } else if (m.t === "px") { palFx.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0 });
     if (m.r != null) palBoom(m.cx * WW, m.cy * WH, m.r * U, duel.palWall && duel.palWall.segs ? palUnits(duel.palWall) : [{ x: m.cx * WW, y: m.cy * WH }], false);   // their wall's blast
   } else if (m.t === "fs") {   // their MIRAGE's false star (it bends my shots too)
@@ -15353,6 +15467,7 @@ function updateDuel(dt) {
       kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), vt: vaultNet(), ht: hauntOn() ? 1 : 0, ca: corsairNet(), hk: huskNet(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
+      bd: game.drillOn ? 1 : 0,
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
       gr: game.grind ? [game.grind.phase, +game.grind.spin.toFixed(2), +game.grind.teeth.toFixed(2), +game.grind.nx.toFixed(3), +game.grind.ny.toFixed(3)] : 0 });
     duel.outDmg = 0;
@@ -15528,6 +15643,12 @@ function botThink(dt) {
     // (it steers toward the speed it wants, so it brakes as it gets there instead of overshooting)
     const wx = dx * 1.6 + prey.vx - game.vx, wy = dy * 1.6 + prey.vy - game.vy;
     botAI.head = Math.atan2(wx, -wy); botKey(" ", Math.hypot(wx, wy) > U * 0.08 && Math.abs(wrapAngle(botAI.head - game.ang)) < 0.5 && !game.locked);
+  }
+  // BORER with the star mine charging: nose first into them, the drill turning (the magic held) once it is close
+  if (S.id === "borer" && game.magicCool > 0 && seen && !botAI.danger && d < U * 2.2) {
+    const wx = dx * 1.5 + prey.vx - game.vx, wy = dy * 1.5 + prey.vy - game.vy;
+    botAI.head = Math.atan2(wx, -wy); botKey(" ", Math.hypot(wx, wy) > U * 0.08 && Math.abs(wrapAngle(botAI.head - game.ang)) < 0.5 && !game.locked);
+    if (d < shipSize() * 1.2 && off < 0.5 && !botAI.keys.v) botTap("v", 0.6 + Math.random() * 0.8);
   }
   // BALLAST towing: it turns its right side (where the asteroid swings) to them, and lets go when the asteroid lines up
   if (S.id === "ballast" && game.tow && game.tow.phase === "tow" && !botAI.danger) {
