@@ -3063,7 +3063,7 @@ function update(dt) {
   game.scramble = Math.max(0, (game.scramble || 0) - dt); enemy.scramble = Math.max(0, (enemy.scramble || 0) - dt);
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
-  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateDrill(dt); updateLythJets(dt); updateGimbal(dt); updateLariat(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
+  rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateDrill(dt); updateLythJets(dt); updateCarrier(dt); updateGimbal(dt); updateLariat(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
   updateReso(dt); updatePollen(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateGlitchMagic(dt); updateReprise(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
@@ -4099,14 +4099,15 @@ function botStill() {
   return true;
 }
 const TEST_TXT = {
-  he: { fight: "יורה עם נזק", safe: "יורה, בלי נזק", still: "אויב עומד", none: "בלי אויב", money: "💰 כסף ללא הגבלה", pickFoe: "🤖 בחר חללית למחשב", pickFoeOn: "🤖 הקש חללית למחשב (שוב: אקראי)" },
-  en: { fight: "Fires & hurts", safe: "Fires, no harm", still: "Still enemy", none: "No enemy", money: "💰 Unlimited money", pickFoe: "🤖 Pick the computer's ship", pickFoeOn: "🤖 Tap its ship (again: random)" }
+  he: { fight: "יורה עם נזק", safe: "יורה, בלי נזק", still: "אויב עומד", none: "בלי אויב", money: "💰 כסף ללא הגבלה", pickFoe: "🤖 בחר חללית למחשב", carrier: "🛸 חללית האם מגיעה", pickFoeOn: "🤖 הקש חללית למחשב (שוב: אקראי)" },
+  en: { fight: "Fires & hurts", safe: "Fires, no harm", still: "Still enemy", none: "No enemy", money: "💰 Unlimited money", pickFoe: "🤖 Pick the computer's ship", carrier: "🛸 The carrier arrives", pickFoeOn: "🤖 Tap its ship (again: random)" }
 };
 // the chips: the four enemy modes on one row (one lit), the money under them
 function testChips() {
   const R = hangarRow(), h = R.r * 1.15, gap = U * 0.018, w = (W - U * 0.06 - gap * 3) / 4, x0 = U * 0.03, list = [];
   ["none", "still", "safe", "fight"].forEach((m, i) => list.push({ foe: m, x: x0 + i * (w + gap), y: R.y - h / 2, w, h }));
   const mw = (W - U * 0.06 - gap) / 2; list.push({ money: true, x: x0, y: R.y + h * 0.85, w: mw, h }, { pickFoe: true, x: x0 + mw + gap, y: R.y + h * 0.85, w: mw, h });
+  list.push({ event: "carrier", x: x0, y: R.y + h * 1.85, w: W - U * 0.06, h });   // the match events (🛸: the carrier)
   return list;
 }
 function testRowBottom() { const c = testChips(); const m = c[c.length - 1]; return m.y + m.h; }   // (the second row's chips are as low)
@@ -4114,11 +4115,11 @@ function drawTestChips() {
   const T = TEST_TXT[LANG] || TEST_TXT.he;
   ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
   for (const c of testChips()) {
-    const on = c.pickFoe ? testState.pickFoe || !!testFoeShip() : c.money ? testState.money : testState.foe === c.foe, col = c.pickFoe ? "#ff6ad5" : c.money ? "#ffd166" : c.foe === "fight" ? "#ff8a6a" : c.foe === "safe" ? "#7dffb0" : "#7cc8ff";
+    const on = c.event ? !!carrier : c.pickFoe ? testState.pickFoe || !!testFoeShip() : c.money ? testState.money : testState.foe === c.foe, col = c.event ? "#8fb4ff" : c.pickFoe ? "#ff6ad5" : c.money ? "#ffd166" : c.foe === "fight" ? "#ff8a6a" : c.foe === "safe" ? "#7dffb0" : "#7cc8ff";
     ctx.fillStyle = on ? hexA(col, 0.22) : "rgba(10,12,32,0.8)"; ctx.strokeStyle = on ? col : "rgba(124,140,255,0.45)"; ctx.lineWidth = on ? 2.5 : 1.5;
     roundRect(c.x, c.y, c.w, c.h, c.h / 2); ctx.fill(); ctx.stroke();
     let f = Math.round(c.h * 0.42); ctx.font = `${on ? 800 : 600} ${f}px Rubik, Arial, sans-serif`;
-    const txt = c.pickFoe ? (testState.pickFoe ? T.pickFoeOn : testFoeShip() ? "🤖 " + shipById(testFoeShip()).name : T.pickFoe) : c.money ? T.money : T[c.foe];
+    const txt = c.event ? T.carrier : c.pickFoe ? (testState.pickFoe ? T.pickFoeOn : testFoeShip() ? "🤖 " + shipById(testFoeShip()).name : T.pickFoe) : c.money ? T.money : T[c.foe];
     while (f > 8 && ctx.measureText(txt).width > c.w - c.h * 0.5) { f--; ctx.font = `${on ? 800 : 600} ${f}px Rubik, Arial, sans-serif`; }
     ctx.fillStyle = on ? "#ffffff" : "#9fb4d8"; ctx.fillText(txt, c.x + c.w / 2, c.y + c.h / 2 + 1);
     hangar.cards.push({ test: c, x: c.x, y: c.y, w: c.w, h: c.h });
@@ -4126,6 +4127,7 @@ function drawTestChips() {
   ctx.restore();
 }
 function testTap(c) {
+  if (c.event === "carrier") { hangar.open = false; if (!carrier) startCarrier(true); audio.pop(); return; }   // set the carrier off now
   if (c.pickFoe) testState.pickFoe = !testState.pickFoe; else if (c.money) testState.money = !testState.money; else testState.foe = c.foe;
   saveTest(); testT = 0; audio.pop(); buzz(10);
 }
@@ -4683,7 +4685,8 @@ const VOICE_FX = { alien: { rate: 0.86, ring: 55, dry: 0.35, echo: 0.032 }, kip:
   monster: { rate: 0.62, ring: 28, dry: 0.82, echo: 0.07, speed: 1.0, anywhere: true, gain: 2.4 },
   robot: { rate: 1.0, ring: 46, dry: 0.12, echo: 0.014, speed: 1.15, anywhere: true, gain: 2.2 },
   gollum: { rate: 1.32, ring: 64, dry: 0.6, echo: 0.018, speed: 0.95, anywhere: true, gain: 2.2 },
-  vader: { rate: 0.66, ring: 20, dry: 0.8, echo: 0.05, speed: 0.92, anywhere: true, gain: 2.6 } };   // (BORER's drill: deep, slow, inside a mask)   // (PALISADE's wall: a thin hissing creature's voice, a little robotic)   // (a GLITCH malfunction's mayday)
+  vader: { rate: 0.66, ring: 20, dry: 0.8, echo: 0.05, speed: 0.92, anywhere: true, gain: 2.6 },
+  radio: { rate: 1.0, ring: 30, dry: 0.92, echo: 0.008, speed: 1.15, anywhere: true, gain: 2.4, band: [450, 2800] } };   // (the carrier's pilots: a squelchy radio)   // (BORER's drill: deep, slow, inside a mask)   // (PALISADE's wall: a thin hissing creature's voice, a little robotic)   // (a GLITCH malfunction's mayday)
 // GLITCH's malfunction: the stricken ship's computer calls for help (heard on both phones)
 const MAYDAY_LINES = ["We've got a malfunction! Mayday, mayday!", "System failure! Mayday, mayday!", "Weapons offline! Mayday, mayday!", "Malfunction! Malfunction! Mayday!", "Warning! Weapons jammed! Mayday, mayday!"];
 function maydaySay() { if (shop.open) return; let i; do { i = Math.floor(Math.random() * MAYDAY_LINES.length); } while (i === maydaySay.last && MAYDAY_LINES.length > 1); maydaySay.last = i; alienSay(MAYDAY_LINES[i], "robot"); }
@@ -4715,7 +4718,14 @@ function voicePlay(buf) {
   const dry = c.createGain(), wet = c.createGain(), out = c.createGain(), dl = c.createDelay(0.2), fb = c.createGain();
   dry.gain.value = P.dry; wet.gain.value = 1 - P.dry; out.gain.value = P.gain || 1.8; dl.delayTime.value = P.echo; fb.gain.value = 0.35;
   src.connect(dry); src.connect(ring); ring.connect(wet); dry.connect(out); wet.connect(out);
-  out.connect(audio.out); out.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(audio.out);
+  let last = out;
+  if (P.band) {   // a radio: only the middle of the voice, a little crushed, and a squelch before it
+    const hp = c.createBiquadFilter(), lp = c.createBiquadFilter(), sh = c.createWaveShaper(), cv = new Float32Array(256);
+    hp.type = "highpass"; hp.frequency.value = P.band[0]; lp.type = "lowpass"; lp.frequency.value = P.band[1];
+    for (let i = 0; i < 256; i++) { const x = i / 128 - 1; cv[i] = Math.tanh(x * 2.5); } sh.curve = cv;
+    out.connect(hp); hp.connect(lp); lp.connect(sh); last = sh; audio.noise(0.08, 0.06, 4000);
+  }
+  last.connect(audio.out); last.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(audio.out);
   osc.start(now); src.start(now); src.onended = () => { try { osc.stop(); } catch (e) {} };
   voice.src = { src, osc };
 }
@@ -9504,6 +9514,7 @@ function updateWeapons(dt) {
       }
       continue;
     }
+    if ((raiders.length || (duel.net && duel.net.rd)) && raiderShot(s, Wp)) { shots.splice(k, 1); continue; }   // the carrier's fighters
     // into the enemy
     if (enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked()) {   // (docked in the station: out of reach)   // (their STRATA up high: shots pass under it)
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
@@ -10784,7 +10795,7 @@ const RESULT_ART = {"win":{"title":"YOU WIN","width":2059,"height":393,"static":
 //  (from the Orbit Break packages: audio/, art/ui/)
 // ======================================================================
 // ---- music: one loop at a time, crossfaded over 0.45 s; MUSIC: each loop's length in seconds (the loop point) ----
-const MUSIC = { arcade: 25.6, title: 34.285719, hangar: 43.636375, "orange-sun": 29.090906, "blue-giant": 36.226406, "red-dwarf": 38.787875, pulsar: 26.666656 };
+const MUSIC = { arcade: 25.6, title: 34.285719, hangar: 43.636375, "orange-sun": 29.090906, "blue-giant": 36.226406, "red-dwarf": 38.787875, pulsar: 26.666656, carrier: 20 };
 // which loop plays in the arena, by the body in the middle (an unknown one: the orange sun's)
 const BODY_MUSIC = { sun: "orange-sun", lava: "orange-sun", gas: "orange-sun", redgiant: "red-dwarf", hole: "red-dwarf",
   bluegiant: "blue-giant", dwarf: "blue-giant", ice: "blue-giant", pulsar: "pulsar", neutron: "pulsar" };
@@ -10818,7 +10829,7 @@ function fadeVoice(v) {
 function musicTick() {
   if (BOT) return;
   const key = result.mode || cine.on ? null : shop.open ? "arcade" : game.stage === "title" ? "title" : (hangar.open || picker.open) ? "hangar"
-    : (game.stage === "fly" || game.stage === "arrive") ? (BODY_MUSIC[body().id] || "orange-sun") : "title";
+    : (game.stage === "fly" || game.stage === "arrive") ? (carrierOn() ? "carrier" : BODY_MUSIC[body().id] || "orange-sun") : "title";
   music.want = key;
   const c = audio.ctx;
   if (!c || c.state !== "running" || !audio.mus) return;
@@ -11607,6 +11618,247 @@ const palFx = [];
 function startWall(S) {
   game.palDeploy = { t: 0, launch: null }; game.anim = { seq: "roof", t: 0 };
   audio.tone(180, 0.4, "square", 0.03, 1.5); audio.tone(420, 0.25, "triangle", 0.03, 1.3, 0.3); buzz(25);   // the plates sliding, the arms
+}
+// ======================================================================
+//  THE CARRIER (a match event; the test hangar's 🛸 for now): a huge mothership rushes past both players, brakes,
+//  backs off to show itself whole, and launches 20 Black Interceptors, half at each player. Both phones show the same
+//  film (in screen space, wherever the ships are); the fighters then fly to the players and fight in the arena.
+//  From the package (assets/carrier/manifest.json, 1280 x 720 reference): the hull is a 17,300 x 760 strip in 9 tiles
+//  (art/carrier/hull/, at half size), drawn with the manifest's projection in narrow strips; its clock below.
+//  Each phone flies the fighters that attack ITS ship (raiders; the other phone's are shown from its state `rd`);
+//  a shot on someone else's fighter is told to its phone ("rh"). The computer flies its own half.
+// ======================================================================
+const CARRIER = {
+  proj: { slope: -0.32, vs: 1.23, axisY: 360 }, approachEnd: 3.1, passEnd: 13.1, stop: 13.62, revStart: 13.77, reveal: 16.77,
+  startFocus: 645, speed: 1330, stopFocus: 14290.8,
+  passPose: { px: 440, py: 347, scale: 0.9916, depth: 0.00039 }, revealPose: { focus: 276, px: 267, py: 311, scale: 0.58, depth: 0.00066 },
+  shove: [2.55, 2.85], tiles: 9, tileW: 2044, launchAt: 16.85, launchGap: 0.16, fighters: 20, fly: 3.4, fadeOut: 1.0,
+  bays: [[920, 694], [1130, 690], [1390, 665]],
+  lines: [[17.1, "Johnny, do you hear me?"], [18.9, "Loud and clear! Prepare to fight!"], [21.0, "Red squadron, form up. Targets in sight!"], [23.2, "Engage! Engage!"]]
+};
+// the fighters: hit points, speed (screens a second), how often they charge and fire, their shots
+const RAID = { size: 0.62, hp: 15, speed: 1.15, accel: 1.6, turn: 3.2, cool: [2.6, 4.4], charge: 0.6, range: 2.6, dmg: 3, shotSpeed: 2.3, shotLife: 1.3 };
+let carrier = null;          // { t, slot (0: I started it), launched, fx: [launch films] }
+const raiders = [];          // mine to fly: { id, x, y, vx, vy, ang, hp, tgt: "me" | "foe", cool, charge, born, orbit }
+const rshots = [];           // their bolts { x, y, vx, vy, life, tgt, own }
+let raidSeq = 0;
+function carrierOn() { return !!carrier || raiders.length > 0 || !!(duel.net && duel.net.rd && duel.net.rd.length); }
+function carrierImgs() {
+  for (let i = 0; i < CARRIER.tiles; i++) artImage("art/carrier/hull/hull-0" + i + ".webp");
+  for (const f of ["top-idle", "top-boost", "top-attack_charge", "side-idle", "side-boost"]) artImage("art/carrier/fighter/" + f + ".webp");
+  for (const f of ["approach", "whoosh", "air", "brake", "reverse", "laser", "roar"]) soundBuf("audio/carrier/" + f + ".ogg");
+  soundBuf("audio/music/carrier.ogg");
+}
+function startCarrier(mine) {
+  if (game.stage !== "fly") return;
+  carrierImgs();
+  carrier = { t: 0, slot: mine ? 0 : 1, launched: 0, fx: [], whoosh: -1, said: 0, shoved: false };
+  if (mine) duelSend({ t: "cv" });
+  playClip("audio/carrier/approach.ogg", false, 0.9);
+}
+// the projection's pose at time t (reference pixels)
+function carrierPose(t) {
+  const C = CARRIER, P = C.passPose, R = C.revealPose;
+  if (t < C.approachEnd) {
+    const u = clamp((t - 0.56) / (C.approachEnd - 0.56), 0, 1);
+    return { focus: C.startFocus * Math.pow(u, 5.23), px: 1190 + (P.px - 1190) * Math.pow(u, 2.95), py: 135 + (P.py - 135) * Math.pow(u, 2.7),
+      scale: 0.0016 + 0.99 * Math.pow(u, 4.2), depth: 0.00068 + (P.depth - 0.00068) * u, glow: 1 - u, blur: 0 };
+  }
+  if (t < C.passEnd) return { focus: C.startFocus + C.speed * (t - C.approachEnd), px: P.px, py: P.py, scale: P.scale, depth: P.depth, glow: 0, blur: 1 };
+  if (t < C.revStart) {
+    const d = Math.min(t - C.passEnd, 0.52);
+    return { focus: C.startFocus + C.speed * (C.passEnd - C.approachEnd) + C.speed * (d - d * d / (2 * 0.52)), px: P.px, py: P.py, scale: P.scale, depth: P.depth, glow: 0, blur: Math.max(0, 1 - d / 0.52) };
+  }
+  const k = smoothStep((t - C.revStart) / (C.reveal - C.revStart)), L = (a, b) => a + (b - a) * k;
+  return { focus: L(C.stopFocus, R.focus), px: L(P.px, R.px), py: L(P.py, R.py), scale: L(P.scale, R.scale), depth: L(P.depth, R.depth), glow: 0, blur: 0 };
+}
+// reference pixels -> this screen (uniform, the whole revealed carrier fitting the width or the height)
+function carrierView() { const s = Math.min(W / 1010, H / 720); return { s, ox: W / 2 - 572 * s, oy: H / 2 - 377 * s }; }
+function carrierProject(Pz, V, x, y) {
+  const C = CARRIER.proj, dx = x - Pz.focus, dy = y - C.axisY, z = 1 + Pz.depth * dx;
+  if (z <= 0.04) return null;
+  return { x: V.ox + V.s * (Pz.px + Pz.scale * dx / z), y: V.oy + V.s * (Pz.py + Pz.scale * (C.slope * dx + C.vs * dy) / z), z };
+}
+function updateCarrier(dt) {
+  if (carrier && game.stage !== "fly") { carrier = null; raiders.length = 0; rshots.length = 0; }
+  if (carrier) {
+    const C = CARRIER, K = carrier, t0 = K.t; K.t += dt; const t = K.t, at = (x) => t0 < x && t >= x;
+    // the shove: once, as the hull rushes past (the second player a little after the first)
+    if (!K.shoved && t >= C.shove[K.slot] && !game.dead) { K.shoved = true; game.vx += -0.45 * U; game.vy += 0.95 * U; shake(0.9); buzz(220); }
+    // the sounds: the hull's roar, a "vush" for each deck going by, the brakes, the air, backing off
+    loopClip("croar", "audio/carrier/roar.ogg", !BOT && t > 2.6 && t < C.passEnd + 0.3, 2.0, 0.75);
+    if (t > C.approachEnd - 0.4 && t < C.passEnd) { const w = Math.floor(carrierPose(t).focus / (C.tileW / 2)); if (w !== K.whoosh) { if (K.whoosh >= 0) playClip("audio/carrier/whoosh.ogg", false, 0.85); K.whoosh = w; } }
+    if (at(C.passEnd)) { playClip("audio/carrier/brake.ogg", false, 1); playClip("audio/carrier/air.ogg", false, 0.7); shake(0.7); }
+    if (at(C.stop)) playClip("audio/carrier/air.ogg", false, 0.9);
+    if (at(C.revStart)) playClip("audio/carrier/reverse.ogg", false, 0.9);
+    // the pilots on the radio
+    while (K.said < C.lines.length && t >= C.lines[K.said][0]) { alienSay(C.lines[K.said][1], "radio"); K.said++; }
+    // the launches: one a `launchGap`, from the three bays in turn, a laser as each leaves; half at each player
+    while (K.launched < C.fighters && t >= C.launchAt + K.launched * C.launchGap) {
+      const i = K.launched++, mineT = i % 2 === K.slot, foeLocal = enemy.on && !enemy.remote;
+      const tgt = mineT ? "me" : enemy.remote ? null : foeLocal ? "foe" : "me";   // (null: the other phone flies it)
+      K.fx.push({ i, bay: CARRIER.bays[i % 3], t: 0, tgt, toMe: mineT || !enemy.on, a: Math.random() * TAU });
+      playClip("audio/carrier/laser.ogg", false, 0.55);
+    }
+    for (let k = K.fx.length - 1; k >= 0; k--) {
+      const F = K.fx[k]; F.t += dt;
+      if (F.t >= C.fly) { if (F.tgt) raiderBorn(F); K.fx.splice(k, 1); }
+    }
+    if (K.launched >= C.fighters && !K.fx.length) { K.out = (K.out || 0) + dt; if (K.out > C.fadeOut) carrier = null; }   // all of them there: the carrier fades away
+  }
+  updateRaiders(dt);
+}
+// a fighter's film is over: it is in the arena now, near its player
+function raiderBorn(F) {
+  const T = F.tgt === "foe" ? enemy : game, d = U * (0.9 + Math.random() * 0.6);
+  raiders.push({ id: (BOT ? "b" : "p") + (++raidSeq), x: wrapX(T.x + Math.cos(F.a) * d), y: wrapY(T.y + Math.sin(F.a) * d), vx: -Math.cos(F.a) * U * 0.5, vy: -Math.sin(F.a) * U * 0.5,
+    ang: Math.atan2(-Math.cos(F.a), Math.sin(F.a)), hp: RAID.hp, tgt: F.tgt, cool: RAID.cool[0] + Math.random() * (RAID.cool[1] - RAID.cool[0]), charge: -1, born: time,
+    orbit: { a: F.a, r: 1.3 + Math.random() * 1.2, w: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.3) } });
+}
+function raiderTarget(r) { return r.tgt === "foe" ? (enemy.on ? enemy : null) : game.dead ? null : game; }
+function updateRaiders(dt) {
+  const size = shipSize();
+  for (let k = raiders.length - 1; k >= 0; k--) {
+    const r = raiders[k], T = raiderTarget(r);
+    if (r.hp <= 0) { raiderBoom(r.x, r.y); raiders.splice(k, 1); continue; }
+    r.orbit.a += r.orbit.w * dt;
+    let ax = 0, ay = 0, face = null;
+    if (T) {   // circle round its player, closing in; then charge, turned to it, and fire
+      const gx = wrapDelta(T.x + Math.cos(r.orbit.a) * size * r.orbit.r - r.x, WW), gy = wrapDelta(T.y + Math.sin(r.orbit.a) * size * r.orbit.r - r.y, WH);
+      const gd = Math.hypot(gx, gy) || 1, want = Math.min(RAID.speed * U, gd * 1.6);
+      ax = gx / gd * want - r.vx; ay = gy / gd * want - r.vy;
+      const tx = wrapDelta(T.x - r.x, WW), ty = wrapDelta(T.y - r.y, WH), td = Math.hypot(tx, ty);
+      r.cool -= dt;
+      if (r.charge < 0 && r.cool <= 0 && td < RAID.range * U) { r.charge = 0; }
+      if (r.charge >= 0) {
+        face = Math.atan2(tx, -ty); r.charge += dt;
+        if (r.charge >= RAID.charge) { raiderFire(r, tx / (td || 1), ty / (td || 1)); r.charge = -1; r.cool = RAID.cool[0] + Math.random() * (RAID.cool[1] - RAID.cool[0]); }
+      }
+    } else { ax = -r.vx; ay = -r.vy; }
+    const al = Math.hypot(ax, ay), amax = RAID.accel * U;
+    if (al > amax * dt) { ax *= amax * dt / al; ay *= amax * dt / al; }
+    r.vx += ax; r.vy += ay;
+    r.x = wrapX(r.x + r.vx * dt); r.y = wrapY(r.y + r.vy * dt);
+    const want = face != null ? face : Math.hypot(r.vx, r.vy) > U * 0.05 ? Math.atan2(r.vx, -r.vy) : r.ang;
+    r.ang = turnToward(r.ang, want, RAID.turn * dt);
+  }
+  // the bolts: mine hurt their player; the other phone's are only shown
+  for (let k = rshots.length - 1; k >= 0; k--) {
+    const b = rshots[k]; b.life += dt; b.x = wrapX(b.x + b.vx * dt); b.y = wrapY(b.y + b.vy * dt);
+    if (b.life > RAID.shotLife) { rshots.splice(k, 1); continue; }
+    if (!b.own) continue;
+    const T = b.tgt === "foe" ? (enemy.on ? enemy : null) : game.dead ? null : game;
+    if (!T) continue;
+    const sc = b.tgt === "foe" ? enemyScale() : shipScale();
+    if (Math.hypot(wrapDelta(T.x - b.x, WW), wrapDelta(T.y - b.y, WH)) < size * 0.42 * sc) {
+      if (b.tgt === "foe") harmEnemy(RAID.dmg); else damageShip(RAID.dmg);
+      burstAt(b.x, b.y, 8, ["#ff3b3b", "#ffffff", "#ff9a7a"], 0.3, 0.5); rshots.splice(k, 1);
+    }
+  }
+  // theirs gone from their state since last time: shot down there
+  const now = duel.net && duel.net.rd ? duel.net.rd : [], ids = new Set(now.map((q) => q[0]));
+  for (const q of updateRaiders.prev || []) if (!ids.has(q[0])) raiderBoom(q[1] * WW, q[2] * WH);
+  updateRaiders.prev = now;
+}
+function raiderFire(r, ux, uy) {
+  const size = shipSize() * RAID.size, side = (r.side = -(r.side || 1)), c = Math.cos(r.ang), s = Math.sin(r.ang);
+  const lx = side * 0.085 * size, ly = -0.1 * size, x = r.x + lx * c - ly * s, y = r.y + lx * s + ly * c, v = RAID.shotSpeed * U;
+  rshots.push({ x, y, vx: ux * v + r.vx * 0.3, vy: uy * v + r.vy * 0.3, life: 0, tgt: r.tgt, own: true });
+  if (enemy.remote) duelSend({ t: "rf", x: +(x / WW).toFixed(4), y: +(y / WH).toFixed(4), vx: +(ux * RAID.shotSpeed).toFixed(3), vy: +(uy * RAID.shotSpeed).toFixed(3) });
+  if (Math.hypot(wrapDelta(x - game.x, WW), wrapDelta(y - game.y, WH)) < U * 2) playClip("audio/carrier/laser.ogg", false, 0.25);
+}
+function raiderBoom(x, y) {
+  burstAt(x, y, 30, ["#ffffff", "#ffb347", "#ff3b3b", "#3a2a30"], 0.6, 0.8);
+  if (Math.hypot(wrapDelta(x - game.x, WW), wrapDelta(y - game.y, WH)) < U * 2) { audio.noise(0.25, 0.2, 1200); audio.tone(90, 0.25, "sawtooth", 0.05, 0.5); }
+}
+// one of my shots against the fighters: mine (hurt here) or theirs (told to their phone). True: it hit
+function raiderShot(s, Wp) {
+  const size = shipSize(), r0 = size * RAID.size * 0.3 + (Wp.r || 0) * size * shotScale(s, Wp);
+  for (const r of raiders) if (Math.hypot(wrapDelta(r.x - s.x, WW), wrapDelta(r.y - s.y, WH)) < r0) { r.hp -= shotHit(s, Wp).dmg || Wp.dmg || 5; burstAt(s.x, s.y, 8, [Wp.color, "#ffffff"], 0.3, 0.5); return true; }
+  for (const q of (duel.net && duel.net.rd) || []) {
+    const x = q[1] * WW, y = q[2] * WH;
+    if (Math.hypot(wrapDelta(x - s.x, WW), wrapDelta(y - s.y, WH)) < r0) { duelSend({ t: "rh", id: q[0], d: shotHit(s, Wp).dmg || Wp.dmg || 5 }); burstAt(s.x, s.y, 8, [Wp.color, "#ffffff"], 0.3, 0.5); return true; }
+  }
+  return false;
+}
+function raiderNet() { return raiders.length ? raiders.map((r) => [r.id, +(r.x / WW).toFixed(4), +(r.y / WH).toFixed(4), +r.ang.toFixed(2), r.charge >= 0 ? 1 : 0]) : 0; }
+// ---- drawing ----
+// a fighter's frame (the package's atlases at half size: 192 px cells, 4 across) at (x, y) screen, `len` long, turned `ang`
+function drawFighter(x, y, len, ang, view, anim, t, alpha = 1) {
+  const A = { idle: [16, 16, true], boost: [12, 18, false], attack_charge: [12, 20, false] }[anim], img = artImage("art/carrier/fighter/" + view + "-" + anim + ".webp");
+  if (!img || len < 1) return;
+  const n = A[2] ? Math.floor(t * A[1]) % A[0] : Math.min(A[0] - 1, Math.floor(t * A[1])), sx = (n % 4) * 192, sy = Math.floor(n / 4) * 192, piv = view === "top" ? [96, 110.5] : [101.5, 92];
+  const k = len / 150;   // (the craft is about 150 of the cell's 192 px)
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(ang);
+  ctx.drawImage(img, sx, sy, 192, 192, -piv[0] * k, -piv[1] * k, 192 * k, 192 * k);
+  ctx.restore();
+}
+function drawRaiders() {
+  const size = shipSize() * RAID.size;
+  for (const r of raiders) { const p = toScreen(r.x, r.y); drawFighter(p.x, p.y, size, r.ang, "top", r.charge >= 0 ? "attack_charge" : time - r.born < 1.2 ? "boost" : "idle", r.charge >= 0 ? r.charge : time - r.born); }
+  for (const q of (duel.net && duel.net.rd) || []) { const p = toScreen(q[1] * WW, q[2] * WH); drawFighter(p.x, p.y, size, q[3], "top", q[4] ? "attack_charge" : "idle", q[4] ? (time * 1.6) % 0.6 : time); }
+  ctx.save(); ctx.lineCap = "round";
+  for (const b of rshots) {   // red bolts
+    const p = toScreen(b.x, b.y), v = Math.hypot(b.vx, b.vy) || 1, L = size * 0.35;
+    ctx.strokeStyle = "rgba(255,60,60,0.9)"; ctx.lineWidth = Math.max(2, size * 0.045); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - b.vx / v * L, p.y - b.vy / v * L); ctx.stroke();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = Math.max(1, size * 0.015); ctx.stroke();
+  }
+  ctx.restore();
+}
+// the film, in screen space (the zoom undone): the far glow, the hull in narrow projected strips (blurred while it
+// rushes past), the bays lighting up, the fighters flying out and down to the players
+function drawCarrierScene() {
+  if (!carrier) return;
+  const K = carrier, C = CARRIER, Pz = carrierPose(K.t), V = carrierView(), z = game.zoom || 1;
+  const fade = K.out ? Math.max(0, 1 - K.out / C.fadeOut) : 1;
+  ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1 / z, 1 / z); ctx.translate(-W / 2, -H / 2);
+  ctx.globalAlpha = fade;
+  if (Pz.glow > 0.01) {   // the far point: a cold glow among the stars
+    const gx = Math.min(W - U * 0.05, V.ox + V.s * 1190), gy = V.oy + V.s * 135, r = U * (0.03 + 0.1 * (1 - Pz.glow));
+    const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, r * 3); g.addColorStop(0, `rgba(220,235,255,${Pz.glow})`); g.addColorStop(0.3, `rgba(140,170,255,${0.5 * Pz.glow})`); g.addColorStop(1, "rgba(80,100,200,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(gx, gy, r * 3, 0, TAU); ctx.fill();
+  }
+  if (Pz.scale > 0.004) {
+    const blur = Pz.blur * V.s * 26;   // (the motion blur: two faint copies along the way it moves)
+    if (blur > 1) { ctx.globalAlpha = fade * 0.22; drawHull(Pz, V, blur); drawHull(Pz, V, -blur); }
+    ctx.globalAlpha = fade; drawHull(Pz, V, 0);
+    // the bays light up as the fighters come out
+    if (K.launched) for (const [bx, by] of C.bays) {
+      const p = carrierProject(Pz, V, bx, by); if (!p) continue;
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, V.s * 60); g.addColorStop(0, "rgba(255,200,120,0.55)"); g.addColorStop(1, "rgba(255,140,40,0)");
+      ctx.fillStyle = g; ctx.fillRect(p.x - V.s * 60, p.y - V.s * 60, V.s * 120, V.s * 120);
+    }
+  }
+  ctx.globalAlpha = 1;
+  // the fighters' films: out of the bay (side view, a speck), swinging down and growing to their size at the player
+  for (const F of K.fx) {
+    const u = Math.min(1, F.t / C.fly), e = u * u * (3 - 2 * u), p0 = carrierProject(Pz, V, F.bay[0], F.bay[1]); if (!p0) continue;
+    const T = F.toMe ? game : enemy, h = zoomed(toScreen(T.x + Math.cos(F.a) * U, T.y + Math.sin(F.a) * U));
+    const cx = (p0.x + h.x) / 2 + (F.i % 2 ? -1 : 1) * W * 0.25, cy = Math.max(p0.y, h.y) + H * 0.18;   // (a swing out toward the camera)
+    const x = (1 - e) * (1 - e) * p0.x + 2 * (1 - e) * e * cx + e * e * h.x, y = (1 - e) * (1 - e) * p0.y + 2 * (1 - e) * e * cy + e * e * h.y;
+    const dx = 2 * (1 - e) * (cx - p0.x) + 2 * e * (h.x - cx), dy = 2 * (1 - e) * (cy - p0.y) + 2 * e * (h.y - cy), len = shipSize() * RAID.size * z * (0.08 + 0.92 * e * e);
+    const top = clamp((u - 0.65) / 0.3, 0, 1);
+    if (top < 1) drawFighter(x, y, len, Math.atan2(dy, dx) + Math.PI, "side", "boost", F.t, 1 - top);
+    if (top > 0) drawFighter(x, y, len, Math.atan2(dx, -dy), "top", "boost", F.t, top);
+  }
+  ctx.restore();
+}
+function drawHull(Pz, V, off) {
+  const step = 40, H2 = 760;
+  for (let i = 0; i < CARRIER.tiles; i++) {
+    const img = artImage("art/carrier/hull/hull-0" + i + ".webp"); if (!img) continue;
+    const L0 = i * CARRIER.tileW, LW = i === 8 ? 948 : CARRIER.tileW;
+    for (let x0 = 0; x0 < LW; x0 += step) {
+      const x1 = Math.min(LW, x0 + step), a = carrierProject(Pz, V, L0 + x0, 0), b = carrierProject(Pz, V, L0 + x1, 0), c = carrierProject(Pz, V, L0 + x0, H2);
+      if (!a || !b || !c) continue;
+      if (Math.max(a.x, b.x) + off < -10 || Math.min(a.x, b.x) + off > W + 10) continue;
+      const sw = (x1 - x0) / 2, sx = 1 + x0 / 2;
+      ctx.save();
+      ctx.transform((b.x - a.x) / sw, (b.y - a.y) / sw, (c.x - a.x) / 380, (c.y - a.y) / 380, a.x + off, a.y);
+      ctx.drawImage(img, sx, 0, Math.min(sw + 0.7, img.width - sx), 380, 0, 0, Math.min(sw + 0.7, img.width - sx), 380);
+      ctx.restore();
+    }
+  }
 }
 // ---------- LYTH's water jets (art/ships/lyth/jets/, the package's 17 frames over the 512 px drawing) ----------
 // In BOILER's water the side panels split and two arms swing out from the aft shoulders, each with a jet-ski pump
@@ -13791,7 +14043,7 @@ function draw() {
     if (sk > 0.2) ctx.translate((Math.random() - 0.5) * sk, (Math.random() - 0.5) * sk);
     ctx.translate(W / 2, H / 2); ctx.scale(game.zoom, game.zoom); ctx.translate(-W / 2, -H / 2);
   }
-  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); drawDeadStar(); drawSpire(); drawMaze(); drawFlood(); drawStation(); }   // (LABYRINTH's Starforge)
+  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); drawDeadStar(); drawSpire(); drawMaze(); drawFlood(); drawStation(); if (flying) drawCarrierScene(); }   // (LABYRINTH's Starforge)
 
   if (flying) {
     const p = shipScreen();
@@ -13802,7 +14054,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawHuskCreature(); drawParasites(); drawLightFx(); drawGhosts(); drawCorsairAim();
+    drawRaiders(); drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawHuskCreature(); drawParasites(); drawLightFx(); drawGhosts(); drawCorsairAim();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -15361,6 +15613,9 @@ function duelLink(event, data) {
   } else if (m.t === "pg") { if (duel.palWall && duel.palWall.segs) palStartBuild(duel.palWall, { x: m.x, y: m.y, h: m.h }, false);   // their wall building a piece
   } else if (m.t === "pl") { duel.palLaunch = { x: m.x * WW, y: m.y * WH, ang: m.a };
   } else if (m.t === "pwh") { palHit();   // my wall stopped one of their shots (their phone saw it)
+  } else if (m.t === "cv") { startCarrier(false);   // the other phone set off the carrier
+  } else if (m.t === "rf") { rshots.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * U, vy: m.vy * U, life: 0, own: false });   // their fighter fired (only shown)
+  } else if (m.t === "rh") { const r = raiders.find((q) => q.id === m.id); if (r) { r.hp -= m.d; burstAt(r.x, r.y, 6, ["#ffffff", "#ff9a7a"], 0.25, 0.4); }   // their shot hit one of my fighters
   } else if (m.t === "lcut") { if (game.elasso) ropeCut(false);   // their BORER's drill cut my LARIAT's rope round it
   } else if (m.t === "mzc") { if (maze && maze.seed === m.sd) mazeCut(m.c, m.s, false);   // their BORER cut a maze wall
   } else if (m.t === "br") { drillBitten(m);   // their BORER's drill bit my hull
@@ -15639,7 +15894,7 @@ function updateDuel(dt) {
       kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), vt: vaultNet(), ht: hauntOn() ? 1 : 0, ca: corsairNet(), hk: huskNet(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
-      bd: game.drillOn ? 1 : 0,
+      bd: game.drillOn ? 1 : 0, rd: raiderNet(),
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
       gr: game.grind ? [game.grind.phase, +game.grind.spin.toFixed(2), +game.grind.teeth.toFixed(2), +game.grind.nx.toFixed(3), +game.grind.ny.toFixed(3)] : 0 });
     duel.outDmg = 0;

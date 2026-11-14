@@ -985,4 +985,10 @@ ok("THUL's cannonball breaks a maze wall; LYTH on a LARIAT's rope: its grinder r
   assert(html.includes('if (s.w === "iris" && list === shots && game.ship === "brass" && h.box) { mazeCut(h.box.c, h.box.s, true);') && html.includes("if (tied) ropeCut(true);") &&
     html.includes("const LYTH_JETS = { slow: 0.7, deploy: 0.46, retract: 0.35") && html.includes('drawLythJets(S, o.jets, "mounts")') && html.includes("if (wet) st.top *= LYTH_JETS.slow;") && html.includes('const SWIMMERS = ["xeltar", "lyth"];'));
 });
+ok("the carrier: a test-hangar trigger, the film on both phones (\"cv\"), 20 interceptors split between the players, its music and sounds", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets");
+  for (const f of ["art/carrier/hull/hull-00.webp", "art/carrier/hull/hull-08.webp", "art/carrier/fighter/top-idle.webp", "art/carrier/fighter/side-boost.webp", "audio/music/carrier.ogg",
+    "audio/carrier/whoosh.ogg", "audio/carrier/brake.ogg", "audio/carrier/air.ogg", "audio/carrier/reverse.ogg", "audio/carrier/laser.ogg", "audio/carrier/approach.ogg", "audio/carrier/roar.ogg"]) assert(fs.existsSync(path.join(A, f)), f);
+  assert(html.includes("fighters: 20,") && html.includes('if (c.event === "carrier")') && html.includes('m.t === "cv"') && html.includes("rd: raiderNet()") && html.includes('alienSay(C.lines[K.said][1], "radio")') && html.includes('carrier: 20 }'));
+});
 console.log(n + " checks passed");
