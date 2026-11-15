@@ -13,7 +13,7 @@
 <style>
   html, body { margin: 0; height: 100%; background: #05060f; overflow: hidden; touch-action: none;
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-  canvas { display: block; width: 100vw; height: 100vh; }
+  canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
 </head>
 <body>
@@ -2324,10 +2324,14 @@ function resize() {
   WW = W * WORLD; WH = H * WORLD;
   if (oldW && typeof game !== "undefined") { game.x *= WW / oldW; game.y *= WH / oldH; }
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  // the picture exactly the size of what is seen. In a phone's browser 100vh is taller than the screen while the address
+  // bar shows: the buttons were drawn lower than where a finger is checked, so taps on them sometimes missed
+  cv.style.width = W + "px"; cv.style.height = H + "px";
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   makeStars();
 }
 addEventListener("resize", resize);
+addEventListener("contextmenu", (e) => e.preventDefault());   // (a long press in a browser: no menu, the finger stays the game's)
 // the phone can take the drawing surface away when it runs short of memory (the screen goes black while the game
 // goes on). Note it (shown in the test hangar), and when it comes back, set it up again
 const ISSUE_KEY = "orbit-break.lastIssue";

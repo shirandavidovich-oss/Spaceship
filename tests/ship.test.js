@@ -1017,4 +1017,5 @@ ok("the web version: a manifest and icons, the first touch asks for tilt and ful
   for (const f of ["manifest.webmanifest", "icon-192.png", "icon-512.png"]) assert(fs.existsSync(path.join(A, f)), f);
   assert(fs.existsSync(path.join(__dirname, "../.github/workflows/web.yml")) && html.includes('<link rel="manifest" href="manifest.webmanifest">') && html.includes("function webFirstTouch()"));
 });
+ok("the picture is exactly the seen screen (a browser's 100vh made taps miss the buttons)", () => assert(/cv\.style\.height = H \+ "px"/.test(html) && !/height: 100vh/.test(html)));
 console.log(n + " checks passed");
