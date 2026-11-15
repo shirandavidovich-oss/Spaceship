@@ -11307,14 +11307,15 @@ const TSHOW = {
   gap: [2.5, 5.5], first: 1.4,
   lighthouse: { src: "art/title/lighthouse.webp", lit: "art/title/lighthouse-lit.webp", w: 900, h: 592, len: 12.5, hgt: 0.95,
     lamp: [780, 370], lens: [745, 370, 145, 175], jets: [[28, 218], [232, 103]], beam: 0.1 },
-  courier: { src: "art/title/courier.webp", can: "art/title/canister.webp", w: 620, h: 329, len: 7.5, hgt: 0.78,
-    iris: [222, 232, 40, 43], axis: [-208, 82], jets: [[392, 18], [555, 40]] },
+  // (its iris: three renders, shut, half open and open, crossfaded)
+  courier: { src: "art/title/courier-closed.webp", half: "art/title/courier-half.webp", open: "art/title/courier-open.webp", can: "art/title/canister.webp",
+    w: 900, h: 477, len: 7.5, hgt: 0.8, iris: [322, 357, 62, 72], axis: [-278, 177], jets: [[548, 20], [812, 48]] },
   boiler: { src: "art/title/boiler.webp", w: 700, h: 538, len: 9, hgt: 0.92,
     wins: [[205, 330, 95, 95], [440, 310, 47, 55]], steam: [585, 215], jet: [603, 322] },
   cloudship: { src: "art/title/cloudship.webp", w: 900, h: 550, len: 9.5, hgt: 0.98 },
 };
 const tshow = { kind: null, t: 0, wait: TSHOW.first, last: null, fx: [], can: null };
-function titleShowArt() { for (const k of ["lighthouse", "courier", "boiler", "cloudship"]) { artImage(TSHOW[k].src); if (TSHOW[k].lit) artImage(TSHOW[k].lit); if (TSHOW[k].can) artImage(TSHOW[k].can); } }
+function titleShowArt() { for (const k of ["lighthouse", "courier", "boiler", "cloudship"]) { artImage(TSHOW[k].src); for (const q of ["lit", "half", "open"]) if (TSHOW[k][q]) artImage(TSHOW[k][q]); if (TSHOW[k].can) artImage(TSHOW[k].can); } }
 function titleShowTick(dt) {
   if (game.stage !== "title" || shop.open) { tshow.kind = null; tshow.wait = TSHOW.first; tshow.fx.length = 0; return; }
   titleShowArt();
@@ -11375,28 +11376,23 @@ function drawTitleShow() {
     // in from the right, slowing to a stop; the iris opens (0.3 s) and glows, the canister leaves along the barrel
     // (a flash, a kick back), the iris shuts, and on out to the left
     const tin = 2.6, tfire = 3.6, tgo = 4.8;
-    const xStop = W * 0.52 - w * 0.5;
+    const xStop = W * 0.3 - S.iris[0] * sc;   // (stopped with its muzzle off to the left of the title picture: the canister flies clear of it)
     let x = t < tin ? W + (xStop - W) * (1 - (1 - t / tin) ** 3) : t < tgo ? xStop : xStop - (W + w) * ((t - tgo) / (S.len - tgo)) ** 2;
     const kick = t > tfire && t < tfire + 0.5 ? Math.sin(((t - tfire) / 0.5) * Math.PI) * w * 0.02 : 0;
     const al = Math.hypot(S.axis[0], S.axis[1]), ax = S.axis[0] / al, ay = S.axis[1] / al;
-    x -= ax * kick; const y = L.cy - h / 2 + bob - ay * kick;
+    x -= ax * kick; const y = L.cy - h * 0.62 + bob - ay * kick;
     ctx.globalCompositeOperation = "lighter";
     for (const j of S.jets) { const [jx, jy] = P(j[0], j[1], x, y); glow(jx, jy, h * (0.09 + 0.02 * Math.sin(t * 25 + jx)), "rgba(120,255,230,A)", 0.5); }
     ctx.globalCompositeOperation = "source-over";
     ctx.drawImage(img, x, y, w, h);
     const [ix, iy] = P(S.iris[0], S.iris[1], x, y), irx = S.iris[2] * sc, iry = S.iris[3] * sc;
-    const open = t < tfire - 0.5 ? 0 : t < tfire - 0.2 ? (t - (tfire - 0.5)) / 0.3 : t < tfire + 0.25 ? 1 : Math.max(0, 1 - (t - tfire - 0.25) / 0.35);
-    if (open > 0) {   // the iris: six blades turning open over an amber light
-      ctx.save(); ctx.beginPath(); ctx.ellipse(ix, iy, irx, iry, 0, 0, TAU); ctx.clip();
-      ctx.globalCompositeOperation = "lighter"; glow(ix, iy, irx * 1.2, "rgba(255,170,60,A)", 0.95 * open);
-      ctx.globalCompositeOperation = "source-over"; ctx.translate(ix, iy); ctx.scale(1, iry / irx);
-      for (let b = 0; b < 6; b++) {
-        ctx.save(); ctx.rotate(b * TAU / 6 + open * 1.1);
-        ctx.fillStyle = "rgba(120,86,40,0.92)"; ctx.strokeStyle = "rgba(255,214,140,0.7)"; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(irx * (0.05 + 0.85 * open), 0); ctx.arc(0, 0, irx * 1.05, 0.15, TAU / 6 + 0.35); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
-      }
-      ctx.restore();
-    }
+    // the iris: shut, half open (0.15 s), open (0.15 s), held while the canister leaves, then back the same way
+    const open = t < tfire - 0.45 ? 0 : t < tfire - 0.15 ? (t - (tfire - 0.45)) / 0.3 : t < tfire + 0.3 ? 1 : Math.max(0, 1 - (t - tfire - 0.3) / 0.4);
+    const half = artImage(S.half), op = artImage(S.open);
+    if (half && open > 0) { ctx.globalAlpha = Math.min(1, open * 2); ctx.drawImage(half, x, y, w, h); }
+    if (op && open > 0.5) { ctx.globalAlpha = (open - 0.5) * 2; ctx.drawImage(op, x, y, w, h); }
+    ctx.globalAlpha = 1;
+    if (open > 0.5) { ctx.globalCompositeOperation = "lighter"; glow(ix, iy, irx * 1.1, "rgba(255,160,60,A)", 0.45 * (open - 0.5) * 2); ctx.globalCompositeOperation = "source-over"; }
     if (t >= tfire && !tshow.can) tshow.can = { x: ix, y: iy, t: 0 };
     const C = tshow.can, cimg = artImage(S.can);
     if (C) {   // the canister: out along the barrel, rolling, a trail behind it
