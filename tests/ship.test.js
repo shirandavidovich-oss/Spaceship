@@ -1010,4 +1010,6 @@ ok("the raid: 4 BASTIONs with a regular ship's strength; every weapon reaches th
   html.includes("function raidProxy()") && html.includes("const RAID_FNS = () => [updateBeam,") && html.includes("function raidArea(x, y, R, dmg)") && html.includes("hp: 100, speed: 1.0"));
 ok("BLOOM's pollen cloud: only half the shots get through it to BLOOM", () =>
   html.includes("function pollenStops(s)") && html.includes("pass: 0.5 }") && html.includes("if (pollenStops(s)) { shots.splice(k, 1); continue; }"));
+ok("online rooms: CONNECT (signed in) opens the rooms; quick match, a named room (both type the name), open rooms listed in the lobby; nicknames", () =>
+  html.includes("function showRooms()") && html.includes("const lobby = {") && html.includes('"realtime:spaceship-room-" + roomKey(room)') && html.includes("function roomGo(room, pub)") && html.includes("nk: server.signedIn && !BOT ? myNick()"));
 console.log(n + " checks passed");

@@ -463,6 +463,7 @@ const FULL_TILT  = 22;   // degrees past the dead zone that give full engine pow
 const GIFT_TAPS  = 3;    // taps on the gift until it opens
 const SWIPE_UP   = 0.18; // swipe-up length (part of the screen height) that asks to trade
 const LOOK_FOR   = 45;   // seconds to look for the other phone
+const ROOM_WAIT  = 600;  // seconds to wait in a named room for a friend
 const WORLD      = 10;   // space is this many screens wide and this many tall; fly off one edge, come back on the other
 const STEER      = "point"; // "point": tip the phone toward where the nose should point.  "turn": tip right/left to turn
 const PULL       = 0.45; // the planet's pull within one screen of it (screens per second, each second); weaker further out. Keep below 0.6
@@ -2479,10 +2480,10 @@ const server = {
 // then they talk only to each other ("msg"), keep it alive with "ping", and say "bye"
 const rt = {
   ws: null, topic: null, name: null, peer: null, pending: null, pendingT: 0, ref: 0, joined: false, hiT: 0, lastHeard: 0, beatT: 0, pingT: 0, active: false,
-  start(name) {
+  start(name, room) {
     this.stop(true);
     this.name = name; this.peer = null; this.pending = null; this.active = true; this.joined = false;
-    this.topic = "realtime:spaceship-" + (name.startsWith("duel|") ? "duel" : "trade");
+    this.topic = room ? "realtime:spaceship-room-" + roomKey(room) : "realtime:spaceship-" + (name.startsWith("duel|") ? "duel" : "trade");   // (a named room: only who comes in by that name)
     const u = server.url.replace(/^http/, "ws") + "/realtime/v1/websocket?apikey=" + encodeURIComponent(server.key) + "&vsn=1.0.0";
     try { this.ws = new WebSocket(u); } catch (e) { window.shipLink("error", ""); return; }
     this.ws.onopen = () => this.out({ topic: this.topic, event: "phx_join", payload: { config: { broadcast: { self: false, ack: false }, presence: { key: "" }, private: false }, access_token: server.session && server.session.access_token }, join_ref: "1" });
@@ -2527,6 +2528,88 @@ const rt = {
   }
 };
 
+// ---------- rooms: play a friend anywhere ----------
+// CONNECT, signed in: the rooms. A room is a name: both players type the same name (or pick it from the list) and
+// meet there, wherever they are. Public rooms are listed in the lobby (a server room every phone with the list open
+// hears): a player waiting in one says so every 2 s; a room not heard of for 6 s, or taken, drops off. Quick match:
+// anyone else looking (as before). Names: each player's nickname (kept on the phone; first, the email's name)
+const NICK_KEY = "orbit-break.nick";
+function myNick() { try { return (LS.getItem(NICK_KEY) || (bankSync.email() || "player").split("@")[0]).slice(0, 16); } catch (e) { return "player"; } }
+function roomKey(name) { let h = 2166136261; for (const ch of name.trim().toLowerCase()) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
+const lobby = {
+  ws: null, topic: "realtime:spaceship-lobby", joined: false, ref: 0, rooms: {}, beatT: 0, annT: 0, active: false, onChange: null,
+  start() {
+    if (this.active || !server.signedIn) return;
+    this.active = true; this.joined = false;
+    const u = server.url.replace(/^http/, "ws") + "/realtime/v1/websocket?apikey=" + encodeURIComponent(server.key) + "&vsn=1.0.0";
+    try { this.ws = new WebSocket(u); } catch (e) { this.active = false; return; }
+    this.ws.onopen = () => this.out({ topic: this.topic, event: "phx_join", payload: { config: { broadcast: { self: false, ack: false }, presence: { key: "" }, private: false }, access_token: server.session && server.session.access_token }, join_ref: "1" });
+    this.ws.onmessage = (e) => { let m = null; try { m = JSON.parse(e.data); } catch (er) { return; } this.got(m); };
+    this.ws.onclose = () => { this.joined = false; this.active = false; this.ws = null; };
+    this.ws.onerror = () => {};
+  },
+  out(m) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify({ ...m, ref: String(++this.ref) })); },
+  cast(p) { if (this.joined) this.out({ topic: this.topic, event: "broadcast", payload: { type: "broadcast", event: "m", payload: p }, join_ref: "1" }); },
+  got(m) {
+    if (m.event === "phx_reply" && m.topic === this.topic && !this.joined) { if (m.payload && m.payload.status === "ok") { this.joined = true; this.cast({ k: "who" }); } return; }
+    if (m.event !== "broadcast" || m.topic !== this.topic || !m.payload) return;
+    const p = m.payload.payload; if (!p) return;
+    if (p.k === "room" && p.name) { this.rooms[roomKey(p.name)] = { name: String(p.name).slice(0, 24), host: String(p.host || "?").slice(0, 16), at: performance.now() }; this.changed(); }
+    else if (p.k === "gone" && p.name) { delete this.rooms[roomKey(p.name)]; this.changed(); }
+    else if (p.k === "who") this.annT = 0;   // (someone just opened the list: say my room at once)
+  },
+  changed() { if (this.onChange) try { this.onChange(); } catch (e) {} },
+  list() { const now = performance.now(); return Object.values(this.rooms).filter((r) => now - r.at < 6000).sort((a, b) => a.name.localeCompare(b.name)); },
+  tick(dt) {
+    if (!this.active) return;
+    this.beatT -= dt; if (this.beatT <= 0) { this.beatT = 25; this.out({ topic: "phoenix", event: "heartbeat", payload: {} }); }
+    const hosting = duel.stage === "looking" && duel.room && duel.roomPublic;
+    if (hosting) { this.annT -= dt; if (this.annT <= 0) { this.annT = 2; this.cast({ k: "room", name: duel.room, host: myNick() }); } }
+    else if (this.hosted) { this.cast({ k: "gone", name: this.hosted }); }
+    this.hosted = hosting ? duel.room : null;
+    if (!hosting && !document.getElementById("rooms")) this.stop();   // (nothing to listen for or to say)
+    else if (Math.random() < dt) this.changed();   // (rooms not heard of lately drop off the list)
+  },
+  stop() { const ws = this.ws; this.ws = null; this.active = false; this.joined = false; this.rooms = {}; if (ws) setTimeout(() => { try { ws.close(); } catch (e) {} }, 200); }
+};
+function showRooms() {
+  if (document.getElementById("rooms")) return;
+  const he = LANG === "he", T = (h, e) => he ? h : e, esc = (s) => String(s).replace(/[<>&"]/g, "");
+  const d = document.createElement("div");
+  d.id = "rooms"; d.dir = he ? "rtl" : "ltr";
+  d.style.cssText = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;font-family:Rubik,Arial,sans-serif;background:rgba(0,0,10,.6)";
+  const field = "width:100%;box-sizing:border-box;font-size:17px;padding:10px 12px;border-radius:12px;border:1.5px solid #3a4a8a;background:#0a0c20;color:#fff;outline:none";
+  const btn = (bg) => `width:100%;font-size:17px;font-weight:800;padding:11px;border:0;border-radius:12px;background:${bg};color:#06122a;margin-top:8px`;
+  d.innerHTML = `<div style="background:rgba(14,16,40,.97);border:1.5px solid #4fc3ff;border-radius:18px;padding:18px 18px 14px;width:min(90vw,440px);max-height:88vh;overflow:auto;color:#fff;box-shadow:0 0 40px rgba(79,195,255,.35)">
+    <div style="font-size:23px;font-weight:800;text-align:center;margin-bottom:10px">🌐 ${T("משחק ברשת", "Play online")}</div>
+    <label style="font-size:13px;color:#9fb4d8">${T("השם שלך במשחק", "Your name in the game")}</label>
+    <input id="rm-nick" maxlength="16" style="${field}" value="${esc(myNick())}">
+    <button id="rm-quick" style="${btn("linear-gradient(#ffe08a,#ffb347)")}">⚡ ${T("משחק מהיר (כל שחקן שמחפש)", "Quick match (anyone looking)")}</button>
+    <div style="margin-top:14px;font-size:15px;font-weight:800">🚪 ${T("חדר עם שם (לשחק עם חבר)", "A named room (play a friend)")}</div>
+    <div style="font-size:12.5px;color:#9fb4d8;margin:2px 0 6px">${T("שניכם כותבים את אותו שם, מכל מקום בעולם.", "You both type the same name, from anywhere.")}</div>
+    <input id="rm-name" maxlength="24" placeholder="${T("למשל: שירן וחברים", "e.g. sky pirates")}" style="${field}">
+    <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:14px;color:#cfe0ff"><input id="rm-pub" type="checkbox" checked style="width:18px;height:18px"> ${T("להציג ברשימת החדרים הפתוחים", "Show it in the list of open rooms")}</label>
+    <button id="rm-go" style="${btn("linear-gradient(#5fd0ff,#2a8ad8)")}">${T("כניסה לחדר", "Enter the room")}</button>
+    <div style="margin-top:14px;font-size:15px;font-weight:800">${T("חדרים פתוחים עכשיו", "Open rooms now")}</div>
+    <div id="rm-list" style="margin-top:6px;font-size:15px;color:#9fb4d8">${T("מחפש…", "Looking…")}</div>
+    <button id="rm-close" style="${btn("#3a4a8a")};color:#fff">${T("סגירה", "Close")}</button></div>`;
+  document.body.appendChild(d);
+  const close = () => { lobby.onChange = null; d.remove(); };
+  const saveNick = () => { const v = d.querySelector("#rm-nick").value.trim().slice(0, 16); try { if (v) LS.setItem(NICK_KEY, v); } catch (e) {} };
+  const go = (name, pub) => { saveNick(); close(); audio.pop(); if (game.stage === "fly" && !duel.stage) roomGo(name, pub); };
+  d.querySelector("#rm-quick").onclick = () => go(null, false);
+  d.querySelector("#rm-go").onclick = () => { const n = d.querySelector("#rm-name").value.trim().slice(0, 24); if (!n) { d.querySelector("#rm-name").focus(); return; } go(n, d.querySelector("#rm-pub").checked); };
+  d.querySelector("#rm-close").onclick = () => { saveNick(); close(); };
+  d.onclick = (e) => { if (e.target === d) { saveNick(); close(); } };
+  lobby.onChange = () => {
+    const L = d.querySelector("#rm-list"); if (!L) return;
+    const rooms = lobby.list();
+    if (!rooms.length) { L.textContent = T("אין חדרים פתוחים כרגע. פתח אחד ושתף את השם עם חבר.", "No open rooms right now. Open one and share its name with a friend."); return; }
+    L.innerHTML = rooms.map((r, i) => `<button data-i="${i}" style="display:block;width:100%;text-align:start;margin-top:6px;font-size:16px;padding:10px 12px;border-radius:12px;border:1.5px solid #4fc3ff;background:#0c1838;color:#fff">🚪 <b>${esc(r.name)}</b> <span style="color:#9fb4d8;font-size:13px">· ${esc(r.host)} ${T("מחכה", "is waiting")}</span></button>`).join("");
+    L.querySelectorAll("button").forEach((b) => { b.onclick = () => go(rooms[+b.dataset.i].name, false); });
+  };
+  lobby.start(); setTimeout(() => lobby.changed(), 2500);
+}
 // ---------- tilt ----------
 const tilt = { native: false, have: false, pitch: HOLD_ANGLE, roll: 0, sim: { pitch: HOLD_ANGLE, roll: 0 } };
 function feedGravity(x, y, z) { const t = tiltOf(x, y, z); tilt.pitch = t.pitch; tilt.roll = t.roll; tilt.have = true; }
@@ -3116,7 +3199,7 @@ function update(dt) {
   if (fleet.open) { fleet.t += dt; if (fleet.swapped) { fleet.swapped.t += dt; if (fleet.swapped.t > 1) fleet.swapped = null; } }
   if (game.stage === "signup") showSignup();
   bounty.t = Math.max(0, bounty.t - dt);
-  rt.tick(dt);
+  rt.tick(dt); lobby.tick(dt);
 
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.life += dt;
@@ -15711,9 +15794,9 @@ function pipePost(event, data) { try { const w = pipe.other; if (w && w.__pipeIn
 function pipeDrain() { while (pipe.inbox.length) { const [e, d] = pipe.inbox.shift(); if (pipe.on) window.shipLink(e, d); } }
 const link = {
   name: null, peer: null,
-  start(name) {
+  start(name, room) {
     if (pipe.on) { link.name = name; return; }   // the computer player: the parent page connects the two copies
-    if (server.signedIn) { rt.start(name); return; }   // signed in: players meet on the server (anywhere)
+    if (server.signedIn) { rt.start(name, room); return; }   // signed in: players meet on the server (anywhere; in a named room, only there)
     if (native && native.tradeStart) { try { native.tradeStart(name); } catch (e) {} return; }
     if (fakePeer) { setTimeout(() => window.shipLink("connected", ""), 1200); return; }
     if (bc) { link.name = name; link.peer = null; bc.postMessage({ k: "hi", from: name }); }
@@ -15914,18 +15997,24 @@ function lostIds() { return realDuel() && duel.fleet ? duel.fleet.lost : camp.lo
 function duelButton() {
   audio.pop(); buzz(15);
   if (duel.bot) stopMatch();   // playing the computer: stop, and look for a real phone instead
-  if (!duel.stage) {   // look for the other phone
+  if (!duel.stage) {   // look for the other phone (signed in and not the computer: first the rooms)
     if (game.stage !== "fly") return;
-    duel.stage = "looking"; duel.t = 0; duel.me = Math.random();
-    link.start("duel|" + Math.random().toString(36).slice(2, 10));
+    if (server.signedIn && !BOT) { showRooms(); return; }
+    roomGo(null);
   } else endDuel(true);
+}
+// start looking: in a named room (only who comes in by that name; public: listed in the lobby) or anywhere (null)
+function roomGo(room, pub) {
+  duel.stage = "looking"; duel.t = 0; duel.me = Math.random(); duel.room = room || null; duel.roomPublic = !!(room && pub);
+  link.start("duel|" + Math.random().toString(36).slice(2, 10), room || null);
+  if (duel.room && duel.roomPublic) lobby.start();
 }
 function endDuel(tellThem) {
   if (tellThem && (duel.stage === "on" || duel.stage === "count")) link.send({ t: "bye" });
   const viaPipe = pipe.on;   // (a computer match: nothing to stop later, and a real link may start right after)
   if (!viaPipe) setTimeout(() => link.stop(), tellThem ? 250 : 0); else link.stop();
   const was = duel.stage;
-  duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0;
+  duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0; duel.room = null; duel.theirNick = "";
   game.zombie = false; game.pollen = null; enemy.zombie = false;
   mazeEnd(true); flood = null; game.pinball = null; game.snake = null; game.vault = null; flyMines.length = 0; game.haunt = null; game.broad = null; ghosts.length = 0; game.paddle = null; huskRelease(); game.husk = null; game.hcap = false; huskCreature = null; game.paraT = 0; for (const S of stations) S.inf = null;   // the match is over: no maze, the star back, no water, no pinballs
   if (game.docked) undock();
@@ -15942,11 +16031,12 @@ function duelPlace() {
   game.ang = duel.side ? Math.PI : 0; game.vx = game.vy = 0; game.lx = game.ly = 0;
 }
 function duelLink(event, data) {
-  if (event === "connected") { setStation(Math.floor(Math.random() * 2147483647)); link.send({ t: "hi", s: game.ship, r: duel.me, b: cosmos.body, st: station.seed }); return; }
+  if (event === "connected") { setStation(Math.floor(Math.random() * 2147483647)); link.send({ t: "hi", s: game.ship, r: duel.me, b: cosmos.body, st: station.seed, nk: server.signedIn && !BOT ? myNick() : "" }); return; }
   if (event === "lost" || event === "error" || event === "denied") { if (duel.stage !== "over") endDuel(false); return; }
   if (event !== "message") return;
   let m = null; try { m = JSON.parse(data); } catch (e) { return; }
   if (m.t === "hi" && duel.stage === "looking" && shipById(m.s)) {
+    duel.theirNick = m.nk ? String(m.nk).slice(0, 16) : "";
     // the bigger random number takes the bottom side
     duel.side = duel.me > m.r ? 1 : 0;
     if (duel.side === 1 && BODIES[m.b]) setBody(m.b);   // both fight around the same body: the top player's
@@ -16223,7 +16313,7 @@ function updateDuel(dt) {
   if (duel.beam) { duel.beam.t += dt; if (duel.beam.t > WEAPONS.solar.life) duel.beam = null; }
   if (duel.nova) { duel.nova.t += dt; if (duel.nova.t > 1.2) duel.nova = null; }
   if (duel.thread) { duel.thread.t += dt; if (!threadPhase(WEAPONS[duel.thread.w], duel.thread.t)) duel.thread = null; }
-  if (duel.stage === "looking" && duel.t > LOOK_FOR) { endDuel(false); duel.stage = null; audio.bump(); return; }
+  if (duel.stage === "looking" && duel.t > (duel.room ? ROOM_WAIT : LOOK_FOR)) { endDuel(false); duel.stage = null; audio.bump(); return; }
   if (duel.stage === "over") { if (duel.t > 2) duel.stage = null; return; }
   if (duel.stage === "count" && duel.t > 3) { duel.stage = "on"; duel.t = 0; audio.open(); buzz(80); }
   if (duel.stage !== "on" && duel.stage !== "count") return;
@@ -16305,6 +16395,14 @@ function drawDuel() {
   ctx.translate(-b.x, -b.y);
   if (on) { ctx.shadowColor = "#ff4d6d"; ctx.shadowBlur = c.h * 0.5; }
   if (img) ctx.drawImage(img, c.x, c.y, c.w, c.h);
+  if (duel.room && (duel.stage === "looking" || on)) {   // the room's name under it
+    ctx.save(); ctx.font = `700 ${Math.round(c.h * 0.32)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = "#9fe6ff";
+    ctx.fillText("🚪 " + duel.room.slice(0, 16), c.x + c.w / 2, c.y + c.h + 2); ctx.restore();
+  }
+  if (on && duel.theirNick && !duel.bot) {   // who I am playing
+    ctx.save(); ctx.font = `700 ${Math.round(c.h * 0.32)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = "#ffb3c7";
+    ctx.fillText("⚔ " + duel.theirNick, c.x + c.w / 2, c.y + c.h + 2 + (duel.room ? c.h * 0.4 : 0)); ctx.restore();
+  }
   else { ctx.fillStyle = "rgba(10,12,32,0.7)"; roundRect(c.x, c.y, c.w, c.h, c.h * 0.2); ctx.fill(); ctx.fillStyle = "#ffffff"; ctx.font = `800 ${Math.round(c.h * 0.45)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("CONNECT", c.x + c.w / 2, c.y + c.h / 2); }
   ctx.restore();
   // the score, under the health bar: my wins (green) : theirs (red)
