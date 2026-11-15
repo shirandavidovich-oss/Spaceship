@@ -1012,4 +1012,9 @@ ok("BLOOM's pollen cloud: only half the shots get through it to BLOOM", () =>
   html.includes("function pollenStops(s)") && html.includes("pass: 0.5 }") && html.includes("if (pollenStops(s)) { shots.splice(k, 1); continue; }"));
 ok("online rooms: CONNECT (signed in) opens the rooms; quick match, a named room (both type the name), open rooms listed in the lobby; nicknames", () =>
   html.includes("function showRooms()") && html.includes("const lobby = {") && html.includes('"realtime:spaceship-room-" + roomKey(room)') && html.includes("function roomGo(room, pub)") && html.includes("nk: server.signedIn && !BOT ? myNick()"));
+ok("the web version: a manifest and icons, the first touch asks for tilt and full screen in a browser, a Pages workflow", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets");
+  for (const f of ["manifest.webmanifest", "icon-192.png", "icon-512.png"]) assert(fs.existsSync(path.join(A, f)), f);
+  assert(fs.existsSync(path.join(__dirname, "../.github/workflows/web.yml")) && html.includes('<link rel="manifest" href="manifest.webmanifest">') && html.includes("function webFirstTouch()"));
+});
 console.log(n + " checks passed");

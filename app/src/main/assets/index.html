@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Spaceship</title>
+<title>Orbit Break</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#05060f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <style>
   html, body { margin: 0; height: 100%; background: #05060f; overflow: hidden; touch-action: none;
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -2340,6 +2346,13 @@ cv.addEventListener("contextrestored", () => { lostAt = 0; noteIssue("screen los
 // That copy is the "bot": it plays like a second phone, so it has every weapon and magic a player has.
 const BOT = window.name === "shipbot";
 const native = BOT ? null : window.ShipNative || null;
+// played in a browser (the web version, no app): on the first touch, ask for the tilt sensor (iPhone asks the player),
+// go full screen and hold the screen upright where the browser allows it
+if (!native && !BOT && window.parent === window) addEventListener("pointerdown", function webFirstTouch() {
+  removeEventListener("pointerdown", webFirstTouch);
+  try { if (window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === "function") DeviceMotionEvent.requestPermission().catch(() => {}); } catch (e) {}
+  try { const el = document.documentElement, fs = el.requestFullscreen || el.webkitRequestFullscreen; if (fs && matchMedia("(pointer: coarse)").matches) Promise.resolve(fs.call(el)).then(() => { try { screen.orientation.lock("portrait").catch(() => {}); } catch (e) {} }).catch(() => {}); } catch (e) {}
+}, { passive: true });
 const params = new URLSearchParams(BOT ? "" : location.search);
 // saved data: the bot keeps nothing (it must not touch the player's saved game)
 const LS = BOT ? (() => { const m = {}; return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; } }; })() : localStorage;

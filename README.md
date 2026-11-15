@@ -706,6 +706,8 @@ package's frames (`art/bloom/skarn/`, `skarnBloomFrame`).
 
 **Online rooms** — signed in, CONNECT opens "Play online": your nickname (kept on the phone; first, your email's name), ⚡ quick match (anyone else looking, as before), or a named room: both players type the same name, from anywhere, and meet there (a server room of its own, `spaceship-room-<hash of the name>`; waits up to 10 minutes). A room can be listed: the lobby (`spaceship-lobby`) shows the open rooms with who is waiting, live; tap one to join it. A room taken drops off the list. In the match, the room's name and the other player's nickname show under CONNECT. Not signed in: CONNECT looks for a phone nearby, as before.
 
+**The web version** — the game runs in any phone or computer browser, no app: `.github/workflows/web.yml` publishes the assets folder to GitHub Pages on every push to main (https://shirandavidovich-oss.github.io/Spaceship/; turn it on once in Settings → Pages → Source: GitHub Actions). In a browser, the first touch asks for the tilt sensor (iPhone asks the player) and goes full screen, upright; on a computer the arrow keys tilt. A manifest and icons let it be added to the home screen. Sign-in, the bank and online rooms work there as in the app.
+
 **The merchants' breaks** (the Shop Break package: `art/station/<store>-store-break.webp`, a 7 x 6 atlas of 37 frames,
 and `-closed.webp`). Every 90-160 s (`STORE_BREAK`, from the stores' seed, so both phones in a duel agree) a store's
 merchant flies out in his ship, the lights go off and the shutter comes down (12 fps); it stays closed 30-45 s, then the
