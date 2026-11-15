@@ -2958,6 +2958,7 @@ function burstAt(wx, wy, n, colors, speed = 1, size = 1, dvx = 0, dvy = 0) {
 let swipe = null;
 cv.addEventListener("pointerdown", (e) => {
   audio.wake();
+  if (shipPage) { shipPage = null; audio.pop(); buzz(8); return; }   // the ship's page (long press on its icon): any tap, or its button, closes it
   if (game.stage === "title") {   // the title screen: the language, the dials, else start
     if (shop.open) { shopTap(e.clientX, e.clientY); return; }   // (the ship shop, opened from here)
     if (!BOT && hitMenuShop(e.clientX, e.clientY)) { menuShop.press = 0.18; audio.pop(); buzz(15); setTimeout(() => shopOpen("ship"), 120); return; }   // the ship shop
@@ -2977,7 +2978,7 @@ cv.addEventListener("pointerdown", (e) => {
   if (game.stage === "fly" && !trade.stage && hitDuel(e.clientX, e.clientY)) { duel.pressAt = performance.now(); duelButton(); return; }
   if (game.stage === "fly" && !trade.stage && !realDuel() && hitHangar(e.clientX, e.clientY)) { hangar.open = true; hangar.t = 0; audio.pop(); return; }
   if (game.stage === "fly" && hitDock(e.clientX, e.clientY)) { dock(); return; }   // in the station's bay, slow: dock
-  if (game.stage === "fly" && !trade.stage && hitFleetRow(e.clientX, e.clientY)) { fleetRowTap(); return; }   // the fleet row: mine only / my fleet / theirs
+  if (game.stage === "fly" && !trade.stage && hitFleetRow(e.clientX, e.clientY)) { rowDown(e); return; }   // a tap: the next view; held: the ship's page   // the fleet row: mine only / my fleet / theirs
   if (game.stage === "fly" && !game.dead && hitShieldBtn(e.clientX, e.clientY)) { useShield(); return; }   // the active shield
   // the left thumb on the thrust button (another finger can still swipe at the same time)
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
@@ -2986,6 +2987,7 @@ cv.addEventListener("pointerdown", (e) => {
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
     return;
   }
+  if (game.stage === "fly" && hitBreak(e.clientX, e.clientY)) { breakTap(); return; }   // held on LARIAT's rope: tap fast to break free
   // the right thumb on a fire button (hold to keep firing); the gear = magic
   if (game.stage === "fly" && trade.stage !== "swapping") {
     if (hitMagic(e.clientX, e.clientY)) { game.magicFinger = e.pointerId; useMagic(whichMagic(e.clientX)); return; }
@@ -3025,6 +3027,7 @@ cv.addEventListener("pointermove", (e) => {
   game.stick.dx = e.clientX - game.stick.ox; game.stick.dy = e.clientY - game.stick.oy;
 });
 function fingerUp(e) {
+  if (rowPress && e.pointerId === rowPress.id) { clearTimeout(rowPress.timer); const held = rowPress.fired; rowPress = null; if (!held) fleetRowTap(); return; }
   if (dialUp(e)) return;
   if (fleet.open && fleet.press) { fleetUp(e); return; }
   if (e.pointerId === game.magicFinger) { game.magicFinger = null; return; }
@@ -3039,7 +3042,7 @@ function fingerUp(e) {
 }
 cv.addEventListener("pointerup", fingerUp);
 cv.addEventListener("pointercancel", fingerUp);
-addEventListener("blur", () => { game.magicFinger = null; game.thrust = null; game.stick = null; game.aim = null; game.fire = [null, null, null, null]; });
+addEventListener("blur", () => { if (rowPress) { clearTimeout(rowPress.timer); rowPress = null; } game.magicFinger = null; game.thrust = null; game.stick = null; game.aim = null; game.fire = [null, null, null, null]; });
 // on a computer: the space bar is the thrust button; Z, X, C are fire buttons 1, 2, 3
 const FIRE_KEYS = ["z", "x", "c", "v"];   // (V: the extra weapon; B: the active shield)
 addEventListener("keydown", (e) => {
@@ -3184,6 +3187,8 @@ function update(dt) {
   gift.squash = Math.max(0, gift.squash - dt * 5);
   if (game.stage === "gift") gift.hint += dt;
   game.card = Math.max(0, game.card - dt);
+  if (shipPage) { shipPage.t += dt; if (game.stage !== "fly") shipPage = null; }
+  updateBreak(dt);
 
   const wasLying = tilt.lying;
   tilt.lying = tilt.have && tilt.pitch <= 120 && (tilt.lying ? tilt.pitch > LIE_OFF : tilt.pitch > LIE_ON);
@@ -3312,7 +3317,7 @@ function flyShip(dt) {
 function moveShip(o, S, c, dt) {
   const st = shipStats(S), size = shipSize();
   if (o === game && game.soak && game.soak.boost) { const M = magicOf(S); st.push *= M.boost; st.top *= M.boost; }   // ORIAN charged: twice as fast
-  if (o === game && game.lassoed) st.turn *= ELASSO.turn;
+  if (o === game && game.lassoed) { st.turn *= ELASSO.turn; c = { ...c, thrust: false }; }   // on LARIAT's rope: no turning, no engine: towed
   if (o === game && game.paraT > 0) st.push *= 1 - MAGIC.breach.paraCut;   // HUSK's parasite on my engine
   if (S.id === "lyth") {   // LYTH in water (its jets): 70% of its top speed; crossing in, it loses 30% of its speed at once
     const wet = inWater(o); if (wet && !o.lythWet) { o.vx *= LYTH_JETS.slow; o.vy *= LYTH_JETS.slow; } o.lythWet = wet;
@@ -4149,7 +4154,7 @@ const SHOP_TXT = {
     sayShield: "פסיבי סופג פגיעות לבד ומתמלא שוב. אקטיבי: כפתור, ושום דבר לא עובר לכמה שניות.",
     sayWeapon: "נשק נוסף מחללית אחרת, עם כפתור משלו ליד כפתור הירי. תבחר טוב!", sayShip: "חלליות חדשות לצי של המשחק הזה. תבחר אחת, ואז תאשר.",
     poke: ["אל תיגע בי, יצור משונה!", "ידיים לעצמך, בן אדם!", "היי! אני לא חלק מהסחורה!", "עוד נגיעה אחת ואני מעלה לך את המחירים!", "אתה יודע כמה מחושים אני צריך לנקות עכשיו?", "בכוכב שלי זה נחשב הצעת נישואים. תפסיק!", "אל תיגע! אני רגיש בכל שמונת העורות שלי!"],
-    infoW1: "נשק 1", infoW2: "נשק 2", infoMagic: "קסם", infoDmg: "נזק", infoAmmo: "תחמושת", infoMass: "מסה", infoFuel: "דלק", infoSec: "שנ׳", infoClose: "סגירה", infoTap: "לחצו על התמונה לפרטים",
+    infoW1: "נשק 1", infoW2: "נשק 2", infoMagic: "קסם", infoDmg: "נזק", infoAmmo: "תחמושת", infoMass: "מסה", infoFuel: "דלק", infoSec: "שנ׳", infoClose: "סגירה", infoXw: "נשק מהתחנה", infoXwSay: "נשק נוסף שנקנה בחנות של התחנה, בכפתור משלו.", infoTap: "לחצו על התמונה לפרטים",
     signFirst: "חללית לתמיד או להשכרה נרשמת על האימייל שלך. תתחבר קודם, ואז היא שלך!", signWhy: "חללית לתמיד או להשכרה נשמרת בחשבון שלך, כדי שלא תלך לאיבוד אם תחליף או תמחק את המשחק.",
     thanks: ["עסקה מצוינת!", "תהנה מזה, טייס!", "בחירה חכמה!"], cant: "אוי… חסרים לך עוד", coins: "מטבעות",
     soon: "בקרוב", once: "לקרב הזה", week: "שבוע", own: "לתמיד", ownedForever: "שלך לתמיד", rented: "מושכרת", days: "ימים", inFleet: "כבר בצי",
@@ -4168,7 +4173,7 @@ const SHOP_TXT = {
     sayShield: "Passive soaks hits by itself and refills. Active: a button, and nothing gets through for a few seconds.",
     sayWeapon: "An extra weapon from another ship, with its own button by the fire button. Choose well!", sayShip: "New ships for this game's fleet. Pick one, then confirm.",
     poke: ["Don't touch me, you freak!", "Hands off, human!", "Hey! I'm not part of the merchandise!", "One more poke and I'm raising your prices!", "Do you know how many tentacles I have to clean now?", "On my planet that's a marriage proposal. Stop it!", "Don't touch! I'm sensitive in all eight of my skins!"],
-    infoW1: "Weapon 1", infoW2: "Weapon 2", infoMagic: "Magic", infoDmg: "Damage", infoAmmo: "Ammo", infoMass: "Mass", infoFuel: "Fuel", infoSec: "s", infoClose: "Close", infoTap: "Tap the picture for details",
+    infoW1: "Weapon 1", infoW2: "Weapon 2", infoMagic: "Magic", infoDmg: "Damage", infoAmmo: "Ammo", infoMass: "Mass", infoFuel: "Fuel", infoSec: "s", infoClose: "Close", infoXw: "Station weapon", infoXwSay: "An extra weapon bought at the station shop, on a button of its own.", infoTap: "Tap the picture for details",
     signFirst: "A ship for good or a rental goes on your email. Sign in first, then it's yours!", signWhy: "A ship for good or a rental is kept on your account, so it is never lost if you change phones or delete the game.",
     thanks: ["Excellent deal!", "Enjoy it, pilot!", "Smart choice!"], cant: "Oh… you still need", coins: "coins",
     soon: "Coming soon", once: "This game", week: "A week", own: "Forever", ownedForever: "Yours forever", rented: "Rented", days: "days", inFleet: "In your fleet",
@@ -4947,14 +4952,107 @@ const SHIP_INFO = {
              m: ["הופך לספינת רפאים ל-12 שניות: היריות שלו מסתובבות אחרי האויב. כל פגיעה מעלה רוח מעל האויב ומחזירה ל-CORSAIR בריאות.", "Turns into a ghost ship for 12 seconds: its shots turn after the enemy. Every hit raises a ghost over them and gives CORSAIR health back."] },
   husk: { w: [["תותחים תאומים שיורים בורגי ענבר, שמאל וימין לסירוגין.", "Twin cannons firing amber bolts, left and right in turn."],
               ["קפסולה שנתפסת במנוע של ספינה ומחלישה את הדחף שלה.", "A capsule that grips a ship's engine and weakens its thrust."]],
-          m: ["המכל נפתח וזרוע עם פה יוצאת. נוגעים איתה בחנות, החנות נדבקת והמפלצת פורצת ממנה ומחכה בחוץ. ספינה שנתפסת בפה ומובאת אליה מושמדת.", "The tank opens and an arm with jaws comes out. Touch a store with it: the store is infected and the monster tears out and waits outside. A ship caught in the jaws and brought to it is destroyed."] }
+          m: ["המכל נפתח וזרוע עם פה יוצאת. נוגעים איתה בחנות, החנות נדבקת והמפלצת פורצת ממנה ומחכה בחוץ. ספינה שנתפסת בפה ומובאת אליה מושמדת.", "The tank opens and an arm with jaws comes out. Touch a store with it: the store is infected and the monster tears out and waits outside. A ship caught in the jaws and brought to it is destroyed."] },
+  // (the rest of the ships: the same words, for the long press on the ship's icon in flight)
+  brass: { w: [["תותח כפול מהיר עם הרבה תחמושת.", "A fast twin cannon with plenty of ammo."],
+               ["כדור תותח כבד שרודף אחרי היריב. במבוך הוא גם פורץ חור בקיר.", "A heavy cannonball that homes in on the enemy. In a maze it also breaks a hole in the wall."]],
+           m: ["מסך עשן כימי ירוק: היריב לא רואה אותך כמה שניות, ומי שנמצא בתוכו מאבד בריאות.", "A green chemical smoke screen: the enemy cannot see you for a few seconds, and anyone inside it loses health."] },
+  vexar: { w: [["צרור קוצים מהיר.", "A fast stream of thorns."],
+               ["מטיל ביצה שנעצרת במקום, ונחיל ציידים בוקע ממנה ורודף אחרי היריב.", "Lays an egg that drifts to a stop; a swarm of hunters hatches and chases the enemy."]],
+           m: ["הזנב נשלח החוצה עם כדור קוצים בקצה לכמה שניות. נגיעה ביריב פוגעת בו ומעיפה אותו.", "The tail shoots out with a spiked ball at its tip for a few seconds. Touching the enemy hurts it and knocks it away."] },
+  lyth: { w: [["פולס אנרגיה.", "An energy pulse."],
+              ["טבעת שעפה החוצה וחוזרת, ופוגעת גם בדרך הלוך וגם בדרך חזור. מפוצצת את המים של BOILER.", "A ring that flies out and back, hitting on the way out and again on the way back. It bursts BOILER's water."]],
+          m: ["כשהיריב קרוב, קרן מושכת אותו אל הטבעת הגורסת, שקורעת אותו כמעט שתי שניות ואז משחררת. כשהחבל של LARIAT קשור על LYTH, הקסם עובד מכל מרחק וקורע את החבל. LYTH יכול לשחות במים של BOILER.", "When the enemy is close, a beam pulls it into the grinding ring, which shreds it for almost two seconds and lets go. Tied by LARIAT's rope, the magic works from any distance and tears the rope. LYTH can swim in BOILER's water."] },
+  talus: { w: [["רסיסי אבן מהירים.", "Fast stone shards."],
+               ["סלע כבד ואיטי שנוצר מול החרטום. הכוכב מושך אותו, אז אפשר לעקם אותו סביבו.", "A heavy, slow boulder formed ahead of the nose. The star pulls it, so it can be curved round it."]],
+           m: ["החללית מתפרקת לחלקים שעפים לכל הכיוונים ומתפוצצים אחרי שנייה-שתיים. ככל שנבנו יותר שלבים, יש יותר חלקים.", "The ship bursts into pieces that fly every way and blow up a second or two later. The more stages it has built, the more pieces."] },
+  orian: { w: [["בזק אור מהיר.", "A fast bolt of light."],
+               ["קרן שמש ארוכה וקצרה, שפוגעת בכל ספינה שהיא נוגעת בה.", "A long, brief sun beam that hits any ship it touches."]],
+           m: ["מחזיקים את הכפתור כדי לאסוף אור (ההיגוי חלש בינתיים). 3 מנות: מהירות כפולה ומיכל מלא. 6 מנות: הלחיצה הבאה היא פיצוץ אור שפוגע ביריב בכל מקום שהוא.", "Hold the button to gather light (steering is weak meanwhile). 3 charges: double speed and a full tank. 6 charges: the next tap is a blast of light that hits the enemy wherever it is."] },
+  skarn: { w: [["שני פתחים יורים רסיסים יחד.", "Both muzzles fire shards at once."],
+               ["הלסת נפתחת ותופסת יריות של היריב, ואז יורקת אותן בחזרה.", "The jaw opens and catches the enemy's shots, then spits them back."]],
+           m: ["הלסת נשלחת על שרשראות אל יריב קרוב, נושכת אותו שלוש פעמים ונמשכת חזרה.", "The jaw shoots out on chains to a nearby enemy, bites it three times and reels back in."] },
+  drakon: { w: [["לחיצה אחת, שני פולסים.", "One press, two pulses."],
+                ["לחיצה ראשונה מסמנת נקודה. לחיצה שנייה, תוך כמה שניות, קופצת חזרה אליה.", "The first press marks a spot; a second press within a few seconds jumps back to it."]],
+            m: ["פעם אחת בכל חיים: החללית מתפצלת לשניים. חצי אחד ממשיך להילחם, והחצי השני הוא פצצה שמתפוצצת ופוגעת חזק בכל מי שקרוב (לא בך).", "Once a life: the ship splits in two. One half fights on; the other is a bomb that blows up and hits hard anyone near it (not you)."] },
+  xeltar: { w: [["שלושה רסיסי קרח במניפה.", "Three ice shards in a fan."],
+                ["גביש קרח כבד שנורה מהזנב, אחורה.", "A heavy ice crystal fired backward, out of the stern."]],
+            m: ["ענן דיו שמסתיר אותך. ספינה שנוגעת בו מתכסה בדיו, מאבדת בריאות, ולא יכולה לנווט, לדחוף או לירות כמה שניות. XELTAR יכול לשחות במים של BOILER.", "An ink cloud that hides you. A ship touching it is covered in ink, loses health, and cannot steer, thrust or shoot for a few seconds. XELTAR can swim in BOILER's water."] },
+  kraal: { w: [["שני תותחים יורים יחד קדימה.", "Two cannons fire ahead together."],
+               ["מחזיקים כדי לבחור נקודה מאחור (היא מתרחקת ככל שמחזיקים) ומשחררים: שני בזקים נפגשים בה בפיצוץ חזק.", "Hold to choose a point behind you (it moves farther the longer you hold), then let go: two bolts meet there in a strong blast."]],
+           m: ["הסתערות קדימה לכיוון החרטום. ספינה שבדרך חוטפת מכת פטיש ונזרקת.", "A charge straight ahead. A ship in the way takes a hammer blow and is thrown back."] },
+  zorian: { w: [["מחט אור מהירה.", "A fast needle of light."],
+                ["פורש חוט אור. אחרי רגע של אזהרה החוט פוגע בכל מי שחוצה אותו ועוצר יריות.", "Lays a thread of light. After a moment's warning it hurts anyone who crosses it, and stops shots."]],
+            m: ["החללית נעצרת ומסתובבת במקום כמה שניות (לחיצה נוספת עוצרת). חוט שנפרש בזמן הזה נהיה טבעת אור סביבה שיריות לא עוברות.", "The ship stops and spins in place for a few seconds (another tap ends it). A thread laid meanwhile becomes a ring of light round it that shots cannot pass."] },
+  vanta: { w: [["טיפה שמסמנת את היריב. הטיפות מתנפחות בדרך: קל יותר לפגוע, אבל הן חלשות יותר.", "A drop that marks the enemy. Drops swell as they fly: easier to hit with, but weaker."],
+               ["טיפה שנכנסת לכוכב ויוצאת מהצד השני חזקה יותר. סימן מהבהב מראה איפה היא תצא.", "A drop that goes into the star and comes out the other side stronger. A blinking mark shows where it will come out."]],
+           m: ["כל לחיצה מחליפה את צבע הנוזל: ירוק, כחול, אדום, לבן. כל צבע מחזק את שני הנשקים. ירי של טיפת המעבר מחזיר לירוק.", "Each tap changes the liquid's colour: lime, blue, red, white. Each colour makes both weapons stronger. Firing the phase drop uses it up (back to lime)."] },
+  cantor: { w: [["צליל תהודה.", "A resonant tone."],
+                ["אקורד: חמש יריות, אחת מכל חריץ.", "A chord: five shots, one from each groove."]],
+            m: ["גלי קול מתפשטים. ספינה שהם מגיעים אליה משתבשת עד דקה: ההיגוי שלה הפוך והיריות שלה עפות לכיוון הלא נכון.", "Rings of sound spread out. A ship they reach is scrambled for up to a minute: its steering is reversed and its shots fly the wrong way."] },
+  rivet: { w: [["מסמרת חזקה ומהירה.", "A strong, fast rivet."],
+               ["שמונה כדורי מגנט לכל הכיוונים, שנמשכים אל הכוכב ומתפוצצים עליו.", "Eight magnet balls all round, pulled toward the star; they burst on it."]],
+           m: ["הגוף מסתובב רבע סיבוב ופינה אחרת שלו נהיית החרטום, עם שני נשקים אחרים. לחיצה נוספת מחזירה.", "The hull turns a quarter round and another corner becomes the nose, with two other weapons. Tap again to turn back."] },
+  glitch: { w: [["פרץ של שלוש יריות ניאון.", "A burst of three neon shots."],
+                ["פולס פריצה: ספינה שנפגעת לא יכולה לירות 8 שניות.", "A hack pulse: a ship it hits cannot fire for 8 seconds."]],
+            m: ["מגן V: כשה-V פתוח, יריות שפוגעות בחזית חוזרות אחורה ונהיות שלך.", "V shield: while the V is open, shots hitting its front are batted back and become yours."],
+            m2: ["קפיצה הצידה. במקום הקודם נשאר כפיל מהבהב, והיריב רודף אחריו.", "A jump sideways. A flickering decoy stays where you were, and the enemy goes after it."] },
+  nimbus: { w: [["ברק מהיר.", "A fast lightning bolt."],
+                ["חזית סערה: ענן רעמים שנשאר 3 דקות, מייצר רוח ומכה בברקים בכל ספינה שמתקרבת.", "A storm front: a thundercloud that stays 3 minutes, blows wind and strikes any ship that comes near."]],
+            m: ["קשת שעפה קדימה. פגיעה ביריב מחזירה ל-NIMBUS בריאות.", "A rainbow arc flies out. Hitting the enemy gives NIMBUS health back."] },
+  reprise: { w: [["בריח ענבר מהבניין העליון.", "An amber bolt from the top building."],
+                 ["מטח של שלוש יריות, אחת מכל קומה.", "A volley of three shots, one from each floor."]],
+             m: ["הבניינים נבנים מחדש בצורה אחרת, והיריב נשלח אחורה בזמן: הוא טס לאחור בהילוך איטי בדרך שעשה, היריות שלו חוזרות לתותחים, והוא לא יכול לנווט או לירות.", "The buildings rebuild into another shape and the enemy is sent back in time: it flies backward along its path in slow motion, its shots fly back into its guns, and it cannot steer or shoot."] },
+  puff: { w: [["שלוש מחטי נחושת.", "Three copper needles."],
+              ["מחזיקים כדי לנפח בועה (עד חמש נשיפות) ומשחררים. בועה גדולה איטית יותר, אבל פוגעת ודוחפת חזק יותר.", "Hold to blow a bubble (up to five puffs), then let go. A bigger bubble is slower but hits and shoves harder."]],
+          m: ["החללית מתנפחת עם קוצים: מי שנוגע בה נדקר ונזרק. לחיצה על ירי משגרת את הקוצים.", "The ship puffs up with spines: anyone touching it is stabbed and thrown off. A fire press launches the spines."] },
+  cinder: { w: [["שני בלסטרים לסירוגין.", "Two blasters taking turns."],
+                ["טורפדו שמתפוצץ על ספינה או בסוף הדרך, ופוגע ודוחף את מי שקרוב.", "A torpedo that blows up on a ship or at the end of its run, hurting and shoving anyone near."]],
+            m: ["החלקה מהירה שמאלה בלי לשנות כיוון.", "A quick slide to the left, keeping your heading."],
+            m2: ["החלקה מהירה ימינה בלי לשנות כיוון.", "A quick slide to the right, keeping your heading."] },
+  borer: { w: [["חמישה רסיסי מתכת במניפה, לטווח קצר.", "Five metal shards in a fan, short range."],
+               ["מוקש מקדח שיוצא מאחור, רודף אחרי היריב וקודח בו.", "A drilling mine out of the back that goes after the enemy and bores into it."]],
+           m: ["ליד הכוכב בלבד: קודח לתוך הכוכב ומשאיר בו פצצה. בפעם הבאה שהיריב נוגע בכוכב, הוא מתנפץ. בזמן שהקסם נטען, החזקת הכפתור מסובבת את המקדח: כל ביס ביריב לוקח מיכל ומשאיר חור. המקדח גם חותך את החבל של LARIAT, ובמבוך קודח בקיר אחרי 3 שניות.", "Near the star only: bores into the star and leaves a bomb; the next time the enemy touches the star, it is shattered. While the magic recharges, holding the button spins the drill: each bite on the enemy takes a tank and leaves a hole. The drill also cuts LARIAT's rope, and in a maze bores through a wall after 3 seconds."] },
+  mirage: { w: [["פולס ממוקד, מהיר וחזק.", "A focused pulse, fast and strong."],
+                ["זרע איטי שמתפצל לשלושה רסיסים מהירים.", "A slow seed that splits into three fast shards."]],
+            m: ["כוכב מדומה מול החרטום שמושך אליו את כל היריות (של כולם) לכמה דקות. בין שני כוכבים מדומים שלך נמתחת קרן אור שפוגעת ביריב.", "A false star ahead of the nose that pulls in every shot (anyone's) for a few minutes. Between two of your false stars a beam of light stretches that hurts the enemy."] },
+  palisade: { w: [["קליע שניתר פעם אחת מהקיר שלך.", "A slug that banks once off your own wall."],
+                  ["מציב קיר שגדל עד 30 חלקים ונשאר עד שהקסם מפוצץ אותו. הקיר בולע יריות, ופגיעה שוברת את הקצה שלו.", "Sets up a wall that grows to 30 pieces and stays until the magic blows it. It swallows shots; a hit breaks off its tip."]],
+              m: ["רק כשהקיר עומד: הקיר מתפוצץ ברסיסים, ופוגע מיכל וחצי בכל אויב בעיגול סביבו.", "Only with the wall up: the wall explodes into shards, hitting every enemy in the circle round it for a tank and a half."] },
+  gimbal: { w: [["שני להבי טבעת משני צידי החרטום. כל פגיעה: חצי מיכל.", "Two rim blades from both sides of the bow. Each hit: half a tank."],
+                ["שער רבע סיבוב מול החללית, שמסובב יריות של היריב ברבע סיבוב.", "A quarter gate ahead that turns the enemy's shots a quarter round."]],
+            m: ["כיוון התנועה מתהפך לגמרי באותה מהירות, והחרטום נשאר במקום. עובד רק כשזזים.", "The way you move flips right round at the same speed; the nose stays. Works only while moving."] },
+  lariat: { w: [["מסמרת יונים מהירה.", "A fast ion rivet."],
+                ["יורה צלצל על חבל: תופס את היריב (או את הכוכב) ומושך. יריב קשור לא יכול להסתובב ונגרר אחריך, עד שהוא משתחרר בלחיצות רצופות.", "Fires a harpoon on a rope: it catches the enemy (or the star) and pulls. A tied enemy cannot turn and is dragged behind you, until it breaks free by tapping fast."]],
+            m: ["רק כשהחבל קשור ליריב או לכוכב: החבל משתחרר ו-LARIAT מסתער ישר על היריב. פגיעה לוקחת חצי מהבריאות.", "Only with the rope round the enemy or the star: the rope lets go and LARIAT rams straight into the enemy. A hit takes half its health."] },
+  bloom: { w: [["פרח ורוד מסתובב.", "A spinning pink flower."],
+               ["חמישה עלי כותרת במניפה.", "Five petals in a fan."]],
+           m: ["ענן אבקנים סביב BLOOM. יריב שנמצא בו כשנייה הופך לזומבי (פגיעה חלשה, ירי איטי, בלי קסם). רק חצי מהיריות עוברות את הענן אל BLOOM.", "A pollen cloud round BLOOM. An enemy inside it for about a second becomes a zombie (weak hits, slow fire, no magic). Only half the shots get through the cloud to BLOOM."] },
+  ballast: { w: [["קליע מהיר מהחרטום.", "A fast slug from the nose."],
+                 ["משקולת כבדה שהכוכב מושך, אפשר לעקם אותה סביבו.", "A heavy weight the star pulls, so it can be curved round it."]],
+             m: ["מחזיקים: כבלים נתפסים באסטרואיד גדול ומושכים אותו לצד החללית (סובבו את הצד הימני אל היריב). משחררים: האסטרואיד נזרק ומתפוצץ ליד היריב או אחרי כמה שניות.", "Hold: cables latch onto a big asteroid and reel it to your side (turn your right side to the enemy). Let go: it is flung and blows up near the enemy or after a few seconds."] },
+  strata: { w: [["שני חצים משני קצות המזלג.", "Two bolts from both fork tips."],
+                ["כדור איטי שרודף אחרי היריב.", "A slow orb that turns after the enemy."]],
+            m: ["עולה לממד הגובה: אף אחד לא פוגע בה והיא לא יורה, ורק הצל שלה נשאר על הלוח. מחזיקים את הצל על היריב לרגע, ולייזר יורה עליו מלמעלה.", "Rises into the upper dimension: nothing can touch it and it cannot fire; only its shadow stays on the arena. Hold the shadow on the enemy for a moment and a laser fires down on it."] },
+  kiln: { w: [["גוש סיגים לוהט.", "A glowing lump of slag."],
+              ["שלושה מוקשים במניפה, שנעצרים, נדרכים ומתפוצצים כשהיריב מתקרב.", "Three mines in a fan that stop, arm, and blow up when the enemy comes near."]],
+          m: ["לכמה שניות הכוכב דוחף את היריב במקום למשוך אותו, ומעיף אותו במעגל הולך וגדל, אל המוקשים.", "For a few seconds the star pushes the enemy away instead of pulling, flinging it round in a widening circle, into the mines."] },
+  frankenstein: { w: [["חתך מהיר ודק.", "A fast, thin cut."],
+                      ["שלושה תפרים חשמליים במניפה.", "Three electric sutures in a fan."]],
+                  m: ["לחיצה ראשונה פותחת שולחן ניתוח מול החרטום (לא זזים 5 שניות, אז כדאי רחוק מהיריב). כל לחיצה נוספת, כשנמצאים ליד השולחן, מוסיפה איבר. עם ארבעה איברים היצור קם, עף סביב היריב ויורה בו עד שמפילים אותו.", "The first press opens a surgery table ahead of the nose (no moving for 5 seconds: do it far from the enemy). Each further press, near the table, adds a part. With four parts the creature rises, flies round the enemy and fires at it until it is shot down."] },
+  boiler: { w: [["טורפדו לחץ: במים הוא נוסע ישר, ומחוץ למים רודף לאט אחרי היריב (אפשר להתחמק בפנייה חדה).", "A pressure torpedo: under water it runs straight; out of it, it turns slowly after the enemy (a hard turn dodges it)."],
+                ["מכל צף: במים הוא עולה ומתפוצץ כשהוא מגיע לפני המים. בחלל הוא נסחף ומתפוצץ ליד היריב.", "A floating can: in water it rises and blows up at the surface; in space it drifts and blows up near the enemy."]],
+            m: ["מים עולים ומכסים חצי מהלוח לדקה. BOILER נשאר מתחת למים והיריב מעליהם, ואי אפשר לפגוע ב-BOILER עד שהמים יורדים, חוץ מ-XELTAR ו-LYTH ששוחים, הטבעת של LYTH והאסטרואיד של BALLAST.", "Water rises over half the arena for a minute. BOILER stays under it and the enemy above, and BOILER cannot be hurt until it drains, except by XELTAR and LYTH swimming in, LYTH's ring and BALLAST's asteroid."] },
+  labyrinth: { w: [["זרם מסמרות כל עוד מחזיקים.", "A stream of rivets while held."],
+                   ["כדור ברזל גדול שרודף אחרי היריב ומתפוצץ לידו.", "A big iron ball that turns after the enemy and blows up next to it."]],
+               m: ["בונה צריח על הכוכב, הכוכב כבה ומבוך של קירות מתפשט על הלוח לדקה. במבוך היריות שלך ניתרות מהקירות.", "Builds a spire over the star; the star goes out and a maze of walls spreads over the arena for a minute. In the maze your shots bounce off the walls."] },
 };
 const WEAPON_EN_INFO = { steelball: "Steel ball", paddles: "Paddles", brassburst: "Brass burst", mailcap: "Mail capsule", lensflash: "Lens flash", lightshard: "Light shards",
   piston: "Spring piston", broadside: "Broadside", chainshot: "Chain shot", huskcannon: "Twin cannons", parasite: "Engine parasite" };
 function weaponTitle(w) { const Wp = WEAPONS[w]; if (!Wp) return w; return LANG === "he" ? Wp.name : WEAPON_EN_INFO[w] || (SHOP.weapons[w] && SHOP.weapons[w][1]) || w.replace(/^./, (c) => c.toUpperCase()); }
-function drawShipInfo() {
-  const I = shop.info; if (!I) return;
-  const S = shipById(I.id); if (!S) { shop.info = null; return; }
+function drawShipInfo(I = shop.info) {   // (I: the shop's page, or shipPage: the long press on the ship's icon in flight)
+  if (!I) return;
+  const S = shipById(I.id); if (!S) { if (I === shop.info) shop.info = null; else shipPage = null; return; }
   const he = LANG === "he", f = Math.round(U * 0.034), k = ease(clamp(I.t / 0.25, 0, 1)), D = SHIP_INFO[I.id], lg = he ? 0 : 1;
   ctx.save(); ctx.globalAlpha = k;
   ctx.fillStyle = "rgba(3,6,16,0.94)"; ctx.fillRect(0, 0, W, H);
@@ -4962,6 +5060,9 @@ function drawShipInfo() {
   // the weapons and the magic (measured first: the picture gets the room they leave)
   const rows = [[st("infoW1"), weaponTitle(weaponsOf(S)[0]), D && D.w[0][lg], weaponsOf(S)[0]], [st("infoW2"), weaponTitle(weaponsOf(S)[1]), D && D.w[1][lg], weaponsOf(S)[1]],
     [st("infoMagic"), S.magic && MAGIC[S.magic] ? magicName(MAGIC[S.magic]) : "", D && D.m[lg], null]];
+  if (S.magic2 && MAGIC[S.magic2]) rows.push([st("infoMagic") + " 2", magicName(MAGIC[S.magic2]), D && D.m2 && D.m2[lg], null, S.magic2]);   // (GLITCH, CINDER: two magics)
+  const xw = I.mine && gearOf(S.id).xw;   // in flight: the extra weapon bought at the station
+  if (xw) rows.push([st("infoXw"), weaponTitle(xw), st("infoXwSay"), xw]);
   const ff = Math.round(f * 0.78), tx = he ? px + pw - f * 0.8 : px + f * 0.8, iconR = f * 0.9;
   ctx.font = `600 ${ff}px Rubik, Arial, sans-serif`;
   const boxes = rows.map((r) => { const lines = r[2] ? wrapLines(r[2], pw - f * 1.6 - iconR * 2.6) : []; return { lines, h: f * 1.9 + lines.length * ff * 1.3 + f * 0.5 }; });
@@ -4987,7 +5088,7 @@ function drawShipInfo() {
   rows.forEach(([label, name, desc, w], ri) => {
     const { lines, h: bh } = boxes[ri];
     if (y + bh > H - m - f * 2.2) return;
-    const col = w ? (WEAPONS[w] && WEAPONS[w].color) || "#5ee7ff" : (MAGIC[S.magic] && MAGIC[S.magic].color) || "#c77dff";
+    const mk = rows[ri][4] || S.magic, col = w ? (WEAPONS[w] && WEAPONS[w].color) || "#5ee7ff" : (MAGIC[mk] && MAGIC[mk].color) || "#c77dff";
     shopPanel(px, y, pw, bh, col, "rgba(10,16,34,0.9)");
     const ix = he ? px + iconR * 1.4 : px + pw - iconR * 1.4, iy = y + bh / 2;
     ctx.fillStyle = col; ctx.font = `900 ${Math.round(iconR * 1.3)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.fillText(w ? (ri ? "◎" : "✹") : "✦", ix, iy);
@@ -10435,7 +10536,10 @@ function larDash(dt) {
 // their rate (0.5 = half as often). It is dragged along behind the tug: past `rest` the rope pulls it hard (`drag`), while
 // the tug feels only a little of it (`tug`); each phone pulls its own. It lets go after `hold` s, or when a ship is gone
 // (damage does not free it). LARIAT's own ram lets it go too.
-const ELASSO = { hold: 30, turn: 0.5, fire: 0.5, drag: 2.5, tug: 0.3, minRest: 1.2, loops: 4 };
+// Now: the caught ship cannot turn (turn 0) or thrust at all, and is towed hard (drag); it breaks free only with
+// `taps` quick taps on the BREAK FREE button (each fills 1/taps; the bar drains `decay` a second, so slow taps never get
+// there). `bands`: the rope's turns round the hull, `wind` s to tie them
+const ELASSO = { hold: 30, turn: 0, fire: 0.5, drag: 4, tug: 0.3, minRest: 1.2, loops: 4, taps: 10, decay: 0.45, bands: 3, wind: 0.6 };
 function larCatch() {
   const d = Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH));
   game.elasso = { rest: Math.max(shipSize() * ELASSO.minRest, d), t: 0 };
@@ -10546,21 +10650,74 @@ function drawLasso() {
 }
 // the rope round a caught ship: four loops across the line from the LARIAT, wound on in turn, and the cable to its boom
 function drawShipLasso(holder, held, t) {
-  const a = toScreen(held.x, held.y), s0 = larSocket(holder), p0 = toScreen(s0.x, s0.y);
-  const ang = Math.atan2(p0.y - a.y, p0.x - a.x), r = shipSize() * 0.42, w = Math.max(2, shipSize() * 0.025);
-  const edge = { x: a.x + Math.cos(ang) * r * 0.6, y: a.y + Math.sin(ang) * r * 0.6 };
-  ctx.save(); ctx.lineCap = "round";
-  ctx.strokeStyle = "rgba(40,28,22,0.9)"; ctx.lineWidth = w * 1.5; ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(edge.x, edge.y); ctx.stroke();
+  // the rope from LARIAT to a knot on the hull (on the side toward LARIAT), and its turns tied round the hull: bands
+  // across it and two crossing it diagonally, drawn in the held ship's own frame (it cannot turn while held), wound
+  // on one after another in the first `wind` s, then pulled tight
+  const a = toScreen(held.x, held.y), s0 = larSocket(holder), p0 = toScreen(s0.x, s0.y), size = shipSize();
+  const L = size * 0.4, Wd = size * 0.3, w = Math.max(2, size * 0.024), k = clamp(t / ELASSO.wind, 0, 1);
+  const tie = (x0, y0, x1, y1, bend, part) => {   // one turn of rope over the hull (its far side shown faint)
+    if (part <= 0) return;
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2 + bend, ex = x0 + (x1 - x0) * part, ey = y0 + (y1 - y0) * part;
+    const cx = x0 + (mx - x0) * Math.min(1, part * 2), cy = y0 + (my - y0) * Math.min(1, part * 2);
+    ctx.globalAlpha = 0.28; ctx.strokeStyle = "#3a2a20"; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(mx, my - bend * 2, x1, y1); ctx.stroke();   // round the back
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "rgba(40,28,22,0.95)"; ctx.lineWidth = w * 1.6; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(cx, cy, ex, ey); ctx.stroke();
+    ctx.strokeStyle = "#eaa276"; ctx.lineWidth = w; ctx.setLineDash([w * 1.5, w * 1.1]); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(cx, cy, ex, ey); ctx.stroke(); ctx.setLineDash([]);
+  };
+  // the knot: where the line toward LARIAT leaves the hull's outline (an ellipse Wd x L, in the ship's frame)
+  const da = Math.atan2(p0.y - a.y, p0.x - a.x) - held.ang, lx = Math.cos(da), ly = Math.sin(da);
+  const kk = 1 / Math.hypot(lx / Wd, ly / L), kx = lx * kk * 0.85, ky = ly * kk * 0.85;
+  const kw = { x: a.x + (kx * Math.cos(held.ang) - ky * Math.sin(held.ang)), y: a.y + (kx * Math.sin(held.ang) + ky * Math.cos(held.ang)) };
+  ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(40,28,22,0.9)"; ctx.lineWidth = w * 1.5; ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(kw.x, kw.y); ctx.stroke();
   ctx.strokeStyle = "#eaa276"; ctx.lineWidth = w; ctx.setLineDash([w * 2.5, w * 1.6]); ctx.lineDashOffset = -time * 30; ctx.stroke(); ctx.setLineDash([]);
-  ctx.translate(a.x, a.y); ctx.rotate(ang);
-  const wound = Math.min(ELASSO.loops, t / LASSO.wind * ELASSO.loops), tight = 1 - 0.06 * Math.sin(time * 9) * 0.5;
-  for (let i = 0; i < ELASSO.loops; i++) {
-    const part = Math.max(0, Math.min(1, wound - i)); if (part <= 0) break;
-    const x = r * (-0.25 + 0.17 * i), half = Math.sqrt(Math.max(0, r * r - x * x)) * 0.95 * tight, thin = r * 0.12;
-    const to = -Math.PI / 2 + TAU * part;
-    ctx.strokeStyle = "rgba(40,28,22,0.95)"; ctx.lineWidth = w * 1.5; ctx.beginPath(); ctx.ellipse(x, 0, thin, half, 0, -Math.PI / 2, to); ctx.stroke();
-    ctx.strokeStyle = "#eaa276"; ctx.lineWidth = w; ctx.setLineDash([w * 1.6, w * 1.1]); ctx.beginPath(); ctx.ellipse(x, 0, thin, half, 0, -Math.PI / 2, to); ctx.stroke(); ctx.setLineDash([]);
+  ctx.translate(a.x, a.y); ctx.rotate(held.ang);
+  const n = ELASSO.bands, steps = n + 2, sq = 1 - 0.04 * k;   // (pulled tight once tied)
+  for (let i = 0; i < n; i++) {   // round it: across the hull, from the nose back
+    const y = L * (-0.5 + i / (n - 1)) * 0.8, half = Wd * Math.sqrt(Math.max(0.15, 1 - (y / L) ** 2)) * sq;
+    tie(-half, y, half, y, L * 0.09, clamp(k * steps - i, 0, 1));
   }
+  tie(-Wd * 0.8 * sq, -L * 0.62, Wd * 0.8 * sq, L * 0.62, 0, clamp(k * steps - n, 0, 1));   // and across it, corner to corner
+  tie(Wd * 0.8 * sq, -L * 0.62, -Wd * 0.8 * sq, L * 0.62, 0, clamp(k * steps - n - 1, 0, 1));
+  ctx.rotate(-held.ang);
+  ctx.fillStyle = "#3a2a20"; ctx.beginPath(); ctx.arc(kw.x - a.x, kw.y - a.y, w * 2.1, 0, TAU); ctx.fill();   // the knot
+  ctx.fillStyle = "#eaa276"; ctx.beginPath(); ctx.arc(kw.x - a.x, kw.y - a.y, w * 1.4, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+// ---- breaking free: the caught ship's button, tapped fast (ELASSO.taps quick taps; it drains between them) ----
+function breakBtn() { const P = pad(); return { x: W / 2, y: H - P.my - P.r * 5.2, r: P.r * 1.2 }; }   // (above the thumb buttons)
+function hitBreak(x, y) { if (!game.lassoed || game.dead) return false; const b = breakBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.3; }
+function breakTap() {
+  if (!game.lassoed) return;
+  game.breakN = Math.min(1, (game.breakN || 0) + 1 / ELASSO.taps); game.breakPop = 1;
+  audio.tone(300 + 500 * game.breakN, 0.07, "square", 0.04, 1.3); buzz(15); shake(0.08);
+  if (game.breakN >= 0.999) ropeBreak(true);   // (0.999: ten tenths add up to 0.9999…)
+}
+function updateBreak(dt) {
+  if (!game.lassoed) { game.breakN = 0; return; }
+  game.breakN = Math.max(0, (game.breakN || 0) - ELASSO.decay * dt); game.breakPop = Math.max(0, (game.breakPop || 0) - dt * 5);
+}
+// the rope snaps: on my ship (mine: I tore free, tell them) or on theirs (they tore free of my LARIAT). Unlike BORER's
+// cut, LARIAT keeps its harpoon
+function ropeBreak(mine) {
+  const holder = mine ? enemy : game, held = mine ? game : enemy, s = larSocket(holder);
+  ropeSnaps.push({ ax: s.x, ay: s.y, bx: held.x, by: held.y, t: 0 });
+  burstAt(held.x, held.y, 30, ["#eaa276", "#ffd9b8", "#ffffff", "#7a4a30"], 0.7, 0.8);
+  audio.noise(0.15, 0.28, 4200); audio.tone(700, 0.12, "triangle", 0.05, 0.4); shake(0.35); buzz(120);
+  if (mine) { game.lassoed = null; game.breakN = 0; duelSend({ t: "lfree" }); }
+  else game.elasso = null;
+}
+function drawBreak() {
+  if (!game.lassoed || game.dead || BOT) return;
+  const b = breakBtn(), n = game.breakN || 0, pop = 1 + 0.12 * (game.breakPop || 0), pulse = 0.5 + 0.5 * Math.sin(time * 9);
+  ctx.save(); ctx.translate(b.x, b.y); ctx.scale(pop, pop);
+  ctx.fillStyle = "rgba(40,16,10,0.85)"; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(3, b.r * 0.14); ctx.strokeStyle = "rgba(234,162,118,0.25)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 0.86, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = n > 0.7 ? "#ffffff" : "#eaa276"; ctx.shadowColor = "#ff9a5a"; ctx.shadowBlur = 10 + 10 * pulse;
+  ctx.beginPath(); ctx.arc(0, 0, b.r * 0.86, -Math.PI / 2, -Math.PI / 2 + TAU * n); ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
+  ctx.font = `900 ${Math.round(b.r * 0.27)}px Rubik, Arial, sans-serif`; ctx.fillText(LANG === "he" ? "השתחררות!" : "BREAK FREE", 0, -b.r * 0.08, b.r * 1.5);
+  ctx.font = `700 ${Math.round(b.r * 0.22)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd9b8"; ctx.fillText(LANG === "he" ? "לחצו מהר" : "tap fast", 0, b.r * 0.32);
   ctx.restore();
 }
 function drawLariat() {
@@ -14657,7 +14814,9 @@ function draw() {
   drawFleet();
   drawPicker();
   drawResultButtons();
-  drawShop(); if (shop.open) drawShipInfo();   // the station's shop: over everything (and a ship's page over it)
+  drawBreak();   // (on LARIAT's rope: the BREAK FREE button)
+  drawShop(); if (shop.open) drawShipInfo();
+  if (shipPage) drawShipInfo(shipPage);   // (the long press on the ship's icon)   // the station's shop: over everything (and a ship's page over it)
   if (game.stage === "title" && !shop.open) { drawTitle(); drawMenuShop(); drawDials(); drawLangBtn(); drawAccountBtn(); }   // (the ship shop covers it)
   if (picker.open || camp.over) drawLangBtn();   // (switch the language while choosing a ship, too)
   if (hangar.open && !picker.open && !camp.over) { if (THREE_SHIPS) drawFleetBtn(); }   // in the hangar's second header row (the language button left the hangar: title and ship picker only)
@@ -16130,6 +16289,7 @@ function duelLink(event, data) {
   } else if (m.t === "cv") { startCarrier(false);   // the other phone set off the carrier
   } else if (m.t === "rf") { rshots.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * U, vy: m.vy * U, life: 0, own: false });   // their fighter fired (only shown)
   } else if (m.t === "rh") { const r = raiders.find((q) => q.id === m.id); if (r) { r.hp -= m.d; burstAt(r.x, r.y, 6, ["#ffffff", "#ff9a7a"], 0.25, 0.4); }   // their shot hit one of my fighters
+  } else if (m.t === "lfree") { if (game.elasso) ropeBreak(false);   // their ship tore free of my LARIAT's rope
   } else if (m.t === "lcut") { if (game.elasso) ropeCut(false);   // their BORER's drill cut my LARIAT's rope round it
   } else if (m.t === "mzc") { if (maze && maze.seed === m.sd) mazeCut(m.c, m.s, false);   // their BORER cut a maze wall
   } else if (m.t === "br") { drillBitten(m);   // their BORER's drill bit my hull
@@ -16527,6 +16687,7 @@ function botThink(dt) {
   if (botStill()) return;   // the hangar asked it to keep still, or to keep out
   if (game.stage !== "fly" || duel.stage !== "on" || game.dead || !enemy.on) { botRelease(); return; }
   for (const k in botAI.hold) { botAI.hold[k] -= dt; if (botAI.hold[k] <= 0) { delete botAI.hold[k]; botKey(k, false); } }
+  if (game.lassoed && Math.random() < dt * (2.6 + Math.min(6, botAI.lvl || 1) * 0.4)) breakTap();   // on a LARIAT's rope: it taps to break free too (faster each level)
   const L = botLevel(), S = shipById(game.ship), st = shipStats(S), seen = !enemy.hidden;
   // hidden in their smoke: it heads for where it last saw them
   if (seen) { botAI.lastX = enemy.x; botAI.lastY = enemy.y; }
@@ -16758,6 +16919,20 @@ function hitFleetRow(x, y) {
   if (BOT || !myFleet().length) return false;
   const { pos, sz } = fleetRowLayout(), m = sz * 0.15;
   return pos.some((p) => x > p.x - m && x < p.x + sz + m && y > p.y - m && y < p.y + sz + m);
+}
+// a long press on a ship's icon in the fleet row (ROW_HOLD s): that ship's page, what each weapon and the magic do
+// (the same page as the ship shop's); a short tap still goes to the next view. The game goes on behind it
+const ROW_HOLD = 0.45;
+let rowPress = null, shipPage = null;
+function rowDown(e) {
+  const { pos, sz } = fleetRowLayout(), F = shownFleet(), m = sz * 0.15;
+  const i = pos.findIndex((p) => e.clientX > p.x - m && e.clientX < p.x + sz + m && e.clientY > p.y - m && e.clientY < p.y + sz + m);
+  const id = F.ids[i] || game.ship, pid = e.pointerId;
+  if (rowPress) clearTimeout(rowPress.timer);
+  rowPress = { id: pid, fired: false, timer: setTimeout(() => {
+    if (!rowPress || rowPress.id !== pid) return;
+    rowPress.fired = true; shipPage = { id, t: 0, mine: !F.theirs && id === game.ship }; audio.pop(); buzz(30);
+  }, ROW_HOLD * 1000) };
 }
 function fleetRowTap() { fleetView = (fleetView + 1) % 3; if (fleetView === 2 && !theirFleet()) fleetView = 0; audio.pop(); buzz(8); }
 // the fleet row under the health bar: the ship flying now in gold (theirs: red), lost ships dark and crossed out

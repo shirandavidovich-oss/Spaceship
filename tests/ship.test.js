@@ -925,7 +925,7 @@ ok("HUSK's rattle and hiss with its arm out, its monster's screeches (no shots h
 ok("the fleet row: only my ship, a tap: my fleet, a tap: theirs (lost ones crossed out), a tap: back", () => {
   const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
   assert(html.includes("let fleetView = 0;") && html.includes("function fleetRowTap() { fleetView = (fleetView + 1) % 3;") && html.includes("theirs: sp[duel.side ? 1 : 0].slice(), theirLost: []"));
-  assert(html.includes("hitFleetRow(e.clientX, e.clientY)) { fleetRowTap(); return; }"));
+  assert(html.includes("hitFleetRow(e.clientX, e.clientY)) { rowDown(e); return; }") && html.includes("if (!held) fleetRowTap()"));
 });
 ok("buying a ship for good or renting one needs the account (signed in), so it is kept on the server by email", () => {
   const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8");
@@ -1021,4 +1021,6 @@ ok("the picture is exactly the seen screen (a browser's 100vh made taps miss the
 ok("CONNECT while waiting in a room opens the window saying so (leave / keep waiting), and my room shows in the list", () => assert(/rm-leave/.test(html) && /duel.stage === "looking" && duel.room && server.signedIn && !BOT\) \{ showRooms\(\)/.test(html)));
 ok("the computer's match waits while the rooms window is open, and entering a room stops it first", () => assert(/camp\.over \|\| game\.dead \|\| document\.getElementById\("rooms"\)/.test(html) && /if \(duel\.bot\) stopMatch\(\); if \(game\.stage === "fly" && duel\.stage === "looking"\)/.test(html)));
 ok("the test hangar has its own bank, never synced: test-money gear never reaches a player's ship", () => assert(/const BANK_KEY = HANGAR \? "spaceship\.bank\.dev" : "spaceship\.bank"/.test(html) && /async send\(\) \{\n    if \(HANGAR \|\| BOT/.test(html) && /!this\.signedIn \|\| HANGAR\) return;/.test(html)));
+ok("long press on the ship's icon: its page with every weapon and magic explained, for every ship", () => assert(/function rowDown\(e\)/.test(html) && /if \(shipPage\) drawShipInfo\(shipPage\)/.test(html) && ["boiler","borer","lariat","glitch","labyrinth","palisade"].every((id) => new RegExp("\\n  " + id + ": \\{ w: \\[").test(html))));
+ok("LARIAT's rope: the caught ship cannot turn or thrust, the rope is tied round it, and quick taps break it free", () => assert(/turn: 0, fire: 0\.5, drag: 4/.test(html) && /c = \{ \.\.\.c, thrust: false \}/.test(html) && /function breakTap\(\)/.test(html) && /m\.t === "lfree"/.test(html) && /if \(game\.lassoed && Math\.random\(\) < dt/.test(html)));
 console.log(n + " checks passed");
