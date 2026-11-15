@@ -589,11 +589,18 @@ point ahead of it (on its own screen only) shows where the wave leaves.
 - In a duel: `qw` (a wave), `qcx` (formed again), `qsw` (a swap), `qgh` (the shooter's phone: my shot hit your
   projection); the cloud and projections go in the state (`qn`).
 - **Destroyed** (the NULL Global Negative package, `nullDeath`): a soft white flash at NULL, a wave spreading from it inside
-  which the whole arena turns negative (0.2-0.5 s), everything negative until 3.5 s (ships, shots, the lot, still moving),
-  then back to its colours by 4 s with two quantum flickers. One pass over the finished arena (a white "difference" fill),
+  which the whole arena turns negative (0.2-0.5 s), everything negative until 6.5 s (ships, shots, the lot, still moving),
+  then back to its colours by 7 s with two quantum flickers. One pass over the finished arena (a white "difference" fill),
   under the buttons and texts so they stay readable; another NULL meanwhile never inverts it twice. A shock wave pushes
   ships away, and the star in the middle is torn into white pixels that scatter and rush back together at the end: for
   those 4 s it is not there (no pull, no burning). On both phones (`qx`).
+- **Against the others**: it swims in BOILER's water (a swimmer, like XELTAR and LYTH: a plain fight there) and drifts
+  through LABYRINTH's iron walls. NIMBUS's thunderclouds cannot strike it: they charge it (health, ammo, fuel, the
+  golden bolt) and strike NIMBUS instead. ORIAN's solar beam stops at it and comes straight back as white light,
+  burning ORIAN. BORER's drill and its drilling mine have nothing to bore into, and GLITCH's hack pulse passes through it.
+- Its collapse strikes a ship it forms near (2.2 ship-lengths, up to 30) with a white bolt, seen on both phones.
+- Its death is heard backwards: the explosion swelling up instead of dying away, chopped, through a "wa-wa-wa" wah
+  (`nullDeathSound`), and the arena stays negative until 6.5 s (back by 7 s); the star still comes back at 4 s.
 - **Flying NULL**, the health bar, the heart and the spare tanks are black and white: black is full, white is empty.
 - **Sold for $100 (real money), not coins** (`usd: 100`): it is not in the ship shop's list. With the ship button closed
   in the ship shop, the showcase shows NULL with its price, and the grey alien warns you off ("You can't afford it.",

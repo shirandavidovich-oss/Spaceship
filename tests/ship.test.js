@@ -984,7 +984,7 @@ ok("THUL's cannonball breaks a maze wall; LYTH on a LARIAT's rope: its grinder r
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets");
   for (const f of ["art/ships/lyth/jets/mounts_00.webp", "art/ships/lyth/jets/pumps_16.webp"]) assert(fs.existsSync(path.join(A, f)), f);
   assert(html.includes('if (s.w === "iris" && list === shots && game.ship === "brass" && h.box) { mazeCut(h.box.c, h.box.s, true);') && html.includes("if (tied) ropeCut(true);") &&
-    html.includes("const LYTH_JETS = { slow: 0.7, deploy: 0.46, retract: 0.35") && html.includes('drawLythJets(S, o.jets, "mounts")') && html.includes("if (wet) st.top *= LYTH_JETS.slow;") && html.includes('const SWIMMERS = ["xeltar", "lyth"];'));
+    html.includes("const LYTH_JETS = { slow: 0.7, deploy: 0.46, retract: 0.35") && html.includes('drawLythJets(S, o.jets, "mounts")') && html.includes("if (wet) st.top *= LYTH_JETS.slow;") && html.includes('const SWIMMERS = ["xeltar", "lyth", "qnull"];'));
 });
 ok("the carrier: a test-hangar trigger, the film on both phones (\"cv\"), 20 interceptors split between the players, its music and sounds", () => {
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets");
@@ -1077,5 +1077,11 @@ ok("NULL: sold for $100 (not coins), shown in the ship shop when its ships are c
   assert(html.includes("const bw = shipById(game.ship) && shipById(game.ship).quantum;") && html.includes('ctx.fillStyle = full ? "#000000"'));
   assert(html.includes("function starGone() { return starOut() || vaultBusy() || starTorn(); }") && html.includes("function bodyPull() { return starOut() || starTorn() ? 0 : body().pull; }"));
   assert(html.includes("drawNullNegative();   // NULL destroyed") && html.includes('duelSend({ t: "qx",') && html.includes('else if (m.t === "qx") nullDeath(m.x * WW, m.y * WH);'));
+});
+ok("NULL against the others: swims in BOILER's water and drifts through LABYRINTH's walls; NIMBUS's clouds charge it and strike NIMBUS; ORIAN's beam comes back; BORER's drill and GLITCH's pulse pass through; its death heard backwards, negative for 6.5 s", () => {
+  assert(html.includes('|| game.ship === "qnull"; }   // (NULL drifts through the iron)') && html.includes("if (T.remote) chargeFromStorm(Wp); else { damageShip(Wp.zapDmg);"));
+  assert(html.includes("if (quantumShip(enemy.ship) && !enemyAloft()) {   // NULL: the light comes back") && html.includes("|| quantumShip(enemy.ship)) { game.drillTouch = false; return; }"));
+  assert(html.includes("!(Wp.hack && quantumShip(enemy.ship))") && html.includes("!(Wp.hack && quantumShip(game.ship))") && html.includes("(Wp.drill && quantumShip(enemy.ship))"));
+  assert(html.includes("hold: 6.5, end: 7, starHold: 3.5, starEnd: 4") && html.includes("function nullDeathSound()") && html.includes("d[n - 1 - i] ="));
 });
 console.log(n + " checks passed");
