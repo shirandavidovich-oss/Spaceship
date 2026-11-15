@@ -11536,6 +11536,8 @@ function startFromTitle() {
   camp.mine = []; camp.over = false; result.mode = null;
   placeShip(); game.stage = "fly"; game.t = 0; game.dead = 0; game.pick = false; game.arriveT = 0;   // (straight to choosing a ship: no arrival from the top)
   newCampaign();
+  // the first match's body, chosen now: it is the one in the middle from the start (the match keeps it: cosmos.chosen)
+  setBody(nextBody(cosmos.body), false); cosmos.started = true; cosmos.chosen = true;
   audio.whoosh(); buzz(30);
 }
 function toTitle() {
@@ -16575,7 +16577,9 @@ function duelLink(event, data) {
   if (event === "connected") {
     // each match (and, against the computer, each of its ships): a new thing in the middle. (It used to change only when
     // the old practice enemy came; since the computer player took its place, the middle stayed the first body)
-    setBody(nextBody(cosmos.body), cosmos.started); cosmos.started = true;   // (the top player's is kept: "hi" below)
+    if (cosmos.chosen && !BOT) cosmos.chosen = false;   // (the first match: the body already there since the game began)
+    else setBody(nextBody(cosmos.body), cosmos.started);
+    cosmos.started = true;   // (the top player's is kept: "hi" below)
     setStation(Math.floor(Math.random() * 2147483647)); link.send({ t: "hi", s: game.ship, r: duel.me, b: cosmos.body, st: station.seed, nk: server.signedIn && !BOT ? myNick() : "" }); return; }
   if (event === "lost" || event === "error" || event === "denied") { if (duel.stage !== "over") endDuel(false); return; }
   if (event !== "message") return;
@@ -16584,7 +16588,9 @@ function duelLink(event, data) {
     duel.theirNick = m.nk ? String(m.nk).slice(0, 16) : "";
     // the bigger random number takes the bottom side
     duel.side = duel.me > m.r ? 1 : 0;
-    if (duel.side === 1 && BODIES[m.b]) setBody(m.b);   // both fight around the same body: the top player's
+    // both fight around the same body: the top player's; against the computer, always the player's (the computer's
+    // copy takes it), so the body seen from the start stays
+    if (BODIES[m.b] && (BOT || (duel.side === 1 && !duel.bot))) setBody(m.b);
     if (duel.side === 1 && m.st) setStation(m.st);      // and the same station
     if (!duel.bot) {   // a real phone: the fleets are split (the bottom player gets the first half), and I choose my first ship
       const sp = duelSplit(duel.me, m.r);
