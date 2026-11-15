@@ -1018,4 +1018,5 @@ ok("the web version: a manifest and icons, the first touch asks for tilt and ful
   assert(fs.existsSync(path.join(__dirname, "../.github/workflows/web.yml")) && html.includes('<link rel="manifest" href="manifest.webmanifest">') && html.includes("function webFirstTouch()"));
 });
 ok("the picture is exactly the seen screen (a browser's 100vh made taps miss the buttons)", () => assert(/cv\.style\.height = H \+ "px"/.test(html) && !/height: 100vh/.test(html)));
+ok("CONNECT while waiting in a room opens the window saying so (leave / keep waiting), and my room shows in the list", () => assert(/rm-leave/.test(html) && /duel.stage === "looking" && duel.room && server.signedIn && !BOT\) \{ showRooms\(\)/.test(html)));
 console.log(n + " checks passed");

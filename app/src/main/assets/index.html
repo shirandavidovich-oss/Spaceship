@@ -2605,6 +2605,10 @@ function showRooms() {
   const btn = (bg) => `width:100%;font-size:17px;font-weight:800;padding:11px;border:0;border-radius:12px;background:${bg};color:#06122a;margin-top:8px`;
   d.innerHTML = `<div style="background:rgba(14,16,40,.97);border:1.5px solid #4fc3ff;border-radius:18px;padding:18px 18px 14px;width:min(90vw,440px);max-height:88vh;overflow:auto;color:#fff;box-shadow:0 0 40px rgba(79,195,255,.35)">
     <div style="font-size:23px;font-weight:800;text-align:center;margin-bottom:10px">🌐 ${T("משחק ברשת", "Play online")}</div>
+    ${duel.stage === "looking" && duel.room ? `<div style="border:1.5px solid #9fe6ff;border-radius:12px;padding:10px;margin-bottom:10px;text-align:center;background:#0c1838">
+      <div style="font-size:16px;font-weight:800;color:#9fe6ff">🚪 ${T("מחכים בחדר", "Waiting in the room")} „${esc(duel.room)}"</div>
+      <div style="font-size:13px;color:#cfe0ff;margin-top:4px">${T("מחכים לחבר שייכנס לאותו שם. אפשר להמשיך לשחק בינתיים.", "Waiting for a friend to enter the same name. You can keep playing meanwhile.")}</div>
+      <button id="rm-leave" style="${btn("#ff8aa8")}">${T("יציאה מהחדר", "Leave the room")}</button></div>` : ""}
     <label style="font-size:13px;color:#9fb4d8">${T("השם שלך במשחק", "Your name in the game")}</label>
     <input id="rm-nick" maxlength="16" style="${field}" value="${esc(myNick())}">
     <button id="rm-quick" style="${btn("linear-gradient(#ffe08a,#ffb347)")}">⚡ ${T("משחק מהיר (כל שחקן שמחפש)", "Quick match (anyone looking)")}</button>
@@ -2619,16 +2623,19 @@ function showRooms() {
   document.body.appendChild(d);
   const close = () => { lobby.onChange = null; d.remove(); };
   const saveNick = () => { const v = d.querySelector("#rm-nick").value.trim().slice(0, 16); try { if (v) LS.setItem(NICK_KEY, v); } catch (e) {} };
-  const go = (name, pub) => { saveNick(); close(); audio.pop(); if (game.stage === "fly" && !duel.stage) roomGo(name, pub); };
+  const go = (name, pub) => { saveNick(); close(); audio.pop(); if (game.stage === "fly" && duel.stage === "looking") { endDuel(false); duel.stage = null; } if (game.stage === "fly" && !duel.stage) roomGo(name, pub); };   // (waiting in another room: that one is left)
   d.querySelector("#rm-quick").onclick = () => go(null, false);
   d.querySelector("#rm-go").onclick = () => { const n = d.querySelector("#rm-name").value.trim().slice(0, 24); if (!n) { d.querySelector("#rm-name").focus(); return; } go(n, d.querySelector("#rm-pub").checked); };
   d.querySelector("#rm-close").onclick = () => { saveNick(); close(); };
+  const leave = d.querySelector("#rm-leave"); if (leave) leave.onclick = () => { close(); audio.pop(); if (duel.stage === "looking") { endDuel(false); duel.stage = null; } };
   d.onclick = (e) => { if (e.target === d) { saveNick(); close(); } };
   lobby.onChange = () => {
     const L = d.querySelector("#rm-list"); if (!L) return;
-    const rooms = lobby.list();
+    const rooms = lobby.list().filter((r) => !(duel.room && roomKey(r.name) === roomKey(duel.room)));
+    const mine = duel.stage === "looking" && duel.room && duel.roomPublic ? `<div style="margin-top:6px;font-size:15px;padding:10px 12px;border-radius:12px;border:1.5px dashed #9fe6ff;color:#9fe6ff">🚪 <b>${esc(duel.room)}</b> <span style="font-size:13px">· ${T("החדר שלך, כך אחרים רואים אותו", "your room, as others see it")}</span></div>` : "";
+    if (!rooms.length && mine) { L.innerHTML = mine; return; }
     if (!rooms.length) { L.textContent = T("אין חדרים פתוחים כרגע. פתח אחד ושתף את השם עם חבר.", "No open rooms right now. Open one and share its name with a friend."); return; }
-    L.innerHTML = rooms.map((r, i) => `<button data-i="${i}" style="display:block;width:100%;text-align:start;margin-top:6px;font-size:16px;padding:10px 12px;border-radius:12px;border:1.5px solid #4fc3ff;background:#0c1838;color:#fff">🚪 <b>${esc(r.name)}</b> <span style="color:#9fb4d8;font-size:13px">· ${esc(r.host)} ${T("מחכה", "is waiting")}</span></button>`).join("");
+    L.innerHTML = rooms.map((r, i) => `<button data-i="${i}" style="display:block;width:100%;text-align:start;margin-top:6px;font-size:16px;padding:10px 12px;border-radius:12px;border:1.5px solid #4fc3ff;background:#0c1838;color:#fff">🚪 <b>${esc(r.name)}</b> <span style="color:#9fb4d8;font-size:13px">· ${esc(r.host)} ${T("מחכה", "is waiting")}</span></button>`).join("") + mine;
     L.querySelectorAll("button").forEach((b) => { b.onclick = () => go(rooms[+b.dataset.i].name, false); });
   };
   lobby.start(); setTimeout(() => lobby.changed(), 2500);
@@ -16020,6 +16027,7 @@ function lostIds() { return realDuel() && duel.fleet ? duel.fleet.lost : camp.lo
 function duelButton() {
   audio.pop(); buzz(15);
   if (duel.bot) stopMatch();   // playing the computer: stop, and look for a real phone instead
+  if (duel.stage === "looking" && duel.room && server.signedIn && !BOT) { showRooms(); return; }   // waiting in a room: the window says so, and can leave it
   if (!duel.stage) {   // look for the other phone (signed in and not the computer: first the rooms)
     if (game.stage !== "fly") return;
     if (server.signedIn && !BOT) { showRooms(); return; }
