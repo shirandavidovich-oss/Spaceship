@@ -3169,7 +3169,10 @@ function update(dt) {
   musicTick();   // (the loop for this screen)
   shipSounds();
   rowingSound(!BOT && !!THRUST_LOOPS[game.ship] && !game.dead && game.stage === "fly" && !game.docked && game.thrust !== null && !result.mode && !shopPaused());   // (CORSAIR's rowing loop)
+  titleShowTick(dt);   // (the menu's films; off the menu, their pictures let go: before anything below returns)
   if (shopPaused()) { time += dt; updateShop(dt); return; }
+  // choosing the first ship: the game waits behind the choice (it used to run: the ship fell into the body, shaking)
+  if (!BOT && picker.open && picker.why === "start" && game.stage === "fly" && !realDuel()) { time += dt; if (shipPage) shipPage.t += dt; return; }
   if (!BOT && ((game.t % 1) < dt)) filmPreload();   // (once a second: load the film of a ship that is about)
   time += dt; game.t += dt; updateStoreBreaks(dt);
   pipeDrain();
@@ -3189,7 +3192,7 @@ function update(dt) {
   if (game.stage === "gift") gift.hint += dt;
   game.card = Math.max(0, game.card - dt);
   if (shipPage) { shipPage.t += dt; if (game.stage === "title") shipPage = null; }
-  updateBreak(dt); titleShowTick(dt);
+  updateBreak(dt);
 
   const wasLying = tilt.lying;
   tilt.lying = tilt.have && tilt.pitch <= 120 && (tilt.lying ? tilt.pitch > LIE_OFF : tilt.pitch > LIE_ON);
@@ -11319,16 +11322,22 @@ const TSHOW = {
   cloudship: { src: "art/title/cloudship-01.webp", frames: Array.from({ length: 12 }, (_, i) => "art/title/cloudship-" + String(i + 1).padStart(2, "0") + ".webp"), fps: 6,
     w: 900, h: 550, len: 9.5, hgt: 0.98 },
 };
-const tshow = { kind: null, t: 0, wait: TSHOW.first, last: null, fx: [], can: null };
-function titleShowArt() { for (const k of ["lighthouse", "courier", "boiler", "cloudship"]) { artImage(TSHOW[k].src); for (const q of ["lit", "can"]) if (TSHOW[k][q]) artImage(TSHOW[k][q]); for (const q of ["frames", "load", "shut"]) if (TSHOW[k][q]) TSHOW[k][q].forEach((s) => artImage(s)); } }
+const tshow = { kind: null, next: null, t: 0, wait: TSHOW.first, last: null, fx: [], can: null };
+const TSHOW_KINDS = ["lighthouse", "courier", "boiler", "cloudship"];
+// (only the pictures of the film playing and the one coming next are held: all of them at once, some 30 big pictures,
+// took too much of the phone's memory; the rest are let go)
+function titleShowArt() { tshow.held = true; for (const k of [tshow.kind, tshow.next]) { if (!k) continue; artImage(TSHOW[k].src); for (const q of ["lit", "can"]) if (TSHOW[k][q]) artImage(TSHOW[k][q]); for (const q of ["frames", "load", "shut"]) if (TSHOW[k][q]) TSHOW[k][q].forEach((s) => artImage(s)); } }
 function titleShowTick(dt) {
-  if (game.stage !== "title" || shop.open) { tshow.kind = null; tshow.wait = TSHOW.first; tshow.fx.length = 0; return; }
+  if (game.stage !== "title" || shop.open) {
+    if (tshow.held) { tshow.held = false; tshow.kind = tshow.next = null; tshow.fx.length = 0; for (const s in artCache) if (s.startsWith("art/title/")) { delete artCache[s]; delete artUsed[s]; } }   // (off the menu: the films' pictures go at once)
+    tshow.wait = TSHOW.first; return;
+  }
   titleShowArt();
   if (!tshow.kind) {
     tshow.wait -= dt; if (tshow.wait > 0) return;
-    const ks = ["lighthouse", "courier", "boiler", "cloudship"].filter((k) => k !== tshow.last && artImage(TSHOW[k].src));
-    if (!ks.length) { tshow.wait = 0.5; return; }
-    tshow.kind = ks[Math.floor(Math.random() * ks.length)]; tshow.t = 0; tshow.fx.length = 0; tshow.can = null; tshow.dir = Math.random() < 0.5 ? 1 : -1;
+    if (!tshow.next) { const ks = TSHOW_KINDS.filter((k) => k !== tshow.last); tshow.next = ks[Math.floor(Math.random() * ks.length)]; return; }
+    if (!artImage(TSHOW[tshow.next].src)) { tshow.wait = 0.3; return; }   // (still loading)
+    tshow.kind = tshow.next; tshow.next = null; tshow.t = 0; tshow.fx.length = 0; tshow.can = null; tshow.dir = Math.random() < 0.5 ? 1 : -1;
     return;
   }
   tshow.t += dt;
