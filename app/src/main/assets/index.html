@@ -14032,8 +14032,10 @@ function updateRainbows(dt) {
 // on, and nags when it stops. It ends after `time` s, or after `shots` toys. On the gas: bubbles and tiny rainbows.
 // The charmed phone throws, moves and decides its own toys; the other phone only shows them, and heals on "toyc"
 const CHARM = { time: 20, shots: 20, cool: 0.4, speed: 2.1, spread: 0.3, life: 3.4, size: 0.6, heal: 5, drain: 5, idle: 1.5, nag: 6, catchR: 0.65 };
-const CHARM_ART = Array.from({ length: 50 }, (_, i) => "art/nimbus/charm/" + String(i + 1).padStart(2, "0") + ".webp");
-const CHARM_HOP = new Set([1, 2, 3, 30, 31]);   // (indexes: bunny, unicorn, rocking horse, the carrots: they hop as they fly)
+// (63 stickers cut from the sheet each by its own white border: the 50 single files were cut on a grid and held
+// bits of their neighbours, and lost their own edges)
+const CHARM_ART = Array.from({ length: 63 }, (_, i) => "art/nimbus/charm/" + String(i + 1).padStart(2, "0") + ".webp");
+const CHARM_HOP = new Set([1, 2, 3, 28, 29]);   // (indexes: bunny, unicorn, rocking horse, the carrots: they hop as they fly)
 const CHARM_LINES = { start: "Shoot! Come on!", nag: "Why aren't you shooting for me? Shoot, please!" };
 const toys = [], charmFx = [];
 let toyId = 0;
