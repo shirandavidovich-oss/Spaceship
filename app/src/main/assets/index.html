@@ -492,7 +492,13 @@ const ONLINE_RATE = 12;   // messages a second about your ship in an online duel
 const COINS      = false;  // coins for beating a player (off for now: the fleet row is shown instead)
 const HUD_KIT    = true;   // the battle buttons and magic effects from the Orbit Break kit (art/hud/). false = the old drawn buttons
 const THREE_SHIPS = false; // each player's own 3 ships (sign-up, "my ships", trading). Off for now: two random fleets, as against the computer
-const HANGAR     = !(() => { try { return window.ShipNative && window.ShipNative.release && window.ShipNative.release(); } catch (e) { return false; } })();   // the test hangar: in the DEV app (and on a computer), not in the players' app
+// the test hangar: in the DEV app, and in a browser only on this computer (localhost) or with ?dev in the address.
+// The web version for players (github.io) is the players' game, like the players' app
+const HANGAR     = (() => { try {
+  if (window.ShipNative && window.ShipNative.release) return !window.ShipNative.release();
+  if (window.ShipNative) return true;
+  return /[?&]dev\b/.test(location.search) || /^(localhost|127\.0\.0\.1|)$/.test(location.hostname);   // ("": a file, or the computer player's own copy)
+} catch (e) { return false; } })();
 const ENEMY_HP   = 100;  // the enemy's health
 const SHIP_HP    = 100;  // your ship's health. At zero it blows up and comes back (lives are unlimited)
 const TANKS      = 5;    // spare health tanks beside the bar: when health runs out, one empties and fills it again;
