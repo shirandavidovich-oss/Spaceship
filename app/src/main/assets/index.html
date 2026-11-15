@@ -10270,7 +10270,7 @@ function destroyEnemy() {
   enemy.breaches = [];   // (BORER's holes go with the ship)
   const E = shipById(enemy.ship);
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
-  enemy.on = false; enemy.respawn = RESPAWN; game.kills++; enemy.markT = 0; scoreKill(false); enemy.rw = null; enemy.rwHist = [];
+  enemy.on = false; enemy.respawn = RESPAWN; game.kills++; enemy.markT = 0; enemy.scramble = 0; scoreKill(false); enemy.rw = null; enemy.rwHist = [];
   burstAt(enemy.x, enemy.y, 90, ["#ffffff", "#ffd166", E.flame, E.hull, E.trim, "#ff6b35"], 1.4, 1.4, enemy.vx * 0.5, enemy.vy * 0.5);
   burstAt(enemy.x, enemy.y, 30, ["#ffffff", "#fff3b0"], 0.5, 2, enemy.vx * 0.5, enemy.vy * 0.5);
   rings.push({ x: enemy.x, y: enemy.y, t: 0, max: 0.7, r: shipSize() * 2.2, c: "#ffd166" });
@@ -15394,7 +15394,7 @@ function drawEnemy() {
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
     drawRewind(p.x, p.y, size, !!enemy.rw || enemy.rwShow > 0);
     if (E.clouds) drawNimbusClouds(enemy, enemy.remote ? enemy.anim : null, "enemy");
-    drawScramble(p.x, p.y, size, Math.max(enemy.scramble || 0, enemy.remote && duel.net && duel.net.sc ? 1 : 0));
+    drawScramble(p.x, p.y, size, enemy.remote ? (duel.net && duel.net.sc ? 1 : 0) : enemy.scramble || 0);   // (theirs: only as their phone says; my count went on to their next ship)
     if (enemy.remote && duel.net && duel.net.pn >= 0) drawPollen(p.x, p.y, duel.net.pn + (performance.now() - duel.net.at) / 1000);
     if (duel.cough && enemy.on) drawCough(p.x, p.y, duel.cough.t);   // (their zombie coughing)
     drawHacked(p.x, p.y, size, Math.max(enemy.hacked || 0, enemy.remote && duel.net && duel.net.hk ? 1 : 0));
@@ -16582,6 +16582,7 @@ function endDuel(tellThem) {
   const was = duel.stage;
   duel.stage = was === "on" || was === "count" ? "over" : null; duel.t = 0; duel.room = null; duel.theirNick = "";
   game.zombie = false; game.pollen = null; enemy.zombie = false; game.charm = null; enemy.charm = false; toys.length = 0;
+  game.scramble = 0; game.scrambleSafe = 0; enemy.scramble = 0; game.reso = null; duel.reso = null;   // (CANTOR's scrambling ends with the match)
   mazeEnd(true); flood = null; game.pinball = null; game.snake = null; game.vault = null; flyMines.length = 0; game.haunt = null; game.broad = null; ghosts.length = 0; game.paddle = null; huskRelease(); game.husk = null; game.hcap = false; huskCreature = null; game.paraT = 0; for (const S of stations) S.inf = null;   // the match is over: no maze, the star back, no water, no pinballs
   if (game.docked) undock();
   duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
@@ -16635,7 +16636,7 @@ function duelLink(event, data) {
   if (!(duel.stage === "on" || duel.stage === "count")) return;
   if (m.t === "s") {   // where the other ship is now, and what it is doing
     duel.net = { ...m, at: performance.now() };
-    if (shipById(m.s)) enemy.ship = m.s;
+    if (shipById(m.s)) { if (m.s !== enemy.ship) enemy.scramble = 0; enemy.ship = m.s; }   // (a new ship of theirs: not scrambled)
     mazeSync(m.mz);   // their LABYRINTH's maze
     floodSync(m.fd);  // their BOILER's water
     if (typeof m.h === "number" && m.h > 0) { damageShip(BOT ? m.h / botLevel().armor : m.h); }   // what my ship took from their weapons (the computer: less, by its level's armour)
