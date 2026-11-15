@@ -588,6 +588,17 @@ point ahead of it (on its own screen only) shows where the wave leaves.
   to it (`noZombie`; it has no zombie form). Destroyed, it goes out in an inversion flash.
 - In a duel: `qw` (a wave), `qcx` (formed again), `qsw` (a swap), `qgh` (the shooter's phone: my shot hit your
   projection); the cloud and projections go in the state (`qn`).
+- **Destroyed** (the NULL Global Negative package, `nullDeath`): a soft white flash at NULL, a wave spreading from it inside
+  which the whole arena turns negative (0.2-0.5 s), everything negative until 3.5 s (ships, shots, the lot, still moving),
+  then back to its colours by 4 s with two quantum flickers. One pass over the finished arena (a white "difference" fill),
+  under the buttons and texts so they stay readable; another NULL meanwhile never inverts it twice. A shock wave pushes
+  ships away, and the star in the middle is torn into white pixels that scatter and rush back together at the end: for
+  those 4 s it is not there (no pull, no burning). On both phones (`qx`).
+- **Flying NULL**, the health bar, the heart and the spare tanks are black and white: black is full, white is empty.
+- **Sold for $100 (real money), not coins** (`usd: 100`): it is not in the ship shop's list. With the ship button closed
+  in the ship shop, the showcase shows NULL with its price, and the grey alien warns you off ("You can't afford it.",
+  "It's not for you. It's not even for me.", "It's not supposed to be here." ...: `nullSay`), again at each tap on it.
+  Buying with real money still needs Google Play Billing (not built yet), so for now it cannot actually be bought.
 
 **The stores and the ship shop** (the Docking Stores, KIP, BRASS and Shop Entry packages). Two stores float in the
 arena far from the star, out toward the map's edge and about a quarter turn apart (`setStation`, placed from the seed both phones share): the **weapon store**

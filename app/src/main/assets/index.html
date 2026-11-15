@@ -1161,7 +1161,7 @@ const SHIPS = [
   // drawNull; idle.webp, the whole picture; the NULL package). Not a ship: no hull, wings, engine or cockpit, and which way
   // it faces is hard to tell. Sold only in the shop, and in the test hangar. ONE weapon, the probability wave (button 1);
   // button 2 is Entanglement (two ghost copies); the magic is Wave Collapse. BLOOM's pollen does nothing to it (`noZombie`)
-  { id: "qnull", name: "NULL", rarity: "legendary", mass: 0.9, fuel: 30, refill: 15, sfx: null, magic: "collapse", shopOnly: true, quantum: true, noZombie: true, noFlame: true,
+  { id: "qnull", name: "NULL", rarity: "legendary", mass: 0.9, fuel: 30, refill: 15, sfx: null, magic: "collapse", shopOnly: true, usd: 100, quantum: true, noZombie: true, noFlame: true,
     hull: "#e8e8f0", wingC: "#101018", trim: "#ffffff", flame: "#ffffff",
     body: [], wing: [], nozzles: [0], engineY: 0.4, cockpit: [0, 0, 0.05, 0.1],
     weapons: ["qwave", "entangle"],
@@ -3246,7 +3246,7 @@ function update(dt) {
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
   rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateDrill(dt); updateLythJets(dt); updateCarrier(dt); updateGimbal(dt); updateLariat(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
-  updateReso(dt); updatePollen(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateCharm(dt); updateGlitchMagic(dt); updateReprise(dt); updateNull(dt);
+  updateReso(dt); updatePollen(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateCharm(dt); updateGlitchMagic(dt); updateReprise(dt); updateNull(dt); updateNullDeath(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
   gift.squash = Math.max(0, gift.squash - dt * 5);
@@ -3570,7 +3570,7 @@ let maze = null;
 function sfTotal() { const M = MAGIC.starforge; return M.build + M.wave + M.last; }
 function starOut() { return !!maze && maze.t >= MAGIC.starforge.build; }                          // the star is dark
 function mazeSolid() { return !!maze && maze.t >= MAGIC.starforge.build + MAGIC.starforge.wave; }  // the walls are solid
-function bodyPull() { return starOut() ? 0 : body().pull; }
+function bodyPull() { return starOut() || starTorn() ? 0 : body().pull; }
 function mazeCells() { return { cw: WW / maze.cols, ch: WH / maze.rows }; }
 function wallT() { return U * MAGIC.starforge.wall; }
 function cellAt(x, y) { const { cw, ch } = mazeCells(); return (Math.floor(wrapX(x) / cw) % maze.cols) + (Math.floor(wrapY(y) / ch) % maze.rows) * maze.cols; }
@@ -4229,7 +4229,10 @@ const SHOP_TXT = {
     hello_weapon: ["ברוך הבא לחנות הנשק! תחמושת ונשקים, הכל טרי.", "אה, טייס! בוא, יש לי משהו שיורה חזק.", "שלום! תחמושת? נשק נוסף? תבחר."],
     hello_shield: ["ברוך הבא לחנות המגנים. פה שומרים עליך.", "שלום, טייס! מגן חזק, מיכל חיים נוסף. מה צריך?", "בוא בוא. השריון שלי הכי עבה בגלקסיה."],
     hello_ship: ["ברוך הבא לחנות החלליות! כאן רק חלליות שאין בצי.", "אה, טייס! יש לי חלליות מיוחדות, רק אצלי.", "שלום! תבחר חללית חדשה, ואז תאשר."],
-    sayShip: "חלליות שאין בצי: רק כאן אפשר לקנות אותן. תבחר אחת, ואז תאשר." },
+    sayShip: "חלליות שאין בצי: רק כאן אפשר לקנות אותן. תבחר אחת, ואז תאשר.",
+    nullSay: ["אין לך מספיק בשביל זה.", "זה לא בשבילך. זה אפילו לא בשבילי.", "זה לא אמור להיות כאן.", "אל תסתכל עליו יותר מדי. הוא מסתכל בחזרה.",
+      "מאה דולר. אמיתיים. לא המטבעות הנוצצים שלך.", "לא הבאתי אותו. הוא פשוט היה פה, בוקר אחד.", "בכל פעם שאני סופר אותו, יוצא מספר אחר.",
+      "הוא לא למכירה. טוב, הוא כן. במאה דולר. אבל הוא לא אמור להיות."], nullPrice: "100$ · אמיתיים" },
   en: { onBreak: "☕ On break", dock: "⚓ DOCK", shop: "Trading Station", exit: "Exit", buy: "Buy", total: "Total", minerals: "minerals", metals: "metals",
     life: "Life", shield: "Shield", ammo: "Ammo", ship: "Ship", weapon: "Weapon",
     lifeOpt: "+1 health tank", ammoOpt: "Refill all ammo", pas: "Passive shield", act: "Active shield", lvl: "Level", max: "Max", full: "Full", owned: "Yours",
@@ -4248,7 +4251,10 @@ const SHOP_TXT = {
     hello_weapon: ["Welcome to the weapon store! Ammo and guns, all fresh.", "Ah, a pilot! Come, I have something that hits hard.", "Hello! Ammo? An extra weapon? Pick one."],
     hello_shield: ["Welcome to the shield store. Here we keep you alive.", "Hello, pilot! A strong shield, a spare tank. What do you need?", "Come in. My armour is the thickest in the galaxy."],
     hello_ship: ["Welcome to the ship shop! Only ships your fleet does not have.", "Ah, a pilot! I have special ships, only here.", "Hello! Pick a new ship, then confirm."],
-    sayShip: "Ships not in your fleet: only here can you buy them. Pick one, then confirm." }
+    sayShip: "Ships not in your fleet: only here can you buy them. Pick one, then confirm.",
+    nullSay: ["You can't afford it.", "It's not for you. It's not even for me.", "It's not supposed to be here.", "Don't look at it too long. It looks back.",
+      "A hundred dollars. Real ones. Not your shiny coins.", "I didn't stock it. It was just here, one morning.", "Every time I count it, there's a different number of it.",
+      "It's not for sale. Well, it is. For a hundred dollars. But it shouldn't be."], nullPrice: "$100 · real money" }
 };
 function st(k) { return (SHOP_TXT[LANG] || SHOP_TXT.he)[k]; }
 
@@ -4836,11 +4842,16 @@ const shop = { open: false, sel: null, opt: 0, say: null, alien: { seq: "idle", 
 function shopOpen(kind) {
   kind = kind || "weapon";
   const others = Object.keys(SHOP.weapons).filter((w) => !weaponsOf(shipById(game.ship) || SHIPS[0]).includes(w));
-  const ships = hangarShips().filter((S) => S.shopOnly && !(bank.owned || {})[S.id]).map((S) => S.id);   // only the ships that are not in the fleet: sold only here
+  const ships = hangarShips().filter((S) => S.shopOnly && !S.usd && !(bank.owned || {})[S.id]).map((S) => S.id);   // (NULL: dollars, not coins: in the showcase)   // only the ships that are not in the fleet: sold only here
   shop.offers = { weapons: shuffled(others).slice(0, SHOP.offers), ships };
   const merchant = kind === "ship" ? "alien" : STORE_LOOKS[kind].merchant;
   Object.assign(shop, { open: true, kind, merchant, sel: kind === "ship" ? "ship" : null, opt: 0, busy: false, alien: { seq: merchant === "alien" ? "wave" : "greet", t: 0 }, say: null, mode: "once", page: 0, info: null, flinch: 0 });
   const lines = st("hello_" + kind) || st("hello"); shop.helloLine = shop.offers.ships.length || kind !== "ship" ? lines[Math.floor(Math.random() * lines.length)] : st("noShips");
+}
+// the seller on NULL (never the same line twice running)
+function nullSaySome() {
+  const P = st("nullSay"); let i; do { i = Math.floor(Math.random() * P.length); } while (P.length > 1 && i === nullSaySome.last); nullSaySome.last = i;
+  shopSay(P[i]); shop.flinch = 0.2; audio.tone(110, 0.5, "sine", 0.05, 0.7); buzz(15);
 }
 function shopProducts() { return SHOP_PRODUCTS.filter(([id]) => shop.kind === "ship" ? id === "ship" : (STORE_LOOKS[shop.kind] || STORE_LOOKS.weapon).goods.includes(id)); }
 // the money this shop takes: the docked ship's own; the ship shop takes from all of them (the fullest first)
@@ -5221,9 +5232,10 @@ function shopTap(x, y) {
       const P = st("poke"); let i; do { i = Math.floor(Math.random() * P.length); } while (P.length > 1 && i === shop.pokeLast); shop.pokeLast = i;
       shopSay(P[i]); shop.flinch = 0.35; audio.tone(180, 0.15, "square", 0.04, 1.8); buzz(25); return;
     }
+    if (h.act === "null") { nullSaySome(); return; }   // NULL in the showcase: the seller warns you off
     if (h.act === "buy") { shopBuy(); return; }
     if (h.act === "prod") {
-      if (shop.sel === h.p) { shop.sel = null; shopSay(shop.helloLine); }   // (again: put it back)
+      if (shop.sel === h.p) { shop.sel = null; if (shop.kind === "ship") nullSaySome(); else shopSay(shop.helloLine); }   // (again: put it back; the ship shop then shows NULL)
       else { shop.sel = h.p; shop.opt = 0; shop.page = 0; shopSay(st(SHOP_PRODUCTS.find((q) => q[0] === h.p)[2])); if (shop.merchant !== "alien") shop.alien = { seq: "present", t: 0 }; }
       audio.pop(); buzz(10); return;
     }
@@ -5346,7 +5358,7 @@ function drawShop() {
   // the showcase: the 3D picture of the docked ship (or of the ship chosen to buy), floating in a hologram frame, and the
   // docked ship from above with what it carries (shield behind, extra cannon on top). No 3D picture: the top view, turning
   const Sh = L.show, cx = Sh.x + Sh.w / 2, cy = Sh.y + Sh.h * 0.48, sz = Math.min(Sh.w, Sh.h) * 0.62;
-  const chosen = shop.sel === "ship" ? shopOptions("ship")[shop.opt] : null, showId = chosen ? chosen.id : game.ship;
+  const chosen = shop.sel === "ship" ? shopOptions("ship")[shop.opt] : null, nullShow = !chosen && shop.kind === "ship" && !shop.sel, showId = chosen ? chosen.id : nullShow ? "qnull" : game.ship;
   const pic = has3d(showId) ? artImage("art/ships3d/" + showId + ".webp") : chosen && chosen.soon ? artImage("art/upgrades/" + showId + "/body.webp") : null;
   if (pic) {
     const fw = Sh.w * 0.96, fh = Math.min(Sh.h * 1.25, fw * pic.height / pic.width), fx = cx - fw / 2, fy = Sh.y + Sh.h * 0.5 - fh / 2 - Sh.h * 0.12 + Math.sin(time * 1.3) * U * 0.006;
@@ -5362,7 +5374,15 @@ function drawShop() {
       ctx.fillText("ⓘ " + st("infoTap"), cx, fy + fh - f * 0.55, fw * 0.95); ctx.restore();
     }
     if (chosen && chosen.soon) { ctx.fillStyle = "rgba(255,209,102,0.95)"; ctx.font = `900 ${Math.round(f * 0.7)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = textDir(); ctx.fillText(st("soon"), cx, fy + fh - f * 0.6); ctx.direction = "ltr"; }
-    if (!chosen) {   // my ship from above, small, with its looks
+    if (nullShow) {   // NULL: its price in dollars, black and white; tap it and the seller warns you off
+      ctx.save(); ctx.font = `900 ${Math.round(f * 0.95)}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.direction = "ltr";
+      const tag = st("nullPrice"), tw = ctx.measureText(tag).width + f * 1.2, ty = fy + fh - f * 0.95;
+      ctx.fillStyle = "#000000"; roundRect(cx - tw / 2, ty - f * 0.7, tw, f * 1.4, f * 0.7); ctx.fill();
+      ctx.strokeStyle = `rgba(255,255,255,${0.7 + 0.3 * Math.sin(time * 9.7) * Math.sin(time * 3.1)})`; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = "#ffffff"; ctx.fillText(tag, cx, ty + f * 0.04); ctx.restore();
+      shop.hits.push({ x: fx, y: fy, w: fw, h: fh, act: "null" });
+    }
+    if (!chosen && !nullShow) {   // my ship from above, small, with its looks
       const tx = he ? fx + fh * 0.32 : fx + fw - fh * 0.32, ty = fy + fh * 0.72, ts = fh * 0.42;
       ctx.fillStyle = "rgba(4,8,20,0.75)"; ctx.beginPath(); ctx.arc(tx, ty, ts * 0.62, 0, TAU); ctx.fill();
       ctx.strokeStyle = "rgba(94,231,255,0.6)"; ctx.beginPath(); ctx.arc(tx, ty, ts * 0.62, 0, TAU); ctx.stroke();
@@ -6086,7 +6106,7 @@ function vaultOf(o) {
 }
 function vaultHolder() { return game.vault ? game : vaultOf(enemy) ? enemy : null; }
 function vaultBusy() { return !!vaultHolder(); }
-function starGone() { return starOut() || vaultBusy(); }   // the middle is empty (LABYRINTH's dark star, or the star in a vault)
+function starGone() { return starOut() || vaultBusy() || starTorn(); }   // the middle is empty (LABYRINTH's dark star, or the star in a vault)
 function vaultNet() { const V = game.vault; return V ? [VAULT_PH.indexOf(V.ph), +V.t.toFixed(2)] : 0; }
 function vaultScale(o) { return o === game ? shipScale() : enemyScale(); }
 // the vault's mouth (the middle of the doors' window), in the world
@@ -9710,7 +9730,7 @@ function blowUpShip() {
   }
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
   game.zombie = false; game.pollen = null;   // (a zombie is cured only by blowing up)
-  if (S.quantum) qCollapseFx(game.x, game.y);   // NULL: gone in an inversion flash
+  if (S.quantum) { nullDeath(game.x, game.y); duelSend({ t: "qx", x: +(game.x / WW).toFixed(5), y: +(game.y / WH).toFixed(5) }); }   // NULL: the world goes negative
   game.qc = null; game.qe = null;
   game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; game.kiln = null; if (game.surg && game.surg.c) creatureFalls(game.surg.c); game.surg = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
@@ -14528,6 +14548,7 @@ function nullMessage(m) {
   } else if (m.t === "qcx") qCollapseFx(m.x * WW, m.y * WH);
   else if (m.t === "qsw" && Array.isArray(m.a)) qThreads.push({ ax: m.a[0] * WW, ay: m.a[1] * WH, bx: m.a[2] * WW, by: m.a[3] * WH, t: 0 });
   else if (m.t === "qgh") qSwap(m.i | 0);
+  else if (m.t === "qx") nullDeath(m.x * WW, m.y * WH);
 }
 function updateNull(dt) {
   updateQWaves(dt);
@@ -14573,6 +14594,84 @@ function drawQuantumButton(id, slot, b, o, plate) {
   }
   ctx.restore();
   return true;
+}
+
+// ---------- NULL destroyed (the NULL Global Negative package) ----------
+// Everything in the arena goes negative: a soft white flash at NULL (0-0.2 s), a wave spreading from it inside which the
+// scene is negative (0.2-0.5 s), all of it negative (to 3.5 s, ships, shots and all, as they move), then back to its
+// colours (3.5-4 s) with two quantum flickers. Done as ONE pass over the finished arena (a white "difference" fill: each
+// colour becomes 1 - colour, mixed by its strength), before the buttons and texts, so they stay readable. A second NULL
+// in the meantime starts it again from there (never inverted twice). A shock wave runs out from it (each phone pushes
+// its own ship once as the wave passes), and the star in the middle is torn into white pixels that scatter and, at the
+// end, rush back together: for those 4 s it is not there (no pull, no burning, nothing to hit). On both phones ("qx")
+const QDEATH = { flash: 0.2, wave: 0.5, hold: 3.5, end: 4, push: 1.2, reach: 3 };   // push: screens a second at the middle; reach: screens
+let qDeath = null;   // { t, x, y, pushed, px: the star's pixels }
+function nullDeath(x, y) {
+  const was = qDeath;
+  qDeath = { t: was && was.t > QDEATH.flash && was.t < QDEATH.hold ? QDEATH.wave : 0, x, y, pushed: false, px: null };   // (already negative: it stays so)
+  rings.push({ x, y, t: 0, max: 0.9, r: U * 1.6, c: "#ffffff" }, { x, y, t: -0.12, max: 1.1, r: U * 2.4, c: "#ffffff" });
+  burstAt(x, y, 120, ["#ffffff", "#ffffff", "#0a0a0e", "#c8c8d2"], 1.6, 1.4);
+  audio.tone(40, 1.6, "sine", 0.14, 0.5); audio.noise(1.4, 0.12, 700); audio.tone(3520, 0.6, "sine", 0.03, 0.25, 0.05); shake(1.2); buzz(450);
+  // the star's pixels: from all over its disc, flung out from its middle (and away from NULL)
+  if (!BOT && !starOut() && !vaultBusy()) {
+    const R = planetR(), cx = WW / 2, cy = WH / 2, ax = wrapDelta(cx - x, WW), ay = wrapDelta(cy - y, WH), ad = Math.hypot(ax, ay) || 1, px = [];
+    for (let i = 0; i < 520; i++) {
+      const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * R, sp = U * (0.25 + Math.random() * 1.1);
+      px.push({ x0: Math.cos(a) * d, y0: Math.sin(a) * d, vx: Math.cos(a) * sp + ax / ad * U * 0.35, vy: Math.sin(a) * sp + ay / ad * U * 0.35, s: 1 + Math.random() * 2.6, ph: Math.random() * TAU });
+    }
+    qDeath.px = px;
+  }
+}
+function starTorn() { return !!qDeath && qDeath.t < QDEATH.end; }
+function updateNullDeath(dt) {
+  const D = qDeath; if (!D) return;
+  D.t += dt;
+  if (!D.pushed && !game.dead && game.stage === "fly") {   // the shock wave reaches my ship: one push away from where NULL was
+    const dx = wrapDelta(game.x - D.x, WW), dy = wrapDelta(game.y - D.y, WH), d = Math.hypot(dx, dy) || 1, front = U * QDEATH.reach * Math.min(1, D.t / 0.6);
+    if (d < front) { D.pushed = true; if (d < U * QDEATH.reach) { const k = QDEATH.push * U * (1 - d / (U * QDEATH.reach)); game.vx += dx / d * k; game.vy += dy / d * k; shake(0.5); buzz(90); } }
+  }
+  if (D.t > QDEATH.end) qDeath = null;
+}
+// how negative the arena is now (0..1), and the wave's reach (0.2-0.5 s) as a share of the screen's diagonal
+function qNegAmount(t) {
+  if (t < QDEATH.flash) return 0;
+  if (t < QDEATH.hold) return 1;
+  const k = (t - QDEATH.hold) / (QDEATH.end - QDEATH.hold), flick = (k > 0.25 && k < 0.33) || (k > 0.6 && k < 0.66) ? 1 : 0;   // (two quantum flickers)
+  return flick ? 0.85 : 1 - smoothStep(k);
+}
+function drawNullNegative() {
+  const D = qDeath; if (!D || BOT) return;
+  const t = D.t, c = zoomed(toScreen(D.x, D.y));
+  ctx.save();
+  if (t < QDEATH.flash + 0.1) {   // the flash: soft, round NULL (not the whole screen at once)
+    const k = 1 - t / (QDEATH.flash + 0.1), R = Math.max(W, H) * 0.55, g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, R);
+    g.addColorStop(0, `rgba(255,255,255,${0.85 * k})`); g.addColorStop(0.5, `rgba(255,255,255,${0.35 * k})`); g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  const a = qNegAmount(t);
+  if (a > 0) {
+    ctx.globalCompositeOperation = "difference"; ctx.fillStyle = "#ffffff"; ctx.globalAlpha = a;   // (white "difference" = 1 - colour)
+    if (t < QDEATH.wave) {   // the wave: negative inside it, a feathered edge
+      const R = Math.hypot(W, H) * smoothStep((t - QDEATH.flash) / (QDEATH.wave - QDEATH.flash)) + 1;
+      ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = Math.max(3, U * 0.012);
+      ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, TAU); ctx.stroke();
+    } else ctx.fillRect(0, 0, W, H);
+  }
+  ctx.restore();
+}
+// the torn star: its pixels flying apart, slowing, twinkling; in the last half second they rush back and the star returns
+function drawTornStar() {
+  const D = qDeath; if (!D || !D.px || D.t >= QDEATH.end) return false;
+  const t = D.t, p = toScreen(WW / 2, WH / 2), back = t > QDEATH.hold ? smoothStep((t - QDEATH.hold) / (QDEATH.end - QDEATH.hold)) : 0;
+  const fly = (1 - Math.exp(-t * 1.4)) / 1.4;   // (how far each has gone: fast, then drifting)
+  ctx.save(); ctx.fillStyle = "#ffffff";
+  for (const q of D.px) {
+    const x = p.x + (q.x0 + q.vx * fly) * (1 - back), y = p.y + (q.y0 + q.vy * fly) * (1 - back);
+    ctx.globalAlpha = 0.55 + 0.45 * Math.sin(time * 9 + q.ph); ctx.fillRect(x - q.s / 2, y - q.s / 2, q.s, q.s);
+  }
+  ctx.restore();
+  return back < 0.85;   // (nearly gathered: the star itself is drawn again under them)
 }
 
 // ---------- GLITCH's magics: the V shield and the slip ----------
@@ -15721,6 +15820,7 @@ function draw() {
     drawRings();
     drawNullFlash();   // (NULL's inversion flashes, over everything out in space)
     ctx.restore();
+    drawNullNegative();   // NULL destroyed: the whole scene in negative (over the arena, under the buttons and text)
     drawCarrierOver();
     drawMazeHud(); drawFloodHud();
     drawResultTitle();   // YOU WIN / GAME OVER: over the arena, under the buttons
@@ -15757,6 +15857,7 @@ function draw() {
 
 // the planet in the middle of space (Star Control's melee planet)
 function drawPlanet() {
+  if (qDeath && drawTornStar()) return;   // NULL destroyed: the star torn into white pixels (drawTornStar)
   if (vaultBusy()) return;   // the star is in a VAULT, or on its way (drawVaultFx)
   const p = toScreen(WW / 2, WH / 2);
   const k = ease(cosmos.morph);
@@ -16061,14 +16162,19 @@ function drawHealth() {
   const low = k < 0.25 && !game.dead ? 0.5 + 0.5 * Math.sin(time * 8) : 0;
   ctx.fillStyle = "rgba(10,12,32,0.7)"; ctx.strokeStyle = low ? `rgba(255,77,109,${0.5 + low * 0.5})` : "rgba(124,140,255,0.5)"; ctx.lineWidth = 2;
   roundRect(x, y, w, h, h / 2); ctx.fill(); ctx.stroke();
-  if (k > 0) {
+  const bw = shipById(game.ship) && shipById(game.ship).quantum;   // NULL: black and white (black full, white empty)
+  if (bw) { ctx.fillStyle = "#ffffff"; roundRect(x + 2, y + 2, w - 4, h - 4, (h - 4) / 2); ctx.fill(); }
+  if (k > 0 && bw) {
+    ctx.fillStyle = game.hurt > 0 ? "#3a3a40" : "#000000"; roundRect(x + 2, y + 2, Math.max(h - 4, (w - 4) * k), h - 4, (h - 4) / 2); ctx.fill();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.stroke();
+  } else if (k > 0) {
     const c = `hsl(${Math.round(k * 120)},85%,${55 + (game.hurt > 0 ? 25 : 0)}%)`;
     ctx.fillStyle = c; roundRect(x + 2, y + 2, Math.max(h - 4, (w - 4) * k), h - 4, (h - 4) / 2); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.25)"; roundRect(x + 4, y + 3, Math.max(0, (w - 8) * k), (h - 4) * 0.35, 3); ctx.fill();
   }
   // a little heart at the start of the bar
   const hx = x + h * 0.05, hy = y + h / 2, hr = h * 0.75;
-  ctx.fillStyle = "#ff4d6d"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
+  ctx.fillStyle = bw ? (k > 0 ? "#000000" : "#ffffff") : "#ff4d6d"; ctx.strokeStyle = bw && k <= 0 ? "#000000" : "#ffffff"; ctx.lineWidth = bw ? 2 : 1.5;
   ctx.beginPath(); ctx.moveTo(hx, hy + hr * 0.7);
   ctx.bezierCurveTo(hx - hr * 1.2, hy - hr * 0.1, hx - hr * 0.5, hy - hr * 0.9, hx, hy - hr * 0.3);
   ctx.bezierCurveTo(hx + hr * 0.5, hy - hr * 0.9, hx + hr * 1.2, hy - hr * 0.1, hx, hy + hr * 0.7);
@@ -16089,6 +16195,13 @@ function drawTanks(cy, h, left, flash) {
   ctx.save();
   for (let i = 0; i < TANKS; i++) {
     const x = x0 + i * (tw + gap), y = cy - th / 2, full = i < left, just = !full && i === left && flash > 0;
+    const bw = shipById(game.ship) && shipById(game.ship).quantum;   // NULL: a full tank black, an empty one white
+    if (bw) {
+      ctx.fillStyle = full ? "#000000" : just ? `rgb(${Math.round(255 * (1 - flash))},${Math.round(255 * (1 - flash))},${Math.round(255 * (1 - flash))})` : "#ffffff";
+      ctx.strokeStyle = full ? "#ffffff" : "#000000"; ctx.lineWidth = 1.5; roundRect(x, y, tw, th, tw * 0.35); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(x + tw * 0.3, y - Math.max(1.5, th * 0.08), tw * 0.4, Math.max(1.5, th * 0.08));
+      continue;
+    }
     ctx.fillStyle = "rgba(10,12,32,0.7)"; ctx.strokeStyle = full ? "rgba(140,255,170,0.85)" : "rgba(124,140,255,0.4)"; ctx.lineWidth = 1.5;
     roundRect(x, y, tw, th, tw * 0.35); ctx.fill(); ctx.stroke();
     if (full || just) {
@@ -17283,7 +17396,7 @@ function duelLink(event, data) {
     spawnRainbow(true, m.x * WW, m.y * WH, m.a);
   } else if (m.t === "fleetout") {   // the other player has lost every ship: I won
     openResult("win");
-  } else if (m.t === "qw" || m.t === "qcx" || m.t === "qsw" || m.t === "qgh") { nullMessage(m);   // their NULL's wave, collapse and swap; their shot on my ghost
+  } else if (m.t === "qw" || m.t === "qcx" || m.t === "qsw" || m.t === "qgh" || m.t === "qx") { nullMessage(m);   // their NULL's wave, collapse and swap; their shot on my ghost
   } else if (m.t === "zc") { startCough(false);   // their zombie coughing (its pollen drawn round their ship here)
   } else if (m.t === "zb") {   // their BLOOM's pollen got me: a zombie until this ship blows up
     becomeZombie();

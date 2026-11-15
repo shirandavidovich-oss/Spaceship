@@ -835,7 +835,7 @@ ok("HUSK: shop only; twin cannons in turn, an engine parasite; breach and delive
 ok("the ship shop is on the main menu (its banner and SHOP button) and sells only the ships not in the fleet", () => {
   const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets"), html = fs.readFileSync(path.join(A, "index.html"), "utf8");
   assert(fs.existsSync(path.join(A, "art/ui/shop-button.webp")) && fs.existsSync(path.join(A, "art/ui/menu-shop-bg.webp")));
-  assert(html.includes('hitMenuShop(e.clientX, e.clientY)) { menuShop.press') && html.includes("hangarShips().filter((S) => S.shopOnly && !(bank.owned || {})[S.id])"));
+  assert(html.includes('hitMenuShop(e.clientX, e.clientY)) { menuShop.press') && html.includes("hangarShips().filter((S) => S.shopOnly && !S.usd && !(bank.owned || {})[S.id])"));
   assert(html.includes('if (shop.open && shop.kind === "ship") { shopExit(); return true; }'));
 });
 ok("the merchants' breaks: break frames and closed pictures exist; a store on its break cannot be docked and its shutter is solid", () => {
@@ -1068,7 +1068,14 @@ ok("NULL's collapse cloud: its bright places stay in the cloud, the same on both
 });
 ok("NULL in a duel: its waves, collapse and swaps are sent; a shot on its ghost is caught on the shooter's phone and swaps it", () => {
   assert(html.includes('duelSend({ t: "qw", w, o: 0,') && html.includes('duelSend({ t: "qcx",') && html.includes('duelSend({ t: "qsw",') && html.includes('link.send({ t: "qgh", i });'));
-  assert(html.includes("rd: raiderNet(), qn: nullNet(),") && html.includes('m.t === "qgh") { nullMessage(m);') && html.includes("if (enemy.remote && qGhostCatch(s, Wp)) { shots.splice(k, 1); continue; }"));
+  assert(html.includes("rd: raiderNet(), qn: nullNet(),") && html.includes('m.t === "qgh" || m.t === "qx") { nullMessage(m);') && html.includes("if (enemy.remote && qGhostCatch(s, Wp)) { shots.splice(k, 1); continue; }"));
   assert(html.includes("const ht = qBlur(enemy, enemy.ship)") && html.includes("const ht = qBlur(game, game.ship)"));
+});
+ok("NULL: sold for $100 (not coins), shown in the ship shop when its ships are closed, the seller warning you off; B/W health; the world goes negative when it dies", () => {
+  assert.strictEqual(shipById("qnull").usd, 100);
+  assert(html.includes('nullShow = !chosen && shop.kind === "ship" && !shop.sel') && html.includes('if (h.act === "null") { nullSaySome(); return; }') && /nullSay: \["You can't afford it\.", "It's not for you\. It's not even for me\.", "It's not supposed to be here\."/.test(html));
+  assert(html.includes("const bw = shipById(game.ship) && shipById(game.ship).quantum;") && html.includes('ctx.fillStyle = full ? "#000000"'));
+  assert(html.includes("function starGone() { return starOut() || vaultBusy() || starTorn(); }") && html.includes("function bodyPull() { return starOut() || starTorn() ? 0 : body().pull; }"));
+  assert(html.includes("drawNullNegative();   // NULL destroyed") && html.includes('duelSend({ t: "qx",') && html.includes('else if (m.t === "qx") nullDeath(m.x * WW, m.y * WH);'));
 });
 console.log(n + " checks passed");
