@@ -818,3 +818,8 @@ so game changes arrive without reinstalling.
 
 On a computer: open `index.html` in a browser. Arrow keys tilt; space bar = thrust button; Z, X, C = fire buttons 1-3; V = magic; `?reset` gives a new gift;
 `?fake` pretends another phone answered a trade.
+
+### Replacing a picture
+The app serves every picture it was built with from inside itself, so a picture changed on GitHub under the same
+name never reaches it (new files do: the app fetches those). Save the new picture under a new name (e.g. `brass-2.webp`)
+and add the old → new path to `ART_NEW` in index.html (just above `function artImage`).

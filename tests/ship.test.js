@@ -733,7 +733,8 @@ ok("fleet upgrades: every ship with a fit has its shield, cannon and shop button
   }
   for (const id of ["gravity-sail", "knuckle", "link"]) assert(fs.existsSync(path.join(A, "art/upgrades", id, "body.webp")), id);
   const j = html.indexOf("const SHIP3D = "), list = JSON.parse(html.slice(j + 15, html.indexOf(";", j)));
-  for (const id of list) assert(fs.existsSync(path.join(A, "art/ships3d", id + ".webp")), id);
+  const artNew = eval("(" + html.match(/const ART_NEW = (\{[^}]*\})/)[1] + ")");   // (pictures replaced since the app was built: new names)
+  for (const id of list) { const p = "art/ships3d/" + id + ".webp"; assert(fs.existsSync(path.join(A, artNew[p] || p)), id); }
   const buy = eval("(" + html.slice(html.indexOf("{", html.indexOf("const SHIP_BUY = ")), html.indexOf("};", html.indexOf("const SHIP_BUY = ")) + 1) + ")");
   assert(buy.once === 1 && buy.week > buy.once && buy.own > buy.week);
 });
@@ -1025,4 +1026,5 @@ ok("long press on the ship's icon: its page with every weapon and magic explaine
 ok("LARIAT's rope: the caught ship cannot turn or thrust, the rope is tied round it, and quick taps break it free", () => assert(/turn: 0, fire: 0\.5, drag: 4/.test(html) && /c = \{ \.\.\.c, thrust: false \}/.test(html) && /function breakTap\(\)/.test(html) && /m\.t === "lfree"/.test(html) && /if \(game\.lassoed && Math\.random\(\) < dt/.test(html)));
 ok("a long press on a ship in the picker or fleet page opens its page with a way back; the ship's name is called out when chosen; a new body in the middle each match", () => assert(/function pickDown\(e\)/.test(html) && /infoBack:/.test(html) && /announcer: \{ rate:/.test(html) && /tryShip\(c\.id\); announceShip\(c\.id\);/.test(html) && /setBody\(nextBody\(cosmos\.body\), cosmos\.started\); cosmos\.started = true;   \/\/ \(the top/.test(html)));
 ok("NIMBUS's rainbow charms: toys instead of shots (caught by NIMBUS: health), drain when not throwing, a girl's voice, 20 s or 20 toys", () => assert(/const CHARM = \{ time: 20, shots: 20,/.test(html) && /if \(enemy\.remote\) duelSend\(\{ t: "charm" \}\)/.test(html) && /m\.t === "toyc"\) \{ toyCaught\(m\)/.test(html) && /if \(game\.charm\) \{ if \(game\.fire\[i\] !== null/.test(html) && fs.existsSync(require("path").join(__dirname, "../app/src/main/assets/art/nimbus/charm/64.webp"))));
+ok("pictures replaced since the app was built go by new names (the app serves its own built-in copies)", () => { const m = html.match(/const ART_NEW = (\{[^}]*\})/); const o = eval("(" + m[1] + ")"); assert(Object.values(o).every((v) => fs.existsSync(require("path").join(__dirname, "../app/src/main/assets", v))) && /src = ART_NEW\[src\] \|\| src;/.test(html)); });
 console.log(n + " checks passed");

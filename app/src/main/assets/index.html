@@ -11092,8 +11092,14 @@ function drawShip(S, x, y, size, o = {}) {
 //   ships with one drawing (art: true): art/ships/<id>.png
 const artCache = {};
 function framePath(dir, f) { return "art/ships/" + dir + "/" + f + (f.includes(".") ? "" : ".png"); }
+// pictures replaced since the app was built: under a new name. The app always serves a picture it was built with from
+// inside itself (never the newer one on GitHub), so a changed picture needs a name the app does not have; files new
+// since then it fetches from GitHub. (Replace a picture: give it a new name here, e.g. "-3")
+const ART_NEW = { "art/ships3d/brass.webp": "art/ships3d/brass-2.webp", "art/ships3d/zorian.webp": "art/ships3d/zorian-2.webp",
+  "art/ui/title-icon.webp": "art/ui/title-icon-2.webp" };
 function artImage(src) {
   if (BOT) return null;   // the bot draws nothing, so it loads no pictures
+  src = ART_NEW[src] || src;
   let a = artCache[src];
   if (!a) { a = artCache[src] = new Image(); a.src = src; }
   artUsed[src] = time;
