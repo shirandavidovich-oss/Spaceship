@@ -1020,4 +1020,5 @@ ok("the web version: a manifest and icons, the first touch asks for tilt and ful
 ok("the picture is exactly the seen screen (a browser's 100vh made taps miss the buttons)", () => assert(/cv\.style\.height = H \+ "px"/.test(html) && !/height: 100vh/.test(html)));
 ok("CONNECT while waiting in a room opens the window saying so (leave / keep waiting), and my room shows in the list", () => assert(/rm-leave/.test(html) && /duel.stage === "looking" && duel.room && server.signedIn && !BOT\) \{ showRooms\(\)/.test(html)));
 ok("the computer's match waits while the rooms window is open, and entering a room stops it first", () => assert(/camp\.over \|\| game\.dead \|\| document\.getElementById\("rooms"\)/.test(html) && /if \(duel\.bot\) stopMatch\(\); if \(game\.stage === "fly" && duel\.stage === "looking"\)/.test(html)));
+ok("the test hangar has its own bank, never synced: test-money gear never reaches a player's ship", () => assert(/const BANK_KEY = HANGAR \? "spaceship\.bank\.dev" : "spaceship\.bank"/.test(html) && /async send\(\) \{\n    if \(HANGAR \|\| BOT/.test(html) && /!this\.signedIn \|\| HANGAR\) return;/.test(html)));
 console.log(n + " checks passed");

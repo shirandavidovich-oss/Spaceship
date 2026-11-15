@@ -2475,7 +2475,7 @@ const server = {
   },
   saveT: 0,
   save(p) {   // (a moment later, so many quick changes make one save)
-    if (!this.on || !p || !this.signedIn) return;
+    if (!this.on || !p || !this.signedIn || HANGAR) return;   // (the test hangar: its unlimited money never reaches the server)
     clearTimeout(this.saveT);
     this.saveT = setTimeout(async () => {
       if (!(await this.ready())) return;
@@ -4249,9 +4249,15 @@ function testTap(c) {
 // ---- money ----
 // bank: kept on the phone (BANK_KEY): { wallet: { ship: coins }, gear: { ship: { pas, act, xw } }, res: { minerals, metals },
 //   welcomed: { ship: 1 } }. (The bot keeps its own, in memory only.)
-const BANK_KEY = "spaceship.bank";
+// The test hangar keeps a bank of its own (its unlimited money buys gear and ships for free): never the players' bank,
+// and never sent to the server. (The web's ?dev shares the phone's storage with the players' web game: before this,
+// gear bought there with test money showed up in the real game.)
+const BANK_KEY = HANGAR ? "spaceship.bank.dev" : "spaceship.bank";
 if (params.has("reset")) { try { LS.removeItem(BANK_KEY); } catch (e) {} }
 const bank = (() => { try { const b = JSON.parse(LS.getItem(BANK_KEY)); if (b && typeof b === "object") return b; } catch (e) {} return {}; })();
+// once, in the players' web game: the gear and ships bought with the test money while the web game was a test hangar
+// (until 15.11.2026) go (coins earned by playing stay)
+if (!native && !HANGAR && !BOT && !bank.webClean) { delete bank.gear; delete bank.owned; delete bank.rent; delete bank.once; bank.webClean = 1; bank.dirty = 1; try { LS.setItem(BANK_KEY, JSON.stringify(bank)); } catch (e) {} }
 bank.wallet = bank.wallet || {}; bank.gear = bank.gear || {}; bank.res = bank.res || {}; bank.welcomed = bank.welcomed || {};   // (res: each mineral's count, and metals)
 function saveBank() { bank.dirty = 1; try { LS.setItem(BANK_KEY, JSON.stringify(bank)); } catch (e) {} if (profile) { profile.money = totalMoney(); saveProfile(); } bankSync.push(); }   // (signed in: to the server too)
 function wallet(id) { return testMoney() ? 999999 : bank.wallet[id] || 0; }   // (the hangar's unlimited money: shown, never stored)
@@ -4268,6 +4274,7 @@ const bankSync = {
   state: "idle", t: 0, at: 0,   // state: idle | pulling | saving | ok | error; at: when it last spoke to the server (ms)
   email() { return server.session && server.session.email ? server.session.email.trim().toLowerCase() : null; },
   async pull() {
+    if (HANGAR && !BOT) return true;   // (the test hangar's bank stays on this phone: signed in, nothing to sync)
     if (BOT || !server.signedIn || !this.email()) return false;
     this.state = "pulling";
     if (!(await server.ready())) { this.state = "error"; return false; }
@@ -4282,9 +4289,9 @@ const bankSync = {
     await this.send();
     return true;
   },
-  push() { if (BOT || !server.signedIn) return; clearTimeout(this.t); this.t = setTimeout(() => this.send(), 800); },
+  push() { if (HANGAR || BOT || !server.signedIn) return; clearTimeout(this.t); this.t = setTimeout(() => this.send(), 800); },
   async send() {
-    if (BOT || !server.signedIn || !this.email() || bank.account !== this.email()) return false;
+    if (HANGAR || BOT || !server.signedIn || !this.email() || bank.account !== this.email()) return false;
     this.state = "saving";
     if (!(await server.ready())) { this.state = "error"; return false; }
     const out = Object.assign({}, bank); delete out.dirty; delete out.account;
