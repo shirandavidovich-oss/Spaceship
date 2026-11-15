@@ -2623,7 +2623,7 @@ function showRooms() {
   document.body.appendChild(d);
   const close = () => { lobby.onChange = null; d.remove(); };
   const saveNick = () => { const v = d.querySelector("#rm-nick").value.trim().slice(0, 16); try { if (v) LS.setItem(NICK_KEY, v); } catch (e) {} };
-  const go = (name, pub) => { saveNick(); close(); audio.pop(); if (game.stage === "fly" && duel.stage === "looking") { endDuel(false); duel.stage = null; } if (game.stage === "fly" && !duel.stage) roomGo(name, pub); };   // (waiting in another room: that one is left)
+  const go = (name, pub) => { saveNick(); close(); audio.pop(); if (duel.bot) stopMatch(); if (game.stage === "fly" && duel.stage === "looking") { endDuel(false); duel.stage = null; } if (game.stage === "fly" && !duel.stage) roomGo(name, pub); };   // (the computer's match had come back while the window was open: the room went nowhere)   // (waiting in another room: that one is left)
   d.querySelector("#rm-quick").onclick = () => go(null, false);
   d.querySelector("#rm-go").onclick = () => { const n = d.querySelector("#rm-name").value.trim().slice(0, 24); if (!n) { d.querySelector("#rm-name").focus(); return; } go(n, d.querySelector("#rm-pub").checked); };
   d.querySelector("#rm-close").onclick = () => { saveNick(); close(); };
@@ -16670,7 +16670,7 @@ function campTick(dt) {
   makeBot();
   if (!camp.mine.length) newCampaign();
   // the match runs by itself; it waits while something else is open (a real duel, a trade, the pages)
-  if (result.mode || duel.stage || trade.stage || fleet.open || hangar.open || picker.open || camp.over || game.dead) { camp.wait = Math.max(camp.wait, 1.2); return; }
+  if (result.mode || duel.stage || trade.stage || fleet.open || hangar.open || picker.open || camp.over || game.dead || document.getElementById("rooms")) { camp.wait = Math.max(camp.wait, 1.2); return; }
   if (!bot.ready) return;
   camp.wait -= dt;
   if (camp.wait <= 0) startMatch();
