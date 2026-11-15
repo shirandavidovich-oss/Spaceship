@@ -11333,7 +11333,7 @@ function titleShowTick(dt) {
   }
   tshow.t += dt;
   for (let i = tshow.fx.length - 1; i >= 0; i--) { const p = tshow.fx[i]; p.t += dt; if (p.t > p.life) { tshow.fx.splice(i, 1); continue; } p.x += p.vx * dt; p.y += p.vy * dt; }
-  if (tshow.t > TSHOW[tshow.kind].len) { tshow.last = tshow.kind; tshow.kind = null; tshow.wait = TSHOW.gap[0] + Math.random() * (TSHOW.gap[1] - TSHOW.gap[0]); }
+  if (tshow.t > TSHOW[tshow.kind].len && !tshow.fx.some((p) => p.k === "steam")) { tshow.last = tshow.kind; tshow.kind = null; tshow.wait = TSHOW.gap[0] + Math.random() * (TSHOW.gap[1] - TSHOW.gap[0]); }
 }
 // the lane: the sky above the title picture, reaching behind its upper part (which is drawn over it)
 function titleLane() {
@@ -11423,10 +11423,13 @@ function drawTitleShow() {
     ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(jx + h * 0.16 * fl, jy, h * 0.18 * fl, h * 0.035, 0, 0, TAU); ctx.fill();
     ctx.globalCompositeOperation = "source-over";
     ctx.drawImage(img, x, y, w, h);
-    if (Math.random() < 0.9) for (const [i, Wn] of S.wins.entries()) {   // new bubbles, at the bottom of each window
+    const [sx, sy] = P(S.steam[0], S.steam[1], x, y), on = t < S.len;   // (gone off the screen: no new bubbles or puffs)
+    if (on && Math.random() < 0.9) for (const [i, Wn] of S.wins.entries()) {   // new bubbles, at the bottom of each window
       if (Math.random() < (i ? 0.25 : 0.5)) tshow.fx.push({ k: "bub", win: i, x: (Math.random() - 0.5) * 1.6 * Wn[2], y: Wn[3] * 0.95, vx: 0, vy: -Wn[3] * (0.5 + Math.random() * 0.7), t: 0, life: 2.2, r: Wn[2] * (0.03 + Math.random() * 0.07), ph: Math.random() * 6 });
     }
-    if (Math.random() < 0.06) tshow.fx.push({ k: "steam", x: 0, y: 0, vx: 1, vy: -0.25, t: 0, life: 2.4, r: 0.04 });
+    // a puff stays where it left the pipe (on the screen), drifting on: the ship sails away from its trail, and the
+    // last puffs drift on out after it
+    if (on && Math.random() < 0.06) tshow.fx.push({ k: "steam", ax: sx, ay: sy, x: 0, y: 0, vx: 1, vy: -0.25, t: 0, life: 2.4, r: 0.04 });
     for (const [i, Wn] of S.wins.entries()) {
       const [wx, wy] = P(Wn[0], Wn[1], x, y), rx = Wn[2] * sc, ry = Wn[3] * sc;
       ctx.save(); ctx.beginPath(); ctx.ellipse(wx, wy, rx, ry, 0, 0, TAU); ctx.clip();
@@ -11443,9 +11446,8 @@ function drawTitleShow() {
       ctx.restore();
     }
     ctx.globalAlpha = 1;
-    const [sx, sy] = P(S.steam[0], S.steam[1], x, y);
     for (const p of tshow.fx) if (p.k === "steam") {   // puffs out of the pipe, widening and fading
-      const k = p.t / p.life, px = sx + p.x * h * 0.5, py = sy + p.y * h * 0.5, r = h * (0.05 + 0.16 * k);
+      const k = p.t / p.life, px = p.ax + p.x * h * 0.5, py = p.ay + p.y * h * 0.5, r = h * (0.05 + 0.16 * k);
       const g2 = ctx.createRadialGradient(px, py, 0, px, py, r); g2.addColorStop(0, `rgba(235,240,245,${0.5 * (1 - k)})`); g2.addColorStop(1, "rgba(235,240,245,0)");
       ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(px, py, r, 0, TAU); ctx.fill();
     }
