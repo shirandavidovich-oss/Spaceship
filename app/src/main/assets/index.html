@@ -3189,7 +3189,7 @@ function update(dt) {
   if (game.stage === "gift") gift.hint += dt;
   game.card = Math.max(0, game.card - dt);
   if (shipPage) { shipPage.t += dt; if (game.stage === "title") shipPage = null; }
-  updateBreak(dt);
+  updateBreak(dt); titleShowTick(dt);
 
   const wasLying = tilt.lying;
   tilt.lying = tilt.have && tilt.pitch <= 120 && (tilt.lying ? tilt.pitch > LIE_OFF : tilt.pitch > LIE_ON);
@@ -11299,6 +11299,174 @@ addEventListener("pointerdown", () => { if (cine.on && cine.done) cine.done(); }
 // where the title's parts go. A tall screen (a phone held upright, a folded Fold): one column, the name, then the shop
 // banner, then the dials. A wide or square screen (an opened Fold, a phone on its side): two columns above the dials,
 // the name on the left and the shop banner on the right (one column left the banner no room, so it was hidden)
+// ---- the main menu's little films: now and then something happens behind the menu, one at a time (a few seconds
+// apart, each different from the last): the lighthouse ship comes in and lights its lamp; the courier opens its iris
+// and fires a canister; the boiler drifts by bubbling and steaming; the cloud ship billows past with blue glints. Each
+// ship is one picture cut out of its render (art/title/), moved and lit by the game; points on it are in its pixels ----
+const TSHOW = {
+  gap: [2.5, 5.5], first: 1.4,
+  lighthouse: { src: "art/title/lighthouse.webp", lit: "art/title/lighthouse-lit.webp", w: 900, h: 592, len: 12.5, hgt: 0.95,
+    lamp: [780, 370], lens: [745, 370, 145, 175], jets: [[28, 218], [232, 103]], beam: 0.1 },
+  courier: { src: "art/title/courier.webp", can: "art/title/canister.webp", w: 620, h: 329, len: 7.5, hgt: 0.78,
+    iris: [222, 232, 40, 43], axis: [-208, 82], jets: [[392, 18], [555, 40]] },
+  boiler: { src: "art/title/boiler.webp", w: 700, h: 538, len: 9, hgt: 0.92,
+    wins: [[205, 330, 95, 95], [440, 310, 47, 55]], steam: [585, 215], jet: [603, 322] },
+  cloudship: { src: "art/title/cloudship.webp", w: 900, h: 550, len: 9.5, hgt: 0.98 },
+};
+const tshow = { kind: null, t: 0, wait: TSHOW.first, last: null, fx: [], can: null };
+function titleShowArt() { for (const k of ["lighthouse", "courier", "boiler", "cloudship"]) { artImage(TSHOW[k].src); if (TSHOW[k].lit) artImage(TSHOW[k].lit); if (TSHOW[k].can) artImage(TSHOW[k].can); } }
+function titleShowTick(dt) {
+  if (game.stage !== "title" || shop.open) { tshow.kind = null; tshow.wait = TSHOW.first; tshow.fx.length = 0; return; }
+  titleShowArt();
+  if (!tshow.kind) {
+    tshow.wait -= dt; if (tshow.wait > 0) return;
+    const ks = ["lighthouse", "courier", "boiler", "cloudship"].filter((k) => k !== tshow.last && artImage(TSHOW[k].src));
+    if (!ks.length) { tshow.wait = 0.5; return; }
+    tshow.kind = ks[Math.floor(Math.random() * ks.length)]; tshow.t = 0; tshow.fx.length = 0; tshow.can = null; tshow.dir = Math.random() < 0.5 ? 1 : -1;
+    return;
+  }
+  tshow.t += dt;
+  for (let i = tshow.fx.length - 1; i >= 0; i--) { const p = tshow.fx[i]; p.t += dt; if (p.t > p.life) { tshow.fx.splice(i, 1); continue; } p.x += p.vx * dt; p.y += p.vy * dt; }
+  if (tshow.t > TSHOW[tshow.kind].len) { tshow.last = tshow.kind; tshow.kind = null; tshow.wait = TSHOW.gap[0] + Math.random() * (TSHOW.gap[1] - TSHOW.gap[0]); }
+}
+// the lane: the sky above the title picture, reaching behind its upper part (which is drawn over it)
+function titleLane() {
+  const T = titleLayout(), top = Math.max(U * 0.13, H * 0.06), bot = Math.max(top + H * 0.2, T.cy - T.s * 0.12);   // (down behind the title picture's top)
+  return { cy: (top + bot) / 2, h: bot - top };
+}
+function drawTitleShow() {
+  const K = tshow.kind; if (!K) return;
+  const S = TSHOW[K], img = artImage(S.src); if (!img) return;
+  const L = titleLane(), t = tshow.t;
+  let sc = (L.h * S.hgt) / S.h; if (S.w * sc > W * 0.9) sc = (W * 0.9) / S.w;
+  const w = S.w * sc, h = S.h * sc, bob = Math.sin(t * 1.3) * h * 0.02;
+  const P = (px, py, x, y) => [x + px * sc, y + py * sc];   // a point on the picture, on the screen
+  const glow = (x, y, r, c, a) => { const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, c.replace("A", a)); g.addColorStop(1, c.replace("A", 0)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); };
+  ctx.save();
+  if (K === "lighthouse") {
+    // in from the left (3.5 s, slowing), the lamp: a flicker then on (from 4 s), shining 5 s, off, and away to the right
+    const tin = 3.5, ton = 4, toff = 9.6, tgo = 10;
+    const xStop = W * 0.42 - w * 0.5;
+    const x = t < tin ? -w + (xStop + w) * (1 - (1 - t / tin) ** 3) : t < tgo ? xStop : xStop + (W + w) * ((t - tgo) / (S.len - tgo)) ** 2;
+    const y = L.cy - h / 2 + bob;
+    const on = t < ton ? 0 : t < ton + 0.5 ? (Math.sin((t - ton) * 60) > 0.2 ? 0.8 : 0.1) : t < toff ? 1 : Math.max(0, 1 - (t - toff) / 0.8);
+    ctx.globalCompositeOperation = "lighter";   // the engines
+    for (const j of S.jets) { const [jx, jy] = P(j[0], j[1], x, y); glow(jx, jy, h * (0.12 + 0.03 * Math.sin(t * 23 + jx)), "rgba(110,170,255,A)", 0.55); }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.drawImage(img, x, y, w, h);
+    const lit = artImage(S.lit);
+    if (lit && on > 0) { ctx.globalAlpha = on; ctx.drawImage(lit, x, y, w, h); ctx.globalAlpha = 1; }
+    if (on > 0) {   // the beam: a long warm cone out of the lens, sweeping a little, its edges faintly rainbowed
+      const [lx, ly] = P(S.lamp[0], S.lamp[1], x, y), a = S.beam + Math.sin(t * 0.7) * 0.06, len = W * 1.2, r0 = S.lens[3] * sc * 0.8, spread = 0.2;
+      ctx.globalCompositeOperation = "lighter";
+      const cone = (sp, c, al) => {
+        const g = ctx.createLinearGradient(lx, ly, lx + Math.cos(a) * len, ly + Math.sin(a) * len);
+        g.addColorStop(0, c.replace("A", al * on)); g.addColorStop(0.5, c.replace("A", al * 0.45 * on)); g.addColorStop(1, c.replace("A", 0));
+        ctx.fillStyle = g; ctx.beginPath();
+        ctx.moveTo(lx - Math.sin(a) * r0, ly + Math.cos(a) * r0); ctx.lineTo(lx + Math.sin(a) * r0, ly - Math.cos(a) * r0);
+        ctx.lineTo(lx + Math.cos(a - sp) * len, ly + Math.sin(a - sp) * len); ctx.lineTo(lx + Math.cos(a + sp) * len, ly + Math.sin(a + sp) * len); ctx.closePath(); ctx.fill();
+      };
+      cone(spread * 1.3, "rgba(160,120,255,A)", 0.05); cone(spread * 1.16, "rgba(120,255,200,A)", 0.045);   // (soft edges: layers, wide to narrow)
+      for (let i = 0; i < 5; i++) cone(spread * (1 - i * 0.17), "rgba(255,214,150,A)", 0.07);
+      cone(spread * 0.18, "rgba(255,248,225,A)", 0.12);
+      glow(lx, ly, r0 * 1.6, "rgba(255,230,170,A)", 0.55 * on);
+    }
+  } else if (K === "courier") {
+    // in from the right, slowing to a stop; the iris opens (0.3 s) and glows, the canister leaves along the barrel
+    // (a flash, a kick back), the iris shuts, and on out to the left
+    const tin = 2.6, tfire = 3.6, tgo = 4.8;
+    const xStop = W * 0.52 - w * 0.5;
+    let x = t < tin ? W + (xStop - W) * (1 - (1 - t / tin) ** 3) : t < tgo ? xStop : xStop - (W + w) * ((t - tgo) / (S.len - tgo)) ** 2;
+    const kick = t > tfire && t < tfire + 0.5 ? Math.sin(((t - tfire) / 0.5) * Math.PI) * w * 0.02 : 0;
+    const al = Math.hypot(S.axis[0], S.axis[1]), ax = S.axis[0] / al, ay = S.axis[1] / al;
+    x -= ax * kick; const y = L.cy - h / 2 + bob - ay * kick;
+    ctx.globalCompositeOperation = "lighter";
+    for (const j of S.jets) { const [jx, jy] = P(j[0], j[1], x, y); glow(jx, jy, h * (0.09 + 0.02 * Math.sin(t * 25 + jx)), "rgba(120,255,230,A)", 0.5); }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.drawImage(img, x, y, w, h);
+    const [ix, iy] = P(S.iris[0], S.iris[1], x, y), irx = S.iris[2] * sc, iry = S.iris[3] * sc;
+    const open = t < tfire - 0.5 ? 0 : t < tfire - 0.2 ? (t - (tfire - 0.5)) / 0.3 : t < tfire + 0.25 ? 1 : Math.max(0, 1 - (t - tfire - 0.25) / 0.35);
+    if (open > 0) {   // the iris: six blades turning open over an amber light
+      ctx.save(); ctx.beginPath(); ctx.ellipse(ix, iy, irx, iry, 0, 0, TAU); ctx.clip();
+      ctx.globalCompositeOperation = "lighter"; glow(ix, iy, irx * 1.2, "rgba(255,170,60,A)", 0.95 * open);
+      ctx.globalCompositeOperation = "source-over"; ctx.translate(ix, iy); ctx.scale(1, iry / irx);
+      for (let b = 0; b < 6; b++) {
+        ctx.save(); ctx.rotate(b * TAU / 6 + open * 1.1);
+        ctx.fillStyle = "rgba(120,86,40,0.92)"; ctx.strokeStyle = "rgba(255,214,140,0.7)"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(irx * (0.05 + 0.85 * open), 0); ctx.arc(0, 0, irx * 1.05, 0.15, TAU / 6 + 0.35); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+      }
+      ctx.restore();
+    }
+    if (t >= tfire && !tshow.can) tshow.can = { x: ix, y: iy, t: 0 };
+    const C = tshow.can, cimg = artImage(S.can);
+    if (C) {   // the canister: out along the barrel, rolling, a trail behind it
+      C.t = t - tfire; const sp = W * 1.4, d = sp * C.t, cx = C.x + ax * d - ax * kick, cy = C.y + ay * d, cw = h * 0.36, ch = cw * 79 / 170, roll = Math.cos(C.t * 18);
+      ctx.globalCompositeOperation = "lighter";
+      if (C.t < 0.12) glow(C.x, C.y, irx * 3.2, "rgba(255,200,110,A)", 1 - C.t / 0.12);   // the flash
+      const tr = ctx.createLinearGradient(cx, cy, cx - ax * cw * 3, cy - ay * cw * 3);
+      tr.addColorStop(0, "rgba(255,170,70,0.6)"); tr.addColorStop(1, "rgba(255,120,40,0)");
+      ctx.strokeStyle = tr; ctx.lineWidth = ch * 0.6; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx - ax * cw * 3, cy - ay * cw * 3); ctx.stroke();
+      ctx.globalCompositeOperation = "source-over";
+      if (cimg) { ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.atan2(ay, ax) + Math.PI); ctx.scale(1, 0.8 + 0.2 * roll); ctx.drawImage(cimg, -cw / 2, -ch / 2, cw, ch); ctx.restore(); }
+    }
+  } else if (K === "boiler") {
+    // drifts across, slow and bobbing: bubbles rise in both windows (some pop), the blue jet flickers, steam puffs away
+    const dir = -1, x0 = dir > 0 ? -w : W, x1 = dir > 0 ? W : -w;
+    const x = x0 + (x1 - x0) * (t / S.len), y = L.cy - h / 2 + bob * 2.5;
+    const [jx, jy] = P(S.jet[0], S.jet[1], x, y);
+    ctx.globalCompositeOperation = "lighter";
+    const fl = 0.7 + 0.3 * Math.sin(t * 31) * Math.sin(t * 13);
+    const g = ctx.createLinearGradient(jx, jy, jx + h * 0.35 * fl, jy); g.addColorStop(0, "rgba(140,210,255,0.9)"); g.addColorStop(1, "rgba(60,120,255,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(jx + h * 0.16 * fl, jy, h * 0.18 * fl, h * 0.035, 0, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.drawImage(img, x, y, w, h);
+    if (Math.random() < 0.9) for (const [i, Wn] of S.wins.entries()) {   // new bubbles, at the bottom of each window
+      if (Math.random() < (i ? 0.25 : 0.5)) tshow.fx.push({ k: "bub", win: i, x: (Math.random() - 0.5) * 1.6 * Wn[2], y: Wn[3] * 0.95, vx: 0, vy: -Wn[3] * (0.5 + Math.random() * 0.7), t: 0, life: 2.2, r: Wn[2] * (0.03 + Math.random() * 0.07), ph: Math.random() * 6 });
+    }
+    if (Math.random() < 0.06) tshow.fx.push({ k: "steam", x: 0, y: 0, vx: 1, vy: -0.25, t: 0, life: 2.4, r: 0.04 });
+    for (const [i, Wn] of S.wins.entries()) {
+      const [wx, wy] = P(Wn[0], Wn[1], x, y), rx = Wn[2] * sc, ry = Wn[3] * sc;
+      ctx.save(); ctx.beginPath(); ctx.ellipse(wx, wy, rx, ry, 0, 0, TAU); ctx.clip();
+      for (const p of tshow.fx) {
+        if (p.k !== "bub" || p.win !== i) continue;
+        const bx = wx + (p.x + Math.sin(p.t * 3 + p.ph) * Wn[2] * 0.06) * sc, by = wy + p.y * sc, r = p.r * sc * (1 + p.t * 0.2);
+        if (p.y < -Wn[3] * 0.95) { p.t = p.life; continue; }
+        const popping = p.life - p.t < 0.15 && p.ph > 4.5;
+        ctx.globalAlpha = popping ? (p.life - p.t) / 0.15 : Math.min(1, p.t * 4);
+        ctx.strokeStyle = "rgba(235,250,255,0.85)"; ctx.lineWidth = Math.max(0.8, r * 0.18); ctx.fillStyle = "rgba(200,235,255,0.12)";
+        ctx.beginPath(); ctx.arc(bx, by, popping ? r * 1.6 : r, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.arc(bx - r * 0.35, by - r * 0.35, r * 0.25, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    const [sx, sy] = P(S.steam[0], S.steam[1], x, y);
+    for (const p of tshow.fx) if (p.k === "steam") {   // puffs out of the pipe, widening and fading
+      const k = p.t / p.life, px = sx + p.x * h * 0.5, py = sy + p.y * h * 0.5, r = h * (0.05 + 0.16 * k);
+      const g2 = ctx.createRadialGradient(px, py, 0, px, py, r); g2.addColorStop(0, `rgba(235,240,245,${0.5 * (1 - k)})`); g2.addColorStop(1, "rgba(235,240,245,0)");
+      ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(px, py, r, 0, TAU); ctx.fill();
+    }
+  } else if (K === "cloudship") {
+    // the cloud banks breathe and roll (two faint copies of them, swaying) and blue sparks crackle in them
+    const x = -w + (W + w) * (t / S.len), y = L.cy - h / 2 + bob * 2;
+    for (let c = 0; c < 2; c++) {
+      ctx.save(); ctx.globalAlpha = 0.28; ctx.translate(x + w / 2, y + h / 2);
+      ctx.scale(1 + 0.04 * Math.sin(t * 1.9 + c * 2), 1 + 0.05 * Math.sin(t * 1.5 + c * 3)); ctx.rotate(0.02 * Math.sin(t * 1.1 + c));
+      ctx.drawImage(img, -w / 2 + Math.sin(t * 1.7 + c) * w * 0.012, -h / 2, w, h); ctx.restore();
+    }
+    ctx.drawImage(img, x, y, w, h);
+    if (Math.random() < 0.05) tshow.fx.push({ k: "zap", x: (Math.random() < 0.5 ? 0.12 + Math.random() * 0.3 : 0.62 + Math.random() * 0.3), y: 0.2 + Math.random() * 0.55, vx: 0, vy: 0, t: 0, life: 0.18, seed: Math.random() * 99 });
+    ctx.globalCompositeOperation = "lighter";
+    for (const p of tshow.fx) if (p.k === "zap") {
+      const zx = x + p.x * w, zy = y + p.y * h, a = 1 - p.t / p.life;
+      glow(zx, zy, h * 0.12, "rgba(120,180,255,A)", 0.5 * a);
+      ctx.strokeStyle = `rgba(200,230,255,${a})`; ctx.lineWidth = Math.max(1, h * 0.006); ctx.beginPath(); ctx.moveTo(zx, zy);
+      let px = zx, py = zy; for (let s = 1; s <= 5; s++) { px += (Math.sin(p.seed * s) * 0.5 + 0.6) * h * 0.035; py += Math.cos(p.seed * s * 1.7) * h * 0.035; ctx.lineTo(px, py); }
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
 function titleLayout() {
   const d = U * 0.16, dialTop = H - d * 1.9;
   if (W <= H * 0.75) return { cx: W / 2, cy: H * 0.36, s: Math.min(W, H) * 0.42, f: Math.round(Math.min(W * 0.13, H * 0.08)), wide: false, d, dialTop };
@@ -11308,6 +11476,7 @@ function titleLayout() {
 }
 function drawTitle() {
   if (game.stage !== "title") return;
+  drawTitleShow();   // (now and then a little film behind the menu)
   const T = titleLayout(), icon = artImage("art/ui/title-icon.webp"), s = T.s, f = T.f;
   ctx.save();
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "ltr";

@@ -823,3 +823,9 @@ On a computer: open `index.html` in a browser. Arrow keys tilt; space bar = thru
 The app serves every picture it was built with from inside itself, so a picture changed on GitHub under the same
 name never reaches it (new files do: the app fetches those). Save the new picture under a new name (e.g. `brass-2.webp`)
 and add the old → new path to `ART_NEW` in index.html (just above `function artImage`).
+
+### The main menu's films
+Now and then (2.5–5.5 s apart) a ship passes behind the menu: the lighthouse ship lights its lamp, the courier fires a
+canister through its iris, the boiler bubbles and steams, the cloud ship billows with blue sparks. Each is one picture
+cut out of its render (`art/title/`), moved and lit by the game; their points (lamp, iris, windows...) are in
+`TSHOW` in index.html.
