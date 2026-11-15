@@ -11307,9 +11307,10 @@ const TSHOW = {
   gap: [2.5, 5.5], first: 1.4,
   lighthouse: { src: "art/title/lighthouse.webp", lit: "art/title/lighthouse-lit.webp", w: 900, h: 592, len: 12.5, hgt: 0.95,
     lamp: [780, 370], lens: [745, 370, 145, 175], jets: [[28, 218], [232, 103]], beam: 0.1 },
-  // (its iris: renders crossfaded: shut with the canister in its glass barrel (`src`), half open, open, and shut again,
-  // the barrel empty (`empty`))
-  courier: { src: "art/title/courier-loaded.webp", empty: "art/title/courier-closed.webp", half: "art/title/courier-half.webp", open: "art/title/courier-open.webp", can: "art/title/canister.webp",
+  // (its renders, crossfaded: `load`: the canister slides down the glass barrel and the iris opens round its nose;
+  // fired, `shut`: the barrel empty, the iris open, half open, shut)
+  courier: { src: "art/title/courier-load1.webp", load: [1, 2, 3, 4].map((i) => "art/title/courier-load" + i + ".webp"), loadT: 1.3,
+    shut: ["art/title/courier-open.webp", "art/title/courier-half.webp", "art/title/courier-closed.webp"], shutT: 0.8, half: "art/title/courier-half.webp", open: "art/title/courier-open.webp", can: "art/title/canister.webp",
     w: 900, h: 477, len: 7.5, hgt: 0.8, iris: [322, 357, 62, 72], axis: [-278, 177], jets: [[548, 20], [812, 48]] },
   boiler: { src: "art/title/boiler.webp", w: 700, h: 538, len: 9, hgt: 0.92,
     wins: [[205, 330, 95, 95], [440, 310, 47, 55]], steam: [585, 215], jet: [603, 322] },
@@ -11319,7 +11320,7 @@ const TSHOW = {
     w: 900, h: 550, len: 9.5, hgt: 0.98 },
 };
 const tshow = { kind: null, t: 0, wait: TSHOW.first, last: null, fx: [], can: null };
-function titleShowArt() { for (const k of ["lighthouse", "courier", "boiler", "cloudship"]) { artImage(TSHOW[k].src); for (const q of ["lit", "half", "open", "can", "empty"]) if (TSHOW[k][q]) artImage(TSHOW[k][q]); if (TSHOW[k].frames) TSHOW[k].frames.forEach((q) => artImage(q)); } }
+function titleShowArt() { for (const k of ["lighthouse", "courier", "boiler", "cloudship"]) { artImage(TSHOW[k].src); for (const q of ["lit", "can"]) if (TSHOW[k][q]) artImage(TSHOW[k][q]); for (const q of ["frames", "load", "shut"]) if (TSHOW[k][q]) TSHOW[k][q].forEach((s) => artImage(s)); } }
 function titleShowTick(dt) {
   if (game.stage !== "title" || shop.open) { tshow.kind = null; tshow.wait = TSHOW.first; tshow.fx.length = 0; return; }
   titleShowArt();
@@ -11388,15 +11389,17 @@ function drawTitleShow() {
     ctx.globalCompositeOperation = "lighter";
     for (const j of S.jets) { const [jx, jy] = P(j[0], j[1], x, y); glow(jx, jy, h * (0.09 + 0.02 * Math.sin(t * 25 + jx)), "rgba(120,255,230,A)", 0.5); }
     ctx.globalCompositeOperation = "source-over";
-    ctx.drawImage(t < tfire ? img : artImage(S.empty) || img, x, y, w, h);   // (the canister in its barrel until it is fired)
+    // a run of renders at `pos` (0 = the first; between two: the next one melting in)
+    const seq = (list, pos) => {
+      const i = clamp(Math.floor(pos), 0, list.length - 1), A = artImage(list[i]) || img, B = i + 1 < list.length ? artImage(list[i + 1]) : null, k = pos - i;
+      ctx.drawImage(A, x, y, w, h);
+      if (B && k > 0.02) { ctx.globalAlpha = Math.min(1, k); ctx.drawImage(B, x, y, w, h); ctx.globalAlpha = 1; }
+    };
+    if (t < tfire) seq(S.load, clamp((t - (tfire - S.loadT)) / S.loadT, 0, 1) * (S.load.length - 1));
+    else seq(S.shut, clamp((t - tfire - 0.15) / S.shutT, 0, 1) * (S.shut.length - 1));
     const [ix, iy] = P(S.iris[0], S.iris[1], x, y), irx = S.iris[2] * sc, iry = S.iris[3] * sc;
-    // the iris: shut, half open (0.15 s), open (0.15 s), held while the canister leaves, then back the same way
-    const open = t < tfire - 0.45 ? 0 : t < tfire - 0.15 ? (t - (tfire - 0.45)) / 0.3 : t < tfire + 0.3 ? 1 : Math.max(0, 1 - (t - tfire - 0.3) / 0.4);
-    const half = artImage(S.half), op = artImage(S.open);
-    if (half && open > 0) { ctx.globalAlpha = Math.min(1, open * 2); ctx.drawImage(half, x, y, w, h); }
-    if (op && open > 0.5) { ctx.globalAlpha = (open - 0.5) * 2; ctx.drawImage(op, x, y, w, h); }
-    ctx.globalAlpha = 1;
-    if (open > 0.5) { ctx.globalCompositeOperation = "lighter"; glow(ix, iy, irx * 1.1, "rgba(255,160,60,A)", 0.45 * (open - 0.5) * 2); ctx.globalCompositeOperation = "source-over"; }
+    const hot = t < tfire ? clamp((t - (tfire - 0.4)) / 0.4, 0, 1) : Math.max(0, 1 - (t - tfire) / 0.5);   // (an amber glow as it leaves)
+    if (hot > 0) { ctx.globalCompositeOperation = "lighter"; glow(ix, iy, irx * 1.1, "rgba(255,160,60,A)", 0.4 * hot); ctx.globalCompositeOperation = "source-over"; }
     if (t >= tfire && !tshow.can) tshow.can = { x: ix, y: iy, t: 0 };
     const C = tshow.can, cimg = artImage(S.can);
     if (C) {   // the canister: out along the barrel, rolling, a trail behind it
