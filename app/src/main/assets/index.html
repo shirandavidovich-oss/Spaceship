@@ -10031,9 +10031,9 @@ function layEgg(x, y, Wp, S) {
   game.eggKind = null;
   // it springs forward out of the chamber (vexarEggFlight), drifting a little with the ship's speed
   const e = { x, y, vx: game.vx * 0.5, vy: game.vy * 0.5, ang: game.ang, fl: 0,
-    t: 0, ht: -1, crushed: false, w: "hive", ship: S.id, kind };
+    t: 0, ht: -1, crushed: false, w: "hive", ship: S.id, kind, bloom: !!game.zombie };   // (laid by a zombie: its Bloom shell, kept)
   eggs.push(e);
-  duelSend({ t: "e", ...netPos(e), a: e.ang, s: S.id, k: kind });   // the other phone shows it too (the same kind)
+  duelSend({ t: "e", ...netPos(e), a: e.ang, s: S.id, k: kind, zb: e.bloom ? 1 : 0 });   // the other phone shows it too (the same kind)
 }
 // who an egg's hunters go after: mine chase the enemy; the other player's (in a duel) chase me
 function eggTarget(e) {
@@ -10110,7 +10110,8 @@ function drawAttachedEgg(o, S, a, kind, x, y, size) {
     const g = ctx.createRadialGradient(0, 0, 0, 0, 0, P.d * 0.68); g.addColorStop(0, "rgba(241,255,188,0.97)"); g.addColorStop(0.37, "rgba(168,255,94,0.62)"); g.addColorStop(1, "rgba(76,240,87,0)");
     ctx.globalAlpha = P.seed; ctx.fillStyle = g; ctx.fillRect(-P.d, -P.d, P.d * 2, P.d * 2);
   }
-  const img = artImage(framePath(S.anim.dir, B.pulse[Math.floor(a.t / 75) % B.pulse.length][0]));
+  const zb = o === game ? !!game.zombie : enemyZombie();   // (a zombie: the Bloom shell)
+  const img = artImage(eggPulsePath(S.anim.dir, B.pulse[Math.floor(a.t / 75) % B.pulse.length][0], zb)) || artImage(framePath(S.anim.dir, B.pulse[Math.floor(a.t / 75) % B.pulse.length][0]));
   if (img && P.alpha > 0) { ctx.globalAlpha = P.alpha; ctx.drawImage(img, -P.d / 2, -P.d / 2, P.d, P.d); }
   ctx.restore();
 }
@@ -10120,7 +10121,7 @@ function drawEggs() {
     if (!e.B) continue;
     const F = vexarEggFlight(e.fl == null ? 999 : e.fl), A = shipById(e.ship).anim, p = toScreen(e.x, e.y), d = e.fl == null ? e.E.size * size : F.d * A.size / 512 * size;
     const seq = e.ht < 0 ? e.B.pulse : e.B.hatch, t = e.ht < 0 ? e.t % seqLength(e.B.pulse) : e.ht, f = seqFrame(seq, t);
-    const img = f >= 0 && artImage(framePath(e.dir, seq[f][0]));
+    const img = f >= 0 && ((e.ht < 0 && e.bloom && artImage(eggPulsePath(e.dir, seq[f][0], true))) || artImage(framePath(e.dir, seq[f][0])));
     if (!img) continue;
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(e.ang + F.tilt); ctx.scale(1 / Math.sqrt(F.stretch), F.stretch); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
   }
@@ -10975,6 +10976,7 @@ function drawShip(S, x, y, size, o = {}) {
   // turned into a zombie by BLOOM's pollen: its zombie art, moving (ZOMBIE_ART). BLOOM: its petals and stamens moving
   if (o.zombie && S.rig) drawCorsairOars(S, o, "bloom");   // (CORSAIR a zombie: it still rows, its oars in BLOOM's colours)
   if (o.zombie && o.half && S.id === "drakon" && drawDrakonBloomHalf(S, o.half)) { ctx.restore(); return; }   // DRAKON split and a zombie: that piece in BLOOM's growth
+  if (o.zombie && S.id === "vexar" && drawVexarBloomHunt(S, o.anim)) { ctx.restore(); return; }   // VEXAR a zombie, laying an egg: the Bloom frames
   if (o.zombie && drawZombieShip(S, o)) { ctx.restore(); return; }
   if (S.bloom && drawBloomMoving(S, power)) { ctx.restore(); return; }
   if (S.ballast && drawBallastRig(o.tow)) { ctx.restore(); return; }
@@ -11885,6 +11887,18 @@ function drawDrakFlares() {
     ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, -s * 0.3, s * 0.45, s, 0, 0, TAU); ctx.fill(); ctx.restore();
   }
 }
+// VEXAR as BLOOM's zombie laying an egg (the VEXAR package's bloom/: 55 frames over its own 55, the same 512 canvas,
+// pivot and 30 ms clock: art/bloom/vexar/hunt_NN.webp). Only the egg action: otherwise its usual zombie look
+function drawVexarBloomHunt(S, a) {
+  if (BOT || !a || a.seq !== "secondary" || !S.anim) return false;
+  const f = seqFrame(S.anim.secondary, a.t); if (f < 0) return false;
+  const img = artImage("art/bloom/vexar/hunt_" + String(f + 1).padStart(2, "0") + ".webp"); if (!img) return false;
+  const size = 512 * S.anim.size / (S.anim.base || 512);
+  ctx.drawImage(img, -size / 2, -size / 2, size, size);
+  return true;
+}
+// its eggs' shells as a zombie's (bloom/eggs: the same 8 pulse frames per kind, 192 px); the hatch frames are the usual
+function eggPulsePath(dir, file, bloom) { return bloom ? "art/bloom/vexar/eggs/" + file.replace(/\.png$|\.webp$/, "") + ".webp" : framePath(dir, file); }
 function drawZombieShip(S, o) {
   const Z = ZOMBIE_ART[S.id];
   if (!Z || BOT) return false;
@@ -16635,7 +16649,7 @@ function duelLink(event, data) {
     if (m.w === "lensflash" || m.w === "lightshard") fresnelFlash(m.x * WW, m.y * WH, m.w);
     if (m.w === "huskcannon") enemy.huskFlash = { at: time, side: enemy.huskFlash ? 1 - enemy.huskFlash.side : 0 };   // their FRESNEL's light   // their VAULT's doors open for it
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
-    eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, fl: 0, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", remote: true });
+    eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, fl: 0, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", bloom: !!m.zb, remote: true });
   } else if (m.t === "cv" && shipById(m.s) && Array.isArray(m.p)) {   // their KRAAL's crossing bolts (their phone counts the blast)
     const q = m.p; crosses.push({ w: m.w, ship: m.s, t: 0, remote: true, life: m.l, a: { x: q[0] * WW, y: q[1] * WH }, b: { x: q[2] * WW, y: q[3] * WH }, f: { x: q[4] * WW, y: q[5] * WH } });
     audio.sfx("kraal", "cross_launch", 0, 0.7);
