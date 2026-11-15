@@ -2972,7 +2972,7 @@ cv.addEventListener("pointerdown", (e) => {
   if (shop.open) { shopTap(e.clientX, e.clientY); return; }   // the station's shop
   if (dialDown(e)) return;   // the sound dials catch the finger first (no firing with it)
   if ((picker.open || camp.over) && hitLang(e.clientX, e.clientY)) { setLang(LANG === "he" ? "en" : "he"); audio.pop(); buzz(10); return; }   // עב / EN
-  if (picker.open || camp.over) { pickerTap(e.clientX, e.clientY); return; }   // choosing a ship / the fleet is gone
+  if (picker.open || camp.over) { pickDown(e); return; }   // choosing a ship / the fleet is gone (a long press on a ship: its page)
   if (fleet.open) { fleetDown(e); return; }
   if (hangar.open) { hangarTap(e.clientX, e.clientY); return; }
   if (game.stage === "fly" && !trade.stage && hitDuel(e.clientX, e.clientY)) { duel.pressAt = performance.now(); duelButton(); return; }
@@ -3027,6 +3027,7 @@ cv.addEventListener("pointermove", (e) => {
   game.stick.dx = e.clientX - game.stick.ox; game.stick.dy = e.clientY - game.stick.oy;
 });
 function fingerUp(e) {
+  if (pickPress && e.pointerId === pickPress.id) { clearTimeout(pickPress.timer); const P = pickPress; pickPress = null; if (!P.fired) pickerTap(P.x, P.y); return; }
   if (rowPress && e.pointerId === rowPress.id) { clearTimeout(rowPress.timer); const held = rowPress.fired; rowPress = null; if (!held) fleetRowTap(); return; }
   if (dialUp(e)) return;
   if (fleet.open && fleet.press) { fleetUp(e); return; }
@@ -3187,7 +3188,7 @@ function update(dt) {
   gift.squash = Math.max(0, gift.squash - dt * 5);
   if (game.stage === "gift") gift.hint += dt;
   game.card = Math.max(0, game.card - dt);
-  if (shipPage) { shipPage.t += dt; if (game.stage !== "fly") shipPage = null; }
+  if (shipPage) { shipPage.t += dt; if (game.stage === "title") shipPage = null; }
   updateBreak(dt);
 
   const wasLying = tilt.lying;
@@ -4154,7 +4155,7 @@ const SHOP_TXT = {
     sayShield: "פסיבי סופג פגיעות לבד ומתמלא שוב. אקטיבי: כפתור, ושום דבר לא עובר לכמה שניות.",
     sayWeapon: "נשק נוסף מחללית אחרת, עם כפתור משלו ליד כפתור הירי. תבחר טוב!", sayShip: "חלליות חדשות לצי של המשחק הזה. תבחר אחת, ואז תאשר.",
     poke: ["אל תיגע בי, יצור משונה!", "ידיים לעצמך, בן אדם!", "היי! אני לא חלק מהסחורה!", "עוד נגיעה אחת ואני מעלה לך את המחירים!", "אתה יודע כמה מחושים אני צריך לנקות עכשיו?", "בכוכב שלי זה נחשב הצעת נישואים. תפסיק!", "אל תיגע! אני רגיש בכל שמונת העורות שלי!"],
-    infoW1: "נשק 1", infoW2: "נשק 2", infoMagic: "קסם", infoDmg: "נזק", infoAmmo: "תחמושת", infoMass: "מסה", infoFuel: "דלק", infoSec: "שנ׳", infoClose: "סגירה", infoXw: "נשק מהתחנה", infoXwSay: "נשק נוסף שנקנה בחנות של התחנה, בכפתור משלו.", infoTap: "לחצו על התמונה לפרטים",
+    infoW1: "נשק 1", infoW2: "נשק 2", infoMagic: "קסם", infoDmg: "נזק", infoAmmo: "תחמושת", infoMass: "מסה", infoFuel: "דלק", infoSec: "שנ׳", infoClose: "סגירה", infoBack: "↩ חזרה לבחירת החללית", infoXw: "נשק מהתחנה", infoXwSay: "נשק נוסף שנקנה בחנות של התחנה, בכפתור משלו.", infoTap: "לחצו על התמונה לפרטים",
     signFirst: "חללית לתמיד או להשכרה נרשמת על האימייל שלך. תתחבר קודם, ואז היא שלך!", signWhy: "חללית לתמיד או להשכרה נשמרת בחשבון שלך, כדי שלא תלך לאיבוד אם תחליף או תמחק את המשחק.",
     thanks: ["עסקה מצוינת!", "תהנה מזה, טייס!", "בחירה חכמה!"], cant: "אוי… חסרים לך עוד", coins: "מטבעות",
     soon: "בקרוב", once: "לקרב הזה", week: "שבוע", own: "לתמיד", ownedForever: "שלך לתמיד", rented: "מושכרת", days: "ימים", inFleet: "כבר בצי",
@@ -4173,7 +4174,7 @@ const SHOP_TXT = {
     sayShield: "Passive soaks hits by itself and refills. Active: a button, and nothing gets through for a few seconds.",
     sayWeapon: "An extra weapon from another ship, with its own button by the fire button. Choose well!", sayShip: "New ships for this game's fleet. Pick one, then confirm.",
     poke: ["Don't touch me, you freak!", "Hands off, human!", "Hey! I'm not part of the merchandise!", "One more poke and I'm raising your prices!", "Do you know how many tentacles I have to clean now?", "On my planet that's a marriage proposal. Stop it!", "Don't touch! I'm sensitive in all eight of my skins!"],
-    infoW1: "Weapon 1", infoW2: "Weapon 2", infoMagic: "Magic", infoDmg: "Damage", infoAmmo: "Ammo", infoMass: "Mass", infoFuel: "Fuel", infoSec: "s", infoClose: "Close", infoXw: "Station weapon", infoXwSay: "An extra weapon bought at the station shop, on a button of its own.", infoTap: "Tap the picture for details",
+    infoW1: "Weapon 1", infoW2: "Weapon 2", infoMagic: "Magic", infoDmg: "Damage", infoAmmo: "Ammo", infoMass: "Mass", infoFuel: "Fuel", infoSec: "s", infoClose: "Close", infoBack: "↩ Back to the ships", infoXw: "Station weapon", infoXwSay: "An extra weapon bought at the station shop, on a button of its own.", infoTap: "Tap the picture for details",
     signFirst: "A ship for good or a rental goes on your email. Sign in first, then it's yours!", signWhy: "A ship for good or a rental is kept on your account, so it is never lost if you change phones or delete the game.",
     thanks: ["Excellent deal!", "Enjoy it, pilot!", "Smart choice!"], cant: "Oh… you still need", coins: "coins",
     soon: "Coming soon", once: "This game", week: "A week", own: "Forever", ownedForever: "Yours forever", rented: "Rented", days: "days", inFleet: "In your fleet",
@@ -4812,11 +4813,31 @@ const VOICE_FX = { alien: { rate: 0.86, ring: 55, dry: 0.35, echo: 0.032 }, kip:
   robot: { rate: 1.0, ring: 46, dry: 0.12, echo: 0.014, speed: 1.15, anywhere: true, gain: 2.2 },
   gollum: { rate: 1.32, ring: 64, dry: 0.6, echo: 0.018, speed: 0.95, anywhere: true, gain: 2.2 },
   vader: { rate: 0.66, ring: 20, dry: 0.8, echo: 0.05, speed: 0.92, anywhere: true, gain: 2.6 },
-  radio: { rate: 1.0, ring: 30, dry: 0.92, echo: 0.008, speed: 1.15, anywhere: true, gain: 2.4, band: [450, 2800] } };   // (the carrier's pilots: a squelchy radio)   // (BORER's drill: deep, slow, inside a mask)   // (PALISADE's wall: a thin hissing creature's voice, a little robotic)   // (a GLITCH malfunction's mayday)
+  radio: { rate: 1.0, ring: 30, dry: 0.92, echo: 0.008, speed: 1.15, anywhere: true, gain: 2.4, band: [450, 2800] },
+  // the announcer: an action game's voice calling out the ship. A human voice, no hum (dry 1), deeper and unhurried,
+  // a warm low end, pressed even (boom: a low shelf and a compressor) and a long hall echo
+  announcer: { rate: 0.84, ring: 1, dry: 1, echo: 0.12, speed: 0.9, anywhere: true, gain: 2.8, boom: true, fb: 0.28 } };   // (the carrier's pilots: a squelchy radio)   // (BORER's drill: deep, slow, inside a mask)   // (PALISADE's wall: a thin hissing creature's voice, a little robotic)   // (a GLITCH malfunction's mayday)
 // GLITCH's malfunction: the stricken ship's computer calls for help (heard on both phones)
 const MAYDAY_LINES = ["We've got a malfunction! Mayday, mayday!", "System failure! Mayday, mayday!", "Weapons offline! Mayday, mayday!", "Malfunction! Malfunction! Mayday!", "Warning! Weapons jammed! Mayday, mayday!"];
 function maydaySay() { if (shop.open) return; let i; do { i = Math.floor(Math.random() * MAYDAY_LINES.length); } while (i === maydaySay.last && MAYDAY_LINES.length > 1); maydaySay.last = i; alienSay(MAYDAY_LINES[i], "robot"); }
 const voice = { bufs: {}, want: null, src: null, who: null };
+// the ship's name called out as it goes into battle (after choosing it). In the app: the phone's voice made into the
+// announcer (VOICE_FX.announcer); in a browser: the browser's own speech, a deep English voice if it has one
+function announceShip(id) {
+  const S = shipById(id); if (!S || BOT) return;
+  const name = S.name.charAt(0) + S.name.slice(1).toLowerCase() + "!";   // ("Brass!", not B-R-A-S-S)
+  clearTimeout(announceShip.t);
+  announceShip.t = setTimeout(() => {
+    if (alienSay(name, "announcer")) return;
+    try {
+      const sy = window.speechSynthesis; if (!sy || native) return;
+      const u = new SpeechSynthesisUtterance(name), vs = sy.getVoices().filter((v) => /^en/i.test(v.lang));
+      u.voice = vs.find((v) => /male|daniel|david|guy|fred|alex|george|james/i.test(v.name) && !/female/i.test(v.name)) || vs.find((v) => /en-US|en_US/i.test(v.lang)) || vs[0] || null;
+      u.lang = "en-US"; u.pitch = 0.55; u.rate = 0.88; u.volume = Math.min(1, 0.4 + VOL.effects);
+      sy.cancel(); sy.speak(u);
+    } catch (e) {}
+  }, 350);   // (just after the whoosh)
+}
 function voiceId(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return "v" + h.toString(36) + s.length; }
 function alienSay(text, who) {
   voiceStop();
@@ -4851,6 +4872,13 @@ function voicePlay(buf) {
     for (let i = 0; i < 256; i++) { const x = i / 128 - 1; cv[i] = Math.tanh(x * 2.5); } sh.curve = cv;
     out.connect(hp); hp.connect(lp); lp.connect(sh); last = sh; audio.noise(0.08, 0.06, 4000);
   }
+  if (P.boom) {   // the announcer: a fuller low end, then everything pressed even (loud and steady, like a trailer)
+    const ls = c.createBiquadFilter(), pk = c.createBiquadFilter(), cp = c.createDynamicsCompressor();
+    ls.type = "lowshelf"; ls.frequency.value = 220; ls.gain.value = 7; pk.type = "peaking"; pk.frequency.value = 2600; pk.Q.value = 0.9; pk.gain.value = 3;
+    cp.threshold.value = -22; cp.ratio.value = 5; cp.attack.value = 0.004; cp.release.value = 0.18;
+    out.connect(ls); ls.connect(pk); pk.connect(cp); last = cp;
+  }
+  if (P.fb != null) fb.gain.value = P.fb;
   last.connect(audio.out); last.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(audio.out);
   osc.start(now); src.start(now); src.onended = () => { try { osc.stop(); } catch (e) {} };
   voice.src = { src, osc };
@@ -5101,9 +5129,9 @@ function drawShipInfo(I = shop.info) {   // (I: the shop's page, or shipPage: th
     y += bh + f * 0.5;
   });
   // close
-  const cw = U * 0.36, ch = f * 1.6, cx = W / 2 - cw / 2, cy = H - m - ch;
+  const cw = U * (I.back ? 0.62 : 0.36), ch = f * 1.6, cx = W / 2 - cw / 2, cy = H - m - ch;
   shopPanel(cx, cy, cw, ch, "#5ee7ff", "rgba(10,16,34,0.95)");
-  ctx.textAlign = "center"; ctx.fillStyle = "#e8f6ff"; ctx.font = `800 ${Math.round(f * 0.8)}px Rubik, Arial, sans-serif`; ctx.fillText(st("infoClose"), W / 2, cy + ch / 2);
+  ctx.textAlign = "center"; ctx.fillStyle = "#e8f6ff"; ctx.font = `800 ${Math.round(f * 0.8)}px Rubik, Arial, sans-serif`; ctx.fillText(I.back ? st("infoBack") : st("infoClose"), W / 2, cy + ch / 2, cw * 0.94);
   ctx.direction = "ltr"; ctx.restore();
 }
 function shopTap(x, y) {
@@ -16228,7 +16256,11 @@ function duelPlace() {
   game.ang = duel.side ? Math.PI : 0; game.vx = game.vy = 0; game.lx = game.ly = 0;
 }
 function duelLink(event, data) {
-  if (event === "connected") { setStation(Math.floor(Math.random() * 2147483647)); link.send({ t: "hi", s: game.ship, r: duel.me, b: cosmos.body, st: station.seed, nk: server.signedIn && !BOT ? myNick() : "" }); return; }
+  if (event === "connected") {
+    // each match (and, against the computer, each of its ships): a new thing in the middle. (It used to change only when
+    // the old practice enemy came; since the computer player took its place, the middle stayed the first body)
+    setBody(nextBody(cosmos.body), cosmos.started); cosmos.started = true;   // (the top player's is kept: "hi" below)
+    setStation(Math.floor(Math.random() * 2147483647)); link.send({ t: "hi", s: game.ship, r: duel.me, b: cosmos.body, st: station.seed, nk: server.signedIn && !BOT ? myNick() : "" }); return; }
   if (event === "lost" || event === "error" || event === "denied") { if (duel.stage !== "over") endDuel(false); return; }
   if (event !== "message") return;
   let m = null; try { m = JSON.parse(data); } catch (e) { return; }
@@ -16862,12 +16894,22 @@ function openPicker(why) {
 function campLost() {   // the whole fleet is gone: GAME OVER
   camp.over = true; picker.open = false; audio.boom(); buzz(300); openResult("loss");
 }
+// a long press (ROW_HOLD s) on a ship in the picker or on the fleet page: that ship's page, its button back to the choice
+let pickPress = null;
+function holdPage(id) { shipPage = { id, t: 0, mine: false, back: true }; audio.pop(); buzz(30); }
+function pickDown(e) {
+  const x = e.clientX, y = e.clientY, c = picker.cards.find((q) => x > q.x && x < q.x + q.w && y > q.y && y < q.y + q.h);
+  if (!c || c.again || !shipById(c.id)) { pickerTap(x, y); return; }
+  if (pickPress) clearTimeout(pickPress.timer);
+  const pid = e.pointerId;
+  pickPress = { id: pid, x, y, fired: false, timer: setTimeout(() => { if (pickPress && pickPress.id === pid) { pickPress.fired = true; holdPage(c.id); } }, ROW_HOLD * 1000) };
+}
 function pickerTap(x, y) {
   for (const c of picker.cards) if (x > c.x && x < c.x + c.w && y > c.y && y < c.y + c.h) {
     if (c.again) { stopMatch(); game.pick = false; newCampaign(); return; }
     if (c.lost) { audio.bump(); return; }
     picker.open = false; audio.whoosh(); buzz(30);
-    tryShip(c.id);
+    tryShip(c.id); announceShip(c.id);
     if (game.pick) { game.pick = false; respawnShip(); }
     return;
   }
@@ -17058,8 +17100,8 @@ function hitFleetBtn(x, y) { const b = fleetBtn(); return Math.hypot(x - b.x, y 
 // fly this one of my ships
 function pickShip(id) {
   profile.active = id; saveProfile();
-  if (game.stage === "fleet") { game.ship = id; fleet.open = false; placeShip(); game.stage = "arrive"; game.t = 0; audio.whoosh(); return; }
-  if (game.ship !== id) tryShip(id);
+  if (game.stage === "fleet") { game.ship = id; fleet.open = false; placeShip(); game.stage = "arrive"; game.t = 0; audio.whoosh(); announceShip(id); return; }
+  if (game.ship !== id) { tryShip(id); announceShip(id); }
   fleet.open = false;
 }
 function fleetDown(e) {
@@ -17067,6 +17109,7 @@ function fleetDown(e) {
   for (const c of fleet.cards) if (x > c.x && x < c.x + c.w && y > c.y && y < c.y + c.h) {
     if (c.close) { fleetClose(); audio.pop(); return; }
     fleet.press = { i: c.i, id: e.pointerId, x0: x, y0: y, x, y, drag: false };
+    const P = fleet.press; P.timer = setTimeout(() => { if (fleet.press === P && !P.drag && profile && profile.fleet[P.i]) { P.held = true; holdPage(profile.fleet[P.i]); } }, ROW_HOLD * 1000);
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
     return;
   }
@@ -17080,7 +17123,8 @@ function fleetMove(e) {
 function fleetUp(e) {
   const P = fleet.press;
   if (!P || e.pointerId !== P.id) return;
-  fleet.press = null;
+  fleet.press = null; clearTimeout(P.timer);
+  if (P.held) return;   // (it was a long press: the ship's page is open)
   const Z = fleet.zone;
   if (P.drag) { if (Z && P.x > Z.x && P.x < Z.x + Z.w && P.y > Z.y && P.y < Z.y + Z.h) fleetOffer(profile.fleet[P.i]); return; }
   pickShip(profile.fleet[P.i]); audio.pop(); buzz(15);
