@@ -1008,4 +1008,6 @@ ok("the raid's ships are BASTIONs scattered over the map (four-barrel volley, ar
   html.includes('if (at(-2.5)) playClip("audio/carrier/pass.ogg", false, 1);') && html.includes("const h = zoomed(toScreen(F.wx, F.wy));"));
 ok("the raid: 4 BASTIONs with a regular ship's strength; every weapon reaches them (the proxy run for beams, rings, mines, rails...; raidArea for blasts; the drill)", () =>
   html.includes("function raidProxy()") && html.includes("const RAID_FNS = () => [updateBeam,") && html.includes("function raidArea(x, y, R, dmg)") && html.includes("hp: 100, speed: 1.0"));
+ok("BLOOM's pollen cloud: only half the shots get through it to BLOOM", () =>
+  html.includes("function pollenStops(s)") && html.includes("pass: 0.5 }") && html.includes("if (pollenStops(s)) { shots.splice(k, 1); continue; }"));
 console.log(n + " checks passed");
