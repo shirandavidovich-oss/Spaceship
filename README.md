@@ -564,6 +564,31 @@ tows it; brought to the alien (within a ship-length of it), it is delivered: des
 window ends, or HUSK is destroyed, a caught ship goes free (`hrel`) and the tank shuts. BLOOM's infected HUSK:
 `zombie-husk-top`.
 
+**NULL**, the quantum entity (`art/ships/null/`: `body.webp`, the chandelier without its loose ribbons, and `idle.webp`,
+the whole picture; its round black-and-white buttons in `art/hud/qnull/`, its picture in `art/ships3d/qnull.webp`; from the
+NULL package; id `qnull`). Sold only in the shop (`shopOnly`), and in the test hangar. Not a ship: no hull, wings, engine
+flame or cockpit. Drawn in code (`drawNull`) in three layers with their own clocks: the body jumps between 9 poses with
+hard cuts (7-12 a second while it moves; sometimes mirrored or upside down, so which end leads is hard to tell; a tiny jump
+and a faint echo of the last pose; the heading it shows moves only at the cuts), a cloud of probability points inside it
+that regroups 4-8 times a second, and a soft white wave round it moving smoothly. Its real position never jumps. A faint
+point ahead of it (on its own screen only) shows where the wave leaves.
+- **One weapon (button 1), the probability wave** (`qwave`): a ribbon of light (white, with a black thread down its middle)
+  that leaves just ahead of it, winds out about 5 ship-lengths on a sine path (every shot its own amplitude, frequency,
+  phase and bend), then turns back and comes home to NULL wherever it has moved. It hits on the way out and again on the
+  way back (once each way), and passes through walls, shields, threads and the star.
+- **Button 2, Entanglement** (`entangle`): two projections for 10 s, a white one that moves as NULL moves and a black one
+  that moves the opposite way (facing the other way too). Each fires a weaker wave (half) whenever NULL fires. An enemy
+  shot that hits a projection swaps it with NULL (at most every 1.5 s; never into the star, a wall or a store). Then they
+  merge back. The computer cannot tell them apart and goes after one for a while, then another.
+- **Magic, Wave Collapse** (`collapse`): NULL dissolves into a cloud of points for 2 s (nothing touches it; it cannot fire
+  or steer). Three bright places wander in the cloud, drifting toward the enemy; in the last 0.7 s a ring closes on the
+  brightest safe one, and NULL forms there with a black-and-white inversion flash, hitting an enemy within 1.7
+  ship-lengths (up to 26). 14 s to recharge.
+- Homing shots cannot pin it down: they steer for a place near it that jumps about (`qBlur`). BLOOM's pollen does nothing
+  to it (`noZombie`; it has no zombie form). Destroyed, it goes out in an inversion flash.
+- In a duel: `qw` (a wave), `qcx` (formed again), `qsw` (a swap), `qgh` (the shooter's phone: my shot hit your
+  projection); the cloud and projections go in the state (`qn`).
+
 **The stores and the ship shop** (the Docking Stores, KIP, BRASS and Shop Entry packages). Two stores float in the
 arena far from the star, out toward the map's edge and about a quarter turn apart (`setStation`, placed from the seed both phones share): the **weapon store**
 (`art/station/weapon-store`) and the **shield store** (`shield-store`), each with its looping idle animation (36 frames,

@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.
 const settings = html.slice(html.indexOf("const HOLD_ANGLE"), html.indexOf("// <logic>"));
 const logic = html.slice(html.indexOf("// <logic>"), html.indexOf("// </logic>"));
 const box = {};
-vm.runInNewContext(settings + logic + "\nObject.assign(box,{kilnRig,revRamp,revAccel,stratPose,STRATA_W,towRig,BALLAST_UNIT,HOLD_ANGLE,palInteract,palCarrier,PAL,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,levelStats,cablePull,cableRelease,gimbalTurn,gateSweep,quarterTurn,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,talusForge,bubbleCharge,vexarEggPose,vexarEggFlight,borerThrust,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward,mazeMake,mazeNext,mazeRoute,mazeConnected,sweepBox,bounceOff});", { box, Math, Object, parseInt });
-const { kilnRig, revRamp, revAccel, stratPose, STRATA_W, towRig, BALLAST_UNIT, HOLD_ANGLE, SHIPS, palInteract, palCarrier, PAL, starMinePose, starMineCheck, talusForge, bubbleCharge, vexarEggPose, vexarEggFlight, borerThrust, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, levelStats, cablePull, cableRelease, gimbalTurn, gateSweep, quarterTurn, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward, mazeMake, mazeNext, mazeRoute, mazeConnected, sweepBox, bounceOff } = box;
+vm.runInNewContext(settings + logic + "\nObject.assign(box,{kilnRig,revRamp,revAccel,stratPose,STRATA_W,towRig,BALLAST_UNIT,HOLD_ANGLE,palInteract,palCarrier,PAL,DEAD_ZONE,SHIPS,RARITY,chooseShip,tiltOf,controlFromTilt,shipById,headingTarget,turnToward,wrapAngle,wrapDelta,gravityAt,shipStats,fuelColor,fuelStep,enemyControl,UNLOCK,levelStats,cablePull,cableRelease,gimbalTurn,gateSweep,quarterTurn,WEAPONS,LOOT,MAGIC,lootOf,weaponsOf,gunsOf,rotatePt,ammoStep,pelletAngles,steerShot,enemySees,seqFrame,seqLength,cueTime,ramDamage,SHIP_HP,RAM_DAMAGE,stickHeading,tailOut,ringPhase,pulseGlow,SFX,tailPieces,grindPhase,BODIES,nextBody,talusScale,GROW,orianPanels,soakCharges,inTrap,enemyGuns,crossReach,segDistance,threadPhase,phaseChord,shutterPose,stormPose,rainbowPose,vPose,slidePose,repriseForms,reprisePose,puffPose,cinderEngines,starMinePose,starMineCheck,talusForge,bubbleCharge,vexarEggPose,vexarEggFlight,borerThrust,puffFrame,PUFF_SPINES,borerDrill,borerLegs,lensPull,rollFleet,emailSeed,killReward,mazeMake,mazeNext,mazeRoute,mazeConnected,sweepBox,bounceOff,qwaveShape,qwaveSide,qwaveOut,qSpots,seededDice});", { box, Math, Object, parseInt });
+const { kilnRig, revRamp, revAccel, stratPose, STRATA_W, towRig, BALLAST_UNIT, HOLD_ANGLE, SHIPS, palInteract, palCarrier, PAL, starMinePose, starMineCheck, talusForge, bubbleCharge, vexarEggPose, vexarEggFlight, borerThrust, puffFrame, PUFF_SPINES, borerDrill, borerLegs, lensPull, RARITY, chooseShip, tiltOf, controlFromTilt, shipById, headingTarget, turnToward, wrapAngle, wrapDelta, gravityAt, shipStats, fuelColor, fuelStep, enemyControl, UNLOCK, levelStats, cablePull, cableRelease, gimbalTurn, gateSweep, quarterTurn, WEAPONS, LOOT, MAGIC, lootOf, weaponsOf, gunsOf, rotatePt, ammoStep, pelletAngles, steerShot, enemySees, seqFrame, seqLength, cueTime, ramDamage, SHIP_HP, RAM_DAMAGE, stickHeading, tailOut, ringPhase, pulseGlow, SFX, tailPieces, grindPhase, BODIES, nextBody, talusScale, GROW, orianPanels, soakCharges, inTrap, enemyGuns, crossReach, segDistance, threadPhase, phaseChord, shutterPose, stormPose, rainbowPose, vPose, slidePose, repriseForms, reprisePose, puffPose, cinderEngines, rollFleet, emailSeed, killReward, mazeMake, mazeNext, mazeRoute, mazeConnected, sweepBox, bounceOff, qwaveShape, qwaveSide, qwaveOut, qSpots, seededDice } = box;
 const rad = (d) => d * Math.PI / 180;
 // gravity sensor values for a phone tipped `pitch` degrees up from flat and `roll` degrees right-edge-down
 const g = (pitch, roll = 0) => [-Math.sin(rad(roll)) * 9.81, Math.cos(rad(roll)) * Math.sin(rad(pitch)) * 9.81, Math.cos(rad(roll)) * Math.cos(rad(pitch)) * 9.81];
@@ -19,9 +19,9 @@ const ctl = (pitch, roll) => controlFromTilt(tiltOf(...g(pitch, roll)));
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("ok -", name); };
 
-ok("forty-six ships, unique ids", () => {
-  assert.strictEqual(SHIPS.length, 46);
-  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 46);
+ok("forty-seven ships, unique ids", () => {
+  assert.strictEqual(SHIPS.length, 47);
+  assert.strictEqual(new Set(SHIPS.map((s) => s.id)).size, 47);
   for (const s of SHIPS) { assert(RARITY[s.rarity], s.id); assert(s.nozzles.length >= 1 && s.nozzles.length <= 4, s.id); }
 });
 ok("every rarity has a ship", () => { for (const r in RARITY) assert(SHIPS.some((s) => s.rarity === r), r); });
@@ -1033,4 +1033,42 @@ ok("the body in the middle at the start is the first match's (chosen at the star
 ok("choosing the first ship holds the game still; the menu's films hold only two films' pictures and let them go off the menu", () => assert(/picker\.why === "start" && game\.stage === "fly" && !realDuel\(\)\) \{ time \+= dt;/.test(html) && /for \(const k of \[tshow\.kind, tshow\.next\]\)/.test(html) && /s\.startsWith\("art\/title\/"\)/.test(html)));
 ok("VEXAR as a zombie laying an egg: the Bloom frames (55) and Bloom egg shells, attached and laid (kept, sent to the other phone)", () => assert(/function drawVexarBloomHunt\(S, a\)/.test(html) && /bloom: !!game\.zombie \}/.test(html) && /zb: e\.bloom \? 1 : 0/.test(html) && fs.existsSync(require("path").join(__dirname, "../app/src/main/assets/art/bloom/vexar/hunt_55.webp")) && fs.existsSync(require("path").join(__dirname, "../app/src/main/assets/art/bloom/vexar/eggs/prism_egg_08.webp"))));
 ok("CANTOR's scrambling does not go on to the next ship: theirs drawn only as their phone says, cleared on a new ship, a kill and the match's end", () => assert(/drawScramble\(p\.x, p\.y, size, enemy\.remote \? \(duel\.net && duel\.net\.sc \? 1 : 0\)/.test(html) && /if \(m\.s !== enemy\.ship\) enemy\.scramble = 0;/.test(html) && /game\.scramble = 0; game\.scrambleSafe = 0; enemy\.scramble = 0;/.test(html)));
+ok("NULL: one weapon (the probability wave) and Entanglement on button 2, Wave Collapse as its magic; shop-only, never a zombie", () => {
+  const S = shipById("qnull");
+  assert(S && S.name === "NULL" && S.shopOnly && S.noZombie && S.quantum && S.anim);
+  assert.strictEqual(S.weapons.join(), "qwave,entangle");
+  assert(WEAPONS.qwave.qwave && WEAPONS.entangle.entangle && MAGIC[S.magic].look === "collapse");
+  assert(/function becomeZombie\(\) \{\n  if \(game\.zombie \|\| game\.ship === "bloom" \|\| game\.dead \|\| \(shipById\(game\.ship\) \|\| \{\}\)\.noZombie\)/.test(html));
+  assert(/function zombifyEnemy\(\) \{\n  if \(\(shipById\(enemy\.ship\) \|\| \{\}\)\.noZombie\) return;/.test(html));
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets");
+  for (const f of ["art/ships/null/idle.webp", "art/ships/null/body.webp", "art/ships3d/qnull.webp", "art/hud/qnull/thrust-plate.webp", "art/hud/qnull/primary-pressed.webp",
+    "art/hud/qnull/secondary-plate.webp", "art/hud/qnull/magic-plate.webp", "art/hud/qnull/pickup-plate.webp"]) assert(fs.existsSync(path.join(A, f)), f);
+});
+ok("NULL's wave: every shot its own shape in the given ranges, the same from the same seed; out to its range, starting at the gun point", () => {
+  const W = WEAPONS.qwave;
+  for (let sd = 1; sd < 300; sd++) {
+    const P = qwaveShape(sd, W);
+    assert(P.amp >= W.amp[0] && P.amp <= W.amp[1] && P.freq >= W.freq[0] && P.freq <= W.freq[1] && Math.abs(P.bend) === 1);
+    for (let u = 0; u <= 2; u += 0.05) assert(Math.abs(qwaveSide(P, u)) <= P.amp + 1e-9);
+  }
+  assert.strictEqual(JSON.stringify(qwaveShape(42, W)), JSON.stringify(qwaveShape(42, W)));
+  const P = qwaveShape(7, W), a = qwaveOut(P, W, 0), b = qwaveOut(P, W, 1);
+  assert(Math.abs(a.x) < 1e-9 && Math.abs(a.y + W.ahead) < 1e-9);   // it starts where it leaves the ship
+  assert(Math.abs(b.y + W.range) < 1e-9);                          // and reaches its range, straight ahead
+  assert(Math.abs(qwaveSide(P, 2)) < 1e-9);                        // home: the swing has died away
+  assert(W.speed * W.life > 1 && W.out + W.back < 1.5);            // (the computer thinks it reaches past a screen)
+});
+ok("NULL's collapse cloud: its bright places stay in the cloud, the same on both phones (same seed); it is untouchable while dissolved", () => {
+  const M = MAGIC.collapse;
+  for (let t = 0; t <= M.cloud; t += 0.1) for (const q of qSpots(99, t, M)) { assert(Math.hypot(q.x, q.y) <= M.region * Math.SQRT2 + 1e-9); assert(q.w >= 0 && q.w <= 1); }
+  assert.strictEqual(JSON.stringify(qSpots(5, 1.3, M)), JSON.stringify(qSpots(5, 1.3, M)));
+  assert(/return \(!!T && stratPose\(T, MAGIC\.vshift\)\.up\) \|\| qGone\(o\); \}/.test(html));
+  assert(/if \(game\.qc\) return;   \/\/ NULL dissolved into its cloud: nothing touches it\n/.test(html));
+  assert(/if \(game\.qc\) \{ qcDrift\(dt\); return; \}/.test(html) && /if \(game\.qc\) return;   \/\/ NULL dissolved into its cloud: nothing fires/.test(html));
+});
+ok("NULL in a duel: its waves, collapse and swaps are sent; a shot on its ghost is caught on the shooter's phone and swaps it", () => {
+  assert(html.includes('duelSend({ t: "qw", w, o: 0,') && html.includes('duelSend({ t: "qcx",') && html.includes('duelSend({ t: "qsw",') && html.includes('link.send({ t: "qgh", i });'));
+  assert(html.includes("rd: raiderNet(), qn: nullNet(),") && html.includes('m.t === "qgh") { nullMessage(m);') && html.includes("if (enemy.remote && qGhostCatch(s, Wp)) { shots.splice(k, 1); continue; }"));
+  assert(html.includes("const ht = qBlur(enemy, enemy.ship)") && html.includes("const ht = qBlur(game, game.ship)"));
+});
 console.log(n + " checks passed");

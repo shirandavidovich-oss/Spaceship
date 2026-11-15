@@ -1156,7 +1156,17 @@ const SHIPS = [
       primary: [["idle_01.webp", 120]], secondary: [["idle_01.webp", 120]], magic: [["idle_01.webp", 400]],   // (the frames: huskFrame)
       shotArt: { huskcannon: { file: "bolt.webp", size: 0.16 }, parasite: { file: "capsule.webp", size: 0.2 } },
       haunted: [...frames("idle", 32, () => 0), ...frames("open", 2, () => 0), ...frames("ext", 28, () => 0), ...frames("sway", 32, () => 0), ...frames("thrust", 28, () => 0), ...frames("bite", 24, () => 0)].map((f) => f[0])
-        .concat(["creature-burst.webp", "creature-wait.webp", "grip.webp", "flash.webp"]) } }
+        .concat(["creature-burst.webp", "creature-wait.webp", "grip.webp", "flash.webp"]) } },
+  // NULL, the quantum entity (art/ships/null/: body.webp, the chandelier without its loose ribbons, drawn in code by
+  // drawNull; idle.webp, the whole picture; the NULL package). Not a ship: no hull, wings, engine or cockpit, and which way
+  // it faces is hard to tell. Sold only in the shop, and in the test hangar. ONE weapon, the probability wave (button 1);
+  // button 2 is Entanglement (two ghost copies); the magic is Wave Collapse. BLOOM's pollen does nothing to it (`noZombie`)
+  { id: "qnull", name: "NULL", rarity: "legendary", mass: 0.9, fuel: 30, refill: 15, sfx: null, magic: "collapse", shopOnly: true, quantum: true, noZombie: true, noFlame: true,
+    hull: "#e8e8f0", wingC: "#101018", trim: "#ffffff", flame: "#ffffff",
+    body: [], wing: [], nozzles: [0], engineY: 0.4, cockpit: [0, 0, 0.05, 0.1],
+    weapons: ["qwave", "entangle"],
+    guns: { qwave: [[0, -0.6]], entangle: [[0, 0]] },
+    anim: { dir: "null", size: 1.15, idle: "idle.webp", haunted: ["body.webp"] } }
 ];
 // HOW EACH SHIP FLIES (multipliers on the numbers shipStats works out from its mass and engines; 1 = as before):
 //   size: how big it is drawn and how big a target it is   speed: its top speed   accel: how hard its engine pushes
@@ -1198,7 +1208,8 @@ const HANDLING = {
   fresnel:  { size: 1.05, speed: 0.95, accel: 0.95, turn: 0.95 },  // a lighthouse
   vault:    { size: 1.0,  speed: 0.85, accel: 0.9,  turn: 0.85 },   // a heavy safe
   corsair:  { size: 1.05, speed: 1.0,  accel: 0.95, turn: 0.9  },   // a sailing ship
-  husk:     { size: 1.05, speed: 0.95, accel: 0.95, turn: 0.9  }    // an alien carrier
+  husk:     { size: 1.05, speed: 0.95, accel: 0.95, turn: 0.9  },   // an alien carrier
+  qnull:    { size: 1.0,  speed: 1.1,  accel: 1.15, turn: 1.4  }    // weightless light: turns on the spot
 };
 function handling(S) { return (S && HANDLING[S.id]) || { size: 1, speed: 1, accel: 1, turn: 1 }; }
 // RIVET's moving parts: 12 frames over `ms`, each with the hull turn drawn into it (degrees, clockwise)
@@ -1429,6 +1440,19 @@ const WEAPONS = {
   //   hits: that ship's thrust weakened (MAGIC.breach.paraCut) for paraLast s (a new hit starts it again)
   huskcannon: { name: "תותחים תאומים", dmg: 7, speed: 2.6, life: 0.8, cool: 0.22, ammo: 14, refill: 7, r: 0.025, color: "#ffb347" },
   parasite:   { name: "טפיל מנוע", dmg: 4, speed: 1.9, life: 1.1, cool: 1.2, ammo: 3, refill: 8, r: 0.05, color: "#ff9a2e", parasite: true },
+  // NULL. qwave, the probability wave: one ribbon that starts `ahead` ship-lengths in front, runs out to `range` along a
+  //   sine path (each shot its own amplitude `amp` and frequency `freq` (cycles along the way), a random phase and which
+  //   way it bows), then turns back and comes home to NULL wherever it is now. Out in `out` s, back in `back` s. It can
+  //   hit on the way out and again on the way back (once each way). It passes through everything else (walls, shields,
+  //   threads, the star): a wave, not a bullet. (speed x life: how far the computer thinks it reaches)
+  //   entangle (button 2, not a shot): two ghost copies for `last` s, `gap` ship-lengths to each side, the white one
+  //   moving with NULL and the black one against it. Each fires a weaker wave (`waveK`) with NULL. An enemy shot that
+  //   hits a ghost: NULL and that ghost swap places (at most every `swapCool` s). Then they merge back (`merge` s).
+  //   The button's ring is its recharge (`refill` s, counted from the press)
+  qwave:    { name: "גל הסתברות", dmg: 12, speed: 2.4, life: 0.55, cool: 0.55, ammo: 8, refill: 7, r: 0.06, color: "#ffffff", qwave: true,
+              ahead: 0.6, range: 5, out: 0.55, back: 0.55, amp: [0.2, 0.65], freq: [1.5, 4.5] },
+  entangle: { name: "שזירה", dmg: 0, speed: 0, life: 0, cool: 1, ammo: 1, refill: 22, r: 0, color: "#c8c8d2", entangle: true,
+              last: 10, gap: 2.2, waveK: 0.5, swapCool: 1.5, merge: 0.6 },
   laser:   { name: "לייזר",    dmg: 6,  speed: 5.0, life: 0.4, cool: 0.09, ammo: 30, r: 0.012, color: "#ff4d6d" },
   missile: { name: "טילים",     dmg: 18, speed: 1.4, life: 3.0, cool: 0.45, ammo: 8,  r: 0.025, color: "#80ffdb", homing: 4 },
   spread:  { name: "מניפה",     dmg: 3,  speed: 2.0, life: 0.7, cool: 0.35, ammo: 12, r: 0.016, color: "#c77dff", pellets: 5, fan: 0.5 }
@@ -1438,6 +1462,12 @@ const LOOT = ["laser", "missile", "spread"];
 // ---- magic (its own button, not a weapon; each ship's magic button looks like the ship's style) ----
 //   pour: seconds of smoke pouring out   hide: seconds the enemy loses track of you   cool: seconds until it can be used again
 const MAGIC = {
+  // NULL's Wave Collapse: it dissolves into a cloud of probability points `region` ship-lengths round where it was, for
+  //   `cloud` s (nothing can touch it then, and it cannot fire or steer). `spots` bright places wander in the cloud,
+  //   drifting `lean` of the way toward where the enemy was. At the end it forms again at the brightest one that is safe
+  //   (not in the star, a wall or a store, and not inside the enemy), with a black-and-white inversion flash, and an
+  //   enemy within `burst` ship-lengths of that spot takes up to `dmg` (less at the edge)
+  collapse: { name: "קריסת הגל", look: "collapse", cloud: 2, region: 2.6, spots: 3, lean: 0.35, burst: 1.7, dmg: 26, cool: 14, color: "#ffffff" },
   // rate: puffs a second from each engine (three times the old 30); big: how much bigger each puff is (a real screen)
   // THUL. chem: the smoke is a green chemical haze: an enemy inside it loses `dps` health a second
   smoke: { name: "מסך עשן", pour: 3.5, hide: 6, cool: 14, look: "gear", color: "#e0b060", rate: 90, big: 1.5, chem: { dps: 12 } },
@@ -1743,6 +1773,35 @@ function enemyGuns(S) {
 }
 // ZORIAN: the closest two moving points come: segment a-b (a target from where it was to where it is) and c-d
 // (a piece of the thread). 0 when they cross
+// NULL's probability wave: each shot's own shape, from its seed (so the other phone draws the same wave)
+function qwaveShape(seed, Wp) {
+  const r = seededDice(seed);
+  return { amp: Wp.amp[0] + (Wp.amp[1] - Wp.amp[0]) * r(), freq: Wp.freq[0] + (Wp.freq[1] - Wp.freq[0]) * r(), phase: r() * Math.PI * 2, bend: r() < 0.5 ? -1 : 1 };
+}
+// its side-to-side swing (ship-lengths) at `u` along its whole run (0..1 out, 1..2 back): it grows in over the first
+// third, goes on all the way back, and dies away only in the last fifth, as it reaches NULL
+function qwaveSide(P, u) {
+  const grow = Math.min(1, u * 3), fade = u > 1 ? 1 - smoothStep((u - 1.8) / 0.2) : 1;
+  return P.amp * Math.sin(Math.PI * 2 * P.freq * u + P.phase) * grow * fade;
+}
+// where its head is on the way out, s 0..1, in the shot's own frame (ship-lengths; nose toward -y): out from `ahead`
+// to `range`, slowing as it gets there, bowed to one side (most in the middle), plus the swing
+function qwaveOut(P, Wp, s) {
+  const along = Wp.ahead + (Wp.range - Wp.ahead) * (1 - (1 - s) * (1 - s));
+  return { x: P.bend * 0.7 * Math.sin(Math.PI * s) + qwaveSide(P, s), y: -along };
+}
+// NULL's collapse cloud: where its bright places are `t` s in (ship-lengths from where it dissolved) and how bright
+// (0..1). The same seed gives the same places on both phones
+function qSpots(seed, t, M) {
+  const r = seededDice(seed), out = [];
+  for (let i = 0; i < M.spots; i++) {
+    const a1 = 0.7 + r() * 1.3, a2 = 0.9 + r() * 1.7, p1 = r() * Math.PI * 2, p2 = r() * Math.PI * 2, wb = 1.1 + r() * 2.2, wp = r() * Math.PI * 2;
+    const x = (Math.sin(a1 * t + p1) * 0.65 + Math.sin(a2 * 1.37 * t + p2) * 0.35) * M.region;
+    const y = (Math.cos(a2 * t + p2 * 1.3) * 0.65 + Math.cos(a1 * 1.61 * t + p1 * 0.7) * 0.35) * M.region;
+    out.push({ x, y, w: 0.5 + 0.5 * Math.sin(wb * t + wp) });
+  }
+  return out;
+}
 function segDistance(a, b, c, d) {
   const pd = (p, q, r) => { const x = r.x - q.x, y = r.y - q.y, span = x * x + y * y, t = span ? Math.max(0, Math.min(1, ((p.x - q.x) * x + (p.y - q.y) * y) / span)) : 0; return Math.hypot(p.x - q.x - x * t, p.y - q.y - y * t); };
   const rx = b.x - a.x, ry = b.y - a.y, sx = d.x - c.x, sy = d.y - c.y, den = rx * sy - ry * sx;
@@ -2398,7 +2457,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake", vault: "Star in the vault", haunt: "Ghost ship", breach: "Breach and deliver" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake", vault: "Star in the vault", haunt: "Ghost ship", breach: "Breach and deliver", collapse: "Wave Collapse" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -2722,6 +2781,8 @@ const audio = {
   shot(w, ship = game.ship, from = game) {
     if (shop.open) return;   // (in a shop: no firing heard, only the shop's music)
     if (huskCreature && huskCreature.t >= 0) return;   // (HUSK's monster out: nothing heard but the monster)
+    // NULL's wave: a glassy chime that bends down and back up, two notes beating against each other
+    if (w === "qwave") { this.tone(1318, 0.55, "sine", 0.035, 0.55); this.tone(1325, 0.55, "sine", 0.03, 1.8, 0.03); this.tone(659, 0.3, "triangle", 0.025, 2, 0.02); return; }
     // COURIER: pneumatic, two sharp air shots (its capsule's launch is played as it is pressed: the tube, then the THOOMP)
     if (ship === "courier" && w === "brassburst" && playClip("audio/courier/burst.ogg", false, 0.7)) return;
     if (ship === "courier" && w === "mailcap" && soundBuf("audio/courier/capsule.ogg")) return;
@@ -3185,7 +3246,7 @@ function update(dt) {
   game.hacked = Math.max(0, (game.hacked || 0) - dt); game.charged = Math.max(0, (game.charged || 0) - dt); enemy.hacked = Math.max(0, (enemy.hacked || 0) - dt);
   if (game.stage === "fly") { if (!game.dead) recordPath(game, dt); if (enemy.on && !enemy.remote) recordPath(enemy, dt); }
   rewindTicks(dt); updatePuff(dt); chemSmoke(dt); updateCinder(dt); updateBombs(dt); updateDive(dt); updateForge(dt); updatePalisade(dt); updateDrill(dt); updateLythJets(dt); updateCarrier(dt); updateGimbal(dt); updateLariat(dt); updateLenses(dt); game.flash = Math.max(0, (game.flash || 0) - dt);
-  updateReso(dt); updatePollen(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateCharm(dt); updateGlitchMagic(dt); updateReprise(dt);
+  updateReso(dt); updatePollen(dt); updateFlip(dt); updateRail(dt); updateWaves(dt); updateMines(dt); updateSteam(dt); updateStorms(dt); updateRainbows(dt); updateCharm(dt); updateGlitchMagic(dt); updateReprise(dt); updateNull(dt);
   updateSimTilt(dt);
   gift.wob = Math.max(0, gift.wob - dt * 2.2);
   gift.squash = Math.max(0, gift.squash - dt * 5);
@@ -3251,6 +3312,7 @@ function update(dt) {
 // The player's ship: the tilt points the nose, the left thumb fires the engine
 function flyShip(dt) {
   if (game.rw) { rewindStep(game, dt); return; }   // their REPRISE sent me back in time: no steering
+  if (game.qc) { qcDrift(dt); return; }   // NULL dissolved: no steering, no engine
   const S = shipById(game.ship), st = shipStats(S);
   let target = null, turn = 0;
   if (STEER === "turn") turn = game.side;
@@ -4991,6 +5053,9 @@ const SHIP_INFO = {
   husk: { w: [["תותחים תאומים שיורים בורגי ענבר, שמאל וימין לסירוגין.", "Twin cannons firing amber bolts, left and right in turn."],
               ["קפסולה שנתפסת במנוע של ספינה ומחלישה את הדחף שלה.", "A capsule that grips a ship's engine and weakens its thrust."]],
           m: ["המכל נפתח וזרוע עם פה יוצאת. נוגעים איתה בחנות, החנות נדבקת והמפלצת פורצת ממנה ומחכה בחוץ. ספינה שנתפסת בפה ומובאת אליה מושמדת.", "The tank opens and an arm with jaws comes out. Touch a store with it: the store is infected and the monster tears out and waits outside. A ship caught in the jaws and brought to it is destroyed."] },
+  qnull: { w: [["גל הסתברות שיוצא בשביל מתפתל וחוזר אל NULL, לאן שהוא זז. פוגע בדרך החוצה ובחזרה, ועובר דרך קירות, מגינים והכוכב.", "A probability wave that winds out and comes back to NULL wherever it has moved. It hits going out and coming back, and passes through walls, shields and the star."],
+              ["שתי השתקפויות, לבנה ושחורה, ל-10 שניות: הלבנה זזה איתך, השחורה הפוך, וכל אחת יורה גל חלש. ירייה של האויב בהשתקפות: NULL מתחלף איתה.", "Two projections, white and black, for 10 seconds: the white moves with you, the black against you, each firing a weaker wave. An enemy shot on one: NULL swaps with it."]],
+          m: ["NULL מתפרק לענן הסתברות ל-2 שניות ושום דבר לא פוגע בו. אז הוא קורס לנקודה הבהירה בענן בהבזק היפוך, ופוגע באויב שליד.", "NULL dissolves into a probability cloud for 2 seconds and nothing can touch it. Then it collapses into the brightest spot with an inversion flash, hitting an enemy nearby."] },
   // (the rest of the ships: the same words, for the long press on the ship's icon in flight)
   brass: { w: [["תותח כפול מהיר עם הרבה תחמושת.", "A fast twin cannon with plenty of ammo."],
                ["כדור תותח כבד שרודף אחרי היריב. במבוך הוא גם פורץ חור בקיר.", "A heavy cannonball that homes in on the enemy. In a maze it also breaks a hole in the wall."]],
@@ -5086,7 +5151,8 @@ const SHIP_INFO = {
                m: ["בונה צריח על הכוכב, הכוכב כבה ומבוך של קירות מתפשט על הלוח לדקה. במבוך היריות שלך ניתרות מהקירות.", "Builds a spire over the star; the star goes out and a maze of walls spreads over the arena for a minute. In the maze your shots bounce off the walls."] },
 };
 const WEAPON_EN_INFO = { steelball: "Steel ball", paddles: "Paddles", brassburst: "Brass burst", mailcap: "Mail capsule", lensflash: "Lens flash", lightshard: "Light shards",
-  piston: "Spring piston", broadside: "Broadside", chainshot: "Chain shot", huskcannon: "Twin cannons", parasite: "Engine parasite" };
+  piston: "Spring piston", broadside: "Broadside", chainshot: "Chain shot", huskcannon: "Twin cannons", parasite: "Engine parasite",
+  qwave: "Probability Wave", entangle: "Entanglement" };
 function weaponTitle(w) { const Wp = WEAPONS[w]; if (!Wp) return w; return LANG === "he" ? Wp.name : WEAPON_EN_INFO[w] || (SHOP.weapons[w] && SHOP.weapons[w][1]) || w.replace(/^./, (c) => c.toUpperCase()); }
 function drawShipInfo(I = shop.info) {   // (I: the shop's page, or shipPage: the long press on the ship's icon in flight)
   if (!I) return;
@@ -5666,7 +5732,7 @@ const WEEK_MS = 7 * 24 * 3600 * 1000;
 function rentLeft(id) { return Math.max(0, ((bank.rent || {})[id] || 0) - Date.now()); }
 function ownedIds() { return hangarShips().map((S) => S.id).filter((id) => (bank.owned || {})[id] || rentLeft(id) > 0); }
 function has3d(id) { return SHIP3D.includes(id); }
-const SHIP3D = ["ballast", "boiler", "borer", "brass", "cantor", "cinder", "corsair", "courier", "drakon", "flipper", "frankenstein", "fresnel", "glitch", "husk", "kiln", "kraal", "labyrinth", "link", "lyth", "mirage", "nimbus", "orian", "puff", "rivet", "skarn", "strata", "talus", "thul", "vanta", "vault", "vexar", "xeltar", "zorian"];
+const SHIP3D = ["qnull", "ballast", "boiler", "borer", "brass", "cantor", "cinder", "corsair", "courier", "drakon", "flipper", "frankenstein", "fresnel", "glitch", "husk", "kiln", "kraal", "labyrinth", "link", "lyth", "mirage", "nimbus", "orian", "puff", "rivet", "skarn", "strata", "talus", "thul", "vanta", "vault", "vexar", "xeltar", "zorian"];
 
 // ---------- FLIPPER's pinballs (MAGIC.pinballs) ----------
 // FLIPPER's phone sends "pb"; on the OTHER ship's phone three pinballs are let loose in a pinball table round that ship
@@ -7212,6 +7278,7 @@ function useMagicNow(which = 0) {
   if (M.look === "vshift") { startShift(M); return; }
   if (M.look === "reverse") { startReverse(M); return; }
   if (M.look === "starforge") { startForge(M); return; }
+  if (M.look === "collapse") { startCollapse(M); return; }   // NULL: Wave Collapse (updateCollapse)
   if (M.look === "flood") { startFlood(M); return; }
   if (M.look === "pinballs") { game.paddle = null; startPinballs(M); return; }   // (the magic lets cocked paddles go)
   if (M.look === "orbitmine") { startOrbitMine(M); return; }
@@ -7534,7 +7601,7 @@ function startShift(M) {
   audio.tone(180, 1.3, "sawtooth", 0.05, 3.2, 0.4); audio.noise(1.0, 0.1, 3000); buzz(40);   // the front engine, rising
 }
 // high enough to be out of the arena: shots, crashes and the star do not touch it
-function stratAloft(o) { const T = o === game ? game.strata : enemy.remote ? duel.strata : null; return !!T && stratPose(T, MAGIC.vshift).up; }
+function stratAloft(o) { const T = o === game ? game.strata : enemy.remote ? duel.strata : null; return (!!T && stratPose(T, MAGIC.vshift).up) || qGone(o); }   // (NULL dissolved into its cloud: nothing touches it either)
 // STRATA's laser: the enemy loses one whole tank of power (its last one: the ship)
 function tankEnemy() {
   if (!enemy.on || enemyAloft()) return;
@@ -9611,6 +9678,7 @@ function bumpShips(a, A, b, B) {
 function shake(k) { game.shakeT = Math.min(1.2, Math.max(game.shakeT, k * SHAKE)); }
 function damageShip(n, src) {
   if (game.dead || game.stage !== "fly" || n <= 0) return;
+  if (game.qc) return;   // NULL dissolved into its cloud: nothing touches it
   if (testFoe() === "safe") { game.hurt = 0.2; buzz(20); return; }   // the hangar's "fires, no harm": a flash, nothing taken
   if (src !== "env" && floodSafe()) { floodShield(); return; }   // BOILER in its flood: the enemy cannot hurt it (src "env": walls, the star)
   if (game.docked || game.undockT > 0 || practiceOn()) return;   // in the station, just out of it, or practising: safe
@@ -9642,6 +9710,8 @@ function blowUpShip() {
   }
   lenses.length = 0;   // a ship is out: MIRAGE's false stars and their web go out too
   game.zombie = false; game.pollen = null;   // (a zombie is cured only by blowing up)
+  if (S.quantum) qCollapseFx(game.x, game.y);   // NULL: gone in an inversion flash
+  game.qc = null; game.qe = null;
   game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; game.kiln = null; if (game.surg && game.surg.c) creatureFalls(game.surg.c); game.surg = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
@@ -9730,7 +9800,7 @@ function updateWeapons(dt) {
     s.rw = false;
     if (Wp.magnet) magnetPull(s, Wp, dt);
     if (Wp.homing && enemy.on && s.life > 0.12 && !(Wp.dry && inWater(s))) {   // (dry: BOILER's torpedo runs straight under water)
-      const t = steerShot(s.vx, s.vy, wrapDelta(enemy.x - s.x, WW), wrapDelta(enemy.y - s.y, WH), Wp.homing * dt);
+      const ht = qBlur(enemy, enemy.ship), t = steerShot(s.vx, s.vy, wrapDelta(ht.x - s.x, WW), wrapDelta(ht.y - s.y, WH), Wp.homing * dt);   // (a NULL: it cannot be pinned down)
       s.vx = t.vx; s.vy = t.vy;
     }
     if (Wp.gravity) { const g = inWater(s) ? { ax: 0, ay: 0 } : starPull(s.x, s.y, null); s.vx += g.ax * dt; s.vy += g.ay * dt; }
@@ -9777,6 +9847,7 @@ function updateWeapons(dt) {
       continue;
     }
     if ((raiders.length || (duel.net && duel.net.rd)) && raiderShot(s, Wp)) { shots.splice(k, 1); continue; }   // the carrier's fighters
+    if (enemy.remote && qGhostCatch(s, Wp)) { shots.splice(k, 1); continue; }   // one of their NULL's ghosts: it swaps with it
     if (pollenStops(s)) { shots.splice(k, 1); continue; }   // BLOOM's cloud: only half the shots get through it
     // into the enemy
     if (enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked()) {   // (docked in the station: out of reach)   // (their STRATA up high: shots pass under it)
@@ -9816,6 +9887,7 @@ function shoot(i) {
   if (game.hacked > 0) { if (time - (game.hackNope || -9) > 0.6) { game.hackNope = time; audio.nope(); buzz(20); } return; }   // GLITCH's malfunction: no firing
   if (game.dive) return;
   if (game.strata) return;   // STRATA in its vertical shift: no firing
+  if (game.qc) return;   // NULL dissolved into its cloud: nothing fires
   if (game.charm) { charmShoot(i); return; }   // charmed by NIMBUS's rainbow: toys instead   // BORER in its dive: no firing
   if (game.puff && game.puff.st === "full") { if (game.puff.armed) puffBurst(); return; }   // PUFF: this press lets the spines go
   const w = slotWeapon(i), Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim;
@@ -9824,6 +9896,7 @@ function shoot(i) {
   if (Wp.harpoon && game.harpoonCut) { if (time - (game.cutNope || -9) > 0.6) { game.cutNope = time; audio.nope(); buzz(20); } return; }   // LARIAT: its rope was cut by a drill: no harpoon this life
   if (Wp.harpoon && (game.hook || game.tether || game.elasso || game.hookWait != null)) return;
   if (Wp.one && (shots.some((q) => q.w === w) || (game.anim && game.anim.pending === w))) return;
+  if (Wp.entangle) { if (startEntangle(Wp)) { game.cool[i] = Wp.cool; game.ammo[i] -= 1; } return; }   // NULL's button 2: Entanglement (not a shot)
   if (Wp.paddles && game.paddle) return;   // FLIPPER: cocked already (the window is not started again)   // COURIER: one capsule at a time   // LARIAT: one hook or cable at a time
   game.cool[i] = Wp.cool;
   if (i < 2) game.ammo[i] -= 1; else if (i === 3) game.xammo -= 1; else game.loot.ammo -= 1;
@@ -9879,6 +9952,7 @@ function spawnShots(w, g, rot) {
   if (w === "huskcannon") game.huskFlash = { at: time, side: g && g[0] > 0 ? 1 : 0 };   // HUSK: this barrel's flash   // FRESNEL: a burst of light as it leaves
   if (w === "solarfire") { game.vaultFireT = MAGIC.vault.fireShow; audio.noise(0.4, 0.05, 1800); }   // the doors open, the aurora
   if (Wp.egg) { layEgg(x, y, Wp, S); return; }
+  if (Wp.qwave) { startQWave(w, x, y); return; }   // NULL's probability wave (out and back)
   if (Wp.rail) { startRail(w); return; }      // RIVET's rail
   if (Wp.wave) { startWave(w, x, y); return; }   // RIVET's wave
   if (Wp.mines) { layMines(w, x, y); return; }   // RIVET's nail mines
@@ -10808,6 +10882,7 @@ const KIT = {
   fresnel: { a: "#ffd86b", b: "#ff5ea8", fx: "none", face: true },
   vault: { a: "#ffb347", b: "#5ef0ff", fx: "none", face: true },
   corsair: { a: "#ffb347", b: "#5ef0ff", fx: "none", face: true },
+  qnull: { a: "#ffffff", b: "#c8c8d2", fx: "none", face: true, round: true, quantum: true },   // (the NULL package's round black-and-white buttons; pressed: a blurred double exposure)
   husk: { a: "#ffb347", b: "#ff7ad9", fx: "none", face: true }   // (whole faces; its release is drawn by LARIAT's own code)   // (whole faces; its flip is drawn by GIMBAL's own code)
 };
 const KIT_FX = { frames: 16, ms: 50, size: 2.4 };   // size: the effect's full width, in ship lengths
@@ -10822,6 +10897,7 @@ function kitSlot(slot) { return (slot === "primary" || slot === "secondary") && 
 function drawKitButton(id, slot, b, o) {
   const K = KIT[id], plate = kitImg(id, kitSlot(slot) + "-plate"), icon = o.draw || K.face ? null : kitImg(id, kitSlot(slot) + "-icon");   // (face: plate and icon in one picture)
   if (!plate) return false;   // not loaded yet: the caller draws the old button this frame
+  if (K.quantum) return drawQuantumButton(id, slot, b, o, plate);   // NULL: black and white, a blurred double exposure when pressed
   const accent = slot === "secondary" || slot === "magic" ? K.b : K.a;
   const press = o.pressed && o.ready, r = b.r * (press ? 0.92 : 1), d = r * 2.5;   // the octagon fills about 80% of the picture
   ctx.save(); ctx.globalAlpha *= o.alpha == null ? 1 : o.alpha;
@@ -10951,6 +11027,7 @@ function mirrorPath(half) {
 
 // one ship, nose up, centered at (x, y), `size` long
 function drawShip(S, x, y, size, o = {}) {
+  if (S.quantum) { if (!BOT) drawNull(S, x, y, size, o); return; }   // NULL: drawn in its own layers (drawNull)
   const power = o.power ?? 0.25, bank = o.bank ?? 0, alpha = o.alpha ?? 1, ang = o.ang ?? 0;
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -11745,7 +11822,7 @@ function updatePollen(dt) {
   if (!P) return;
   P.t += dt;
   if (P.t > M.last || game.dead) { game.pollen = null; return; }
-  if (!enemy.on || enemy.warp >= 0.5 || enemy.ship === "bloom" || enemyZombie() || P.done) return;
+  if (!enemy.on || enemy.warp >= 0.5 || enemy.ship === "bloom" || (shipById(enemy.ship) || {}).noZombie || enemyZombie() || P.done) return;
   const d = Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH));
   if (d > pollenRadius(P.t, M) + shipSize() * 0.3) return;
   P.hit += dt;   // breathing it in: a few grains stick to them
@@ -11753,13 +11830,14 @@ function updatePollen(dt) {
   if (P.hit >= M.infect) { P.done = true; zombifyEnemy(); }
 }
 function zombifyEnemy() {
+  if ((shipById(enemy.ship) || {}).noZombie) return;   // (their NULL cannot be infected)
   enemy.zombie = true;
   if (enemy.remote) link.send({ t: "zb" });
   zombieBurst(enemy.x, enemy.y, enemy.vx, enemy.vy);
 }
 // their BLOOM's pollen got me
 function becomeZombie() {
-  if (game.zombie || game.ship === "bloom" || game.dead) return;
+  if (game.zombie || game.ship === "bloom" || game.dead || (shipById(game.ship) || {}).noZombie) return;   // (NULL: nothing there to infect)
   game.zombie = true;
   zombieBurst(game.x, game.y, game.vx, game.vy); shake(0.5); buzz(220);
 }
@@ -14012,6 +14090,491 @@ function drawRepriseButton(b, M, ready, k) {
   ctx.beginPath(); ctx.arc(0, 0, b.r * 0.62, Math.PI * 0.6, Math.PI * 1.35); ctx.stroke();
   ctx.restore();
 }
+// ======================================================================
+//  NULL, the quantum entity (the NULL package; art/ships/null/). Not a ship but a chandelier of light: drawn by
+//  drawNull in layers that keep their own time:
+//   - the body (body.webp) jumps between 9 poses with hard cuts, 7-12 a second while it moves (now and then upside
+//     down, so which end leads is hard to tell), with a tiny jump each time and a faint echo of the last pose; the
+//     heading it shows moves only at the cuts, in steps of 22.5 degrees. Its real position never jumps.
+//   - a cloud of probability points inside it, regrouping round 3 bright places 4-8 times a second
+//   - a soft white wave round it, moving smoothly (overlapping sines that never quite repeat)
+//  Button 1: the probability wave (WEAPONS.qwave). Button 2: Entanglement (WEAPONS.entangle). Magic: Wave Collapse
+//  (MAGIC.collapse). Homing shots cannot pin it down (qBlur), and BLOOM's pollen does nothing to it (noZombie).
+//  In a duel: "qw" a wave fired, "qcx" it formed again, "qsw" it swapped with a ghost, "qgh" (sent by the other phone)
+//  their shot hit one of my ghosts; its cloud and ghosts go in the state (`qn`, nullNet).
+// ======================================================================
+const NULL_POSES = [   // r: extra turn, fx/fy: mirrored, sx/sy: squashed, k: sheared
+  { r: 0, fx: 1, fy: 1, sx: 1, sy: 1, k: 0 }, { r: 0.1, fx: -1, fy: 1, sx: 0.92, sy: 1.04, k: 0.08 },
+  { r: -0.12, fx: 1, fy: 1, sx: 1.06, sy: 0.95, k: -0.1 }, { r: 0.05, fx: 1, fy: -1, sx: 0.96, sy: 1, k: 0.05 },
+  { r: -0.06, fx: -1, fy: 1, sx: 1, sy: 0.9, k: 0.14 }, { r: 0.14, fx: 1, fy: 1, sx: 0.88, sy: 1.06, k: -0.04 },
+  { r: -0.03, fx: -1, fy: -1, sx: 1.04, sy: 0.98, k: -0.12 }, { r: 0.08, fx: 1, fy: 1, sx: 1, sy: 1.08, k: 0.1 },
+  { r: -0.15, fx: -1, fy: 1, sx: 0.94, sy: 0.96, k: 0 }];
+const nullLook = {};   // each NULL drawn (me, them, a ghost, a menu): its pose now and the one before (for the echo)
+function nullPose(key, ang, moving) {
+  let L = nullLook[key];
+  if (!L) L = nullLook[key] = { idx: 0, ang: Math.round(ang / (Math.PI / 8)) * (Math.PI / 8), ox: 0, oy: 0, next: 0, prev: null, at: -9 };
+  const turned = Math.abs(wrapAngle(ang - L.ang)) > Math.PI / 10 && time - L.at > 1 / 12;   // (turning in place: a cut too, so the aim shows)
+  if (time >= L.next || L.next - time > 2 || turned) {
+    L.prev = { idx: L.idx, ang: L.ang, ox: L.ox, oy: L.oy, at: time };
+    let i = Math.floor(Math.random() * (NULL_POSES.length - 1)); if (i >= L.idx) i++;
+    L.idx = i; L.at = time;
+    L.ang = Math.round(ang / (Math.PI / 8)) * (Math.PI / 8);
+    const j = moving ? 0.05 : 0.02; L.ox = (Math.random() * 2 - 1) * j; L.oy = (Math.random() * 2 - 1) * j;
+    L.next = time + (moving ? 1 / (7 + Math.random() * 5) : 0.35 + Math.random() * 0.6);
+  }
+  return L;
+}
+// the black ghost's body: the same picture, dark (made once)
+let nullDarkImg = null;
+function nullDark(img) {
+  if (nullDarkImg) return nullDarkImg;
+  try {
+    const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+    const g = c.getContext("2d"); g.drawImage(img, 0, 0); g.globalCompositeOperation = "source-in"; g.fillStyle = "#07070b"; g.fillRect(0, 0, c.width, c.height);
+    nullDarkImg = c;
+  } catch (e) { nullDarkImg = null; }
+  return nullDarkImg;
+}
+function nullBodyAt(img, L, x, y, d, a, ghost) {
+  const P = NULL_POSES[L.idx];
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.rotate(L.ang + P.r);
+  ctx.transform(1, 0, P.k, 1, 0, 0); ctx.scale(P.fx * P.sx, P.fy * P.sy);
+  if (img) {
+    if (ghost === "b") {   // black-dominant: a dark chandelier with a thin white edge
+      const D = nullDark(img);
+      if (D) { ctx.globalAlpha = a * 0.92; ctx.drawImage(D, -d / 2, -d / 2, d, d); }
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = a * 0.22; ctx.drawImage(img, -d / 2, -d / 2, d, d);
+    } else ctx.drawImage(img, -d / 2, -d / 2, d, d);
+  } else {   // (the picture not loaded yet: two rings and a spire)
+    ctx.strokeStyle = ghost === "b" ? "#111118" : "#ffffff"; ctx.lineWidth = d * 0.025;
+    for (const [yy, rr] of [[-0.1, 0.3], [0.14, 0.34]]) { ctx.beginPath(); ctx.ellipse(0, yy * d, rr * d, rr * d * 0.3, 0, 0, TAU); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(0, -0.45 * d); ctx.lineTo(0, 0.42 * d); ctx.stroke();
+  }
+  ctx.restore();
+}
+// the wave round it: three loose loops, each made of overlapping sines that drift (never quite the same twice)
+function nullWaveLayer(x, y, size, seed, ghost) {
+  const t = time + seed * 1.7;
+  ctx.save(); ctx.globalCompositeOperation = ghost === "b" ? "source-over" : "lighter";
+  const col = ghost === "b" ? "rgba(6,6,10," : "rgba(232,238,255,";
+  for (let j = 0; j < 3; j++) {
+    const rot = t * 0.13 * (j % 2 ? -1 : 1) + j * 1.1, cr = Math.cos(rot), sr = Math.sin(rot);
+    const kx = 0.95 + 0.1 * Math.sin(t * 0.71 + j), ky = 0.62 + 0.12 * Math.sin(t * 0.43 + j * 1.3);
+    ctx.beginPath();
+    for (let i = 0; i <= 44; i++) {
+      const th = i / 44 * TAU;
+      const r = 0.5 + 0.07 * Math.sin(3 * th + 0.9 * t + j * 2.1) + 0.05 * Math.sin(5 * th - 1.37 * t + j) + 0.035 * Math.sin(2 * th + 0.53 * t * (1 + j * 0.31) + 2);
+      const px = Math.cos(th) * r * size * kx, py = Math.sin(th) * r * size * ky;
+      const X = x + px * cr - py * sr, Y = y + px * sr + py * cr;
+      i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = col + "0.06)"; ctx.lineWidth = size * 0.08; ctx.stroke();
+    ctx.strokeStyle = col + (0.24 - j * 0.05).toFixed(2) + ")"; ctx.lineWidth = Math.max(1, size * (0.016 + 0.009 * Math.sin(t * 1.9 + j))); ctx.stroke();
+  }
+  ctx.restore();
+}
+// the probability points inside it: about 46, regrouping round 3 bright places 4-8 times a second (from a seed: no
+// point simply moves along with the others)
+const nullDots = {};
+function nullCloudLayer(x, y, size, key, L, a, ghost) {
+  let D = nullDots[key];
+  if (!D || time >= D.next || D.next - time > 1) {
+    const r = seededDice(((Math.floor(time * 8) + 1) * 7919 + key.length * 131 + key.charCodeAt(0)) | 0);
+    const c = [0, 1, 2].map(() => ({ x: (r() - 0.5) * 0.3, y: (r() - 0.5) * 0.62 }));
+    const pts = [];
+    for (let i = 0; i < 46; i++) {
+      const C = c[Math.floor(r() * 3)], u = Math.max(1e-6, r()), v = r(), g = Math.sqrt(-2 * Math.log(u));
+      pts.push([C.x + g * Math.cos(TAU * v) * 0.06, C.y + g * Math.sin(TAU * v) * 0.09, 0.4 + r() * 0.6]);
+    }
+    D = nullDots[key] = { pts, next: time + 1 / (4 + r() * 4) };
+  }
+  const ca = Math.cos(L.ang), sa = Math.sin(L.ang);
+  ctx.save(); ctx.globalCompositeOperation = ghost === "b" ? "source-over" : "lighter";
+  ctx.fillStyle = ghost === "b" ? "#000000" : "#ffffff";
+  const s0 = Math.max(1.2, size * 0.012);
+  for (const [px, py, b] of D.pts) {
+    ctx.globalAlpha = a * b;
+    const X = x + (px * ca - py * sa) * size, Y = y + (px * sa + py * ca) * size, s = s0 * (0.7 + b);
+    ctx.fillRect(X - s / 2, Y - s / 2, s, s);
+  }
+  ctx.restore();
+}
+// NULL, drawn (called by drawShip). o.vt: game (mine) or enemy (theirs); o.ghost "w" / "b": an Entanglement ghost
+function drawNull(S, x, y, size, o) {
+  const who = o.vt === game ? "me" : o.vt === enemy ? "them" : null;
+  if (who && qCloudOf(who)) return;   // dissolved: only its cloud (drawNullWorld)
+  const key = o.qkey || who || "menu";
+  const img = artImage(framePath("null", "body.webp")), d = S.anim.size * size;
+  const moving = who ? Math.hypot(o.vt.vx || 0, o.vt.vy || 0) > U * 0.06 || (o.power || 0) > 0.5 : !!o.ghost;
+  const L = nullPose(key, o.ang || 0, moving), a = o.alpha ?? 1;
+  ctx.save(); ctx.globalAlpha = a;
+  nullWaveLayer(x, y, size, key.length + (o.ghost === "b" ? 3 : 0), o.ghost);
+  if (L.prev && time - L.prev.at < 0.1) nullBodyAt(img, L.prev, x + L.prev.ox * size, y + L.prev.oy * size, d, a * 0.22 * (1 - (time - L.prev.at) / 0.1), o.ghost);   // the echo of the last pose
+  nullBodyAt(img, L, x + L.ox * size, y + L.oy * size, d, a, o.ghost);
+  nullCloudLayer(x + L.ox * size, y + L.oy * size, size, key, L, a, o.ghost);
+  if (who === "me" && !o.icon) {   // where the wave will start: a faint point ahead along the real heading (only on my own screen)
+    const m = rotatePt(0, -WEAPONS.qwave.ahead * size, o.ang || 0);
+    ctx.globalAlpha = a * (0.35 + 0.25 * Math.sin(time * 9)); ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(x + m.x, y + m.y, Math.max(1.5, size * 0.018), 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ---------- the probability wave (WEAPONS.qwave) ----------
+// Q: { w, own (0 the ship, 1 the white ghost, 2 the black one), x0, y0, ang, P (its shape), k (damage share), remote,
+//   t, leg (0 out, 1 back), hx, hy (its head), ax, ay (the far end), trail, hit [out, back] }
+const qwaves = [], qFlashes = [], qThreads = [];
+function qwaveNew(w, own, x, y, ang, seed, k, remote) {
+  return { w, own, x0: x, y0: y, ang, P: qwaveShape(seed, WEAPONS[w]), k, remote, t: 0, leg: 0, hx: x, hy: y, ax: x, ay: y, trail: [], hit: [false, false] };
+}
+// fired (from spawnShots, at the gun point ahead of the ship). With Entanglement on, the ghosts fire too
+function startQWave(w, x, y) {
+  const seed = (Math.random() * 2147483647) | 0, Wp = WEAPONS[w];
+  qwaves.push(qwaveNew(w, 0, x, y, game.ang, seed, 1, false));
+  duelSend({ t: "qw", w, o: 0, x: +(x / WW).toFixed(5), y: +(y / WH).toFixed(5), a: +game.ang.toFixed(3), sd: seed });
+  const E = game.qe;
+  if (E && E.ph === "on") E.g.forEach((G, i) => {
+    const a = game.ang + (i ? Math.PI : 0), m = rotatePt(0, -Wp.ahead * shipSize(), a), gx = wrapX(G.x + m.x), gy = wrapY(G.y + m.y), sd = (seed + 7919 * (i + 1)) | 0;
+    qwaves.push(qwaveNew(w, i + 1, gx, gy, a, sd, WEAPONS.entangle.waveK, false));
+    duelSend({ t: "qw", w, o: i + 1, x: +(gx / WW).toFixed(5), y: +(gy / WH).toFixed(5), a: +a.toFixed(3), sd });
+  });
+}
+// where a wave goes home to: its ship or ghost, as this phone sees it now
+function qwaveHome(Q) {
+  if (!Q.remote) return Q.own && game.qe ? game.qe.g[Q.own - 1] : game;
+  const T = theirNull();
+  return Q.own && T && T.G ? T.G[Q.own - 1] : enemy;
+}
+function updateQWaves(dt) {
+  const size = shipSize();
+  for (let i = qwaves.length - 1; i >= 0; i--) {
+    const Q = qwaves[i], Wp = WEAPONS[Q.w], P = Q.P;
+    Q.t += dt;
+    const px = Q.hx, py = Q.hy;
+    if (Q.t < Wp.out) {   // out: along its own heading
+      const h = qwaveOut(P, Wp, Q.t / Wp.out), m = rotatePt(h.x * size, (h.y + Wp.ahead) * size, Q.ang);
+      Q.hx = wrapX(Q.x0 + m.x); Q.hy = wrapY(Q.y0 + m.y);
+    } else {
+      if (Q.leg === 0) {   // turning back: from the far end of the straight line out
+        Q.leg = 1; const e = rotatePt(0, -(Wp.range - Wp.ahead) * size, Q.ang); Q.ax = wrapX(Q.x0 + e.x); Q.ay = wrapY(Q.y0 + e.y);
+      }
+      const s = (Q.t - Wp.out) / Wp.back;
+      if (s >= 1) {   // home: taken back in
+        const H = qwaveHome(Q); if (H && !(Q.remote ? !enemy.on : game.dead)) burstAt(H.x, H.y, 5, ["#ffffff", "#c8c8d2"], 0.12, 0.4);
+        qwaves.splice(i, 1); continue;
+      }
+      const H = qwaveHome(Q) || { x: Q.ax, y: Q.ay }, dx = wrapDelta(H.x - Q.ax, WW), dy = wrapDelta(H.y - Q.ay, WH), dd = Math.hypot(dx, dy) || 1, q = smoothStep(s);
+      // the swing goes on across the way home, kept on the same side it was swinging out (so it does not jump)
+      let nx = -dy / dd, ny = dx / dd; if (nx * Math.cos(Q.ang) + ny * Math.sin(Q.ang) < 0) { nx = -nx; ny = -ny; }
+      const side = qwaveSide(P, 1 + s) * size;
+      Q.hx = wrapX(Q.ax + dx * q + nx * side); Q.hy = wrapY(Q.ay + dy * q + ny * side);
+    }
+    Q.trail.push({ x: Q.hx, y: Q.hy, t: Q.t }); while (Q.trail.length > 2 && Q.t - Q.trail[0].t > 0.36) Q.trail.shift();
+    // mine: through the enemy's middle (along the whole step, so a fast wave cannot jump past it), once each way
+    if (!Q.remote && !Q.hit[Q.leg] && enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked() && dt > 0) {
+      const ax = wrapDelta(px - enemy.x, WW), ay = wrapDelta(py - enemy.y, WH), bx = wrapDelta(Q.hx - enemy.x, WW), by = wrapDelta(Q.hy - enemy.y, WH);
+      const vx = bx - ax, vy = by - ay, L2 = vx * vx + vy * vy, f = L2 ? clamp(-(ax * vx + ay * vy) / L2, 0, 1) : 0;
+      if (Math.hypot(ax + vx * f, ay + vy * f) < size * (0.42 * enemyScale() + Wp.r)) {
+        Q.hit[Q.leg] = true;
+        hitEnemy({ x: Q.hx, y: Q.hy, vx: (Q.hx - px) / dt, vy: (Q.hy - py) / dt }, Q.k === 1 ? Wp : { ...Wp, dmg: Wp.dmg * Q.k });
+        rings.push({ x: Q.hx, y: Q.hy, t: 0, max: 0.3, r: size * 0.55, c: "#ffffff" });
+      }
+    }
+  }
+}
+// a wave: a ribbon of light along its last moments, wide and soft, a bright core that swells and thins as it goes,
+// and a black thread down its middle (the negative space). Ghost waves fainter
+function drawQWave(Q) {
+  const pts = Q.trail; if (pts.length < 2) return;
+  const size = shipSize(), P = pts.map((q) => toScreen(q.x, q.y)), n = P.length, k = Q.k;
+  ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.globalCompositeOperation = "lighter";
+  ctx.beginPath(); P.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+  ctx.strokeStyle = `rgba(220,228,255,${0.16 * k + 0.05})`; ctx.lineWidth = size * 0.16; ctx.stroke();
+  for (let i = 1; i < n; i++) {
+    const f = i / (n - 1), wob = 0.55 + 0.45 * Math.sin(i * 0.85 - Q.t * 26);
+    ctx.strokeStyle = `rgba(255,255,255,${(0.25 + 0.7 * f) * (0.45 + 0.55 * k)})`; ctx.lineWidth = Math.max(1.5, size * (0.02 + 0.075 * f * wob) * (0.6 + 0.4 * k));
+    ctx.beginPath(); ctx.moveTo(P[i - 1].x, P[i - 1].y); ctx.lineTo(P[i].x, P[i].y); ctx.stroke();
+  }
+  ctx.globalCompositeOperation = "source-over";
+  ctx.beginPath(); P.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+  ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = Math.max(1, size * 0.012); ctx.stroke();
+  const h = P[n - 1], g = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, size * 0.18);   // its head
+  g.addColorStop(0, `rgba(255,255,255,${0.9 * (0.5 + 0.5 * k)})`); g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(h.x, h.y, size * 0.18, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
+// ---------- Wave Collapse (MAGIC.collapse) ----------
+// game.qc: { t, x0, y0, seed, lean (the way to the enemy then, or null) } while dissolved
+function startCollapse(M) {
+  if (game.qc || game.dead) return;
+  game.magicCool = M.cool;
+  const lean = enemy.on ? Math.atan2(wrapDelta(enemy.x - game.x, WW), -wrapDelta(enemy.y - game.y, WH)) : null;
+  game.qc = { t: 0, x0: game.x, y0: game.y, seed: (Math.random() * 2147483647) | 0, lean };
+  game.thrust = null; game.anim = null;
+  burstAt(game.x, game.y, 40, ["#ffffff", "#9a9aa8", "#ffffff"], 0.6, 0.9, game.vx * 0.3, game.vy * 0.3);
+  audio.tone(1760, 0.9, "sine", 0.04, 0.25); audio.tone(880, 1.4, "triangle", 0.03, 0.5, 0.05); audio.noise(0.9, 0.05, 5200); buzz(60);
+}
+// a cloud's bright places in the world now (from where it dissolved, drifting toward where the enemy was)
+function qcSpotsWorld(C, t) {
+  const M = MAGIC.collapse, sz = shipSize(), sp = qSpots(C.seed, t, M);
+  const k = C.lean == null ? 0 : M.lean * M.region * Math.min(1, t / M.cloud), lx = C.lean == null ? 0 : Math.sin(C.lean) * k, ly = C.lean == null ? 0 : -Math.cos(C.lean) * k;
+  return sp.map((q) => ({ x: wrapX(C.x0 + (q.x + lx) * sz), y: wrapY(C.y0 + (q.y + ly) * sz), w: q.w }));
+}
+// can NULL form (or swap) here? Not in the star, a maze wall or a store
+function qSafe(x, y) {
+  const sz = shipSize();
+  if (!starGone() && Math.hypot(wrapDelta(x - WW / 2, WW), wrapDelta(y - WH / 2, WH)) < planetR() + sz * 0.7) return false;
+  if (maze && mazeSolid() && inWall(x, y, sz * 0.45)) return false;
+  for (const S of stations) for (const [ox, oy] of [[0, 0], [0.45, 0], [-0.45, 0], [0, 0.45], [0, -0.45]]) {
+    const p = stationLocal(S, x + ox * sz, y + oy * sz);
+    if (p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1 && storeSolid(S).some(([x0, y0, x1, y1]) => p.x > x0 && p.x < x1 && p.y > y0 && p.y < y1)) return false;
+  }
+  return true;
+}
+// the nearest safe place round a point (rings further and further out)
+function qSafeNear(x, y) {
+  if (qSafe(x, y)) return { x, y };
+  const sz = shipSize();
+  for (let r = 0.5; r < 12; r += 0.5) for (let i = 0; i < 12; i++) {
+    const a = i / 12 * TAU, X = wrapX(x + Math.cos(a) * r * sz), Y = wrapY(y + Math.sin(a) * r * sz);
+    if (qSafe(X, Y)) return { x: X, y: Y };
+  }
+  return { x, y };
+}
+// where the cloud will collapse: its brightest safe place at the end (null: where it started, or the nearest safe place)
+function qcPick(C) {
+  const sp = qcSpotsWorld(C, MAGIC.collapse.cloud).sort((a, b) => b.w - a.w);
+  return sp.find((q) => qSafe(q.x, q.y)) || qSafeNear(C.x0, C.y0);
+}
+function qcDrift(dt) {   // dissolved: no steering, no engine; the cloud's middle slows to a stop
+  const k = Math.exp(-dt * 2.5); game.vx *= k; game.vy *= k;
+  game.x = wrapX(game.x + game.vx * dt); game.y = wrapY(game.y + game.vy * dt);
+}
+function updateCollapse(dt) {
+  const C = game.qc; if (!C) return;
+  const M = MAGIC.collapse, size = shipSize();
+  C.t += dt;
+  if (C.t < M.cloud) return;
+  let P = qcPick(C);
+  if (enemy.on && enemy.warp < 0.5) {   // never inside the enemy: just outside it
+    const dx = wrapDelta(P.x - enemy.x, WW), dy = wrapDelta(P.y - enemy.y, WH), d = Math.hypot(dx, dy), min = size * 0.8;
+    if (d < min) { const nx = d ? dx / d : 1, ny = d ? dy / d : 0, Q = { x: wrapX(enemy.x + nx * min), y: wrapY(enemy.y + ny * min) }; if (qSafe(Q.x, Q.y)) P = Q; }
+  }
+  game.x = P.x; game.y = P.y; game.vx *= 0.3; game.vy *= 0.3; game.qc = null;
+  qCollapseFx(P.x, P.y);
+  duelSend({ t: "qcx", x: +(P.x / WW).toFixed(5), y: +(P.y / WH).toFixed(5) });
+  if (enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked()) {   // the burst: an enemy near where it formed
+    const dx = wrapDelta(enemy.x - P.x, WW), dy = wrapDelta(enemy.y - P.y, WH), d = Math.hypot(dx, dy), R = M.burst * size;
+    if (d < R) hitEnemy({ x: enemy.x, y: enemy.y, vx: dx * 4, vy: dy * 4 }, { dmg: Math.round(M.dmg * (1 - 0.45 * d / R)), color: "#ffffff" });
+  }
+}
+// formed again: a black-and-white inversion flash spreading from it, white and black sparks, a deep thump and a ping
+function qCollapseFx(x, y) {
+  qFlashes.push({ x, y, t: 0 });
+  burstAt(x, y, 36, ["#ffffff", "#ffffff", "#0a0a0e", "#bfc3d0"], 0.55, 0.8);
+  rings.push({ x, y, t: 0, max: 0.45, r: shipSize() * MAGIC.collapse.burst, c: "#ffffff" });
+  audio.tone(55, 0.6, "sine", 0.12, 0.5); audio.tone(2637, 0.4, "sine", 0.04, 0.6, 0.02); audio.noise(0.15, 0.08, 8000); shake(0.35); buzz(120);
+}
+// the cloud: its bright places glowing, about 130 points regrouping round them 7 times a second (a fifth of them
+// anywhere in the cloud), its reach as a faint ring, and in its last 0.7 s a ring closing on where it will form
+function drawQCloud(C) {
+  const M = MAGIC.collapse, sz = shipSize(), sp = qcSpotsWorld(C, C.t), slot = Math.floor(C.t * 7);
+  const r = seededDice((C.seed ^ Math.imul(slot + 1, 2654435761)) | 0), tot = sp.reduce((a, q) => a + q.w * q.w + 0.05, 0);
+  const c0 = toScreen(C.x0, C.y0), fade = Math.min(1, C.t / 0.2);
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  for (const q of sp) {
+    const p = toScreen(q.x, q.y), R = sz * (0.45 + 0.55 * q.w), g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R);
+    g.addColorStop(0, `rgba(255,255,255,${(0.2 + 0.4 * q.w) * fade})`); g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); ctx.fill();
+  }
+  ctx.setLineDash([sz * 0.05, sz * 0.12]); ctx.strokeStyle = `rgba(255,255,255,${0.16 * fade})`; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(c0.x, c0.y, M.region * sz * 1.15, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = "#ffffff";
+  const ps = Math.max(1.6, sz * 0.017);
+  for (let i = 0; i < 170; i++) {
+    let x, y;
+    if (r() < 0.2) { const a = r() * TAU, d = Math.sqrt(r()) * M.region * sz; x = C.x0 + Math.cos(a) * d; y = C.y0 + Math.sin(a) * d; }
+    else {
+      let u = r() * tot, q = sp[0]; for (const s of sp) { u -= s.w * s.w + 0.05; if (u <= 0) { q = s; break; } }
+      const v = Math.max(1e-6, r()), w = r(), g = Math.sqrt(-2 * Math.log(v)), sig = sz * (0.18 + 0.28 * (1 - q.w));
+      x = q.x + g * Math.cos(TAU * w) * sig; y = q.y + g * Math.sin(TAU * w) * sig;
+    }
+    const p = toScreen(x, y), s = ps * (0.6 + r() * 1.1);
+    ctx.globalAlpha = (0.5 + 0.5 * r()) * fade; ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+  }
+  const left = M.cloud - C.t;
+  if (left < 0.7) {   // the telegraph: where it will form
+    const P = qcPick(C), p = toScreen(P.x, P.y), k = 1 - left / 0.7;
+    ctx.globalAlpha = 0.4 + 0.5 * k; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, sz * (1.4 - 0.9 * k), 0, TAU); ctx.stroke();
+  }
+  ctx.restore();
+}
+// the inversion flashes: a disc that turns everything under it to its negative, spreading and fading (0.45 s)
+function drawNullFlash() {
+  if (!qFlashes.length) return;
+  ctx.save();
+  for (const F of qFlashes) {
+    const p = toScreen(F.x, F.y), k = F.t / 0.45, R = shipSize() * (0.6 + 5.2 * ease(Math.min(1, k * 1.4))), band = k < 0.22 ? R : R * 0.55 * (1 - k);
+    ctx.globalCompositeOperation = "difference"; ctx.fillStyle = "#ffffff";   // (white "difference": everything under it turned to its negative)
+    ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); if (band < R) ctx.arc(p.x, p.y, R - band, 0, TAU, true); ctx.fill();
+    ctx.globalCompositeOperation = "source-over"; ctx.strokeStyle = `rgba(255,255,255,${Math.max(0, 0.8 - k)})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ---------- Entanglement (WEAPONS.entangle, button 2) ----------
+// game.qe: { t, ph: "on" | "merge", mt, swapT, g: [white ghost, black ghost] ({ x, y }), from (for the merge) }
+function startEntangle(W) {
+  if (game.qe || game.qc || game.dead) return false;
+  const sz = shipSize(), side = rotatePt(W.gap * sz, 0, game.ang);
+  game.qe = { t: 0, ph: "on", swapT: 0, g: [{ x: wrapX(game.x + side.x), y: wrapY(game.y + side.y) }, { x: wrapX(game.x - side.x), y: wrapY(game.y - side.y) }] };
+  for (const G of game.qe.g) burstAt(G.x, G.y, 14, ["#ffffff", "#0a0a0e"], 0.3, 0.6);
+  audio.tone(523, 0.6, "sine", 0.05, 1.5); audio.tone(784, 0.6, "sine", 0.04, 0.67, 0.08); buzz(50);
+  return true;
+}
+function updateEntangle(dt) {
+  const E = game.qe; if (!E) return;
+  const W = WEAPONS.entangle;
+  E.t += dt; E.swapT = Math.max(0, E.swapT - dt);
+  if (E.ph === "on") {   // entangled: the white ghost moves as NULL moves, the black one the opposite way
+    E.g[0].x = wrapX(E.g[0].x + game.vx * dt); E.g[0].y = wrapY(E.g[0].y + game.vy * dt);
+    E.g[1].x = wrapX(E.g[1].x - game.vx * dt); E.g[1].y = wrapY(E.g[1].y - game.vy * dt);
+    if (E.t >= W.last) { E.ph = "merge"; E.mt = 0; E.from = E.g.map((G) => ({ dx: wrapDelta(G.x - game.x, WW), dy: wrapDelta(G.y - game.y, WH) })); audio.tone(784, 0.5, "sine", 0.04, 0.5); }
+  } else {   // back into the real one
+    E.mt += dt; const k = 1 - smoothStep(E.mt / W.merge);
+    E.g.forEach((G, i) => { G.x = wrapX(game.x + E.from[i].dx * k); G.y = wrapY(game.y + E.from[i].dy * k); });
+    if (E.mt >= W.merge) { game.qe = null; burstAt(game.x, game.y, 12, ["#ffffff", "#0a0a0e"], 0.25, 0.5); }
+  }
+}
+// their shot hit my ghost i: NULL and that ghost change places (never into the star, a wall or a store)
+function qSwap(i) {
+  const E = game.qe;
+  if (!E || E.ph !== "on" || E.swapT > 0 || game.dead || game.qc || !E.g[i]) return;
+  const G = E.g[i], P = qSafeNear(G.x, G.y), old = { x: game.x, y: game.y };
+  game.x = P.x; game.y = P.y; G.x = old.x; G.y = old.y; E.swapT = WEAPONS.entangle.swapCool;
+  qThreads.push({ ax: old.x, ay: old.y, bx: P.x, by: P.y, t: 0 });
+  duelSend({ t: "qsw", a: [+(old.x / WW).toFixed(5), +(old.y / WH).toFixed(5), +(P.x / WW).toFixed(5), +(P.y / WH).toFixed(5)] });
+  burstAt(old.x, old.y, 16, ["#0a0a0e", "#ffffff"], 0.3, 0.5); burstAt(P.x, P.y, 16, ["#ffffff", "#0a0a0e"], 0.3, 0.5);
+  audio.tone(1568, 0.12, "square", 0.03, 0.5); audio.tone(392, 0.25, "sine", 0.06, 2, 0.04); shake(0.2); buzz(70);
+}
+// on the shooter's phone: my shot reached one of their ghosts (it is used up there, and their NULL swaps). At most once
+// in `swapCool` s; meanwhile shots pass through the ghosts
+function qGhostCatch(s, Wp) {
+  const T = theirNull();
+  if (!T || !T.G || T.merge || time < (duel.qgT || 0)) return false;
+  const size = shipSize();
+  for (let i = 0; i < 2; i++) {
+    const G = T.G[i];
+    if (Math.hypot(wrapDelta(G.x - s.x, WW), wrapDelta(G.y - s.y, WH)) < size * (0.42 * enemyScale() + (Wp.r || 0) * shotScale(s, Wp))) {
+      link.send({ t: "qgh", i }); duel.qgT = time + WEAPONS.entangle.swapCool;
+      burstAt(s.x, s.y, 14, i ? ["#0a0a0e", "#ffffff"] : ["#ffffff", "#c8c8d2"], 0.3, 0.5);
+      return true;
+    }
+  }
+  return false;
+}
+// the ghosts: flickering, see-through copies (the white one facing as NULL faces, the black one the other way). On my
+// own screen a faint line ties each to the real one
+function drawQGhosts(G, o, mine, merge) {
+  const S = shipById("qnull"), size = shipSize() * (o === game ? shipScale() : enemyScale()), p0 = toScreen(o.x, o.y);
+  G.forEach((g, i) => {
+    const p = toScreen(g.x, g.y), fl = seededDice((Math.floor(time * 14) * 31 + i * 7 + (mine ? 0 : 3)) | 0)();
+    if (mine) {
+      ctx.save(); ctx.setLineDash([size * 0.04, size * 0.1]); ctx.strokeStyle = i ? "rgba(140,140,150,0.25)" : "rgba(255,255,255,0.22)"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.restore();
+    }
+    drawShip(S, p.x, p.y, size, { ang: o.ang + (i ? Math.PI : 0), alpha: (0.3 + 0.32 * fl) * (merge ? 0.7 : 1), ghost: i ? "b" : "w", qkey: (mine ? "g" : "h") + i, power: 0.6 });
+  });
+}
+// my homing shots cannot pin a NULL down: they steer for a place near it that jumps about (and so do theirs, at mine)
+function qBlur(o, id) {
+  if (!o || !(shipById(id) || {}).quantum) return o;
+  const r = seededDice((Math.floor(time * 8) * 977 + 13) | 0), a = r() * TAU, d = shipSize() * (0.6 + r() * 1.1);
+  return { x: o.x + Math.cos(a) * d, y: o.y + Math.sin(a) * d };
+}
+
+// ---------- the other phone's NULL, and the state I send ----------
+function nullNet() {
+  const C = game.qc, E = game.qe;
+  if ((!C && !E) || game.dead) return 0;
+  return [C ? +C.t.toFixed(2) : -1, C ? +(C.x0 / WW).toFixed(5) : 0, C ? +(C.y0 / WH).toFixed(5) : 0, C ? C.seed : 0, C && C.lean != null ? +C.lean.toFixed(3) : 99,
+    E ? +E.t.toFixed(2) : -1, ...(E ? E.g.flatMap((G) => [+(G.x / WW).toFixed(5), +(G.y / WH).toFixed(5)]) : [0, 0, 0, 0]), E && E.ph === "merge" ? 1 : 0];
+}
+// their NULL as this phone sees it: its cloud (moved on by the time since their message) and its ghosts
+function theirNull() {
+  const q = enemy.remote && enemy.on && duel.net && duel.net.qn;
+  if (!q || !Array.isArray(q)) return null;
+  const age = Math.min(0.5, (performance.now() - duel.net.at) / 1000);
+  const C = q[0] >= 0 ? { t: q[0] + age, x0: q[1] * WW, y0: q[2] * WH, seed: q[3], lean: q[4] === 99 ? null : q[4] } : null;
+  const G = q[5] >= 0 ? [{ x: wrapX(q[6] * WW + (enemy.vx || 0) * age), y: wrapY(q[7] * WH + (enemy.vy || 0) * age) },
+    { x: wrapX(q[8] * WW - (enemy.vx || 0) * age), y: wrapY(q[9] * WH - (enemy.vy || 0) * age) }] : null;
+  return { C, G, merge: q[10] === 1 };
+}
+// dissolved now? (mine, or theirs)
+function qCloudOf(who) {
+  if (who === "me") return game.qc || null;
+  const T = theirNull(); return T && T.C && T.C.t < MAGIC.collapse.cloud ? T.C : null;
+}
+function qGone(o) { return o === game ? !!game.qc : !!qCloudOf("them"); }
+// their messages
+function nullMessage(m) {
+  if (m.t === "qw" && WEAPONS[m.w] && WEAPONS[m.w].qwave) {
+    qwaves.push(qwaveNew(m.w, m.o || 0, m.x * WW, m.y * WH, m.a, m.sd | 0, m.o ? WEAPONS.entangle.waveK : 1, true));
+    if (!m.o) audio.shot(m.w, enemy.ship, enemy);
+  } else if (m.t === "qcx") qCollapseFx(m.x * WW, m.y * WH);
+  else if (m.t === "qsw" && Array.isArray(m.a)) qThreads.push({ ax: m.a[0] * WW, ay: m.a[1] * WH, bx: m.a[2] * WW, by: m.a[3] * WH, t: 0 });
+  else if (m.t === "qgh") qSwap(m.i | 0);
+}
+function updateNull(dt) {
+  updateQWaves(dt);
+  for (let i = qFlashes.length - 1; i >= 0; i--) if ((qFlashes[i].t += dt) > 0.45) qFlashes.splice(i, 1);
+  for (let i = qThreads.length - 1; i >= 0; i--) if ((qThreads[i].t += dt) > 0.5) qThreads.splice(i, 1);
+  if (game.stage !== "fly" || game.dead || game.ship !== "qnull") { game.qc = null; game.qe = null; return; }
+  updateCollapse(dt); updateEntangle(dt);
+}
+// everything of NULL's out in space: the clouds, the ghosts, the waves, the swap threads
+function drawNullWorld() {
+  if (game.qc && !game.dead) drawQCloud(game.qc);
+  const T = theirNull();
+  if (T && T.C && T.C.t < MAGIC.collapse.cloud) drawQCloud(T.C);
+  if (game.qe && !game.dead) drawQGhosts(game.qe.g, game, true, game.qe.ph === "merge");
+  if (T && T.G) drawQGhosts(T.G, enemy, false, T.merge);
+  for (const Q of qwaves) drawQWave(Q);
+  for (const L of qThreads) {   // a swap: a thread between the two places, white at one end and black at the other
+    const a = toScreen(L.ax, L.ay), b = toScreen(L.bx, L.by), k = 1 - L.t / 0.5;
+    ctx.save(); const g = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    g.addColorStop(0, `rgba(10,10,14,${k})`); g.addColorStop(0.5, `rgba(255,255,255,${k})`); g.addColorStop(1, `rgba(255,255,255,${k})`);
+    ctx.strokeStyle = g; ctx.lineWidth = Math.max(2, shipSize() * 0.03 * k); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.restore();
+  }
+}
+
+// NULL's buttons (the NULL package's round black-and-white plates): pressed, for 150 ms its blurred picture and a faint
+// offset copy (a double exposure); the touch area never moves. Its state is a thin white arc round the circle
+const qPress = {};
+function drawQuantumButton(id, slot, b, o, plate) {
+  const P = qPress[slot] || (qPress[slot] = { down: false, at: -9 });
+  if (o.pressed && !P.down) P.at = time;
+  P.down = !!o.pressed;
+  const r = b.r, d = r * 2.5, recent = time - P.at < 0.15, img = recent ? kitImg(id, slot + "-pressed") || plate : plate;
+  ctx.save(); ctx.globalAlpha *= o.alpha == null ? 1 : o.alpha;
+  if (!o.ready) ctx.globalAlpha *= 0.5;
+  if (recent) { ctx.save(); ctx.globalAlpha *= 0.35; ctx.drawImage(img, b.x - d / 2 + r * 0.08, b.y - d / 2 - r * 0.06, d, d); ctx.restore(); }
+  ctx.drawImage(img, b.x - d / 2, b.y - d / 2, d, d);
+  if (o.draw) o.draw(b.x, b.y, r);
+  if (o.fill != null || o.ring) {
+    const f = o.fill == null ? 1 : clamp(o.fill, 0, 1), R = r * 1.1;
+    ctx.lineCap = "round"; ctx.lineWidth = Math.max(1.5, r * 0.04); ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, TAU); ctx.stroke();
+    if (f > 0) { ctx.strokeStyle = o.ready ? "#ffffff" : "rgba(255,255,255,0.5)"; ctx.lineWidth = Math.max(2, r * 0.06); ctx.beginPath(); ctx.arc(b.x, b.y, R, -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke(); }
+  }
+  ctx.restore();
+  return true;
+}
+
 // ---------- GLITCH's magics: the V shield and the slip ----------
 // the V is up (more than half open): my own V, or theirs (duel: their state says so)
 function vShieldUp(o) {
@@ -15142,7 +15705,7 @@ function draw() {
     drawShots(eshots);
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
-    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawCharm(); drawDecoys(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawDrakFlares(); drawJetBubbles(); drawTow(game, game.tow, towRig(game.tow, MAGIC.tow)); if (game.surg) drawSurgery(game, game.surg); if (enemy.remote && duel.surg) drawSurgery(enemy, duel.surg); if (enemy.remote && duel.tow) drawTow(enemy, duel.tow, towRig(duel.tow, MAGIC.tow)); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
+    drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawCharm(); drawDecoys(); drawNullWorld(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawDrakFlares(); drawJetBubbles(); drawTow(game, game.tow, towRig(game.tow, MAGIC.tow)); if (game.surg) drawSurgery(game, game.surg); if (enemy.remote && duel.surg) drawSurgery(enemy, duel.surg); if (enemy.remote && duel.tow) drawTow(enemy, duel.tow, towRig(duel.tow, MAGIC.tow)); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
     drawCrosses();
     drawCrossGuide();
     drawEggs();
@@ -15156,6 +15719,7 @@ function draw() {
     if (enemyShown() && duel.net && duel.net.sh) { const q = toScreen(enemy.x, enemy.y); drawShieldBubble(q.x, q.y, shipSize() * enemyScale(), duel.net.sh, 0.3); }   // theirs
     drawParts();
     drawRings();
+    drawNullFlash();   // (NULL's inversion flashes, over everything out in space)
     ctx.restore();
     drawCarrierOver();
     drawMazeHud(); drawFloodHud();
@@ -15376,7 +15940,7 @@ function drawEnemy() {
   const z = zoomed(p), m = size * 0.6 * game.zoom;
   if (z.x > -m && z.x < W + m && z.y > -m && z.y < H + m) {
     ctx.save(); ctx.strokeStyle = `rgba(255,77,109,${0.5 + 0.2 * Math.sin(time * 4)})`; ctx.lineWidth = 3 / game.zoom;
-    ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.58 * enemyScale(), 0, TAU); ctx.stroke(); ctx.restore();
+    if (!qGone(enemy)) { ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.58 * enemyScale(), 0, TAU); ctx.stroke(); } ctx.restore();   // (their NULL dissolved: no ring)
     const st = shipStats(E);
     if (enemy.remote) drawTail(duel.tail, E);
     const esc = enemyScale();
@@ -16719,6 +17283,7 @@ function duelLink(event, data) {
     spawnRainbow(true, m.x * WW, m.y * WH, m.a);
   } else if (m.t === "fleetout") {   // the other player has lost every ship: I won
     openResult("win");
+  } else if (m.t === "qw" || m.t === "qcx" || m.t === "qsw" || m.t === "qgh") { nullMessage(m);   // their NULL's wave, collapse and swap; their shot on my ghost
   } else if (m.t === "zc") { startCough(false);   // their zombie coughing (its pollen drawn round their ship here)
   } else if (m.t === "zb") {   // their BLOOM's pollen got me: a zombie until this ship blows up
     becomeZombie();
@@ -16905,7 +17470,7 @@ function updateDuel(dt) {
     s.rw = false;
     if (Wp.magnet) magnetPull(s, Wp, dt);
     if (Wp.homing && !game.dead && s.life > 0.12 && !(Wp.dry && inWater(s))) {
-      const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), Wp.homing * dt);
+      const ht = qBlur(game, game.ship), t = steerShot(s.vx, s.vy, wrapDelta(ht.x - s.x, WW), wrapDelta(ht.y - s.y, WH), Wp.homing * dt);
       s.vx = t.vx; s.vy = t.vy;
     }
     if (shotFx(duel.shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
@@ -16950,7 +17515,7 @@ function updateDuel(dt) {
       kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), vt: vaultNet(), ht: hauntOn() ? 1 : 0, ca: corsairNet(), hk: huskNet(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
-      bd: game.drillOn ? 1 : 0, rd: raiderNet(),
+      bd: game.drillOn ? 1 : 0, rd: raiderNet(), qn: nullNet(),
       sk: game.soak ? [+game.soak.heat.toFixed(2), +game.soak.held.toFixed(2), soaking() ? 1 : 0] : 0,
       gr: game.grind ? [game.grind.phase, +game.grind.spin.toFixed(2), +game.grind.teeth.toFixed(2), +game.grind.nx.toFixed(3), +game.grind.ny.toFixed(3)] : 0 });
     duel.outDmg = 0;
@@ -17074,6 +17639,12 @@ function botThink(dt) {
   // hidden in their smoke: it heads for where it last saw them
   if (seen) { botAI.lastX = enemy.x; botAI.lastY = enemy.y; }
   let prey = seen ? enemy : { x: botAI.lastX != null ? botAI.lastX : enemy.x, y: botAI.lastY != null ? botAI.lastY : enemy.y, vx: 0, vy: 0 };
+  // their NULL entangled: it cannot tell the real one from the ghosts (it goes after one for a while, then another)
+  const TQ = theirNull();
+  if (seen && TQ && TQ.G) {
+    if (botAI.qT == null || time > botAI.qT) { botAI.qT = time + 1.5 + Math.random() * 2; botAI.qPick = Math.floor(Math.random() * 3); }
+    if (botAI.qPick < 2) { const sg = botAI.qPick ? -1 : 1; prey = { x: TQ.G[botAI.qPick].x, y: TQ.G[botAI.qPick].y, vx: enemy.vx * sg, vy: enemy.vy * sg }; }
+  }
   // their FRANKENSTEIN's creature, nearer than its maker: shoot it down first
   const TC = duel.surg && duel.surg.phase === "alive" ? duel.surg.c : null;
   if (TC && Math.hypot(wrapDelta(TC.x - game.x, WW), wrapDelta(TC.y - game.y, WH)) < Math.hypot(wrapDelta(prey.x - game.x, WW), wrapDelta(prey.y - game.y, WH)) * 0.8)
@@ -17091,7 +17662,7 @@ function botThink(dt) {
   const px = wrapDelta(game.x + game.vx * 0.8 - WW / 2, WW), py = wrapDelta(game.y + game.vy * 0.8 - WH / 2, WH), pd = Math.hypot(px, py) || 1;
   botAI.danger = !starGone() && pd < planetR() + U * (botAI.danger ? 0.6 : 0.3);
   // their BLOOM: keep out of its pollen (further while the cloud is out), and fight it from afar
-  const pr = shipSize() * MAGIC.pollen.range, bloomNear = enemy.ship === "bloom" && !game.zombie && seen &&
+  const pr = shipSize() * MAGIC.pollen.range, bloomNear = enemy.ship === "bloom" && !game.zombie && !S.noZombie && seen &&
     d < pr + shipSize() * (duel.net && duel.net.pn >= 0 ? 1.5 : 0.3);
   if (botAI.danger) {
     const away = Math.atan2(px, -py) + 0.45 * Math.sign(px * game.vy - py * game.vx || 1);
@@ -17616,7 +18187,7 @@ function hangarBtn() { const m = mapBox(), r = FLEET_ICON * MM / 2; return { x: 
 function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.4; }
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
-  game.ship = id; game.zombie = false; game.pollen = null;
+  game.ship = id; game.zombie = false; game.pollen = null; game.qc = null; game.qe = null;
   if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; game.kiln = null; if (game.surg && game.surg.c) creatureFalls(game.surg.c); game.surg = null;   // (BALLAST's asteroid already flying goes on)
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
   game.harpoonCut = false;   // (a new ship: a new rope)
