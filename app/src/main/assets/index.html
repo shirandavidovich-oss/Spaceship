@@ -11312,10 +11312,13 @@ const TSHOW = {
     w: 900, h: 477, len: 7.5, hgt: 0.8, iris: [322, 357, 62, 72], axis: [-278, 177], jets: [[548, 20], [812, 48]] },
   boiler: { src: "art/title/boiler.webp", w: 700, h: 538, len: 9, hgt: 0.92,
     wins: [[205, 330, 95, 95], [440, 310, 47, 55]], steam: [585, 215], jet: [603, 322] },
-  cloudship: { src: "art/title/cloudship.webp", w: 900, h: 550, len: 9.5, hgt: 0.98 },
+  // (its clouds: 12 frames, made by rolling the cloud banks of its one render round a loop, its hull held still;
+  // played at `fps`, each frame melting into the next)
+  cloudship: { src: "art/title/cloudship-01.webp", frames: Array.from({ length: 12 }, (_, i) => "art/title/cloudship-" + String(i + 1).padStart(2, "0") + ".webp"), fps: 6,
+    w: 900, h: 550, len: 9.5, hgt: 0.98 },
 };
 const tshow = { kind: null, t: 0, wait: TSHOW.first, last: null, fx: [], can: null };
-function titleShowArt() { for (const k of ["lighthouse", "courier", "boiler", "cloudship"]) { artImage(TSHOW[k].src); for (const q of ["lit", "half", "open"]) if (TSHOW[k][q]) artImage(TSHOW[k][q]); if (TSHOW[k].can) artImage(TSHOW[k].can); } }
+function titleShowArt() { for (const k of ["lighthouse", "courier", "boiler", "cloudship"]) { artImage(TSHOW[k].src); for (const q of ["lit", "half", "open", "can"]) if (TSHOW[k][q]) artImage(TSHOW[k][q]); if (TSHOW[k].frames) TSHOW[k].frames.forEach((q) => artImage(q)); } }
 function titleShowTick(dt) {
   if (game.stage !== "title" || shop.open) { tshow.kind = null; tshow.wait = TSHOW.first; tshow.fx.length = 0; return; }
   titleShowArt();
@@ -11443,14 +11446,12 @@ function drawTitleShow() {
       ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(px, py, r, 0, TAU); ctx.fill();
     }
   } else if (K === "cloudship") {
-    // the cloud banks breathe and roll (two faint copies of them, swaying) and blue sparks crackle in them
+    // the cloud banks roll (its frames, one melting into the next) and blue sparks crackle in them
     const x = -w + (W + w) * (t / S.len), y = L.cy - h / 2 + bob * 2;
-    for (let c = 0; c < 2; c++) {
-      ctx.save(); ctx.globalAlpha = 0.28; ctx.translate(x + w / 2, y + h / 2);
-      ctx.scale(1 + 0.04 * Math.sin(t * 1.9 + c * 2), 1 + 0.05 * Math.sin(t * 1.5 + c * 3)); ctx.rotate(0.02 * Math.sin(t * 1.1 + c));
-      ctx.drawImage(img, -w / 2 + Math.sin(t * 1.7 + c) * w * 0.012, -h / 2, w, h); ctx.restore();
-    }
-    ctx.drawImage(img, x, y, w, h);
+    const fp = t * S.fps, f0 = Math.floor(fp) % S.frames.length, f1 = (f0 + 1) % S.frames.length, k = fp - Math.floor(fp);
+    const A0 = artImage(S.frames[f0]) || img, A1 = artImage(S.frames[f1]);
+    ctx.drawImage(A0, x, y, w, h);
+    if (A1 && k > 0.02) { ctx.globalAlpha = k; ctx.drawImage(A1, x, y, w, h); ctx.globalAlpha = 1; }
     if (Math.random() < 0.05) tshow.fx.push({ k: "zap", x: (Math.random() < 0.5 ? 0.12 + Math.random() * 0.3 : 0.62 + Math.random() * 0.3), y: 0.2 + Math.random() * 0.55, vx: 0, vy: 0, t: 0, life: 0.18, seed: Math.random() * 99 });
     ctx.globalCompositeOperation = "lighter";
     for (const p of tshow.fx) if (p.k === "zap") {
