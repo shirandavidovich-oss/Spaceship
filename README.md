@@ -491,7 +491,7 @@ star the maze put out. In a duel the owner's phone sends its clock (`fd`); a blo
   (silver 1-2 coins, orange striped 2-4, blue 4-7, gold 8-10, rarer the richer); they turn now and then and dart away
   from ships. My shot through one: its coins into this ship's wallet. Each phone has its own fish.
 - **The menu's film**: BOILER comes in as before (steam), stops, the water rises round it and it sinks a little, its
-  propeller comes out of the jet and spins up, and it leaves on it in a stream of bubbles (no steam).
+  propeller comes out (his deployment film, `boiler-prop-pre/out`, 3 s; then his spinning render), and it leaves on it in a stream of bubbles (no steam).
 
 **FLIPPER**, the pinball ship (`art/ships/flipper/`: the FLIPPER package's atlases cut into 512 px frames; its buttons in
 `art/hud/flipper/`, its BLOOM zombie, its 3D picture). **Sold only in the station's shop** (`shopOnly`: never drawn into
