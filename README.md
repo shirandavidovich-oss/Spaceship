@@ -531,7 +531,7 @@ ship-lengths ahead (`aimAt`), then on. Magic, the **light snake** (`snake` in `M
 ahead of the ship; it opens a portal, and a snake comes out of it: one smooth glowing body, its colours running through the rainbow. It chases the
 other ship, growing the whole time, to three times its first length (its body is a wall in the way); near it, it circles round it, closing it in its body, and the ring tightens: sitting
 still gets the ship squeezed (first touch after ~7 s), flying out through a gap saves it. A touch takes 1.5 health tanks,
-and then it flees back through a portal at its head, as when its time is up; it is harmless while coming out and going back. After 30 s a portal opens at its head
+with a burst of lightning where it touched (a white flash, jagged bolts crackling out all round, a snap and a boom, on both phones), and then it flees: away from the ship at nearly three times its speed, swinging its head from side to side like a real snake, off the screen and far away, fading out (3.2 s); it is harmless while coming out, going back and fleeing. After 30 s a portal opens at its head
 and it is drawn back into it, its tail last. The other ship's phone runs the snake (FRESNEL's phone sends `sn`; the snake
 comes back in that phone's state, `sn`, to be shown).
 

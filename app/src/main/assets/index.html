@@ -1623,7 +1623,8 @@ const MAGIC = {
 //   It hurts only while hunting (not coming out of the portal nor going back into it). Round the ship, the ring
 //   tightens by `tighten` screens/s down to `tightest`: sitting still gets it squeezed; fly out through a gap
   snake: { name: "נחש האור", look: "snake", ahead: 1.1, open: 1.0, last: 30, speed: 1.0, turn: 2.0, start: 8, grow: 5.4, most: 170, gap: 0.07, ring: 0.45,
-           r: 0.11, hit: 1.5, spare: 3, back: 6, tighten: 0.05, tightest: 0.08, cool: 60, color: "#ffd86b" },
+           r: 0.11, hit: 1.5, spare: 3, back: 6, tighten: 0.05, tightest: 0.08, cool: 60, color: "#ffd86b",
+           flee: 2.8, fleeFor: 3.2, wiggle: 1.0, wiggleHz: 1.6 },   // (touched: a burst of lightning, then it flees off the screen at `flee` times its speed, swinging side to side, `wiggle` rad, for `fleeFor` s)
   // VAULT's held star (vault.js part: startVault). suck: doors open and the star flies in (s); hold: kept (s); free:
   //   it flies back (s); door: the doors' slide (s). While held its pull (screens/s each second, below every engine's
   //   push) is full within `near` screens of VAULT and gone by `reach`; every `pulse` s a radiation wave goes out to
@@ -6085,7 +6086,9 @@ function drawCapsule(s) {
 // its head and it is drawn back into it, its tail last, and the portal closes.
 // The other ship's phone runs the snake (the hits go by where that ship really is): FRESNEL's phone sends "sn" (where
 // the portal is and which way it faces); the snake comes back in that phone's state (`sn`) to be shown.
-// game.snake (on the phone being chased): { t, phase: "open" | "chase" | "back" | "close", px, py, pa (the portal),
+// Touching it: a burst of lightning where it touched, and it flees, slithering side to side, away from the ship and off
+// the screen, fast ("flee"), and is gone.
+// game.snake (on the phone being chased): { t, phase: "open" | "chase" | "back" | "close" | "flee", px, py, pa (the portal),
 //   hx, hy, ha (the head), path: [[x, y]...] (the head first), n (segments), hitT, bx, by (the way back) }
 function startSnake(M) {
   if (!enemy.on || enemyDocked() || !enemy.remote) { audio.nope(); buzz(20); return; }
@@ -6126,8 +6129,14 @@ function updateSnake(dt) {
     const turn = round ? Math.max(M.turn, M.speed * U / Math.max(R, U * 0.05) * 1.3) : M.turn;   // (round the ship it turns as tight as the ring)
     N.ha += clamp(wrapAngle(want - N.ha), -turn * dt, turn * dt);
   }
-  if (N.phase === "open" || N.phase === "chase") {
-    const v = (N.phase === "open" ? 0.6 : 1) * M.speed * U;
+  if (N.phase === "flee") {   // away from the ship, swinging its head from side to side like a snake
+    N.fleeT += dt;
+    const sway = Math.sin(N.fleeT * TAU * M.wiggleHz) * M.wiggle, want = N.fa + sway;
+    N.ha += clamp(wrapAngle(want - N.ha), -8 * dt, 8 * dt);
+    if (N.fleeT > M.fleeFor) { game.snake = null; return; }
+  }
+  if (N.phase === "open" || N.phase === "chase" || N.phase === "flee") {
+    const v = (N.phase === "open" ? 0.6 : N.phase === "flee" ? M.flee * Math.min(1, 0.4 + N.fleeT * 2) : 1) * M.speed * U;
     N.hx = wrapX(N.hx + Math.sin(N.ha) * v * dt); N.hy = wrapY(N.hy - Math.cos(N.ha) * v * dt);
     const last = N.path[0];
     if (Math.hypot(wrapDelta(N.hx - last[0], WW), wrapDelta(N.hy - last[1], WH)) >= sp * 0.5) N.path.unshift([N.hx, N.hy]);
@@ -6146,9 +6155,10 @@ function updateSnake(dt) {
     for (let i = 0; i < N.path.length; i += 1) {
       const q = N.path[i];
       if (Math.hypot(wrapDelta(q[0] - game.x, WW), wrapDelta(q[1] - game.y, WH)) < reach) {
-        N.hitT = M.spare; N.phase = "back"; N.bx = N.hx; N.by = N.hy; N.backT = 0;   // it got them: back to its dimension
-        burstAt(q[0], q[1], 30, ["#fff6c8", "#ff5ea8", "#5ee7ff", "#ffffff"], 0.6, 0.7); shake(0.5);
-        audio.tone(300, 0.2, "sawtooth", 0.06, 0.5); buzz(150);
+        // it got them: a burst of lightning where it touched, and it flees, away from the ship
+        N.hitT = M.spare; N.phase = "flee"; N.fleeT = 0; N.bx = q[0]; N.by = q[1];
+        N.fa = Math.atan2(wrapDelta(N.hx - game.x, WW), -wrapDelta(N.hy - game.y, WH));
+        snakeZap(q[0], q[1]); shake(0.8);
         for (let n = M.hit * SHIP_HP; n > 0.01 && !game.dead; n -= SHIP_HP) damageShip(Math.min(SHIP_HP, n));   // 1.5 tanks
         break;
       }
@@ -6158,10 +6168,40 @@ function updateSnake(dt) {
 // my snake in my state, for FRESNEL's phone: [phase, portal x, y, a, back x, y, then points (every 4th, in ten-thousandths)]
 function snakeNet() {
   const N = game.snake; if (!N) return 0;
-  const out = [["open", "chase", "back", "close"].indexOf(N.phase), Math.round(N.px / WW * 1e4), Math.round(N.py / WH * 1e4), +N.pa.toFixed(2),
-    Math.round((N.bx || 0) / WW * 1e4), Math.round((N.by || 0) / WH * 1e4), +(N.phase === "close" ? N.closeT : N.phase === "open" ? N.t : 1).toFixed(2)];
+  const out = [["open", "chase", "back", "close", "flee"].indexOf(N.phase), Math.round(N.px / WW * 1e4), Math.round(N.py / WH * 1e4), +N.pa.toFixed(2),
+    Math.round((N.bx || 0) / WW * 1e4), Math.round((N.by || 0) / WH * 1e4), +(N.phase === "close" ? N.closeT : N.phase === "open" ? N.t : N.phase === "flee" ? N.fleeT : 1).toFixed(2)];
   for (let i = 0; i < N.path.length; i += 4) out.push(Math.round(N.path[i][0] / WW * 1e4), Math.round(N.path[i][1] / WH * 1e4));   // (every 4th: it is long)
   return out;
+}
+// the lightning burst where the snake touched a ship (on both phones): a white flash, jagged bolts crackling out all
+// round, jumping to new shapes as they flicker, and the snap and boom of it
+const snakeZaps = [];
+function snakeZap(x, y) {
+  snakeZaps.push({ x, y, t: 0, seed: Math.random() * 999 });
+  burstAt(x, y, 36, ["#ffffff", "#bfe4ff", "#7cc8ff", "#fff6c8", "#ff5ea8"], 0.7, 0.8);
+  if (Math.hypot(wrapDelta(x - game.x, WW), wrapDelta(y - game.y, WH)) < U * 2.5) {
+    for (let i = 0; i < 6; i++) audio.tone(2000 + Math.random() * 3500, 0.04, "square", 0.08 * (1 - i * 0.12), 0.4, i * 0.035);
+    audio.noise(0.25, 0.3, 6000); audio.noise(0.9, 0.22, 500); audio.tone(60, 0.7, "sawtooth", 0.08, 0.4, 0.05); buzz(180);
+  }
+}
+function drawSnakeZaps(dt) {
+  for (let i = snakeZaps.length - 1; i >= 0; i--) {
+    const Z = snakeZaps[i]; Z.t += dt; if (Z.t > 0.8) { snakeZaps.splice(i, 1); continue; }
+    const p = toScreen(Z.x, Z.y), k = Z.t / 0.8, fl = Z.t < 0.08 || (Z.t > 0.15 && Z.t < 0.22) || (Z.t > 0.32 && Z.t < 0.37) ? 1 : 0.45, a = fl * (1 - k), R = U * (0.25 + 0.4 * Math.min(1, Z.t * 5));
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R * 1.3); g.addColorStop(0, `rgba(255,255,255,${0.9 * a})`); g.addColorStop(0.3, `rgba(150,200,255,${0.45 * a})`); g.addColorStop(1, "rgba(80,120,255,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, R * 1.3, 0, TAU); ctx.fill();
+    let r = Z.seed + Math.floor(Z.t / 0.07) * 13.7; const rnd = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+    ctx.lineCap = "round"; ctx.lineJoin = "miter";
+    for (let b = 0; b < 9; b++) {   // jagged bolts out all round
+      const ang = b / 9 * TAU + rnd() * 0.5, len = R * (0.6 + rnd() * 0.6), steps = 6, pts = [[p.x, p.y]];
+      for (let j = 1; j <= steps; j++) { const d = len * j / steps, off = (rnd() - 0.5) * len * 0.35; pts.push([p.x + Math.cos(ang) * d - Math.sin(ang) * off, p.y + Math.sin(ang) * d + Math.cos(ang) * off]); }
+      for (const [c, w] of [[`rgba(110,160,255,${0.4 * a})`, 7], [`rgba(190,225,255,${a})`, 3], [`rgba(255,255,255,${a})`, 1.2]]) {
+        ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (const q of pts) ctx.lineTo(q[0], q[1]); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
 }
 // the light triangle / portal: a golden triangle round a dark rift; k: how open (0..1)
 function drawPortal(x, y, a, k) {
@@ -6220,7 +6260,8 @@ function drawSnakes() {
     else if (N.phase === "chase") drawPortal(N.px, N.py, N.pa, Math.max(0, 1 - (N.t - M.open) / 0.8));
     if (N.phase === "back") drawPortal(N.bx, N.by, N.ha, Math.min(1, N.backT / 0.4));
     if (N.phase === "close") drawPortal(N.bx, N.by, N.ha, 1 - N.closeT / 0.6);
-    drawSnakeBody(N.path, N.ha);
+    ctx.save(); if (N.phase === "flee") ctx.globalAlpha = clamp((M.fleeFor - N.fleeT) / 0.6, 0, 1);   // (fading as it gets away)
+    drawSnakeBody(N.path, N.ha); ctx.restore();
   }
   const n = enemy.remote && duel.net && duel.net.sn;   // theirs (my FRESNEL's snake, chasing them)
   if (Array.isArray(n) && n.length >= 7) {
@@ -6228,8 +6269,11 @@ function drawSnakes() {
     for (let i = 7; i + 1 < n.length; i += 2) pts.push([n[i] / 1e4 * WW, n[i + 1] / 1e4 * WH]);
     if (ph === 0) drawPortal(n[1] / 1e4 * WW, n[2] / 1e4 * WH, n[3], Math.min(1, n[6] / 0.5));
     if (ph === 2 || ph === 3) drawPortal(n[4] / 1e4 * WW, n[5] / 1e4 * WH, 0, ph === 3 ? 1 - n[6] / 0.6 : 1);
-    drawSnakeBody(pts, 0, 4);
+    if (ph === 4 && duel.snakeZapAt !== n[4] + "," + n[5]) { duel.snakeZapAt = n[4] + "," + n[5]; snakeZap(n[4] / 1e4 * WW, n[5] / 1e4 * WH); }   // (it touched them: the lightning here too)
+    ctx.save(); if (ph === 4) ctx.globalAlpha = clamp((MAGIC.snake.fleeFor - n[6]) / 0.6, 0, 1);
+    drawSnakeBody(pts, 0, 4); ctx.restore();
   }
+  drawSnakeZaps(frameDt || 0.016);
 }
 
 // ---------- VAULT: the star in the vault (MAGIC.vault) ----------
