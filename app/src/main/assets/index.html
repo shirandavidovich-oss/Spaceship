@@ -13575,7 +13575,8 @@ function palWallGone() { if (!game.palWall) return; game.palWall = null; game.pa
 // (now: one great blast round the whole wall, palBoom: 1.5 tanks to a ship inside it); a piece being built is dropped
 function palShatter(W) {
   W.build = null;
-  const C = palCircle(W);
+  const C = palCircle(W), grown = Math.max(0, (W.segs ? W.segs.length : 3) - 3);
+  C.r *= PALG.reach + PALG.perUnit * grown;   // (the blast: 1.5x the wall's radius, and bigger the more it has grown)
   palBoom(C.x, C.y, C.r, palUnits(W), true);
   if (carrierOn()) raidArea(C.x, C.y, C.r, PALG.boom);
   palFx.push({ x: W.x, y: W.y, ang: W.ang, t: 0 });
@@ -13664,7 +13665,7 @@ const palFrags = [];   // the broken-off pieces' fragments (art/ships/palisade/g
 // tip, takes a new panel, swings it on straight ahead or turned left or right (one at random that touches no unit and
 // no star) and welds it (PALG.build s); then it is solid and the new tip. It stops enemy shots like the rest, and the
 // magic bursts every unit. A robot's voice crows over it now and then (WALL_LINES, VOICE_FX.gollum)
-const PALG = { delay: 0.95, build: 1.05, retry: 1, rest: 6, max: 30, boom: 150 };   // (boom: the magic's blast, 1.5 tanks, inside the circle round the wall)   // (a new piece every 2 s; rest: no new wall for 6 s after one goes)
+const PALG = { delay: 0.95, build: 1.05, retry: 1, rest: 6, max: 30, boom: 150, reach: 1.5, perUnit: 0.05 };   // (reach: the blast's radius, in the wall's own radius, for the wall as set; perUnit: added for every unit it has grown, so 10 more units: 2x)   // (boom: the magic's blast, 1.5 tanks, inside the circle round the wall)   // (a new piece every 2 s; rest: no new wall for 6 s after one goes)
 const PAL_DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const WALL_LINES = ["Building myself, yesss!", "My wonderful wall!", "My beauty... my precious!", "Growing, growing, yesss!", "Nobody touches my wall!", "Ssso beautiful, my wall!", "We builds it, we does!"];
 function palSegsInit(W, dir) {
