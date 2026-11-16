@@ -483,6 +483,15 @@ in 1 s. While it is up:
   is washed off at once). The health it lost stays lost.
 The flood ends at once if BOILER is destroyed. LABYRINTH's walls stay in the water, and the flood never relights a
 star the maze put out. In a duel the owner's phone sends its clock (`fd`); a blow-up is sent as `wk`.
+- **Under water, its propeller** (the Underwater Top View package: `prop_01-30`, `swim_01-24`, re-centred like the rest;
+  `boilerProp`): any BOILER under water (tied to being in the water, not to the magic), its rear doors split and the
+  propeller comes out (3 s, once), then turns (1.2 s loop); no flame under water, and a wake of bubbles out of the
+  propeller (thicker when it moves). Out of the water: its usual pictures.
+- **Fish in its water** (`FISH`, `updateFish`, `drawFish`): up to 9 fish (drawn in code) swim near my ship, four kinds
+  (silver 1-2 coins, orange striped 2-4, blue 4-7, gold 8-10, rarer the richer); they turn now and then and dart away
+  from ships. My shot through one: its coins into this ship's wallet. Each phone has its own fish.
+- **The menu's film**: BOILER comes in as before (steam), stops, the water rises round it and it sinks a little, its
+  propeller comes out of the jet and spins up, and it leaves on it in a stream of bubbles (no steam).
 
 **FLIPPER**, the pinball ship (`art/ships/flipper/`: the FLIPPER package's atlases cut into 512 px frames; its buttons in
 `art/hud/flipper/`, its BLOOM zombie, its 3D picture). **Sold only in the station's shop** (`shopOnly`: never drawn into

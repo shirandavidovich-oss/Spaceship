@@ -1071,7 +1071,10 @@ const SHIPS = [
     anim: { dir: "boiler", size: 1.2, idle: "idle.webp",
       idleLoop: frames("idle", 32, () => 50).map((f) => f[0]),          // bubbles, the gauge, the collars, a wisp of steam
       primary: frames("fire", 16, () => 50),                           // the cold-blue launch flash (0.8 s)
-      pressure: frames("pressure", 32, () => 50) } },                  // more pressure, bigger strokes: while the water fills
+      pressure: frames("pressure", 32, () => 50),                      // more pressure, bigger strokes: while the water fills
+      // under water (the Underwater Top View package, re-centred like the rest): the rear doors split, the shafts come
+      // out and the propeller spins up (once, 3 s), then the propeller turning (a loop, 1.2 s). No flame under water
+      propOut: frames("prop", 30, () => 100), propSwim: frames("swim", 24, () => 50) } },
   // FLIPPER, the pinball ship (art/ships/flipper/, the FLIPPER package: 512 px frames cut from its atlases, nose up).
   // Sold only in the station's shop (`shopOnly`: never drawn into the random fleets; in the test hangar too).
   // Button 1: the spring launches a steel ball from the nose rail (it leaves at the "bolt" frame); it bounces once off
@@ -3940,6 +3943,111 @@ function floodKillEnemy() {
   splashAt(enemy.x, enemy.y, 50, true);
   if (enemy.remote) link.send({ t: "wk" }); else harmEnemy(99999);
 }
+// BOILER under water (any BOILER, mine or theirs, tied to being under water, not to the magic): the frame of its
+// propeller coming out (3 s from going under), then turning; out of the water: its usual pictures again
+function boilerProp(vt, S) {
+  if (!flood || vt.dead || !inWater(vt) || !S.anim.propOut) { vt.propAt = null; return null; }
+  if (vt.propAt == null) vt.propAt = time;
+  const t = time - vt.propAt, A = S.anim, out = A.propOut.length * 0.1;
+  return t < out ? A.propOut[Math.min(A.propOut.length - 1, Math.floor(t * 10))][0] : A.propSwim[Math.floor((t - out) * 20) % A.propSwim.length][0];
+}
+// its wake: bubbles out of the propeller (more when it pushes), once the propeller is out
+function boilerWake(dt) {
+  for (const o of [game, enemy]) {
+    const id = o === game ? game.ship : enemy.ship;
+    if (id !== "boiler" || o.dead || (o === enemy && !enemy.on) || o.propAt == null || time - o.propAt < 1.6 || !inWater(o)) continue;
+    const S = shipById("boiler"), push = Math.hypot(o.vx || 0, o.vy || 0) > U * 0.15 ? 1 : 0.25;   // (moving: a thick wake)
+    if (Math.random() < dt * 26 * push) {
+      const m = rotatePt((Math.random() - 0.5) * 0.12 * shipSize(), 0.566 * shipSize(), o.ang);   // (the package's propeller outlet: 0.566 ship-lengths behind the middle)
+      burstAt(o.x + m.x, o.y + m.y, 1 + (Math.random() < push * 0.5 ? 1 : 0), ["#ffffff", "#e6fbff", "#bff6ff"], 0.18, 0.9, o.vx * 0.2 - Math.sin(o.ang) * U * 0.25, o.vy * 0.2 + Math.cos(o.ang) * U * 0.25 - U * 0.06);
+    }
+  }
+}
+
+// ---------- fish in BOILER's water: shoot one for 1-10 coins ----------
+// Up to `max` fish swim in the water near my ship (this phone's own: the other phone has its own fish). Four kinds;
+// the rarer the kind, the more coins (1-10). They turn now and then, and dart away from a ship that comes close. My
+// shot through one: a burst of bubbles, its coins into this ship's wallet ("+n"). When the water drains past them
+// they are gone. All drawn here (the bodies, the swishing tails, the fins, the eyes)
+const FISH = { max: 9, every: 0.7, near: 2.6, kinds: [
+  { c1: "#c9d6e0", c2: "#7d93a6", fin: "#e8f2f8", len: 0.28, coins: [1, 2], odds: 0.42 },    // a little silver fish
+  { c1: "#ff9a3c", c2: "#e2531a", fin: "#ffffff", len: 0.34, coins: [2, 4], odds: 0.3, stripes: true },   // orange, white stripes
+  { c1: "#3d8cff", c2: "#1a3fa8", fin: "#ffd23f", len: 0.4, coins: [4, 7], odds: 0.2 },      // blue, yellow fins
+  { c1: "#ffe27a", c2: "#e0a400", fin: "#fff6c8", len: 0.44, coins: [8, 10], odds: 0.08, shine: true }] };   // gold: rare
+const fishes = [];
+function fishWaterTop() { return surfaceY() + U * 0.12; }
+function fishWaterBottom() { return WH * MAGIC.flood.bottom - U * 0.12; }
+function updateFish(dt) {
+  if (!flood || BOT || game.stage !== "fly" || floodLevel() < 0.25) { fishes.length = 0; return; }
+  const top = fishWaterTop(), bot = fishWaterBottom();
+  if (bot - top < U * 0.3) { fishes.length = 0; return; }
+  // new fish, off to the side of the screen near me, in the water
+  fishes.spawnT = (fishes.spawnT || 0) - dt;
+  if (fishes.length < FISH.max && fishes.spawnT <= 0) {
+    fishes.spawnT = FISH.every * (0.5 + Math.random());
+    let u = Math.random(), K = FISH.kinds[0]; for (const k of FISH.kinds) { if (u < k.odds) { K = k; break; } u -= k.odds; }
+    const side = Math.random() < 0.5 ? -1 : 1, x = wrapX(game.x + side * U * (0.9 + Math.random() * 1.2)), y = clamp(bandY(game.y) + (Math.random() - 0.5) * U * 2, top, bot);   // (round my height: the water is deep)
+    if (y > top && y < bot) fishes.push({ K, x, y, dir: -side, sp: U * (0.12 + Math.random() * 0.14), ph: Math.random() * TAU, turnT: 2 + Math.random() * 4, dart: 0, t: 0 });
+  }
+  for (let i = fishes.length - 1; i >= 0; i--) {
+    const F = fishes[i]; F.t += dt; F.turnT -= dt; F.dart = Math.max(0, F.dart - dt);
+    if (F.turnT <= 0) { F.dir = -F.dir; F.turnT = 2 + Math.random() * 5; }
+    for (const o of [game, enemy]) {   // a ship close by: away, fast
+      if ((o === enemy && !enemy.on) || o.dead) continue;
+      const dx = wrapDelta(F.x - o.x, WW), dy = wrapDelta(F.y - o.y, WH);
+      if (Math.hypot(dx, dy) < shipSize() * 1.3 && F.dart <= 0) { F.dir = dx >= 0 ? 1 : -1; F.dart = 0.8; F.turnT = 2 + Math.random() * 3; }
+    }
+    const sp = F.sp * (F.dart > 0 ? 3.2 : 1);
+    F.x = wrapX(F.x + F.dir * sp * dt); F.y += Math.sin(F.t * 1.3 + F.ph) * U * 0.05 * dt;
+    F.y = clamp(F.y, top, bot);
+    if (fishWaterBottom() - fishWaterTop() < U * 0.2 || Math.abs(wrapDelta(F.x - game.x, WW)) > U * FISH.near * 1.6 || Math.abs(F.y - bandY(game.y)) > U * FISH.near * 1.4) fishes.splice(i, 1);   // (the water gone, or left far behind)
+  }
+}
+// one of my shots through a fish (true: the shot is used up)
+function fishHit(s, Wp) {
+  const size = shipSize();
+  for (let i = 0; i < fishes.length; i++) {
+    const F = fishes[i];
+    if (Math.hypot(wrapDelta(F.x - s.x, WW), wrapDelta(F.y - s.y, WH)) > size * (F.K.len * 0.5 + (Wp.r || 0.02))) continue;
+    fishes.splice(i, 1);
+    const n = F.K.coins[0] + Math.floor(Math.random() * (F.K.coins[1] - F.K.coins[0] + 1));
+    burstAt(F.x, F.y, 18, ["#ffffff", "#bff6ff", F.K.c1, F.K.fin], 0.35, 0.8, 0, -U * 0.15);
+    rings.push({ x: F.x, y: F.y, t: 0, max: 0.3, r: size * 0.4, c: "#bff6ff" });
+    walletAdd(game.ship, n); saveBank(); coinPops.push({ x: F.x, y: F.y, n, t: 0 });
+    for (let j = 0; j < Math.min(6, 2 + Math.floor(n / 2)); j++) audio.tone(1000 + j * 170, 0.06, "triangle", 0.045, 1, j * 0.045);
+    audio.noise(0.12, 0.05, 2500); buzz(40);
+    return true;
+  }
+  return false;
+}
+function drawFish() {
+  if (!fishes.length) return;
+  const size = shipSize();
+  for (const F of fishes) {
+    const p = toScreen(F.x, F.y), L = F.K.len * size, sw = Math.sin(F.t * (F.dart > 0 ? 22 : 9) + F.ph);   // (the tail swishes faster when it darts)
+    ctx.save(); ctx.translate(p.x, p.y); ctx.scale(F.dir, 1); ctx.rotate(Math.sin(F.t * 1.3 + F.ph) * 0.12);
+    // the tail
+    ctx.fillStyle = F.K.fin; ctx.beginPath(); ctx.moveTo(-L * 0.38, 0); ctx.lineTo(-L * 0.62, -L * (0.2 + 0.05 * sw) + sw * L * 0.06); ctx.lineTo(-L * 0.55, sw * L * 0.06); ctx.lineTo(-L * 0.62, L * (0.2 - 0.05 * sw) + sw * L * 0.06); ctx.closePath(); ctx.fill();
+    // the body
+    const g = ctx.createLinearGradient(0, -L * 0.2, 0, L * 0.2); g.addColorStop(0, F.K.c1); g.addColorStop(1, F.K.c2);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, L * 0.42, L * 0.2, 0, 0, TAU); ctx.fill();
+    if (F.K.stripes) { ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = L * 0.06; for (const sx of [-0.12, 0.12]) { ctx.beginPath(); ctx.ellipse(sx * L, 0, L * 0.03, L * 0.18, 0, 0, TAU); ctx.stroke(); } }
+    // fins: on top and underneath, waving
+    ctx.fillStyle = F.K.fin; ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.moveTo(-L * 0.12, -L * 0.17); ctx.quadraticCurveTo(0, -L * (0.34 + 0.03 * sw), L * 0.14, -L * 0.17); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-L * 0.02, L * 0.12); ctx.lineTo(-L * 0.12, L * (0.26 + 0.04 * sw)); ctx.lineTo(L * 0.08, L * 0.15); ctx.fill();
+    ctx.globalAlpha = 1;
+    // the eye
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(L * 0.25, -L * 0.04, L * 0.055, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#101820"; ctx.beginPath(); ctx.arc(L * 0.265, -L * 0.04, L * 0.03, 0, TAU); ctx.fill();
+    if (F.K.shine) {   // the gold one glints
+      const k = 0.5 + 0.5 * Math.sin(time * 6 + F.ph);
+      ctx.globalCompositeOperation = "lighter"; const h = ctx.createRadialGradient(0, 0, 0, 0, 0, L * 0.6);
+      h.addColorStop(0, `rgba(255,230,140,${0.35 * k})`); h.addColorStop(1, "rgba(255,230,140,0)"); ctx.fillStyle = h; ctx.beginPath(); ctx.arc(0, 0, L * 0.6, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
 function floodEnd() { if (!flood) return; flood = null; audio.noise(0.8, 0.08, 400); }
 function floodSync(fd) {
   const M = MAGIC.flood;
@@ -3952,7 +4060,9 @@ function floodSync(fd) {
   } else if (flood && flood.owner === "them") flood = null;
 }
 function updateFlood(dt) {
+  updateFish(dt);
   if (!flood) return;
+  boilerWake(dt);
   const M = MAGIC.flood, t0 = flood.t; flood.t += dt;
   if (flood.owner === "me" && (game.dead || game.ship !== "boiler")) { floodEnd(); return; }   // the caster is gone: over at once
   if (flood.t >= fdTotal()) { floodEnd(); return; }
@@ -9874,6 +9984,7 @@ function updateWeapons(dt) {
       burstAt(s.x, s.y, Wp.dmg > 15 ? 18 : 6, [Wp.color, "#ffffff", "#c86bff"], 0.3, 0.6); audio.hit(); shots.splice(k, 1); continue;
     }
     if (comets.length && cometHit(s, Wp)) { shots.splice(k, 1); continue; }   // a resource comet
+    if (fishes.length && fishHit(s, Wp)) { shots.splice(k, 1); continue; }   // a fish in BOILER's water: coins
     if (drones.length && droneHit(s, Wp)) { shots.splice(k, 1); continue; }   // a practice ship (while they are docked)
     // sent back by their PALISADE's wall: now it can only hit me
     if (s.back) {
@@ -11066,12 +11177,13 @@ function mirrorPath(half) {
 function drawShip(S, x, y, size, o = {}) {
   if (S.quantum) { if (!BOT) drawNull(S, x, y, size, o); return; }   // NULL: drawn in its own layers (drawNull)
   const power = o.power ?? 0.25, bank = o.bank ?? 0, alpha = o.alpha ?? 1, ang = o.ang ?? 0;
+  const prop = S.boiler && o.vt && !o.zombie ? boilerProp(o.vt, S) : null;   // BOILER under water: its propeller (no flame)
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(x, y); ctx.rotate(ang + bank * 0.15); ctx.scale(size * Math.cos(bank * 0.9), size);
   ctx.lineJoin = "round";
   // engine flames (behind everything)
-  if (!o.out && !S.noFlame && o.half !== "front" && !(o.jets > 0)) S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
+  if (!o.out && !S.noFlame && !prop && o.half !== "front" && !(o.jets > 0)) S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
     const ey = S.engineYs ? S.engineYs[n] : S.engineY;   // a drawing can have its engines at different heights
     // a steam engine's flame is ragged and jumpy
     const rag = S.steam ? (Math.random() - 0.3) * 0.12 * power : 0;
@@ -11108,6 +11220,7 @@ function drawShip(S, x, y, size, o = {}) {
   if (S.huskArt) img = artImage(framePath(S.anim.dir, huskFrame(o.vt ? huskOf(o.vt) : null))) || img;   // HUSK: the tank, the arm   // XELTAR's side fins
   if (o.haunt && S.haunt && S.anim) { const f = shipFrame(S, o.anim); if (f && !f.startsWith("magic")) img = artImage(framePath(S.anim.dir, "h_" + f)) || img; }   // CORSAIR, a ghost ship
   if (o.drill && S.anim && S.anim.spin && o.drill.mix > 0.5) img = artImage(framePath(S.anim.dir, S.anim.spin[o.drill.frame])) || img;   // BORER's drill turning
+  if (prop) img = artImage(framePath(S.anim.dir, prop)) || img;   // BOILER's propeller
   // LYTH with its ring away: only the hull layer (the ring is drawn where it flies).
   // Grinding: the hull, and the ring drawn on its own, spinning, with its teeth out
   const ringAway = o.ring === "out" || o.ring === "back" || !!o.grind;
@@ -11431,7 +11544,7 @@ const TSHOW = {
   courier: { src: "art/title/courier-load1.webp", load: [1, 2, 3, 4].map((i) => "art/title/courier-load" + i + ".webp"), loadT: 1.3,
     shut: ["art/title/courier-open.webp", "art/title/courier-half.webp", "art/title/courier-closed.webp"], shutT: 0.8, half: "art/title/courier-half.webp", open: "art/title/courier-open.webp", can: "art/title/canister.webp",
     w: 900, h: 477, len: 7.5, hgt: 0.8, iris: [322, 357, 62, 72], axis: [-278, 177], jets: [[548, 20], [812, 48]] },
-  boiler: { src: "art/title/boiler-2.webp", w: 700, h: 538, len: 9, hgt: 0.92,
+  boiler: { src: "art/title/boiler-2.webp", w: 700, h: 538, len: 12, hgt: 0.92, tin: 3, tsink: 3.2, tprop: 4.2, tgo: 6.6,
     wins: [[205, 330, 95, 95], [440, 310, 47, 55]], steam: [585, 215], jet: [603, 322] },
   // (its clouds: 12 frames, made by rolling the cloud banks of its one render round a loop, its hull held still;
   // played at `fps`, each frame melting into the next)
@@ -11458,7 +11571,7 @@ function titleShowTick(dt) {
   }
   tshow.t += dt;
   for (let i = tshow.fx.length - 1; i >= 0; i--) { const p = tshow.fx[i]; p.t += dt; if (p.t > p.life) { tshow.fx.splice(i, 1); continue; } p.x += p.vx * dt; p.y += p.vy * dt; }
-  if (tshow.t > TSHOW[tshow.kind].len && !tshow.fx.some((p) => p.k === "steam")) { tshow.last = tshow.kind; tshow.kind = null; tshow.wait = TSHOW.gap[0] + Math.random() * (TSHOW.gap[1] - TSHOW.gap[0]); }
+  if (tshow.t > TSHOW[tshow.kind].len && !tshow.fx.some((p) => p.k === "steam" || p.k === "pbub")) { tshow.last = tshow.kind; tshow.kind = null; tshow.wait = TSHOW.gap[0] + Math.random() * (TSHOW.gap[1] - TSHOW.gap[0]); }
 }
 // the lane: the sky above the title picture, reaching behind its upper part (which is drawn over it)
 function titleLane() {
@@ -11538,15 +11651,50 @@ function drawTitleShow() {
       if (cimg) { ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.atan2(ay, ax) + Math.PI); ctx.scale(1, 0.8 + 0.2 * roll); ctx.drawImage(cimg, -cw / 2, -ch / 2, cw, ch); ctx.restore(); }
     }
   } else if (K === "boiler") {
-    // drifts across, slow and bobbing: bubbles rise in both windows (some pop), the blue jet flickers, steam puffs away
-    const dir = -1, x0 = dir > 0 ? -w : W, x1 = dir > 0 ? W : -w;
-    const x = x0 + (x1 - x0) * (t / S.len), y = L.cy - h / 2 + bob * 2.5;
-    const [jx, jy] = P(S.jet[0], S.jet[1], x, y);
+    // in from the right as before, slow and bobbing (bubbles in both windows, the blue jet, steam puffing away), slowing
+    // to a stop. Then the water rises round it and it sinks a little: the steam and the jet stop, and its propeller
+    // comes out of the jet (the shaft slides out, the blades spin up). Then away to the left on the propeller,
+    // a trail of bubbles behind it instead of steam
+    const xStop = W * 0.5 - w * 0.45, sink = smoothStep((t - S.tsink) / 1.6), go = t > S.tgo ? ((t - S.tgo) / (S.len - S.tgo)) ** 1.6 : 0;
+    const x = t < S.tin ? W + (xStop - W) * (1 - (1 - t / S.tin) ** 2) : xStop - (xStop + w) * go, y = L.cy - h / 2 + bob * 2.5 + sink * h * 0.1;
+    const [jx, jy] = P(S.jet[0], S.jet[1], x, y), steamOn = t < S.tsink + 0.3, water = sink * (1 - smoothStep((t - S.len + 1.2) / 1.2));
+    if (water > 0) {   // the water round it: a band rising up over the lane, a wavy bright surface
+      const top = L.cy + L.h * 0.5 - (L.h * 1.05) * water;
+      const g0 = ctx.createLinearGradient(0, top, 0, L.cy + L.h * 0.6); g0.addColorStop(0, `rgba(60,200,210,${0.22 * water})`); g0.addColorStop(1, `rgba(10,60,90,${0.4 * water})`);
+      ctx.fillStyle = g0; ctx.fillRect(0, top, W, L.cy + L.h * 0.6 - top);
+      ctx.strokeStyle = `rgba(220,255,255,${0.6 * water})`; ctx.lineWidth = Math.max(1.5, h * 0.008); ctx.beginPath();
+      for (let xx = 0; xx <= W; xx += 12) { const yy = top + Math.sin(xx * 0.03 + t * 2.4) * h * 0.012; xx ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); }
+      ctx.stroke();
+    }
     ctx.globalCompositeOperation = "lighter";
-    const fl = 0.7 + 0.3 * Math.sin(t * 31) * Math.sin(t * 13);
+    const fl = (0.7 + 0.3 * Math.sin(t * 31) * Math.sin(t * 13)) * (1 - sink);   // (the jet dies as it goes under)
     const g = ctx.createLinearGradient(jx, jy, jx + h * 0.35 * fl, jy); g.addColorStop(0, "rgba(140,210,255,0.9)"); g.addColorStop(1, "rgba(60,120,255,0)");
     ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(jx + h * 0.16 * fl, jy, h * 0.18 * fl, h * 0.035, 0, 0, TAU); ctx.fill();
     ctx.globalCompositeOperation = "source-over";
+    // the propeller (behind the hull): the shaft out of the jet, a hub, three brass blades turning (seen from the side,
+    // each one's height the cosine of its turn), and a blur disc once it is fast
+    const pk = smoothStep((t - S.tprop) / 1.2), spin = Math.max(0, t - S.tprop - 0.6);
+    if (pk > 0) {
+      const ext = h * 0.3 * pk, hx = jx + ext, R = h * 0.17 * smoothStep((t - S.tprop - 0.4) / 0.6), turn = spin * spin * 6 + spin * 18;
+      const sg = ctx.createLinearGradient(0, jy - h * 0.03, 0, jy + h * 0.03); sg.addColorStop(0, "#f2b27a"); sg.addColorStop(0.5, "#9a5a2a"); sg.addColorStop(1, "#4a2a14");
+      ctx.fillStyle = sg; ctx.fillRect(jx - h * 0.02, jy - h * 0.024, ext + h * 0.02, h * 0.048);
+      if (R > 1) {
+        const fast = Math.min(1, spin / 1.2);
+        if (fast > 0.2) { ctx.fillStyle = `rgba(230,190,120,${0.18 * fast})`; ctx.beginPath(); ctx.ellipse(hx + h * 0.02, jy, h * 0.03, R, 0, 0, TAU); ctx.fill(); }
+        for (let b = 0; b < 3; b++) {
+          const c = Math.cos(turn + b * TAU / 3), sgn = Math.sin(turn + b * TAU / 3) > 0 ? 1 : 0.65, len = R * c;
+          const bg = ctx.createLinearGradient(hx, jy, hx, jy - len); bg.addColorStop(0, "#c98a3a"); bg.addColorStop(1, sgn > 0.9 ? "#ffd98a" : "#a8702e");
+          ctx.fillStyle = bg; ctx.globalAlpha = 1 - fast * 0.45;
+          ctx.beginPath(); ctx.ellipse(hx + h * 0.02, jy - len / 2, h * 0.028 * sgn, Math.abs(len / 2), 0, 0, TAU); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+      ctx.fillStyle = "#e0a060"; ctx.strokeStyle = "#5a3418"; ctx.lineWidth = Math.max(1, h * 0.006);
+      ctx.beginPath(); ctx.arc(hx + h * 0.02, jy, h * 0.034, 0, TAU); ctx.fill(); ctx.stroke();
+      // bubbles out of it: a few as it spins up, a stream once it drives the ship away (they stay where they left it)
+      if (spin > 0 && t < S.len && Math.random() < (go > 0 ? 0.95 : 0.35)) for (let q = 0; q < (go > 0 ? 3 : 1); q++)
+        tshow.fx.push({ k: "pbub", ax: hx + h * 0.05, ay: jy + (Math.random() - 0.5) * R * 1.4, x: 0, y: 0, vx: (0.3 + Math.random() * 0.6) * (go > 0 ? 1 : 0.4), vy: -0.15 - Math.random() * 0.3, t: 0, life: 1.4 + Math.random() * 1.4, r: 0.012 + Math.random() * 0.03, ph: Math.random() * 6 });
+    }
     ctx.drawImage(img, x, y, w, h);
     const [sx, sy] = P(S.steam[0], S.steam[1], x, y), on = t < S.len;   // (gone off the screen: no new bubbles or puffs)
     if (on && Math.random() < 0.9) for (const [i, Wn] of S.wins.entries()) {   // new bubbles, at the bottom of each window
@@ -11554,7 +11702,7 @@ function drawTitleShow() {
     }
     // a puff stays where it left the pipe (on the screen), drifting on: the ship sails away from its trail, and the
     // last puffs drift on out after it
-    if (on && Math.random() < 0.12) tshow.fx.push({ k: "steam", ax: sx, ay: sy, x: 0, y: 0, vx: 0.8 + Math.random() * 0.5, vy: -0.15 - Math.random() * 0.25, t: 0, life: 2.2 + Math.random() * 0.8, r: 0.04 });   // (the only steam now: its painted puff is cut out of the picture)
+    if (on && steamOn && Math.random() < 0.12) tshow.fx.push({ k: "steam", ax: sx, ay: sy, x: 0, y: 0, vx: 0.8 + Math.random() * 0.5, vy: -0.15 - Math.random() * 0.25, t: 0, life: 2.2 + Math.random() * 0.8, r: 0.04 });   // (the only steam now: its painted puff is cut out of the picture)
     for (const [i, Wn] of S.wins.entries()) {
       const [wx, wy] = P(Wn[0], Wn[1], x, y), rx = Wn[2] * sc, ry = Wn[3] * sc;
       ctx.save(); ctx.beginPath(); ctx.ellipse(wx, wy, rx, ry, 0, 0, TAU); ctx.clip();
@@ -11569,6 +11717,14 @@ function drawTitleShow() {
         ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.arc(bx - r * 0.35, by - r * 0.35, r * 0.25, 0, TAU); ctx.fill();
       }
       ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    for (const p of tshow.fx) if (p.k === "pbub") {   // the propeller's bubbles: rising, wobbling, growing, popping
+      const k = p.t / p.life, bx = p.ax + p.x * h * 0.5 + Math.sin(p.t * 5 + p.ph) * h * 0.012, by = p.ay + p.y * h * 0.5, r = h * p.r * (1 + k * 0.6);
+      ctx.globalAlpha = Math.min(1, p.t * 5) * (1 - k * k);
+      ctx.strokeStyle = "rgba(235,250,255,0.9)"; ctx.lineWidth = Math.max(0.8, r * 0.2); ctx.fillStyle = "rgba(200,240,255,0.15)";
+      ctx.beginPath(); ctx.arc(bx, by, r, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.arc(bx - r * 0.35, by - r * 0.35, r * 0.25, 0, TAU); ctx.fill();
     }
     ctx.globalAlpha = 1;
     for (const p of tshow.fx) if (p.k === "steam") {   // puffs out of the pipe, widening and fading
@@ -15640,6 +15796,7 @@ function preloadArt() {
     if (A.inflate) all.push(...A.inflate.map((x) => x[0]));
     if (A.collapse) all.push(...A.collapse);
     if (A.swim) all.push(...A.swim.flat());
+    if (A.propOut) all.push(...A.propOut.map((x) => x[0]), ...A.propSwim.map((x) => x[0]));   // (BOILER's propeller)
     if (A.field) all.push(...A.field, ...A.arc, ...A.rainbow.map((x) => x[0]), ...A.shotArt.lightning.frames);
     if (S.grows) for (let i = 0; i <= 5; i++) talusPicture(S, i, []);
     if (A.egg) {
@@ -15802,7 +15959,7 @@ function draw() {
     if (sk > 0.2) ctx.translate((Math.random() - 0.5) * sk, (Math.random() - 0.5) * sk);
     ctx.translate(W / 2, H / 2); ctx.scale(game.zoom, game.zoom); ctx.translate(-W / 2, -H / 2);
   }
-  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); drawDeadStar(); drawSpire(); drawMaze(); drawFlood(); drawStation(); if (flying) drawCarrierScene(); }   // (LABYRINTH's Starforge)
+  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); drawDeadStar(); drawSpire(); drawMaze(); drawFlood(); drawFish(); drawStation(); if (flying) drawCarrierScene(); }   // (LABYRINTH's Starforge)
 
   if (flying) {
     const p = shipScreen();

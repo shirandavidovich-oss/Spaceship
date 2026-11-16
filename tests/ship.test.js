@@ -1084,4 +1084,14 @@ ok("NULL against the others: swims in BOILER's water and drifts through LABYRINT
   assert(html.includes("!(Wp.hack && quantumShip(enemy.ship))") && html.includes("!(Wp.hack && quantumShip(game.ship))") && html.includes("(Wp.drill && quantumShip(enemy.ship))"));
   assert(html.includes("hold: 6.5, end: 7, starHold: 3.5, starEnd: 4") && html.includes("function nullDeathSound()") && html.includes("d[n - 1 - i] ="));
 });
+ok("BOILER under water: its propeller comes out (30 frames) then turns (24), no flame; fish in its water pay 1-10 coins when shot; the menu film puts the propeller out", () => {
+  const S = shipById("boiler"), fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets/art/ships/boiler");
+  assert(S.anim.propOut.length === 30 && S.anim.propSwim.length === 24);
+  for (const f of [...S.anim.propOut, ...S.anim.propSwim]) assert(fs.existsSync(path.join(A, f[0])), f[0]);
+  assert(html.includes("!S.noFlame && !prop &&") && html.includes("if (prop) img = artImage(framePath(S.anim.dir, prop)) || img;"));
+  const odds = [...html.matchAll(/coins: \[(\d+), (\d+)\], odds: ([\d.]+)/g)];
+  assert(odds.length === 4 && +odds[0][1] === 1 && +odds[3][2] === 10 && Math.abs(odds.reduce((a, m) => a + +m[3], 0) - 1) < 1e-9);
+  assert(html.includes("if (fishes.length && fishHit(s, Wp)) { shots.splice(k, 1); continue; }") && html.includes("walletAdd(game.ship, n); saveBank();"));
+  assert(html.includes("tsink: 3.2, tprop: 4.2, tgo: 6.6") && html.includes('p.k === "pbub"'));
+});
 console.log(n + " checks passed");
