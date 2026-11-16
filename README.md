@@ -34,10 +34,11 @@ ship's `fuel` seconds (30 for now): the button goes white → yellow → orange 
 black, and then disappears. It fills back up by itself (`refill` seconds per ship, 15 for now)
 and the button returns once the tank is 20% full.
 
-**What is in the middle changes every round** (each time a new enemy arrives): one of 13 bodies, each with its own size,
+**What is in the middle changes every round** (each time a new enemy arrives): one of 14 bodies, each with its own size,
 gravity and look: a purple gas giant, a black hole (strongest pull, swirling disk), a neutron star (magnetic loops), a pulsar
 (sweeping beams), a white dwarf, a red giant (huge, weak pull), a yellow sun (flares), a blue giant, a ringed ice planet and a
-lava planet, and three pictures (`art/bodies/`, drawn by `drawImageBody`): the moon (a thin lit crescent), Jupiter and
+lava planet, and three pictures (`art/bodies/`, drawn by `drawImageBody`): the moon (a thin lit crescent), Earth (turning once every 8 s: 64 frames in `earth-spin.webp`;
+with NIMBUS in the fight, on either side, wrapped in its storm instead, `earth-storm.webp`, at the same angle), Jupiter and
 Neptune, each in its own 6 s loop (flowing cloud belts, Jupiter's Great Red Spot swirling, Neptune's dark storm, pale
 blue lightning in the clouds): 48 frames in `jupiter-storm.webp` / `neptune-storm.webp`, 8 a second, each melting
 into the next. The old one shrinks away as the

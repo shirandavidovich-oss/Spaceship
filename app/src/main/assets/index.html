@@ -2086,7 +2086,11 @@ const BODIES = [
   { id: "jupiter", name: "צדק", kind: "image", art: "art/bodies/jupiter.webp", sheet: "art/bodies/jupiter-storm.webp", cell: 400, frames: 48, fps: 8,
     r: 0.62, pull: 0.5, color: "#d9a066", halo: "235,180,120" },
   { id: "neptune", name: "נפטון", kind: "image", art: "art/bodies/neptune.webp", sheet: "art/bodies/neptune-storm.webp", cell: 400, frames: 48, fps: 8,
-    r: 0.48, pull: 0.42, color: "#4f7dff", halo: "90,140,255" }
+    r: 0.48, pull: 0.42, color: "#4f7dff", halo: "90,140,255" },
+  // Earth, turning once every 8 s (64 frames, 8 a second); with NIMBUS in the fight (either side) its storm-covered
+  // version instead (`storm`, `stormArt`: the same turn, so it keeps its angle if NIMBUS comes or goes)
+  { id: "earth", name: "כדור הארץ", kind: "image", art: "art/bodies/earth.webp", sheet: "art/bodies/earth-spin.webp", cell: 384, frames: 64, fps: 8,
+    storm: "art/bodies/earth-storm.webp", stormArt: "art/bodies/earth-storm-static.webp", r: 0.44, pull: 0.4, color: "#3f78c9", halo: "110,170,255" }
 ];
 // the next body: any but the one there now
 function nextBody(now, rand = Math.random) { let i; do i = Math.floor(rand() * BODIES.length); while (i === now && BODIES.length > 1); return i; }
@@ -2474,7 +2478,7 @@ const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke s
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
   rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake", vault: "Star in the vault", haunt: "Ghost ship", breach: "Breach and deliver", collapse: "Wave Collapse" };
-const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet", "Moon", "Jupiter", "Neptune"];
+const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet", "Moon", "Jupiter", "Neptune", "Earth"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
 function textDir() { return LANG === "he" ? "rtl" : "ltr"; }
@@ -11382,7 +11386,7 @@ const RESULT_ART = {"win":{"title":"YOU WIN","width":2059,"height":393,"static":
 const MUSIC = { "pulse-rivet": 55.65, "quiet-orbit": 68.57, arcade: 25.6, title: 34.285719, hangar: 43.636375, "orange-sun": 29.090906, "blue-giant": 36.226406, "red-dwarf": 38.787875, pulsar: 26.666656, carrier: 20 };
 // which loop plays in the arena, by the body in the middle (an unknown one: the orange sun's)
 const BODY_MUSIC = { sun: "orange-sun", lava: "orange-sun", gas: "orange-sun", redgiant: "red-dwarf", hole: "red-dwarf",
-  bluegiant: "blue-giant", dwarf: "blue-giant", ice: "blue-giant", moon: "blue-giant", jupiter: "orange-sun", neptune: "blue-giant", pulsar: "pulsar", neutron: "pulsar" };
+  bluegiant: "blue-giant", dwarf: "blue-giant", ice: "blue-giant", moon: "blue-giant", jupiter: "orange-sun", neptune: "blue-giant", earth: "blue-giant", pulsar: "pulsar", neutron: "pulsar" };
 function setVolume(ch, v) {
   VOL[ch] = clamp(v, 0, 1);
   try { LS.setItem(VOL_KEY, JSON.stringify(VOL)); } catch (e) {}
@@ -16616,7 +16620,9 @@ function drawBody(B, p, R, alpha) {
 // one melting into the next; Jupiter's lightning: pale blue glints near the red spot, now and then
 function drawImageBody(B, R, glow) {
   glow(R * 0.92, R * 2.4, 0.18);
-  const s = R * 2 * 1.04, img = artImage(B.art), sheet = B.sheet ? artImage(B.sheet) : null;
+  const storm = B.storm && (game.ship === "nimbus" || (enemy.on && enemy.ship === "nimbus"));   // (Earth under NIMBUS's storm)
+  const stormSheet = storm ? artImage(B.storm) : null;   // (until it has loaded: the plain one)
+  const s = R * 2 * 1.04, img = artImage(storm ? B.stormArt : B.art) || artImage(B.art), sheet = stormSheet || (B.sheet ? artImage(B.sheet) : null);
   if (sheet) {
     const fp = (time * B.fps) % B.frames, f0 = Math.floor(fp), f1 = (f0 + 1) % B.frames, k = fp - f0, c = B.cell;
     const cell = (f) => ctx.drawImage(sheet, (f % 8) * c, Math.floor(f / 8) * c, c, c, -s / 2, -s / 2, s, s);

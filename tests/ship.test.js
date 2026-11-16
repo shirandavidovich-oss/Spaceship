@@ -90,15 +90,15 @@ ok("every engine is stronger than the planet's pull (no ship gets stuck on it)",
   const g = gravityAt(1, 0, 1, 0.5);
   for (const s of SHIPS) assert(shipStats(s).push > Math.abs(g.ax), s.id);
 });
-ok("thirteen bodies in the middle (the moon, Jupiter and Neptune pictures too); every engine beats every one's pull; a new round never repeats the last", () => {
-  assert.strictEqual(BODIES.length, 13); assert.strictEqual(new Set(BODIES.map((b) => b.id)).size, 13);
-  for (const B of BODIES.filter((b) => b.kind === "image")) for (const a of [B.art, B.sheet].filter(Boolean)) assert(fs.existsSync(require("path").join(__dirname, "../app/src/main/assets", a)), a);
+ok("fourteen bodies in the middle (the moon, Jupiter, Neptune and Earth pictures too; Earth stormy with NIMBUS); every engine beats every one's pull; a new round never repeats the last", () => {
+  assert.strictEqual(BODIES.length, 14); assert.strictEqual(new Set(BODIES.map((b) => b.id)).size, 14);
+  for (const B of BODIES.filter((b) => b.kind === "image")) for (const a of [B.art, B.sheet, B.storm, B.stormArt].filter(Boolean)) assert(fs.existsSync(require("path").join(__dirname, "../app/src/main/assets", a)), a);
   for (const B of BODIES) {
     const g = gravityAt(1, 0, 1, B.r, B.pull);
     for (const s of SHIPS) assert(shipStats(s).push > Math.abs(g.ax), B.id + " vs " + s.id);
     assert(B.r > 0.05 && B.r < 1, B.id);
   }
-  for (let i = 0; i < 50; i++) { const now = i % 13; assert.notStrictEqual(nextBody(now), now); }
+  for (let i = 0; i < 50; i++) { const now = i % 14; assert.notStrictEqual(nextBody(now), now); }
   assert(BODIES.find((b) => b.id === "hole").pull > BODIES.find((b) => b.id === "redgiant").pull, "a black hole pulls harder than a red giant");
 });
 ok("every ship has 2 weapons that exist and refill by themselves", () => {
