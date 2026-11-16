@@ -2079,11 +2079,12 @@ const BODIES = [
   { id: "lava", name: "כוכב לבה", kind: "planet", r: 0.38, pull: 0.38, burn: 12, color: "#ff6b1a", halo: "255,90,20",
     grad: ["#5a4a46", "#3a2a28", "#1e1413", "#0a0606"], cracks: "#ff7b1a", rim: "rgba(255,120,40,0.6)" },
   // pictures (kind "image", drawImageBody; art/bodies/, the disc filling the square but a 2% margin): the moon, a thin
-  // crescent lit; Jupiter, pale blue lightning flickering by its Great Red Spot (`flash`: where, in the picture's units);
-  // Neptune, its clouds flowing and lightning round its dark storm (`sheet`: 48 frames, 8 a second, a 6 s loop)
+  // crescent lit; Jupiter, its belts flowing, the Great Red Spot swirling and lightning in the bands near it; Neptune, its
+  // clouds flowing and lightning round its dark storm (`sheet`: 48 frames, 8 a second, a 6 s loop; `flash`: drawn
+  // lightning glints, where, in the picture's units, for a body with none of its own)
   { id: "moon", name: "ירח", kind: "image", art: "art/bodies/moon.webp", r: 0.34, pull: 0.26, color: "#c9ccd6", halo: "190,200,225" },
-  { id: "jupiter", name: "צדק", kind: "image", art: "art/bodies/jupiter.webp", r: 0.62, pull: 0.5, color: "#d9a066", halo: "235,180,120",
-    flash: [[0.75, 0.62], [0.62, 0.57], [0.83, 0.68]] },
+  { id: "jupiter", name: "צדק", kind: "image", art: "art/bodies/jupiter.webp", sheet: "art/bodies/jupiter-storm.webp", cell: 400, frames: 48, fps: 8,
+    r: 0.62, pull: 0.5, color: "#d9a066", halo: "235,180,120" },
   { id: "neptune", name: "נפטון", kind: "image", art: "art/bodies/neptune.webp", sheet: "art/bodies/neptune-storm.webp", cell: 400, frames: 48, fps: 8,
     r: 0.48, pull: 0.42, color: "#4f7dff", halo: "90,140,255" }
 ];
