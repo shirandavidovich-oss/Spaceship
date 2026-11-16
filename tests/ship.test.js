@@ -1092,6 +1092,6 @@ ok("BOILER under water: its propeller comes out (30 frames) then turns (24), no 
   const odds = [...html.matchAll(/coins: \[(\d+), (\d+)\], odds: ([\d.]+)/g)];
   assert(odds.length === 4 && +odds[0][1] === 1 && +odds[3][2] === 10 && Math.abs(odds.reduce((a, m) => a + +m[3], 0) - 1) < 1e-9);
   assert(html.includes("if (fishes.length && fishHit(s, Wp)) { shots.splice(k, 1); continue; }") && html.includes("walletAdd(game.ship, n); saveBank();"));
-  assert(html.includes("tsink: 3.2, tprop: 4.2, tgo: 6.6") && html.includes('p.k === "pbub"'));
+  assert(html.includes("tsink: 3.2, tprop: 4.2, tgo: 6.6") && html.includes("p.k === \"pbub\"") && html.includes("art/title/boiler-prop-spin.webp"));
 });
 console.log(n + " checks passed");

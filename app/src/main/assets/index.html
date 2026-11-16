@@ -11545,6 +11545,10 @@ const TSHOW = {
     shut: ["art/title/courier-open.webp", "art/title/courier-half.webp", "art/title/courier-closed.webp"], shutT: 0.8, half: "art/title/courier-half.webp", open: "art/title/courier-open.webp", can: "art/title/canister.webp",
     w: 900, h: 477, len: 7.5, hgt: 0.8, iris: [322, 357, 62, 72], axis: [-278, 177], jets: [[548, 20], [812, 48]] },
   boiler: { src: "art/title/boiler-2.webp", w: 700, h: 538, len: 12, hgt: 0.92, tin: 3, tsink: 3.2, tprop: 4.2, tgo: 6.6,
+    // (with its propeller: his own render, cut out of its background; only the propeller moves, 48 frames of it on one
+    // sheet, 8 across, at 25 a second. `at`: where that render sits over the first one, in the first one's pixels; `patch`:
+    // where the propeller frames go on it; `hub`: the propeller's middle, where its bubbles come from)
+    prop: "art/title/boiler-prop-base.webp", spin: "art/title/boiler-prop-spin.webp", at: [-43.9, -9.76, 761, 570.7], patch: [550.6, 214.3, 123.2, 168.3], hub: [614.6, 301.2], cells: [101, 138, 48],
     wins: [[205, 330, 95, 95], [440, 310, 47, 55]], steam: [585, 215], jet: [603, 322] },
   // (its clouds: 12 frames, made by rolling the cloud banks of its one render round a loop, its hull held still;
   // played at `fps`, each frame melting into the next)
@@ -11555,7 +11559,7 @@ const tshow = { kind: null, next: null, t: 0, wait: TSHOW.first, last: null, fx:
 const TSHOW_KINDS = ["lighthouse", "courier", "boiler", "cloudship"];
 // (only the pictures of the film playing and the one coming next are held: all of them at once, some 30 big pictures,
 // took too much of the phone's memory; the rest are let go)
-function titleShowArt() { tshow.held = true; for (const k of [tshow.kind, tshow.next]) { if (!k) continue; artImage(TSHOW[k].src); for (const q of ["lit", "can"]) if (TSHOW[k][q]) artImage(TSHOW[k][q]); for (const q of ["frames", "load", "shut"]) if (TSHOW[k][q]) TSHOW[k][q].forEach((s) => artImage(s)); } }
+function titleShowArt() { tshow.held = true; for (const k of [tshow.kind, tshow.next]) { if (!k) continue; artImage(TSHOW[k].src); for (const q of ["lit", "can", "prop", "spin"]) if (TSHOW[k][q]) artImage(TSHOW[k][q]); for (const q of ["frames", "load", "shut"]) if (TSHOW[k][q]) TSHOW[k][q].forEach((s) => artImage(s)); } }
 function titleShowTick(dt) {
   if (game.stage !== "title" || shop.open) {
     if (tshow.held) { tshow.held = false; tshow.kind = tshow.next = null; tshow.fx.length = 0; for (const s in artCache) if (s.startsWith("art/title/")) { delete artCache[s]; delete artUsed[s]; } }   // (off the menu: the films' pictures go at once)
@@ -11671,31 +11675,26 @@ function drawTitleShow() {
     const g = ctx.createLinearGradient(jx, jy, jx + h * 0.35 * fl, jy); g.addColorStop(0, "rgba(140,210,255,0.9)"); g.addColorStop(1, "rgba(60,120,255,0)");
     ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(jx + h * 0.16 * fl, jy, h * 0.18 * fl, h * 0.035, 0, 0, TAU); ctx.fill();
     ctx.globalCompositeOperation = "source-over";
-    // the propeller (behind the hull): the shaft out of the jet, a hub, three brass blades turning (seen from the side,
-    // each one's height the cosine of its turn), and a blur disc once it is fast
-    const pk = smoothStep((t - S.tprop) / 1.2), spin = Math.max(0, t - S.tprop - 0.6);
-    if (pk > 0) {
-      const ext = h * 0.3 * pk, hx = jx + ext, R = h * 0.17 * smoothStep((t - S.tprop - 0.4) / 0.6), turn = spin * spin * 6 + spin * 18;
-      const sg = ctx.createLinearGradient(0, jy - h * 0.03, 0, jy + h * 0.03); sg.addColorStop(0, "#f2b27a"); sg.addColorStop(0.5, "#9a5a2a"); sg.addColorStop(1, "#4a2a14");
-      ctx.fillStyle = sg; ctx.fillRect(jx - h * 0.02, jy - h * 0.024, ext + h * 0.02, h * 0.048);
-      if (R > 1) {
-        const fast = Math.min(1, spin / 1.2);
-        if (fast > 0.2) { ctx.fillStyle = `rgba(230,190,120,${0.18 * fast})`; ctx.beginPath(); ctx.ellipse(hx + h * 0.02, jy, h * 0.03, R, 0, 0, TAU); ctx.fill(); }
-        for (let b = 0; b < 3; b++) {
-          const c = Math.cos(turn + b * TAU / 3), sgn = Math.sin(turn + b * TAU / 3) > 0 ? 1 : 0.65, len = R * c;
-          const bg = ctx.createLinearGradient(hx, jy, hx, jy - len); bg.addColorStop(0, "#c98a3a"); bg.addColorStop(1, sgn > 0.9 ? "#ffd98a" : "#a8702e");
-          ctx.fillStyle = bg; ctx.globalAlpha = 1 - fast * 0.45;
-          ctx.beginPath(); ctx.ellipse(hx + h * 0.02, jy - len / 2, h * 0.028 * sgn, Math.abs(len / 2), 0, 0, TAU); ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-      }
-      ctx.fillStyle = "#e0a060"; ctx.strokeStyle = "#5a3418"; ctx.lineWidth = Math.max(1, h * 0.006);
-      ctx.beginPath(); ctx.arc(hx + h * 0.02, jy, h * 0.034, 0, TAU); ctx.fill(); ctx.stroke();
-      // bubbles out of it: a few as it spins up, a stream once it drives the ship away (they stay where they left it)
-      if (spin > 0 && t < S.len && Math.random() < (go > 0 ? 0.95 : 0.35)) for (let q = 0; q < (go > 0 ? 3 : 1); q++)
-        tshow.fx.push({ k: "pbub", ax: hx + h * 0.05, ay: jy + (Math.random() - 0.5) * R * 1.4, x: 0, y: 0, vx: (0.3 + Math.random() * 0.6) * (go > 0 ? 1 : 0.4), vy: -0.15 - Math.random() * 0.3, t: 0, life: 1.4 + Math.random() * 1.4, r: 0.012 + Math.random() * 0.03, ph: Math.random() * 6 });
+    // the propeller: his render with the propeller, melting in over the first picture (under a cloud of bubbles) once it
+    // has sunk; the propeller turning, spinning up over its first second
+    const pk = smoothStep((t - S.tprop) / 0.8), spin = Math.max(0, t - S.tprop), pimg = artImage(S.prop), sheet = artImage(S.spin);
+    if (pk > 0 && pimg) {
+      const [hx, hy] = P(S.hub[0], S.hub[1], x, y);
+      if (t < S.tprop + 0.9 && Math.random() < 0.8) for (let q = 0; q < 3; q++)   // (the change, hidden in bubbles round the back)
+        tshow.fx.push({ k: "pbub", ax: hx + (Math.random() - 0.4) * h * 0.25, ay: hy + (Math.random() - 0.5) * h * 0.35, x: 0, y: 0, vx: (Math.random() - 0.3) * 0.4, vy: -0.2 - Math.random() * 0.3, t: 0, life: 0.8 + Math.random() * 0.8, r: 0.01 + Math.random() * 0.025, ph: Math.random() * 6 });
+      if (t < S.len && Math.random() < (go > 0 ? 0.95 : 0.15)) for (let q = 0; q < (go > 0 ? 3 : 1); q++)   // its bubbles: a few, then a stream as it drives away (they stay where they left it; behind the propeller, not over it)
+        tshow.fx.push({ k: "pbub", ax: hx + h * 0.2, ay: hy + (Math.random() - 0.5) * h * 0.25, x: 0, y: 0, vx: (0.3 + Math.random() * 0.6) * (go > 0 ? 1 : 0.4), vy: -0.15 - Math.random() * 0.3, t: 0, life: 1.4 + Math.random() * 1.4, r: 0.012 + Math.random() * 0.03, ph: Math.random() * 6 });
     }
-    ctx.drawImage(img, x, y, w, h);
+    if (pk < 1 || !pimg) ctx.drawImage(img, x, y, w, h);
+    if (pk > 0 && pimg) {
+      const [ax, ay] = P(S.at[0], S.at[1], x, y);
+      ctx.globalAlpha = pk; ctx.drawImage(pimg, ax, ay, S.at[2] * sc, S.at[3] * sc);
+      if (sheet) {   // the turning propeller over it (its frame from how far it has turned: slow at first, then 25 a second)
+        const turned = spin < 1 ? 12.5 * spin * spin : 12.5 + 25 * (spin - 1), f = Math.floor(turned) % S.cells[2], [cw, ch] = S.cells, [px, py] = P(S.patch[0], S.patch[1], x, y);
+        ctx.drawImage(sheet, (f % 8) * cw, Math.floor(f / 8) * ch, cw, ch, px, py, S.patch[2] * sc, S.patch[3] * sc);
+      }
+      ctx.globalAlpha = 1;
+    }
     const [sx, sy] = P(S.steam[0], S.steam[1], x, y), on = t < S.len;   // (gone off the screen: no new bubbles or puffs)
     if (on && Math.random() < 0.9) for (const [i, Wn] of S.wins.entries()) {   // new bubbles, at the bottom of each window
       if (Math.random() < (i ? 0.25 : 0.5)) tshow.fx.push({ k: "bub", win: i, x: (Math.random() - 0.5) * 1.6 * Wn[2], y: Wn[3] * 0.95, vx: 0, vy: -Wn[3] * (0.5 + Math.random() * 0.7), t: 0, life: 2.2, r: Wn[2] * (0.03 + Math.random() * 0.07), ph: Math.random() * 6 });
