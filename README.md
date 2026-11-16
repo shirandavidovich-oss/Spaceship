@@ -616,6 +616,23 @@ point ahead of it (on its own screen only) shows where the wave leaves.
   "It's not for you. It's not even for me.", "It's not supposed to be here." ...: `nullSay`), again at each tap on it.
   Buying with real money still needs Google Play Billing (not built yet), so for now it cannot actually be bought.
 
+**CORSAIR on BOILER's water** (the eight CORSAIR Water packages, `art/ships/corsair/water/`, 320 px canvases with the
+waterline across the middle; `updateCorsairWater`, `drawCorsairWater`). A CORSAIR riding the surface of BOILER's water
+(it stays on it now; only its engines, nose up, lift it off) is seen from the side, like a ship at sea, mine or theirs:
+- the first touch: six frames from the view from above to the side (its tilt eased away, a dip and back, a splash);
+- moving along: the oars come out (13 frames) and it rows (24, a loop, a soft splash each stroke); stopping: the oars back in;
+- changing side: right to left it turns through its bow (the golden bow toward you), left to right through its stern
+  (the captain's cabin toward you); the oars still meanwhile;
+- haunted (its magic) and BLOOM's copy have their own entry, sides and turns (no rowing);
+- the water is drawn over the hull below the waterline.
+Over their BOILER under the water it is a **sub hunter** (`corsairDestroyer`): its broadside rounds go into the water,
+hit BOILER through its shield, and blow up BOILER's cans and torpedoes they pass ("pop"); button 2 drops **depth
+charges** instead of the chain shot (`depthcharge`, a sea-and-barrel icon over the button): it sinks while the button is
+held and goes off when let go (or on the bottom), as wide as BLOOM's pollen cloud, 30 at most through BOILER's shield,
+and the fish in it pay their coins. The computer drops them over BOILER and lets go at its depth.
+**COURIER against BOILER under its water**: its orbit mines still circle the star and hurt BOILER down there, and its
+mail capsule dives into the water and hunts BOILER until it hits. (Hits that get through the shield: "pierce".)
+
 **The music dial** (the Orbit Break Music Switch package: `audio/music/pulse-rivet.ogg`, `quiet-orbit.ogg`): a tap
 goes round the game's own music (each screen its loop) -> Pulse Rivet -> Quiet Orbit -> no music (a red line across the
 dial) -> the game's own music again; each from its beginning, looping until the next tap, at the same volume, and kept

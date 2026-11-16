@@ -1423,7 +1423,7 @@ const WEAPONS = {
   // COURIER. brassburst: two rounds at once from the nose ports. mailcap: a capsule the star pulls round (gravity), one
   //   at a time (`one`)
   brassburst: { name: "צרור פליז", dmg: 5, speed: 2.3, life: 1.0, cool: 0.28, ammo: 16, refill: 7, r: 0.02, color: "#ffc46b", both: true },
-  mailcap:    { name: "קפסולת דואר", dmg: 18, speed: 1.2, life: 6.0, cool: 1.6, ammo: 3, refill: 9, r: 0.05, color: "#ff9a2e", gravity: true, one: true },
+  mailcap:    { name: "קפסולת דואר", dmg: 18, speed: 1.2, life: 6.0, cool: 1.6, ammo: 3, refill: 9, r: 0.05, color: "#ff9a2e", gravity: true, one: true, seekWater: true },   // (seekWater: into BOILER's water it goes, and hunts BOILER down there)
   // FRESNEL. lensflash: a narrow golden pulse. lightshard: two shards aimed to cross `aimAt` ship-lengths ahead, then on
   lensflash:  { name: "הבזק ממוקד", dmg: 8, speed: 3.0, life: 0.7, cool: 0.35, ammo: 12, refill: 6, r: 0.02, color: "#ffd86b" },
   lightshard: { name: "רסיסי אור", dmg: 7, speed: 2.4, life: 0.9, cool: 0.7, ammo: 8, refill: 7, r: 0.025, color: "#ff5ea8", colors: ["#ff5ea8", "#5ee7ff"], both: true, aimAt: 2.0 },
@@ -1435,6 +1435,10 @@ const WEAPONS = {
   // CORSAIR. broadside: five iron balls from one side (the aiming stick; corsair part). chainshot: two balls on a chain
   //   (`r`: half its span), falling round the star like any heavy shot. ghostshot / ghostchain: the same from the ghost
   //   ship, turning after the enemy. pirate: its hits raise ghosts and give CORSAIR health
+  // depthcharge: CORSAIR's button 2 as a sub hunter on BOILER's water (corsairDestroyer): a barrel that sinks while the
+  //   button is held (up to `sink` screens/s) and goes off when it is let go: BLOOM's pollen cloud wide, `blastDmg` through
+  //   BOILER's shield (full in the inner half)
+  depthcharge: { name: "מוקש עומק", dmg: 0, speed: 0, life: 7, cool: 1.2, ammo: 3, refill: 8, r: 0.09, color: "#4a4a55", dcharge: true, sink: 0.55, blastDmg: 30 },
   broadside:  { name: "מטח דופן", dmg: 9, speed: 2.3, life: 0.85, cool: 0.9, ammo: 4, refill: 7, r: 0.03, color: "#ffb347", broadside: true, pirate: true },
   chainshot:  { name: "כדורי שרשרת", dmg: 20, speed: 1.8, life: 1.1, cool: 1.3, ammo: 3, refill: 8, r: 0.09, color: "#9a9aa2", chain: true, gravity: true, pirate: true },
   ghostshot:  { name: "מטח רפאים", dmg: 9, speed: 1.8, life: 1.4, cool: 0.9, ammo: 4, refill: 7, r: 0.03, color: "#5ef0ff", broadside: true, pirate: true, ghost: true, homing: 4.5 },
@@ -4060,7 +4064,7 @@ function floodSync(fd) {
   } else if (flood && flood.owner === "them") flood = null;
 }
 function updateFlood(dt) {
-  updateFish(dt);
+  updateFish(dt); updateCorsairWater(dt); updateCharges(dt);
   if (!flood) return;
   boilerWake(dt);
   const M = MAGIC.flood, t0 = flood.t; flood.t += dt;
@@ -4098,6 +4102,8 @@ function floodKeep(dt) {
     if (role === "air" && y > sy - r) {
       if (y < sy + r * 3) { y = sy - r; if (game.vy > 0) game.vy = 0; }   // riding up on the surface
       else if (game.vy > -U * 1.5) game.vy -= M.pull * U * dt;          // pushed up out of it
+    } else if (role === "air" && game.ship === "corsair" && y > sy - r * 2.2 && !((game.power || 0) > 0.5 && Math.cos(game.ang) > 0.6)) {   // CORSAIR afloat: it stays on the water (only its engines, nose up, lift it off)
+      y = sy - r; game.vy = 0;
     }
     if (role === "swimmer" && y > bot - r) { y = bot - r; if (game.vy > 0) game.vy = 0; }
     if (y < top + r) { y = top + r; if (game.vy < 0) game.vy = 0; }
@@ -4116,6 +4122,11 @@ function floodShot(list, k, s, Wp, dt) {
   if (Wp.buoy && s.vy < 0) {   // BOILER's floating can reaches the surface: it blows up there
     s.x = wrapX(x); s.y = wrapY(sy); splashAt(x, sy, 40, true);
     torpedoBlast(s, Wp, list === shots); list.splice(k, 1); return true;
+  }
+  if ((s.sub || Wp.seekWater) && flood.owner === (list === shots ? "them" : "me")) {   // CORSAIR's broadside as a sub hunter, COURIER's capsule: into the water
+    if (!s.splashed) { s.splashed = true; splashAt(x, sy, 14); if (near) audio.noise(0.12, 0.05, 2200); }
+    if (Wp.seekWater) s.seek = true;
+    return false;
   }
   if (owners || floodXeltar() || !floodHeld()) {
     if (!s.splashed) { s.splashed = true; splashAt(x, sy, Wp.ptorp ? 22 : 8, Wp.ptorp); if (near && Wp.ptorp) audio.noise(0.15, 0.06, 2500); }
@@ -6000,7 +6011,7 @@ function updateOrbitMines(dt) {
     const p = orbitPos(m);
     if (Math.hypot(wrapDelta(p.x - game.x, WW), wrapDelta(p.y - game.y, WH)) < size * 0.42 * shipScale() + M.r * size) {   // it reached me
       orbitMines.splice(k, 1); orbitBoom(p.x, p.y); link.send({ t: "omk", id: m.id }); buzz(160);
-      for (let n = M.hit * SHIP_HP; n > 0.01 && !game.dead; n -= SHIP_HP) damageShip(Math.min(SHIP_HP, n));   // 1.5 tanks: a whole one, then half
+      for (let n = M.hit * SHIP_HP; n > 0.01 && !game.dead; n -= SHIP_HP) damageShip(Math.min(SHIP_HP, n), "pierce");   // 1.5 tanks: a whole one, then half (under BOILER's water too)
     }
   }
 }
@@ -9827,7 +9838,7 @@ function damageShip(n, src) {
   if (game.dead || game.stage !== "fly" || n <= 0) return;
   if (game.qc) return;   // NULL dissolved into its cloud: nothing touches it
   if (testFoe() === "safe") { game.hurt = 0.2; buzz(20); return; }   // the hangar's "fires, no harm": a flash, nothing taken
-  if (src !== "env" && floodSafe()) { floodShield(); return; }   // BOILER in its flood: the enemy cannot hurt it (src "env": walls, the star)
+  if (src !== "env" && src !== "pierce" && floodSafe()) { floodShield(); return; }   // ("pierce": COURIER's mines and capsule, CORSAIR's broadside and depth charges get to it)   // BOILER in its flood: the enemy cannot hurt it (src "env": walls, the star)
   if (game.docked || game.undockT > 0 || practiceOn()) return;   // in the station, just out of it, or practising: safe
   if (src !== "env") { n = shieldsTake(n); if (n <= 0) return; }   // the station's shields
   const over = Math.max(0, n - game.hp);   // (more than the bar holds: the rest comes off the next tank's bar)
@@ -9887,6 +9898,7 @@ const crate = { on: false, w: null, x: 0, y: 0, vx: 0, vy: 0, t: 0 };
 
 // which weapon each button fires right now (null = no such button now)
 function slotWeapon(i) {
+  if (i === 1 && corsairDestroyer()) return "depthcharge";   // CORSAIR on the water over their BOILER: depth charges
   if (i === 1 && game.vault && game.vault.ph === "hold" && game.ship === "vault") return "solarfire";
   if (i < 2 && hauntOn()) return i ? "ghostchain" : "ghostshot";   // CORSAIR's ghost ship   // VAULT holding the star
   if (i < 2) return weaponsOf(shipById(game.ship), game.flipMode || 0)[i];
@@ -9951,6 +9963,7 @@ function updateWeapons(dt) {
       s.vx = t.vx; s.vy = t.vy;
     }
     if (Wp.gravity) { const g = inWater(s) ? { ax: 0, ay: 0 } : starPull(s.x, s.y, null); s.vx += g.ax * dt; s.vy += g.ay * dt; }
+    if (s.seek && inWater(s) && enemy.on) { const t = steerShot(s.vx, s.vy, wrapDelta(enemy.x - s.x, WW), wrapDelta(enemy.y - s.y, WH), 3 * dt); s.vx = t.vx; s.vy = t.vy; }   // COURIER's capsule in the water: after BOILER
     if (shotFx(shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (s.w === "missile" && Math.random() < 0.6) burstAt(s.x, s.y, 1, ["#b8fff0", "#ffffff"], 0.05, 0.6);
@@ -9997,11 +10010,13 @@ function updateWeapons(dt) {
     if ((raiders.length || (duel.net && duel.net.rd)) && raiderShot(s, Wp)) { shots.splice(k, 1); continue; }   // the carrier's fighters
     if (enemy.remote && qGhostCatch(s, Wp)) { shots.splice(k, 1); continue; }   // one of their NULL's ghosts: it swaps with it
     if (pollenStops(s)) { shots.splice(k, 1); continue; }   // BLOOM's cloud: only half the shots get through it
+    if (s.sub && inWater(s) && popTheirShot(s, Wp)) { shots.splice(k, 1); continue; }   // CORSAIR's round in the water: BOILER's can or torpedo blown up
     // into the enemy
     if (enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked() && !(Wp.hack && quantumShip(enemy.ship))) {   // (docked in the station: out of reach)   // (GLITCH's hack pulse: no use on NULL, it passes through)   // (their STRATA up high: shots pass under it)
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
       if (Math.hypot(dx, dy) < size * 0.42 * enemyScale() + (Wp.r * shotScale(s, Wp) + (Wp.prox || 0)) * size) {   // (prox: it goes off near it)
         if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
+        if ((s.sub || s.seek) && enemyDiver()) { pierceEnemy(shotHit(s, Wp).dmg || Wp.dmg, s.x, s.y); shots.splice(k, 1); continue; }   // into their BOILER under its water
         const Hw = shotHit(s, Wp); hitEnemy(s, Hw); shots.splice(k, 1);
         if (Wp.tag) { enemy.markT = Wp.tag; audio.sfx("vanta", "mark_hit"); }   // VANTA's marking drop: the stain
         if (Wp.knock && (s.w === "bubble" || s.w === "plunger" || s.w === "piston")) {   // PUFF's bubble pops / FLIPPER's plunger: a shove
@@ -10044,6 +10059,7 @@ function shoot(i) {
   if (Wp.harpoon && game.harpoonCut) { if (time - (game.cutNope || -9) > 0.6) { game.cutNope = time; audio.nope(); buzz(20); } return; }   // LARIAT: its rope was cut by a drill: no harpoon this life
   if (Wp.harpoon && (game.hook || game.tether || game.elasso || game.hookWait != null)) return;
   if (Wp.one && (shots.some((q) => q.w === w) || (game.anim && game.anim.pending === w))) return;
+  if (Wp.dcharge) { if (dropCharge(i, Wp)) { game.cool[i] = Wp.cool; game.ammo[i] -= 1; } return; }   // CORSAIR's depth charge (updateCharges)
   if (Wp.entangle) { if (startEntangle(Wp)) { game.cool[i] = Wp.cool; game.ammo[i] -= 1; } return; }   // NULL's button 2: Entanglement (not a shot)
   if (Wp.paddles && game.paddle) return;   // FLIPPER: cocked already (the window is not started again)   // COURIER: one capsule at a time   // LARIAT: one hook or cable at a time
   game.cool[i] = Wp.cool;
@@ -10130,7 +10146,10 @@ function spawnShots(w, g, rot) {
     }
   }
   // in a duel the other phone shows these shots too
-  if (duel.stage === "on") for (const s of shots.slice(-pelletAngles(Wp).length)) { s.id = ++shotSeq; duelSend({ t: "f", w, ...netPos(s), s: S.id, id: s.id, v: s.lvl || 0, ix: s.ix }); }
+  if (duel.stage === "on") for (const s of shots.slice(-pelletAngles(Wp).length)) {
+    if (Wp.broadside && corsairDestroyer()) s.sub = true;   // (a sub hunter's round: it goes into the water)
+    s.id = ++shotSeq; duelSend({ t: "f", w, ...netPos(s), s: S.id, id: s.id, v: s.lvl || 0, ix: s.ix, sb: s.sub ? 1 : 0 });
+  }
   // shots with their own drawing (THUL's cannonball, VEXAR's thorns). THUL's flash, shock ring and sparks are in its frames
   const art = S.anim && S.anim.shotArt && S.anim.shotArt[w];
   if (art) for (const s of shots.slice(-pelletAngles(Wp).length)) s.art = { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) };
@@ -11176,6 +11195,7 @@ function mirrorPath(half) {
 // one ship, nose up, centered at (x, y), `size` long
 function drawShip(S, x, y, size, o = {}) {
   if (S.quantum) { if (!BOT) drawNull(S, x, y, size, o); return; }   // NULL: drawn in its own layers (drawNull)
+  if (S.id === "corsair" && o.vt && o.vt.cw && !BOT && !o.icon && drawCorsairWater(S, x, y, size, o)) return;   // CORSAIR on BOILER's water: from the side
   const power = o.power ?? 0.25, bank = o.bank ?? 0, alpha = o.alpha ?? 1, ang = o.ang ?? 0;
   const prop = S.boiler && o.vt && !o.zombie ? boilerProp(o.vt, S) : null;   // BOILER under water: its propeller (no flame)
   ctx.save();
@@ -14938,6 +14958,208 @@ function drawTornStar() {
   return back < 0.85;   // (nearly gathered: the star itself is drawn again under them)
 }
 
+// ======================================================================
+//  CORSAIR on BOILER's water (the CORSAIR Water packages: Entry, Entry Variants, Side, Rowing, Turn, Stern Turn, Bow
+//  Variants, Stern Variants; art/ships/corsair/water/, 320 px canvases, the waterline across the middle). A CORSAIR
+//  riding the surface of BOILER's water is seen from the side, like a ship at sea (`o.cw`, mine or theirs):
+//   entry: the first touch: six frames from the view from above to the side (its tilt eased away, a dip and back,
+//     a splash at the waterline); side: still; deploy: the oars come out (13 frames); row: rowing (24, a loop) while it
+//     moves along; stow: the oars back in (deploy backwards) when it stops; turn: changing side, the oars still, through
+//     the bow (the golden bow toward the viewer, right to left) or through the stern (the captain's cabin toward the
+//     viewer, left to right). Haunted (its magic) and BLOOM's copy have their own entry, sides and turns (no rowing).
+//   The water is drawn over the hull below the waterline. Its physics stay as they are (it rides the surface).
+//  And with their BOILER under it, it is a sub hunter (corsairDestroyer): its broadside goes into the water and can hit
+//  BOILER, and blows up BOILER's cans and torpedoes; button 2 drops depth charges (WEAPONS.depthcharge) instead of the
+//  chain shot.
+// ======================================================================
+const CW = { entry: [45, 55, 65, 65, 70, 200], turn: [50, 60, 75, 75, 90, 90, 140, 90, 90, 75, 75, 60, 50], fps: 24, deploy: 13, row: 24, splash: 20,
+  contact: -67, dip: 14, move: 0.08 };   // move: screens a second sideways to count as moving
+const cwSum = (a) => a.reduce((x, y) => x + y, 0) / 1000;
+function cwFrame(name) { return artImage(framePath("corsair", "water/" + name + ".webp")); }
+function corsairAfloat(o) {
+  const id = o === game ? game.ship : enemy.ship;
+  if (id !== "corsair" || !flood || floodLevel() < 0.05 || (o === game ? game.dead || game.stage !== "fly" : !enemy.on)) return false;
+  return Math.abs(wrapDelta(o.y - surfaceY(), WH)) < shipSize() * 0.75;
+}
+function cwVariant(o) { return (o === game ? game.zombie || game.cough : enemyZombie()) ? "b" : (o === game ? hauntOn() : !!(duel.net && duel.net.ht === 1)) ? "h" : "n"; }
+function cwSet(C, ph) { C.ph = ph; C.at = time; }
+function updateCorsairWater(dt) {
+  for (const o of [game, enemy]) {
+    if (!corsairAfloat(o)) { o.cw = null; continue; }
+    const vx = o.vx || 0, want = Math.abs(vx) > U * CW.move ? Math.sign(vx) : 0, v = cwVariant(o);
+    let C = o.cw;
+    if (!C) {   // the first touch: into the side view, a splash
+      const dir = want || o.cwDir || (Math.sin(o.ang) >= 0 ? 1 : -1);
+      C = o.cw = { ph: "entry", at: time, dir, splashAt: time, ang0: wrapAngle(o.ang - (dir > 0 ? Math.PI / 2 : -Math.PI / 2)), still: 0, seed: Math.random() * 6 };
+      o.cwDir = dir; splashAt(o.x, surfaceY(), 24, true);
+      if (o === game || Math.abs(wrapDelta(o.x - game.x, WW)) < W) { audio.noise(0.4, 0.09, 1400); audio.tone(90, 0.3, "sine", 0.06, 0.6); }
+      continue;
+    }
+    const t = time - C.at;
+    if (C.ph === "entry") { if (t >= cwSum(CW.entry)) cwSet(C, "side"); continue; }
+    if (C.ph === "turn") { if (t >= cwSum(CW.turn)) { C.dir = C.to; o.cwDir = C.dir; cwSet(C, want && v === "n" ? "deploy" : "side"); } continue; }
+    if (want && want !== C.dir) { C.kind = C.dir > 0 ? "bow" : "stern"; C.to = want; cwSet(C, "turn"); continue; }   // right to left through the bow, left to right through the stern
+    if (v !== "n") { if (C.ph !== "side") cwSet(C, "side"); continue; }   // (haunted / BLOOM's copy: no oars)
+    C.still = want ? 0 : C.still + dt;
+    if (C.ph === "side" && want) cwSet(C, "deploy");
+    else if (C.ph === "deploy" && t >= CW.deploy / CW.fps) cwSet(C, "row");
+    else if (C.ph === "row" && C.still > 0.4) cwSet(C, "stow");
+    else if (C.ph === "stow" && want) cwSet(C, "deploy");
+    else if (C.ph === "stow" && t >= CW.deploy / CW.fps) cwSet(C, "side");
+    if (o === game && C.ph === "row") {   // the oars in the water: a soft splash each stroke
+      const n = Math.floor(t * CW.fps / CW.row); if (n !== C.stroke) { C.stroke = n; audio.noise(0.16, 0.025, 1500); }
+    }
+  }
+}
+function cwIndex(durs, t) { let a = 0; for (let i = 0; i < durs.length; i++) { a += durs[i] / 1000; if (t < a) return i; } return durs.length - 1; }
+// the frame now (and its water layer, rowing)
+function cwPick(C, v) {
+  const t = time - C.at, d = C.dir > 0 ? "r" : "l";
+  if (C.ph === "entry") return { ship: `entry-${v}-${d}-${cwIndex(CW.entry, t)}` };
+  if (C.ph === "turn") { const i = cwIndex(CW.turn, t); return { ship: `${C.kind}-${v}-${C.dir > 0 ? i : 12 - i}` }; }
+  if (v === "n" && (C.ph === "deploy" || C.ph === "stow")) { const k = Math.min(12, Math.floor(t * CW.fps)), i = C.ph === "deploy" ? k : 12 - k; return { ship: `deploy-${d}-${i}`, fx: `deployfx-${d}-${i}` }; }
+  if (v === "n" && C.ph === "row") { const i = Math.floor(t * CW.fps) % CW.row; return { ship: `row-${d}-${i}`, fx: `rowfx-${d}-${i}` }; }
+  return { ship: `side-${v}-${d}` };
+}
+// drawn (called by drawShip). The hull below the waterline under a layer of water (on its own small canvas, so only the
+// hull is tinted); then the rowing's water layer and the splash, over the water. False: not ready (the usual drawing)
+let cwCanvas = null;
+function drawCorsairWater(S, x, y, size, o) {
+  const vt = o.vt, C = vt.cw, v = o.zombie ? "b" : o.haunt ? "h" : "n", P = cwPick(C, v), d = C.dir > 0 ? "r" : "l";
+  const img = cwFrame(P.ship) || cwFrame(`side-${v}-${d}`) || cwFrame(`side-n-${d}`);
+  if (!img) return false;
+  const D = Math.max(8, Math.round(S.anim.size * size)), k = D / 512, t = time - C.at, entry = C.ph === "entry";
+  const sy = toScreen(vt.x, surfaceY()).y;
+  let oy = Math.sin(time * 2.1 + C.seed) * 2, rot = Math.sin(time * 1.6 + C.seed) * 0.02;   // (riding the swell)
+  const te = time - C.splashAt;
+  if (te < 0.18) oy += CW.contact * (1 - te / 0.18);   // (the first touch: from where the hull met the water, settling)
+  if (te < 0.42) oy += CW.dip * Math.sin(Math.PI * te / 0.42);   // a dip and back up
+  if (entry) rot += C.ang0 * (1 - smoothStep(t / 0.15));   // its tilt from above, eased away
+  if (!cwCanvas || cwCanvas.width !== D) { cwCanvas = document.createElement("canvas"); cwCanvas.width = cwCanvas.height = D; }
+  const g = cwCanvas.getContext("2d");
+  g.globalCompositeOperation = "source-over"; g.clearRect(0, 0, D, D); g.drawImage(img, 0, 0, D, D);
+  g.globalCompositeOperation = "source-atop";   // the water over the hull below the waterline
+  const wg = g.createLinearGradient(0, D / 2, 0, D); wg.addColorStop(0, "rgba(40,150,170,0.5)"); wg.addColorStop(0.35, "rgba(16,80,110,0.72)"); wg.addColorStop(1, "rgba(8,40,70,0.85)");
+  g.fillStyle = wg; g.fillRect(0, D / 2 + 1, D, D);
+  ctx.save(); ctx.globalAlpha = o.alpha ?? 1;
+  ctx.translate(x, sy + oy * k); ctx.rotate(rot);
+  ctx.drawImage(cwCanvas, -D / 2, -D / 2, D, D);
+  if (P.fx) { const f = cwFrame(P.fx); if (f) ctx.drawImage(f, -D / 2, -D / 2, D, D); }
+  ctx.restore();
+  const si = Math.floor(te * CW.fps);   // the splash (once, at the waterline)
+  if (si >= 0 && si < CW.splash) { const sp = cwFrame("splash-" + si); if (sp) ctx.drawImage(sp, x - D / 2, sy - 163 * k, D, D * 240 / 512); }
+  return true;
+}
+
+// ---------- the sub hunter: CORSAIR on the surface over their BOILER ----------
+function corsairDestroyer() { return game.ship === "corsair" && !!game.cw && enemyDiver(); }
+// a hit on their BOILER under its water (its shield does not stop these): their phone takes it off ("pierce")
+function pierceEnemy(n, x, y) {
+  n *= (game.zombie ? ZOMBIE.dmg : 1) * (BOT ? botLevel().dmg : 1);
+  link.send({ t: "pierce", n: +n.toFixed(1) });
+  burstAt(x, y, 16, ["#ffffff", "#bff6ff", "#ffb347"], 0.4, 0.6, enemy.vx, enemy.vy); audio.hit && audio.hit();
+}
+// my broadside round in the water: their BOILER's cans and torpedoes near it blow up (their phone takes them away: "pop")
+function popTheirShot(s, Wp) {
+  if (!enemy.remote || !flood) return false;
+  const size = shipSize();
+  for (let k = duel.shots.length - 1; k >= 0; k--) {
+    const q = duel.shots[k], Q = WEAPONS[q.w];
+    if (!Q || !(Q.ptorp || Q.buoy)) continue;
+    if (Math.hypot(wrapDelta(q.x - s.x, WW), wrapDelta(q.y - s.y, WH)) > size * ((Wp.r || 0.03) + (Q.r || 0.05) + 0.06)) continue;
+    duel.shots.splice(k, 1); link.send({ t: "pop", id: q.nid });
+    burstAt(q.x, q.y, Q.buoy ? 30 : 16, ["#ffffff", "#bff6ff", Q.color], 0.5, 0.7); rings.push({ x: q.x, y: q.y, t: 0, max: 0.3, r: size * 0.6, c: "#bff6ff" });
+    audio.noise(0.3, 0.08, 1200); audio.tone(110, 0.25, "sine", 0.06, 0.5);
+    return true;
+  }
+  return false;
+}
+// ---------- depth charges (WEAPONS.depthcharge, CORSAIR's button 2 as a sub hunter) ----------
+// dropped off its stern onto the water; it sinks for as long as the button is held, and goes off when it is let go
+// (or on the bottom, or after `life` s): a blast as wide as BLOOM's pollen cloud, hurting their BOILER inside it
+// (through its shield; full in the inner half, less to the edge) and killing the fish in it (their coins mine).
+// depthCharges: { id, own: "me" | "them", x, y, vy, t, held }. Their phone: "dch" (dropped), "dcx" (went off)
+const depthCharges = [];
+let dcSeq = 0;
+function dropCharge(i, Wp) {
+  if (depthCharges.some((c) => c.own === "me" && c.held)) return false;   // (one held at a time: the button is on it)
+  const size = shipSize(), dir = game.cw ? game.cw.dir : 1, x = wrapX(game.x - dir * size * 0.32), y = surfaceY();
+  const c = { id: ++dcSeq, own: "me", x, y, vy: U * 0.05, t: 0, held: true, slot: i };
+  depthCharges.push(c);
+  duelSend({ t: "dch", id: c.id, x: +(x / WW).toFixed(5), y: +(y / WH).toFixed(5) });
+  splashAt(x, y, 14); audio.tone(180, 0.18, "sine", 0.06, 0.5); audio.noise(0.18, 0.05, 1500); buzz(30);
+  return true;
+}
+function chargeBlast(c) {
+  const R = MAGIC.pollen.range * shipSize(), Wp = WEAPONS.depthcharge;
+  rings.push({ x: c.x, y: c.y, t: 0, max: 0.6, r: R, c: "#bff6ff" }, { x: c.x, y: c.y, t: -0.08, max: 0.7, r: R * 0.6, c: "#ffffff" });
+  burstAt(c.x, c.y, 60, ["#ffffff", "#bff6ff", "#5fe0e0", "#2aa8b8"], 1.0, 1.0, 0, -U * 0.2);
+  splashAt(c.x, surfaceY(), 40, true);   // the water heaving up over it
+  if (Math.abs(wrapDelta(c.x - game.x, WW)) < W) { audio.tone(45, 0.9, "sine", 0.13, 0.5); audio.noise(0.8, 0.12, 500); shake(0.6); buzz(160); }
+  if (c.own !== "me") return;
+  if (enemy.on && enemy.warp < 0.5) {   // their BOILER (or whatever is in it)
+    const d = Math.hypot(wrapDelta(enemy.x - c.x, WW), wrapDelta(enemy.y - c.y, WH));
+    if (d < R) { const n = Wp.blastDmg * (d < R / 2 ? 1 : 1 - (d - R / 2) / (R / 2) * 0.6); if (enemyDiver()) pierceEnemy(n, enemy.x, enemy.y); else hitEnemy({ x: c.x, y: c.y, vx: 0, vy: 0 }, { dmg: n, color: "#bff6ff" }); }
+  }
+  for (let i = fishes.length - 1; i >= 0; i--) {   // the fish in it: theirs coins mine
+    const F = fishes[i]; if (Math.hypot(wrapDelta(F.x - c.x, WW), wrapDelta(F.y - c.y, WH)) > R) continue;
+    fishes.splice(i, 1);
+    const n = F.K.coins[0] + Math.floor(Math.random() * (F.K.coins[1] - F.K.coins[0] + 1));
+    walletAdd(game.ship, n); coinPops.push({ x: F.x, y: F.y, n, t: 0 }); burstAt(F.x, F.y, 10, ["#ffffff", F.K.c1, F.K.fin], 0.3, 0.6);
+  }
+  saveBank();
+}
+function updateCharges(dt) {
+  const Wp = WEAPONS.depthcharge, bot = WH * MAGIC.flood.bottom - shipSize() * 0.1;
+  for (let i = depthCharges.length - 1; i >= 0; i--) {
+    const c = depthCharges[i]; c.t += dt;
+    if (!flood) { depthCharges.splice(i, 1); continue; }   // (the water gone: so are they)
+    c.vy = Math.min(U * Wp.sink, c.vy + U * 0.6 * dt); c.y += c.vy * dt;
+    if (Math.random() < dt * 10) burstAt(c.x, c.y, 1, ["#ffffff", "#bff6ff"], 0.08, 0.7, 0, -U * 0.2);   // (bubbles off it)
+    if (c.own !== "me") continue;   // (theirs goes off when they say: "dcx")
+    if (c.held && game.fire[c.slot] === null && c.t > 0.15) c.held = false;   // let go: it goes off
+    if (!c.held || c.y >= bot || c.t > Wp.life || game.dead || game.ship !== "corsair") {
+      depthCharges.splice(i, 1); chargeBlast(c);
+      duelSend({ t: "dcx", id: c.id, x: +(c.x / WW).toFixed(5), y: +(c.y / WH).toFixed(5) });
+    }
+  }
+}
+function chargeMessage(m) {
+  if (m.t === "dch") depthCharges.push({ id: m.id, own: "them", x: m.x * WW, y: m.y * WH, vy: U * 0.05, t: 0, held: true });
+  else if (m.t === "dcx") { const i = depthCharges.findIndex((c) => c.own === "them" && c.id === m.id); if (i >= 0) depthCharges.splice(i, 1); chargeBlast({ own: "them", x: m.x * WW, y: m.y * WH }); }
+}
+// button 2 as depth charges: over the chain-shot picture, a round of sea with a barrel sinking in it, bubbles rising
+function drawChargeIcon(x, y, r, ready) {
+  ctx.save(); ctx.globalAlpha = ready ? 1 : 0.55;
+  const g = ctx.createLinearGradient(0, y - r * 0.7, 0, y + r * 0.7); g.addColorStop(0, "#1f6f86"); g.addColorStop(1, "#0a2a40");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 0.66, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "rgba(190,240,255,0.8)"; ctx.lineWidth = Math.max(1.5, r * 0.05); ctx.beginPath();
+  for (let i = 0; i <= 12; i++) { const xx = x - r * 0.6 + i * r * 0.1, yy = y - r * 0.32 + Math.sin(i * 1.3 + time * 3) * r * 0.03; i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); }
+  ctx.stroke();
+  const bw = r * 0.3, bh = r * 0.42, by = y + r * 0.08 + Math.sin(time * 2) * r * 0.03;
+  const bg = ctx.createLinearGradient(x - bw / 2, 0, x + bw / 2, 0); bg.addColorStop(0, "#1c1c22"); bg.addColorStop(0.45, "#5a5a66"); bg.addColorStop(1, "#141418");
+  ctx.fillStyle = bg; roundRect(x - bw / 2, by - bh / 2, bw, bh, bw * 0.25); ctx.fill();
+  ctx.fillStyle = "#c8913a"; ctx.fillRect(x - bw / 2 - 1, by - bh * 0.3, bw + 2, bh * 0.1); ctx.fillRect(x - bw / 2 - 1, by + bh * 0.2, bw + 2, bh * 0.1);
+  ctx.fillStyle = Math.sin(time * 8) > 0 ? "#ff4d3a" : "#5a1a14"; ctx.beginPath(); ctx.arc(x, by - bh * 0.62, r * 0.05, 0, TAU); ctx.fill();
+  ctx.fillStyle = "rgba(220,250,255,0.8)";
+  for (let i = 0; i < 3; i++) { const k = (time * 0.7 + i / 3) % 1; ctx.beginPath(); ctx.arc(x + r * (0.2 + 0.06 * i), by - k * r * 0.45, r * 0.03 * (1 + k), 0, TAU); ctx.fill(); }
+  ctx.restore();
+}
+// a depth charge: a dark barrel with brass bands and a fuse that blinks (faster as it sinks deeper)
+function drawCharges() {
+  if (!depthCharges.length) return;
+  const size = shipSize(), r = size * WEAPONS.depthcharge.r;
+  for (const c of depthCharges) {
+    const p = toScreen(c.x, c.y);
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.sin(c.t * 3) * 0.25);
+    const g = ctx.createLinearGradient(-r, 0, r, 0); g.addColorStop(0, "#1c1c22"); g.addColorStop(0.45, "#4a4a55"); g.addColorStop(1, "#141418");
+    ctx.fillStyle = g; roundRect(-r * 0.75, -r, r * 1.5, r * 2, r * 0.35); ctx.fill();
+    ctx.fillStyle = "#c8913a"; ctx.fillRect(-r * 0.78, -r * 0.6, r * 1.56, r * 0.18); ctx.fillRect(-r * 0.78, r * 0.42, r * 1.56, r * 0.18);
+    const blink = Math.sin(c.t * (8 + c.t * 6)) > 0;
+    ctx.fillStyle = blink ? "#ff4d3a" : "#5a1a14"; ctx.beginPath(); ctx.arc(0, -r * 1.05, r * 0.2, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+}
 // ---------- GLITCH's magics: the V shield and the slip ----------
 // the V is up (more than half open): my own V, or theirs (duel: their state says so)
 function vShieldUp(o) {
@@ -16008,7 +16230,7 @@ function draw() {
     if (sk > 0.2) ctx.translate((Math.random() - 0.5) * sk, (Math.random() - 0.5) * sk);
     ctx.translate(W / 2, H / 2); ctx.scale(game.zoom, game.zoom); ctx.translate(-W / 2, -H / 2);
   }
-  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); drawDeadStar(); drawSpire(); drawMaze(); drawFlood(); drawFish(); drawStation(); if (flying) drawCarrierScene(); }   // (LABYRINTH's Starforge)
+  if (game.stage !== "gift" && game.stage !== "opening") { const sq = lassoSqueezeStart(); drawPlanet(); if (sq) ctx.restore(); drawDeadStar(); drawSpire(); drawMaze(); drawFlood(); drawFish(); drawCharges(); drawStation(); if (flying) drawCarrierScene(); }   // (LABYRINTH's Starforge)
 
   if (flying) {
     const p = shipScreen();
@@ -16988,6 +17210,7 @@ function drawFire() {
     if (kit) {
       const slot = ["primary", "secondary", "pickup", "pickup"][b.i];
       const extra = b.i >= 2 ? (x, y, r) => weaponIcon(w, x, y, r * 0.42, ready ? "#ffffff" : "#9a9aa8")
+        : w === "depthcharge" ? (x, y, r) => drawChargeIcon(x, y, r, ready)   // CORSAIR as a sub hunter: its chain-shot plate covered with a depth charge
         : w === "spike" && game.trap && game.trap.power > 0 ? (x, y, r) => {   // SKARN's powered-up shards: ember dots
           const n = game.trap.power; ctx.save(); ctx.globalAlpha = Math.min(1, game.trap.powerT / 3) * (0.75 + 0.25 * Math.sin(time * 6));
           for (let j = 0; j < n; j++) { ctx.fillStyle = "#ff8a5a"; ctx.beginPath(); ctx.arc(x + (j - (n - 1) / 2) * r * 0.24, y + r * 0.72, r * 0.08, 0, TAU); ctx.fill(); }
@@ -17592,7 +17815,7 @@ function duelLink(event, data) {
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
     const S = shipById(m.s), a0 = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
     const art = a0 && a0.files && m.ix != null ? { ...a0, file: a0.files[m.ix] } : a0;   // CANTOR: each bolt its groove's colour
-    duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c,
+    duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, sub: m.sb === 1, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
     if (duel.shots.length < 60) audio.shot(m.w, enemy.ship, enemy);
     if (m.w === "solarfire") enemy.vaultFireT = MAGIC.vault.fireShow;
@@ -17668,6 +17891,9 @@ function duelLink(event, data) {
     spawnRainbow(true, m.x * WW, m.y * WH, m.a);
   } else if (m.t === "fleetout") {   // the other player has lost every ship: I won
     openResult("win");
+  } else if (m.t === "pierce") { damageShip(+m.n || 0, "pierce");   // a hit that BOILER's water does not stop
+  } else if (m.t === "pop") { const i = shots.findIndex((q) => q.id === m.id); if (i >= 0) { const q = shots[i]; burstAt(q.x, q.y, 24, ["#ffffff", "#bff6ff", WEAPONS[q.w].color], 0.5, 0.7); shots.splice(i, 1); }   // their CORSAIR blew up my can / torpedo
+  } else if (m.t === "dch" || m.t === "dcx") { chargeMessage(m);   // their CORSAIR's depth charges
   } else if (m.t === "qw" || m.t === "qcx" || m.t === "qsw" || m.t === "qgh" || m.t === "qx") { nullMessage(m);   // their NULL's wave, collapse and swap; their shot on my ghost
   } else if (m.t === "zc") { startCough(false);   // their zombie coughing (its pollen drawn round their ship here)
   } else if (m.t === "zb") {   // their BLOOM's pollen got me: a zombie until this ship blows up
@@ -17858,6 +18084,7 @@ function updateDuel(dt) {
       const ht = qBlur(game, game.ship), t = steerShot(s.vx, s.vy, wrapDelta(ht.x - s.x, WW), wrapDelta(ht.y - s.y, WH), Wp.homing * dt);
       s.vx = t.vx; s.vy = t.vy;
     }
+    if (s.seek && inWater(s) && !game.dead) { const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), 3 * dt); s.vx = t.vx; s.vy = t.vy; }   // their COURIER's capsule after my BOILER
     if (shotFx(duel.shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
     if (Wp.ptorp) ptorpTrail(s);
@@ -18021,6 +18248,13 @@ function botThink(dt) {
   for (const k in botAI.hold) { botAI.hold[k] -= dt; if (botAI.hold[k] <= 0) { delete botAI.hold[k]; botKey(k, false); } }
   if (game.lassoed && Math.random() < dt * (2.6 + Math.min(6, botAI.lvl || 1) * 0.4)) breakTap();   // on a LARIAT's rope: it taps to break free too (faster each level)
   const L = botLevel(), S = shipById(game.ship), st = shipStats(S), seen = !enemy.hidden;
+  if (corsairDestroyer()) {   // its CORSAIR a sub hunter over their BOILER: a depth charge dropped near it, let go at its depth
+    botAI.t2 = Math.max(botAI.t2 || 0, 0.5);
+    const c = depthCharges.find((q) => q.own === "me" && q.held), R = MAGIC.pollen.range * shipSize();
+    if (c) { delete botAI.hold.x; botKey("x", !(c.y >= enemy.y - shipSize() * 0.2 || Math.abs(wrapDelta(enemy.x - c.x, WW)) > R * 1.3)); }
+    else if (Math.abs(wrapDelta(enemy.x - game.x, WW)) < R * 1.1 && slotAmmo(1) >= 1 && game.cool[1] <= 0) { delete botAI.hold.x; botKey("x", true); }
+    else if (!botAI.hold.x) botKey("x", false);
+  }
   // hidden in their smoke: it heads for where it last saw them
   if (seen) { botAI.lastX = enemy.x; botAI.lastY = enemy.y; }
   let prey = seen ? enemy : { x: botAI.lastX != null ? botAI.lastX : enemy.x, y: botAI.lastY != null ? botAI.lastY : enemy.y, vx: 0, vy: 0 };

@@ -1100,4 +1100,16 @@ ok("the music dial: a tap goes round the game's own music, Pulse Rivet, Quiet Or
   assert(html.includes('const MUSIC_PICKS = [null, "pulse-rivet", "quiet-orbit", "off"]') && html.includes('if (pick && key && key !== "arcade") key = pick === "off" ? null : pick;'));
   assert(html.includes('if (!dial.drag.moved && Math.abs(e.clientX - dial.drag.x0) < 7) return true;') && html.includes('if (!dial.drag.moved && dial.drag.ch === "music" && e.type !== "pointercancel") musicNext();'));
 });
+ok("CORSAIR on BOILER's water: seen from the side (entry, oars, rowing, turns through the bow and the stern; haunted and BLOOM's copy too); a sub hunter over BOILER: broadside into the water, depth charges; COURIER's mines and capsule reach BOILER", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets/art/ships/corsair/water");
+  const need = [];
+  for (const v of ["n", "h", "b"]) { for (const d of ["r", "l"]) { need.push(`side-${v}-${d}`); for (let i = 0; i < 6; i++) need.push(`entry-${v}-${d}-${i}`); } for (let i = 0; i < 13; i++) need.push(`bow-${v}-${i}`, `stern-${v}-${i}`); }
+  for (const d of ["r", "l"]) { for (let i = 0; i < 13; i++) need.push(`deploy-${d}-${i}`, `deployfx-${d}-${i}`); for (let i = 0; i < 24; i++) need.push(`row-${d}-${i}`, `rowfx-${d}-${i}`); }
+  for (let i = 0; i < 20; i++) need.push(`splash-${i}`);
+  for (const f of need) assert(fs.existsSync(path.join(A, f + ".webp")), f);
+  assert(html.includes('if (i === 1 && corsairDestroyer()) return "depthcharge";') && html.includes("if (Wp.dcharge) { if (dropCharge(i, Wp))"));
+  assert(html.includes('const R = MAGIC.pollen.range * shipSize(), Wp = WEAPONS.depthcharge;') && html.includes('if (src !== "env" && src !== "pierce" && floodSafe())'));
+  assert(html.includes('damageShip(Math.min(SHIP_HP, n), "pierce");   // 1.5 tanks: a whole one, then half (under BOILER\'s water too)') && html.includes("seekWater: true"));
+  assert(html.includes("if ((s.sub || s.seek) && enemyDiver()) { pierceEnemy(") && html.includes("if (s.sub && inWater(s) && popTheirShot(s, Wp))") && html.includes('m.t === "pierce") { damageShip(+m.n || 0, "pierce");'));
+});
 console.log(n + " checks passed");
