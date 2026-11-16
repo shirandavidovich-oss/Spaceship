@@ -1094,4 +1094,10 @@ ok("BOILER under water: its propeller comes out (30 frames) then turns (24), no 
   assert(html.includes("if (fishes.length && fishHit(s, Wp)) { shots.splice(k, 1); continue; }") && html.includes("walletAdd(game.ship, n); saveBank();"));
   assert(html.includes("tsink: 3.2, tprop: 4.2, tdep: 4.7, tgo: 8") && html.includes("art/title/boiler-prop-out.webp") && html.includes("p.k === \"pbub\"") && html.includes("art/title/boiler-prop-spin.webp"));
 });
+ok("the music dial: a tap goes round the game's own music, Pulse Rivet, Quiet Orbit, no music; a drag (past 7 px) only turns the volume", () => {
+  const fs = require("fs"), path = require("path"), A = path.join(__dirname, "../app/src/main/assets/audio/music");
+  for (const f of ["pulse-rivet.ogg", "quiet-orbit.ogg"]) assert(fs.existsSync(path.join(A, f)), f);
+  assert(html.includes('const MUSIC_PICKS = [null, "pulse-rivet", "quiet-orbit", "off"]') && html.includes('if (pick && key && key !== "arcade") key = pick === "off" ? null : pick;'));
+  assert(html.includes('if (!dial.drag.moved && Math.abs(e.clientX - dial.drag.x0) < 7) return true;') && html.includes('if (!dial.drag.moved && dial.drag.ch === "music" && e.type !== "pointercancel") musicNext();'));
+});
 console.log(n + " checks passed");

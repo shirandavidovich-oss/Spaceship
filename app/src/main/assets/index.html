@@ -11350,7 +11350,7 @@ const RESULT_ART = {"win":{"title":"YOU WIN","width":2059,"height":393,"static":
 //  (from the Orbit Break packages: audio/, art/ui/)
 // ======================================================================
 // ---- music: one loop at a time, crossfaded over 0.45 s; MUSIC: each loop's length in seconds (the loop point) ----
-const MUSIC = { arcade: 25.6, title: 34.285719, hangar: 43.636375, "orange-sun": 29.090906, "blue-giant": 36.226406, "red-dwarf": 38.787875, pulsar: 26.666656, carrier: 20 };
+const MUSIC = { "pulse-rivet": 55.65, "quiet-orbit": 68.57, arcade: 25.6, title: 34.285719, hangar: 43.636375, "orange-sun": 29.090906, "blue-giant": 36.226406, "red-dwarf": 38.787875, pulsar: 26.666656, carrier: 20 };
 // which loop plays in the arena, by the body in the middle (an unknown one: the orange sun's)
 const BODY_MUSIC = { sun: "orange-sun", lava: "orange-sun", gas: "orange-sun", redgiant: "red-dwarf", hole: "red-dwarf",
   bluegiant: "blue-giant", dwarf: "blue-giant", ice: "blue-giant", pulsar: "pulsar", neutron: "pulsar" };
@@ -11362,6 +11362,18 @@ function setVolume(ch, v) {
   if (ch === "music" && audio.mus) audio.mus.gain.setTargetAtTime(VOL.music ** 2, c.currentTime, 0.022);
 }
 const music = { want: null, on: null, bufs: {}, loading: {}, failT: {} };
+// a tap on the music dial (the Orbit Break Music Switch package) goes round: the game's own music (each screen its
+// loop) -> Pulse Rivet -> Quiet Orbit -> no music -> the game's own music again. Each from its beginning, looping until
+// the next tap; the volume as it was. Kept between games. (A drag still turns the volume: past 7 px it is a drag, not a tap)
+const MUSIC_PICKS = [null, "pulse-rivet", "quiet-orbit", "off"], MUSIC_PICK_KEY = "orbit-break.music-pick.v1";
+music.pick = (() => { try { const n = +LS.getItem(MUSIC_PICK_KEY); return n >= 0 && n < MUSIC_PICKS.length ? n : 0; } catch (e) { return 0; } })();
+function musicNext() {
+  music.pick = (music.pick + 1) % MUSIC_PICKS.length;
+  try { LS.setItem(MUSIC_PICK_KEY, String(music.pick)); } catch (e) {}
+  music.note = { t: 0 };   // (its name under the dial for a moment)
+  buzz(15);
+}
+function musicPickName() { return ["AUTO", "PULSE RIVET", "QUIET ORBIT", "OFF"][music.pick]; }
 // a sound file, decoded once (null until it is ready; a failed load is tried again 3 s later)
 function soundBuf(path) {
   const c = audio.ctx; if (!c || BOT) return null;
@@ -11383,8 +11395,10 @@ function fadeVoice(v, d = 0.45) {
 // every frame: the loop the screen wants. It changes only when the wanted one changes (and once it has loaded)
 function musicTick() {
   if (BOT) return;
-  const key = result.mode || cine.on ? null : shop.open ? "arcade" : game.stage === "title" ? "title" : (hangar.open || picker.open) ? "hangar"
+  let key = result.mode || cine.on ? null : shop.open ? "arcade" : game.stage === "title" ? "title" : (hangar.open || picker.open) ? "hangar"
     : (game.stage === "fly" || game.stage === "arrive") ? (carrierOn() ? "carrier" : BODY_MUSIC[body().id] || "orange-sun") : "title";
+  const pick = MUSIC_PICKS[music.pick];   // (chosen on the dial: that track, or none, in place of the game's own; the shop keeps its arcade tune)
+  if (pick && key && key !== "arcade") key = pick === "off" ? null : pick;
   music.want = key;
   const c = audio.ctx;
   if (!c || c.state !== "running" || !audio.mus) return;
@@ -11394,7 +11408,7 @@ function musicTick() {
   const B = soundBuf("audio/music/" + key + ".ogg");
   if (!B) return;   // (still loading: next frame)
   const now = c.currentTime, src = c.createBufferSource(), fade = c.createGain();
-  src.buffer = B; src.loop = true; src.loopStart = 0; src.loopEnd = Math.min(B.duration, MUSIC[key]);
+  src.buffer = B; src.loop = true; src.loopStart = 0; src.loopEnd = Math.min(B.duration, MUSIC[key] || B.duration);
   src.connect(fade); fade.connect(audio.mus);
   fade.gain.setValueAtTime(0, now); fade.gain.linearRampToValueAtTime(1, now + slow);
   src.start(now);
@@ -11437,16 +11451,23 @@ function hitDial(x, y) {
 function dialDown(e) {
   const D = hitDial(e.clientX, e.clientY);
   if (!D) return false;
-  dial.drag = { id: e.pointerId, ch: D.ch, x0: e.clientX, v0: VOL[D.ch] };   // (this finger is the dial's: no firing with it)
+  dial.drag = { id: e.pointerId, ch: D.ch, x0: e.clientX, v0: VOL[D.ch], moved: false };   // (this finger is the dial's: no firing with it)
+  dial.press = { ch: D.ch, t: performance.now() };   // (pressed in, for a moment)
   try { cv.setPointerCapture(e.pointerId); } catch (err) {}
   return true;
 }
 function dialMove(e) {
   if (!dial.drag || e.pointerId !== dial.drag.id) return false;
+  if (!dial.drag.moved && Math.abs(e.clientX - dial.drag.x0) < 7) return true;   // (not yet a drag: maybe a tap)
+  if (!dial.drag.moved) { dial.drag.moved = true; dial.drag.x0 = e.clientX; }
   setVolume(dial.drag.ch, dial.drag.v0 + (e.clientX - dial.drag.x0) / 160);   // right = louder, also in Hebrew; 160 px = the whole way
   return true;
 }
-function dialUp(e) { if (!dial.drag || e.pointerId !== dial.drag.id) return false; dial.drag = null; return true; }
+function dialUp(e) {
+  if (!dial.drag || e.pointerId !== dial.drag.id) return false;
+  if (!dial.drag.moved && dial.drag.ch === "music" && e.type !== "pointercancel") musicNext();   // a tap on the music dial: the next music
+  dial.drag = null; return true;
+}
 function drawDials() {
   if (!dialsShown()) return;
   for (const D of dialBoxes()) {
@@ -11458,6 +11479,23 @@ function drawDials() {
     ctx.translate(cx, cy); ctx.rotate((-135 + 270 * v) * Math.PI / 180);   // at 0 the notch points lower left, at 100 lower right
     if (rotor) ctx.drawImage(rotor, -D.d / 2, -D.d / 2, D.d, D.d);
     ctx.restore();
+    const pr = dial.press && dial.press.ch === D.ch ? 1 - (performance.now() - dial.press.t) / 180 : 0, held = dial.drag && dial.drag.ch === D.ch && !dial.drag.moved;
+    if (pr > 0 || held) {   // pressed: a shadow inside its cap, as if pushed in
+      const k = held ? 1 : pr, g = ctx.createRadialGradient(cx, cy, D.d * 0.18, cx, cy, D.d * 0.36);
+      g.addColorStop(0, `rgba(0,0,0,${0.05 * k})`); g.addColorStop(1, `rgba(0,0,0,${0.45 * k})`);
+      ctx.save(); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, D.d * 0.36, 0, TAU); ctx.fill(); ctx.restore();
+    }
+    if (D.ch === "music" && music.pick === 3) {   // no music: a line across it
+      ctx.save(); ctx.strokeStyle = "rgba(255,90,110,0.9)"; ctx.lineWidth = Math.max(2, D.d * 0.07); ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(cx - D.d * 0.3, cy + D.d * 0.3); ctx.lineTo(cx + D.d * 0.3, cy - D.d * 0.3); ctx.stroke(); ctx.restore();
+    }
+    if (D.ch === "music" && music.note && (music.note.t += frameDt || 0.016) < 1.8) {   // just tapped: which music now
+      ctx.save(); ctx.globalAlpha = Math.min(1, (1.8 - music.note.t) * 3); ctx.font = `900 ${Math.round(Math.max(11, D.d * 0.22))}px Rubik, Arial, sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.direction = "ltr";
+      const tx = musicPickName(), tw = ctx.measureText(tx).width + D.d * 0.3, ty = D.y + D.d + Math.max(16, D.d * 0.4);
+      ctx.fillStyle = "rgba(10,12,32,0.85)"; roundRect(cx - tw / 2, ty, tw, Math.max(15, D.d * 0.32), 6); ctx.fill();
+      ctx.fillStyle = "#8ff5d8"; ctx.fillText(tx, cx, ty + 2); ctx.restore();
+    }
     if (game.stage !== "title" && !(dial.drag && dial.drag.ch === D.ch)) continue;   // (the % shows while it is turned; on the title always)
     ctx.save(); ctx.font = `800 ${Math.round(Math.max(11, D.d * 0.24))}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.direction = "ltr";
     ctx.fillStyle = "rgba(10,12,32,0.75)"; roundRect(cx - D.d * 0.75, D.y + D.d + 1, D.d * 1.5, Math.max(14, D.d * 0.34), 6); ctx.fill();

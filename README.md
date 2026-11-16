@@ -616,6 +616,12 @@ point ahead of it (on its own screen only) shows where the wave leaves.
   "It's not for you. It's not even for me.", "It's not supposed to be here." ...: `nullSay`), again at each tap on it.
   Buying with real money still needs Google Play Billing (not built yet), so for now it cannot actually be bought.
 
+**The music dial** (the Orbit Break Music Switch package: `audio/music/pulse-rivet.ogg`, `quiet-orbit.ogg`): a tap
+goes round the game's own music (each screen its loop) -> Pulse Rivet -> Quiet Orbit -> no music (a red line across the
+dial) -> the game's own music again; each from its beginning, looping until the next tap, at the same volume, and kept
+between games. Its name shows under the dial for a moment, and the dial looks pushed in while pressed. Dragging sideways
+(past 7 px) still only turns the volume. The shop keeps its arcade tune.
+
 **The stores and the ship shop** (the Docking Stores, KIP, BRASS and Shop Entry packages). Two stores float in the
 arena far from the star, out toward the map's edge and about a quarter turn apart (`setStation`, placed from the seed both phones share): the **weapon store**
 (`art/station/weapon-store`) and the **shield store** (`shield-store`), each with its looping idle animation (36 frames,
