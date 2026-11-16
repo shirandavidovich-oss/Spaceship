@@ -2077,7 +2077,15 @@ const BODIES = [
   { id: "ice", name: "כוכב קרח", kind: "planet", r: 0.4, pull: 0.3, color: "#a8f0ff", halo: "150,230,255",
     grad: ["#ffffff", "#bdf4ff", "#4fa8c9", "#123e5c"], bands: "#ffffff", rings: "200,240,255", rim: "rgba(200,240,255,0.6)" },
   { id: "lava", name: "כוכב לבה", kind: "planet", r: 0.38, pull: 0.38, burn: 12, color: "#ff6b1a", halo: "255,90,20",
-    grad: ["#5a4a46", "#3a2a28", "#1e1413", "#0a0606"], cracks: "#ff7b1a", rim: "rgba(255,120,40,0.6)" }
+    grad: ["#5a4a46", "#3a2a28", "#1e1413", "#0a0606"], cracks: "#ff7b1a", rim: "rgba(255,120,40,0.6)" },
+  // pictures (kind "image", drawImageBody; art/bodies/, the disc filling the square but a 2% margin): the moon, a thin
+  // crescent lit; Jupiter, pale blue lightning flickering by its Great Red Spot (`flash`: where, in the picture's units);
+  // Neptune, its clouds flowing and lightning round its dark storm (`sheet`: 48 frames, 8 a second, a 6 s loop)
+  { id: "moon", name: "ירח", kind: "image", art: "art/bodies/moon.webp", r: 0.34, pull: 0.26, color: "#c9ccd6", halo: "190,200,225" },
+  { id: "jupiter", name: "צדק", kind: "image", art: "art/bodies/jupiter.webp", r: 0.62, pull: 0.5, color: "#d9a066", halo: "235,180,120",
+    flash: [[0.75, 0.62], [0.62, 0.57], [0.83, 0.68]] },
+  { id: "neptune", name: "נפטון", kind: "image", art: "art/bodies/neptune.webp", sheet: "art/bodies/neptune-storm.webp", cell: 400, frames: 48, fps: 8,
+    r: 0.48, pull: 0.42, color: "#4f7dff", halo: "90,140,255" }
 ];
 // the next body: any but the one there now
 function nextBody(now, rand = Math.random) { let i; do i = Math.floor(rand() * BODIES.length); while (i === now && BODIES.length > 1); return i; }
@@ -2465,7 +2473,7 @@ const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke s
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
   rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake", vault: "Star in the vault", haunt: "Ghost ship", breach: "Breach and deliver", collapse: "Wave Collapse" };
-const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet"];
+const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet", "Moon", "Jupiter", "Neptune"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
 function textDir() { return LANG === "he" ? "rtl" : "ltr"; }
@@ -11373,7 +11381,7 @@ const RESULT_ART = {"win":{"title":"YOU WIN","width":2059,"height":393,"static":
 const MUSIC = { "pulse-rivet": 55.65, "quiet-orbit": 68.57, arcade: 25.6, title: 34.285719, hangar: 43.636375, "orange-sun": 29.090906, "blue-giant": 36.226406, "red-dwarf": 38.787875, pulsar: 26.666656, carrier: 20 };
 // which loop plays in the arena, by the body in the middle (an unknown one: the orange sun's)
 const BODY_MUSIC = { sun: "orange-sun", lava: "orange-sun", gas: "orange-sun", redgiant: "red-dwarf", hole: "red-dwarf",
-  bluegiant: "blue-giant", dwarf: "blue-giant", ice: "blue-giant", pulsar: "pulsar", neutron: "pulsar" };
+  bluegiant: "blue-giant", dwarf: "blue-giant", ice: "blue-giant", moon: "blue-giant", jupiter: "orange-sun", neptune: "blue-giant", pulsar: "pulsar", neutron: "pulsar" };
 function setVolume(ch, v) {
   VOL[ch] = clamp(v, 0, 1);
   try { LS.setItem(VOL_KEY, JSON.stringify(VOL)); } catch (e) {}
@@ -16599,7 +16607,31 @@ function drawBody(B, p, R, alpha) {
   else if (B.kind === "star") drawStarBody(B, R, glow);
   else if (B.kind === "compact") drawCompactBody(B, R, glow);
   else if (B.kind === "hole") drawHoleBody(B, R, glow);
+  else if (B.kind === "image") drawImageBody(B, R, glow);
   ctx.restore();
+}
+// a body that is a picture: a soft halo, the picture (or, while it loads, a plain disc in its color); Neptune's frames
+// one melting into the next; Jupiter's lightning: pale blue glints near the red spot, now and then
+function drawImageBody(B, R, glow) {
+  glow(R * 0.92, R * 2.4, 0.18);
+  const s = R * 2 * 1.04, img = artImage(B.art), sheet = B.sheet ? artImage(B.sheet) : null;
+  if (sheet) {
+    const fp = (time * B.fps) % B.frames, f0 = Math.floor(fp), f1 = (f0 + 1) % B.frames, k = fp - f0, c = B.cell;
+    const cell = (f) => ctx.drawImage(sheet, (f % 8) * c, Math.floor(f / 8) * c, c, c, -s / 2, -s / 2, s, s);
+    cell(f0); if (k > 0.02) { const ga = ctx.globalAlpha; ctx.globalAlpha = ga * k; cell(f1); ctx.globalAlpha = ga; }
+  } else if (img) ctx.drawImage(img, -s / 2, -s / 2, s, s);
+  else { ctx.fillStyle = B.color; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill(); }
+  if (B.flash && img) {
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    B.flash.forEach(([u, v], i) => {
+      const ph = (time * 0.9 + i * 0.37) % 1, on = ph < 0.08 ? (Math.sin(ph / 0.08 * Math.PI * 3) > 0 ? 1 : 0.3) * (1 - ph / 0.08) : 0;
+      if (on <= 0 || Math.sin(Math.floor(time * 0.9 + i * 0.37) * 12.9898 + i) < 0.1) return;   // (not every time round)
+      const x = (u - 0.5) * s, y = (v - 0.5) * s, g = ctx.createRadialGradient(x, y, 0, x, y, R * 0.12);
+      g.addColorStop(0, `rgba(210,235,255,${0.85 * on})`); g.addColorStop(1, "rgba(150,200,255,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R * 0.12, 0, TAU); ctx.fill();
+    });
+    ctx.restore();
+  }
 }
 // a planet: bands, rings, glowing lava cracks, a night side
 function drawPlanetBody(B, R, glow) {
