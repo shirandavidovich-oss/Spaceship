@@ -11614,7 +11614,7 @@ const TSHOW = {
   // (its clouds: 12 frames, made by rolling the cloud banks of its one render round a loop, its hull held still;
   // played at `fps`, each frame melting into the next)
   cloudship: { src: "art/title/cloudship-01.webp", frames: Array.from({ length: 12 }, (_, i) => "art/title/cloudship-" + String(i + 1).padStart(2, "0") + ".webp"), fps: 6,
-    w: 900, h: 550, len: 9.5, hgt: 0.98, rain: [3.6, 7.4] },   // (rain: when the storm breaks, and stops)
+    w: 900, h: 550, len: 12.5, pre: 3, hgt: 0.98, rain: [6.6, 10.4] },   // (pre: the storm before it comes in; rain: when it pours, and stops)
 };
 const tshow = { kind: null, next: null, t: 0, wait: TSHOW.first, last: null, fx: [], can: null };
 const TSHOW_KINDS = ["lighthouse", "courier", "boiler", "cloudship"];
@@ -11632,9 +11632,13 @@ function titleShowTick(dt) {
     tshow.wait -= dt; if (tshow.wait > 0) return;
     if (!tshow.next) { const ks = TSHOW_KINDS.filter((k) => k !== tshow.last); tshow.next = ks[Math.floor(Math.random() * ks.length)]; return; }
     if (!artImage(TSHOW[tshow.next].src)) { tshow.wait = 0.3; return; }   // (still loading)
-    tshow.kind = tshow.next; tshow.next = null; tshow.t = 0; tshow.fx.length = 0; tshow.can = null; tshow.dir = Math.random() < 0.5 ? 1 : -1;
+    tshow.kind = tshow.next; tshow.next = null; tshow.t = 0; tshow.fx.length = 0; tshow.can = null; tshow.splashed = false; tshow.dir = Math.random() < 0.5 ? 1 : -1;
     tshow.bolts = [];   // (the cloud ship's lightning: when it strikes, through the rain)
-    if (tshow.kind === "cloudship") { const R = TSHOW.cloudship.rain; for (let a = R[0] + 0.25; a < TSHOW.cloudship.len - 0.4; a += 1.1 + Math.random() * 1.1) tshow.bolts.push(a); }
+    if (tshow.kind === "cloudship") {   // far off first (only the sky flashing, before it comes in), then out of it, through the rain
+      const C = TSHOW.cloudship, R = C.rain;
+      for (let a = 0.9 + Math.random() * 0.4; a < C.pre - 0.2; a += 0.8 + Math.random() * 0.7) tshow.bolts.push({ at: a, far: true, seed: Math.random() * 999 });
+      for (let a = R[0] + 0.25; a < C.len - 0.4; a += 0.9 + Math.random() * 0.9) tshow.bolts.push({ at: a, far: false, seed: Math.random() * 999 });
+    }
     return;
   }
   tshow.t += dt;
@@ -11693,6 +11697,11 @@ function tsServo(vol = 0.05) {   // a servo: a whirring sweep and a click at the
   audio.tone(f0, d, "sawtooth", vol * 0.5, 1.6 + Math.random() * 0.6); audio.tone(f0 * 2.02, d, "square", vol * 0.15, 1.5);
   audio.tone(1800, 0.025, "square", vol * 0.9, 0.5, d);
 }
+// a sound file played once, but kept by name like a loop so it can be faded out (into the next film)
+function tsClip(name, path, vol, ramp = 0.05) {
+  return tsLoop(name, () => { const B = soundBuf(path); if (!B) return null; const s = audio.ctx.createBufferSource(); s.buffer = B; s.start(); return { out: s, stop: () => { try { s.stop(); } catch (e) {} } }; }, vol, ramp);
+}
+const TS_FILES = ["audio/title/storm-coming.ogg", "audio/title/rain-start.ogg", "audio/title/splash.ogg", "audio/boiler/engine-loop.ogg"];
 function tsFile(path) {   // (a sound file, as a loop)
   const c = audio.ctx, B = soundBuf(path); if (!B) return null;
   const s = c.createBufferSource(); s.buffer = B; s.loop = true; s.start();
@@ -11702,9 +11711,9 @@ function titleSounds() {
   if (BOT || !audio.ctx) return;
   if (game.stage !== "title" || shop.open || cine.on) { if (tsnd.kind || Object.keys(tsnd.loops).length) { tsStopAll(0.5); tsnd.kind = null; } tsnd.prevT = -1; return; }
   const K = tshow.kind, t = tshow.t;
-  if (tshow.next === "boiler" || K === "boiler") { soundBuf("audio/boiler/engine-loop.ogg"); soundBuf("audio/boiler/splash.ogg"); }   // (loaded ahead)
+  for (const f of TS_FILES) soundBuf(f);   // (loaded ahead)
   if (K !== tsnd.kind) {   // a film over: its long sounds die away into the next one (the storm, the propeller: 3-4 s)
-    if (tsnd.kind === "cloudship") { tsLoop("rain", null, 0, 3.5); tsLoop("wind", null, 0, 3); tsThunder(0.8, 0.16); tsThunder(2.6, 0.1); }
+    if (tsnd.kind === "cloudship") { for (const n of ["rain", "wind", "storm", "rainf"]) tsLoop(n, null, 0, 3.5); tsThunder(0.8, 0.16); tsThunder(2.6, 0.1); }
     if (tsnd.kind === "boiler") { tsLoop("prop", null, 0, 3.5); tsLoop("engine", null, 0, 0.8); tsnd.sonarTail = time + 3; }
     if (tsnd.kind === "lighthouse") tsLoop("neon", null, 0, 0.2);
     tsnd.kind = K; tsnd.prevT = -1;
@@ -11714,14 +11723,16 @@ function titleSounds() {
   const S = TSHOW[K];
   if (K === "cloudship") {
     // the storm: wind from the start; then, in the middle, the rain at once, and lightning (a crack, then its thunder)
-    tsLoop("wind", () => tsNoise("lowpass", 420), 0.05, 1.2);
-    if (t >= S.rain[0]) tsLoop("rain", () => tsNoise("bandpass", 2600, 0.6), 0.09, 0.15);
-    for (const at of tshow.bolts || []) if (tsCue(at)) { tsCrackle(0.09); tsThunder(0.25 + Math.random() * 0.6, 0.2); }
+    // ("storm is coming" from the first moment, before it is seen; the rain's own recording as it starts to pour)
+    if (t < 1) tsClip("storm", "audio/title/storm-coming.ogg", 0.8);
+    tsLoop("wind", () => tsNoise("lowpass", 420), 0.03, 1.2);
+    if (t >= S.rain[0]) { tsClip("rainf", "audio/title/rain-start.ogg", 0.9); tsLoop("rain", () => tsNoise("bandpass", 2600, 0.6), 0.04, 0.15); }
+    for (const b of tshow.bolts || []) if (tsCue(b.at)) { if (!b.far) tsCrackle(0.1); tsThunder(b.far ? 0.5 + Math.random() * 0.8 : 0.15 + Math.random() * 0.4, b.far ? 0.15 : 0.24); }
   } else if (K === "boiler") {
     // its engine coming in; a splash into the water; then under it: sonar pings, the servos as the propeller comes out,
     // and the propeller churning the water
     tsLoop("engine", () => tsFile("audio/boiler/engine-loop.ogg"), t < S.tsink ? 0.32 : 0, t < S.tsink ? 0.6 : 0.8);
-    if (tsCue(S.tsink + 0.3)) { playClip("audio/boiler/splash.ogg", false, 0.8); audio.noise(0.6, 0.12, 1500); }
+    if (tsCue(S.tsink + 0.3)) { if (!playClip("audio/title/splash.ogg", false, 0.9)) playClip("audio/boiler/splash.ogg", false, 0.8); }
     if (t > S.tsink + 0.8 && time > tsnd.nextPing) { tsPing(0.06); tsnd.nextPing = time + 1.4 + Math.random() * 0.6; }
     if (t > S.tdep && t < S.tdep + 3 && Math.random() < 0.09) tsServo(0.06);
     if (tsCue(S.tdep)) { audio.tone(140, 0.25, "square", 0.05, 0.6); audio.tone(2200, 0.03, "square", 0.05, 0.5, 0.05); }   // (the rear doors unlatch)
@@ -11891,6 +11902,37 @@ function drawTitleShow() {
       if (t < S.len && Math.random() < (go > 0 ? 0.95 : 0.12)) for (let q = 0; q < (go > 0 ? 3 : 1); q++)
         tshow.fx.push({ k: "pbub", ax: hx + h * 0.2, ay: hy + (Math.random() - 0.5) * h * 0.25, x: 0, y: 0, vx: (0.3 + Math.random() * 0.6) * (go > 0 ? 1 : 0.4), vy: -0.15 - Math.random() * 0.3, t: 0, life: 1.4 + Math.random() * 1.4, r: 0.012 + Math.random() * 0.03, ph: Math.random() * 6 });
     }
+    // the splash as it meets the water: drops thrown up and falling back, rings spreading on the surface and fading,
+    // bubbles going down round it and rising
+    const top = L.cy + L.h * 0.5 - (L.h * 1.05) * water;
+    if (t >= S.tsink + 0.3 && !tshow.splashed) {
+      tshow.splashed = true; const cx0 = x + w * 0.5;
+      tshow.fx.push({ k: "scrown", ax: cx0, ay: 0, x: 0, y: 0, vx: 0, vy: 0, t: 0, life: 0.8 });
+      for (let i = 0; i < 70; i++) { const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2, v = h * (0.7 + Math.random() * 1.5); tshow.fx.push({ k: "sdrop", ax: cx0 + (Math.random() - 0.5) * w * 0.7, ay: 0, x: 0, y: 0, vx: 0, vy: 0, dx: Math.cos(a) * v, dy: Math.sin(a) * v, t: 0, life: 0.9 + Math.random() * 0.6, r: h * (0.008 + Math.random() * 0.016) }); }
+      for (let i = 0; i < 4; i++) tshow.fx.push({ k: "sring", ax: cx0 + (Math.random() - 0.5) * w * 0.3, ay: 0, x: 0, y: 0, vx: 0, vy: 0, t: -i * 0.35, life: 2.6, rw: w * (0.35 + i * 0.1) });
+      for (let i = 0; i < 40; i++) tshow.fx.push({ k: "sbub", ax: cx0 + (Math.random() - 0.5) * w * 0.8, ay: (0.05 + Math.random() * 0.3) * h, x: 0, y: 0, vx: (Math.random() - 0.5) * h * 0.1, vy: 0, t: 0, life: 0.8 + Math.random() * 1.2, r: h * (0.006 + Math.random() * 0.014) });
+    }
+    for (const p of tshow.fx) {
+      if (p.t < 0) continue;
+      const k = p.t / p.life;
+      if (p.k === "scrown") {   // (a white sheet of spray thrown up all along the hull, falling back)
+        const sh = h * 0.55 * Math.sin(Math.min(1, k * 1.6) * Math.PI) , a = 0.6 * (1 - k);
+        const g = ctx.createRadialGradient(p.ax, top, 0, p.ax, top, w * 0.55); g.addColorStop(0, `rgba(235,252,255,${a})`); g.addColorStop(1, "rgba(235,252,255,0)");
+        ctx.save(); ctx.translate(p.ax, top); ctx.scale(1, Math.max(0.05, sh / (w * 0.55))); ctx.translate(-p.ax, -top);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.ax, top, w * 0.55, Math.PI, TAU); ctx.fill(); ctx.restore();
+      } else if (p.k === "sdrop") {   // (up and back down under its own weight; gone back into the water)
+        const dy = p.dy * p.t + h * 2.4 * p.t * p.t, px = p.ax + p.dx * p.t, py = top + dy;
+        if (dy > h * 0.02 && p.t > 0.1) continue;
+        ctx.fillStyle = `rgba(215,250,255,${0.85 * (1 - k * 0.5)})`; ctx.beginPath(); ctx.ellipse(px, py, p.r, p.r * 1.5, Math.atan2(p.dy + h * 4.8 * p.t, p.dx) - Math.PI / 2, 0, TAU); ctx.fill();
+      } else if (p.k === "sring") {   // (wider, flatter, weaker)
+        const rw = p.rw * (0.3 + k * 1.4), a = 0.7 * (1 - k) ** 1.5;
+        ctx.strokeStyle = `rgba(220,255,255,${a})`; ctx.lineWidth = Math.max(1, h * 0.009 * (1 - k)); ctx.beginPath(); ctx.ellipse(p.ax, top + h * 0.01, rw, rw * 0.09, 0, 0, TAU); ctx.stroke();
+      } else if (p.k === "sbub") {   // (pushed down, then floating up, wobbling)
+        const bx = p.ax + p.vx * p.t + Math.sin(p.t * 9 + p.r * 99) * h * 0.012, by = top + p.ay * Math.min(1, p.t * 4) - h * 0.25 * Math.max(0, p.t - 0.25);
+        if (by < top) continue;
+        ctx.strokeStyle = `rgba(220,255,255,${0.75 * (1 - k)})`; ctx.lineWidth = Math.max(1, p.r * 0.25); ctx.beginPath(); ctx.arc(bx, by, p.r, 0, TAU); ctx.stroke();
+      }
+    }
     const [sx, sy] = P(S.steam[0], S.steam[1], x, y), on = t < S.len;   // (gone off the screen: no new bubbles or puffs)
     if (on && Math.random() < 0.9) for (const [i, Wn] of S.wins.entries()) {   // new bubbles, at the bottom of each window
       if (Math.random() < (i ? 0.25 : 0.5)) tshow.fx.push({ k: "bub", win: i, x: (Math.random() - 0.5) * 1.6 * Wn[2], y: Wn[3] * 0.95, vx: 0, vy: -Wn[3] * (0.5 + Math.random() * 0.7), t: 0, life: 2.2, r: Wn[2] * (0.03 + Math.random() * 0.07), ph: Math.random() * 6 });
@@ -11929,7 +11971,26 @@ function drawTitleShow() {
     }
   } else if (K === "cloudship") {
     // the cloud banks roll (its frames, one melting into the next) and blue sparks crackle in them
-    const x = -w + (W + w) * (t / S.len), y = L.cy - h / 2 + bob * 2;
+    // (it comes in after `pre` s of storm: the sky dark blue, shifting light in it, far lightning flashing)
+    const x = -w + (W + w) * Math.max(-0.2, (t - S.pre) / (S.len - S.pre)), y = L.cy - h / 2 + bob * 2;
+    const storm = Math.min(1, t / 1.2) * Math.min(1, (S.len - t) / 1.5);
+    if (storm > 0) {
+      ctx.fillStyle = `rgba(8,16,40,${0.35 * storm})`; ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = 0; i < 3; i++) {   // (slow blue glows drifting in the clouds)
+        const gx = W * (0.5 + 0.45 * Math.sin(t * 0.35 + i * 2.1)), gy = H * (0.15 + 0.12 * Math.sin(t * 0.5 + i * 1.3)), a = storm * (0.07 + 0.05 * Math.sin(t * 1.7 + i * 2.4));
+        glow(gx, gy, W * 0.45, "rgba(70,120,255,A)", Math.max(0, a));
+      }
+      for (const b of tshow.bolts || []) {   // the sky flashing: two or three pulses, blue-white, from where it strikes
+        const k = t - b.at; if (k < 0 || k > 0.7) continue;
+        const pul = k < 0.07 ? 1 : k < 0.13 ? 0.3 : k < 0.22 ? 0.9 : k < 0.3 ? 0.25 : k < 0.36 ? 0.6 : 0.6 * (1 - (k - 0.36) / 0.34);
+        const fx = b.far ? W * (0.1 + (b.seed % 1) * 0.8) : x + w * 0.5, fy = b.far ? H * 0.1 : y + h * 0.6, a = pul * (b.far ? 0.55 : 0.8);
+        const g = ctx.createRadialGradient(fx, fy, 0, fx, fy, Math.max(W, H) * 0.9);
+        g.addColorStop(0, `rgba(200,225,255,${a * 0.7})`); g.addColorStop(0.4, `rgba(110,150,255,${a * 0.3})`); g.addColorStop(1, `rgba(60,90,200,${a * 0.08})`);
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      }
+      ctx.globalCompositeOperation = "source-over";
+    }
     const fp = t * S.fps, f0 = Math.floor(fp) % S.frames.length, f1 = (f0 + 1) % S.frames.length, k = fp - Math.floor(fp);
     const A0 = artImage(S.frames[f0]) || img, A1 = artImage(S.frames[f1]);
     ctx.drawImage(A0, x, y, w, h);
@@ -11945,15 +12006,30 @@ function drawTitleShow() {
       }
       ctx.stroke(); ctx.restore();
     }
-    for (const at of tshow.bolts || []) {
-      const k = t - at; if (k < 0 || k > 0.35) continue;
-      const a = k < 0.06 || (k > 0.12 && k < 0.18) ? 1 : 0.35 * (1 - k / 0.35), bx0 = x + w * (0.25 + ((at * 7.13) % 1) * 0.5), by0 = y + h * 0.7;
-      ctx.save(); ctx.globalCompositeOperation = "lighter";
-      ctx.fillStyle = `rgba(150,180,255,${0.12 * a})`; ctx.fillRect(0, 0, W, H);   // (the sky lit up)
-      ctx.strokeStyle = `rgba(230,240,255,${a})`; ctx.lineWidth = Math.max(1.5, h * 0.01); ctx.shadowColor = "#9fc4ff"; ctx.shadowBlur = h * 0.06;
-      ctx.beginPath(); ctx.moveTo(bx0, by0); let px = bx0, py = by0;
-      for (let s2 = 1; s2 <= 9; s2++) { px += Math.sin(at * 31 * s2) * h * 0.07; py += H * 0.06; ctx.lineTo(px, py); }
-      ctx.stroke(); ctx.restore();
+    // its lightning: a jagged channel out of the clouds' underside down the whole screen, forking, its shape jumping with
+    // each pulse; a wide blue glow round a white-hot core
+    const bolt = (pts, lw, a) => {
+      for (const [c, m] of [["rgba(90,140,255,A)", 5], ["rgba(170,205,255,A)", 2.2], ["rgba(255,255,255,A)", 0.8]]) {
+        ctx.strokeStyle = c.replace("A", a * (m > 4 ? 0.35 : 1)); ctx.lineWidth = lw * m; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+        for (const q of pts) ctx.lineTo(q[0], q[1]); ctx.stroke();
+      }
+    };
+    for (const b of tshow.bolts || []) {
+      const k = t - b.at; if (b.far || k < 0 || k > 0.45) continue;
+      const a = k < 0.07 ? 1 : k < 0.12 ? 0.15 : k < 0.2 ? 0.95 : k < 0.26 ? 0.2 : k < 0.32 ? 0.7 : 0.7 * (1 - (k - 0.32) / 0.13);
+      let r = b.seed + Math.floor(k / 0.12) * 17.3; const rnd = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+      const bx0 = x + w * (0.3 + (b.seed % 1) * 0.4), by0 = y + h * 0.68, seg = H * 0.045, lw = Math.max(1.2, h * 0.006);
+      const main = [[bx0, by0]]; let px = bx0, py = by0;
+      while (py < H + seg) { px += (rnd() - 0.5) * seg * 1.6; py += seg * (0.5 + rnd() * 0.7); main.push([px, py]); }
+      ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineJoin = "miter"; ctx.lineCap = "round";
+      glow(bx0, by0, h * 0.35, "rgba(160,200,255,A)", 0.6 * a);
+      bolt(main, lw, a);
+      for (let i = 2; i < main.length - 2; i += 2 + Math.floor(rnd() * 3)) {   // (forks off it, thinner, dying out)
+        const br = [main[i]]; let qx = main[i][0], qy = main[i][1], dir = rnd() < 0.5 ? -1 : 1;
+        for (let j = 0; j < 3 + rnd() * 4; j++) { qx += dir * seg * (0.4 + rnd() * 0.8); qy += seg * (0.3 + rnd() * 0.6); br.push([qx, qy]); }
+        bolt(br, lw * 0.5, a * 0.7);
+      }
+      ctx.restore();
     }
     if (Math.random() < 0.05) tshow.fx.push({ k: "zap", x: (Math.random() < 0.5 ? 0.12 + Math.random() * 0.3 : 0.62 + Math.random() * 0.3), y: 0.2 + Math.random() * 0.55, vx: 0, vy: 0, t: 0, life: 0.18, seed: Math.random() * 99 });
     ctx.globalCompositeOperation = "lighter";

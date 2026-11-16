@@ -905,10 +905,12 @@ canister through its iris, the boiler bubbles and steams, the cloud ship billows
 cut out of its render (`art/title/`), moved and lit by the game; their points (lamp, iris, windows...) are in
 `TSHOW` in index.html.
 
-Their sounds (`titleSounds()`, under `TSHOW`): the cloud ship brings a storm — wind, then halfway through rain pours out
-of its underside all at once, with lightning (a flash, an electric crack, thunder); the rain and thunder roll on for a
-few seconds into the next film. The boiler comes in on its engine (`audio/boiler/engine-loop.ogg`), splashes into the
-water, pings its sonar, whirs and clicks its servos as the propeller comes out at the back, then churns the water; the
+Their sounds (`titleSounds()`, under `TSHOW`): the cloud ship brings a storm — for 3 s before it comes in the sky
+darkens, blue light drifts in it and far lightning flashes, to "storm is coming" (`audio/title/storm-coming.ogg`); then
+halfway through rain pours out of its underside all at once (`audio/title/rain-start.ogg`), and jagged forking
+lightning runs from it down the whole screen (the sky flashing in pulses, an electric crack, thunder); the rain and
+thunder roll on for a few seconds into the next film. The boiler comes in on its engine (`audio/boiler/engine-loop.ogg`),
+splashes into the water (`audio/title/splash.ogg`: drops thrown up, rings spreading and fading, bubbles round it), pings its sonar, whirs and clicks its servos as the propeller comes out at the back, then churns the water; the
 propeller and the pings fade out after it has gone. The lighthouse's lamp hums and buzzes like neon as loud as it shines,
 crackling each time it flickers on. The courier builds pressure (a rising hiss) and lets the air go like a pneumatic
 tube; its canister flies over the game's picture. Everything else is made by the synth; off the menu it all fades out.
