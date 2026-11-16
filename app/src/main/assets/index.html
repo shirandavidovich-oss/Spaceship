@@ -4397,14 +4397,19 @@ function st(k) { return (SHOP_TXT[LANG] || SHOP_TXT.he)[k]; }
 // it is, doing nothing) | "none" (no enemy: it waits far off, out of the game). money: coins and minerals without end
 // (nothing is spent, the real bank is not touched, so none of it reaches the server). Kept on the phone (TEST_KEY).
 const TEST_KEY = "spaceship.test";
-const testState = (() => { try { const t = JSON.parse(LS.getItem(TEST_KEY)); if (t && typeof t === "object") return { foe: ["fight", "safe", "still", "none"].includes(t.foe) ? t.foe : "fight", money: !!t.money, foeShip: typeof t.foeShip === "string" ? t.foeShip : null, pickFoe: false }; } catch (e) {} return { foe: "fight", money: false, foeShip: null, pickFoe: false }; })();
-function saveTest() { try { LS.setItem(TEST_KEY, JSON.stringify({ foe: testState.foe, money: testState.money, foeShip: testState.foeShip })); } catch (e) {} }
+const testState = (() => { try { const t = JSON.parse(LS.getItem(TEST_KEY)); if (t && typeof t === "object") return { foe: ["fight", "safe", "still", "none"].includes(t.foe) ? t.foe : "fight", money: !!t.money, foeShip: typeof t.foeShip === "string" ? t.foeShip : null, pickFoe: false, body: Number.isInteger(t.body) ? t.body : null }; } catch (e) {} return { foe: "fight", money: false, foeShip: null, pickFoe: false }; })();
+function saveTest() { try { LS.setItem(TEST_KEY, JSON.stringify({ foe: testState.foe, money: testState.money, foeShip: testState.foeShip, body: testState.body })); } catch (e) {} }
 function testFoe() { return HANGAR && !BOT ? testState.foe : "fight"; }
 function testMoney() { return HANGAR && !BOT && testState.money; }
 let botTest = "fight";   // (in the computer's window: what the hangar asked of it)
 window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🤖 computer's ship": the ship the computer flies (null: its own, at random from its fleet). Changed now
 // (it switches at once, a fresh ship), and its next ships too
+// the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
+// each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
+// to random
+function testBody() { return HANGAR && !BOT && testState.body != null && BODIES[testState.body] ? testState.body : null; }
+function pickBody(now) { const t = testBody(); return t != null ? t : nextBody(now); }
 function testFoeShip() { return HANGAR && !BOT && testState.foeShip && shipById(testState.foeShip) ? testState.foeShip : null; }
 let botShipWant = null;
 window.setBotShip = (id) => { if (id === botShipWant) return; botShipWant = id; if (id && game.ship !== id && !game.dead && game.stage === "fly") tryShip(id); };
@@ -4424,15 +4429,15 @@ function botStill() {
   return true;
 }
 const TEST_TXT = {
-  he: { fight: "יורה עם נזק", safe: "יורה, בלי נזק", still: "אויב עומד", none: "בלי אויב", money: "💰 כסף ללא הגבלה", pickFoe: "🤖 בחר חללית למחשב", carrier: "🛸 הפשיטה", pickFoeOn: "🤖 הקש חללית למחשב (שוב: אקראי)" },
-  en: { fight: "Fires & hurts", safe: "Fires, no harm", still: "Still enemy", none: "No enemy", money: "💰 Unlimited money", pickFoe: "🤖 Pick the computer's ship", carrier: "🛸 The raid", pickFoeOn: "🤖 Tap its ship (again: random)" }
+  he: { fight: "יורה עם נזק", safe: "יורה, בלי נזק", still: "אויב עומד", none: "בלי אויב", money: "💰 כסף ללא הגבלה", pickFoe: "🤖 בחר חללית למחשב", carrier: "🛸 הפשיטה", pickFoeOn: "🤖 הקש חללית למחשב (שוב: אקראי)", bodyRand: "🪐 גוף אקראי" },
+  en: { fight: "Fires & hurts", safe: "Fires, no harm", still: "Still enemy", none: "No enemy", money: "💰 Unlimited money", pickFoe: "🤖 Pick the computer's ship", carrier: "🛸 The raid", pickFoeOn: "🤖 Tap its ship (again: random)", bodyRand: "🪐 Random body" }
 };
 // the chips: the four enemy modes on one row (one lit), the money under them
 function testChips() {
   const R = hangarRow(), h = R.r * 1.15, gap = U * 0.018, w = (W - U * 0.06 - gap * 3) / 4, x0 = U * 0.03, list = [];
   ["none", "still", "safe", "fight"].forEach((m, i) => list.push({ foe: m, x: x0 + i * (w + gap), y: R.y - h / 2, w, h }));
   const mw = (W - U * 0.06 - gap) / 2; list.push({ money: true, x: x0, y: R.y + h * 0.85, w: mw, h }, { pickFoe: true, x: x0 + mw + gap, y: R.y + h * 0.85, w: mw, h });
-  list.push({ event: "carrier", x: x0, y: R.y + h * 1.85, w: W - U * 0.06, h });   // the match events (🛸: the carrier)
+  list.push({ event: "carrier", x: x0, y: R.y + h * 1.85, w: mw, h }, { body: true, x: x0 + mw + gap, y: R.y + h * 1.85, w: mw, h });   // the match events (🛸: the carrier); the body in the middle
   return list;
 }
 function testRowBottom() { const c = testChips(); const m = c[c.length - 1]; return m.y + m.h; }   // (the second row's chips are as low)
@@ -4440,11 +4445,11 @@ function drawTestChips() {
   const T = TEST_TXT[LANG] || TEST_TXT.he;
   ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
   for (const c of testChips()) {
-    const on = c.event ? !!carrier : c.pickFoe ? testState.pickFoe || !!testFoeShip() : c.money ? testState.money : testState.foe === c.foe, col = c.event ? "#8fb4ff" : c.pickFoe ? "#ff6ad5" : c.money ? "#ffd166" : c.foe === "fight" ? "#ff8a6a" : c.foe === "safe" ? "#7dffb0" : "#7cc8ff";
+    const on = c.body ? testBody() != null : c.event ? !!carrier : c.pickFoe ? testState.pickFoe || !!testFoeShip() : c.money ? testState.money : testState.foe === c.foe, col = c.body ? "#c9a5fc" : c.event ? "#8fb4ff" : c.pickFoe ? "#ff6ad5" : c.money ? "#ffd166" : c.foe === "fight" ? "#ff8a6a" : c.foe === "safe" ? "#7dffb0" : "#7cc8ff";
     ctx.fillStyle = on ? hexA(col, 0.22) : "rgba(10,12,32,0.8)"; ctx.strokeStyle = on ? col : "rgba(124,140,255,0.45)"; ctx.lineWidth = on ? 2.5 : 1.5;
     roundRect(c.x, c.y, c.w, c.h, c.h / 2); ctx.fill(); ctx.stroke();
     let f = Math.round(c.h * 0.42); ctx.font = `${on ? 800 : 600} ${f}px Rubik, Arial, sans-serif`;
-    const txt = c.event ? T.carrier : c.pickFoe ? (testState.pickFoe ? T.pickFoeOn : testFoeShip() ? "🤖 " + shipById(testFoeShip()).name : T.pickFoe) : c.money ? T.money : T[c.foe];
+    const txt = c.body ? (testBody() != null ? "🪐 " + bodyName(BODIES[testBody()]) : T.bodyRand) : c.event ? T.carrier : c.pickFoe ? (testState.pickFoe ? T.pickFoeOn : testFoeShip() ? "🤖 " + shipById(testFoeShip()).name : T.pickFoe) : c.money ? T.money : T[c.foe];
     while (f > 8 && ctx.measureText(txt).width > c.w - c.h * 0.5) { f--; ctx.font = `${on ? 800 : 600} ${f}px Rubik, Arial, sans-serif`; }
     ctx.fillStyle = on ? "#ffffff" : "#9fb4d8"; ctx.fillText(txt, c.x + c.w / 2, c.y + c.h / 2 + 1);
     hangar.cards.push({ test: c, x: c.x, y: c.y, w: c.w, h: c.h });
@@ -4453,6 +4458,12 @@ function drawTestChips() {
 }
 function testTap(c) {
   if (c.event === "carrier") { hangar.open = false; if (!carrier) startCarrier(true); audio.pop(); return; }   // set the carrier off now
+  if (c.body) {   // the next body, now (from random: the one after the one in the middle); after the last, random again
+    const cur = testBody(), i = cur == null ? (cosmos.body + 1) % BODIES.length : cur + 1;
+    testState.body = i < BODIES.length ? i : null; saveTest(); audio.pop(); buzz(10);
+    if (testState.body != null) { setBody(testState.body, cosmos.started); duelSend({ t: "bd", b: testState.body }); }
+    return;
+  }
   if (c.pickFoe) testState.pickFoe = !testState.pickFoe; else if (c.money) testState.money = !testState.money; else testState.foe = c.foe;
   saveTest(); testT = 0; audio.pop(); buzz(10);
 }
@@ -9761,7 +9772,7 @@ function spawnEnemy() {
   if (!ENEMY || BOT || !camp.off) return;   // the computer player (THE COMPUTER PLAYER) has taken the old enemy's place
   enemy.inked = 0;
   enemy.cool = null; enemy.ammo = null;   // a new enemy comes with full guns
-  setBody(nextBody(cosmos.body), cosmos.started);   // each round: a new thing in the middle
+  setBody(pickBody(cosmos.body), cosmos.started);   // each round: a new thing in the middle
   cosmos.started = true;
   const others = SHIPS.filter((s) => s.id !== game.ship && s.anim);
   enemy.ship = others[Math.floor(Math.random() * others.length)].id;
@@ -12124,7 +12135,7 @@ function startFromTitle() {
   placeShip(); game.stage = "fly"; game.t = 0; game.dead = 0; game.pick = false; game.arriveT = 0;   // (straight to choosing a ship: no arrival from the top)
   newCampaign();
   // the first match's body, chosen now: it is the one in the middle from the start (the match keeps it: cosmos.chosen)
-  setBody(nextBody(cosmos.body), false); cosmos.started = true; cosmos.chosen = true;
+  setBody(pickBody(cosmos.body), false); cosmos.started = true; cosmos.chosen = true;
   audio.whoosh(); buzz(30);
 }
 function toTitle() {
@@ -18038,7 +18049,7 @@ function duelLink(event, data) {
     // each match (and, against the computer, each of its ships): a new thing in the middle. (It used to change only when
     // the old practice enemy came; since the computer player took its place, the middle stayed the first body)
     if (cosmos.chosen && !BOT) cosmos.chosen = false;   // (the first match: the body already there since the game began)
-    else setBody(nextBody(cosmos.body), cosmos.started);
+    else setBody(pickBody(cosmos.body), cosmos.started);
     cosmos.started = true;   // (the top player's is kept: "hi" below)
     setStation(Math.floor(Math.random() * 2147483647)); link.send({ t: "hi", s: game.ship, r: duel.me, b: cosmos.body, st: station.seed, nk: server.signedIn && !BOT ? myNick() : "" }); return; }
   if (event === "lost" || event === "error" || event === "denied") { if (duel.stage !== "over") endDuel(false); return; }
@@ -18107,6 +18118,7 @@ function duelLink(event, data) {
   } else if (m.t === "lcut") { if (game.elasso) ropeCut(false);   // their BORER's drill cut my LARIAT's rope round it
   } else if (m.t === "mzc") { if (maze && maze.seed === m.sd) mazeCut(m.c, m.s, false);   // their BORER cut a maze wall
   } else if (m.t === "br") { drillBitten(m);   // their BORER's drill bit my hull
+  } else if (m.t === "bd") { if (BODIES[m.b]) setBody(m.b, cosmos.started);   // (the test hangar's body chip: the other phone's middle changed by hand)
   } else if (m.t === "px") { palFx.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0 });
     if (m.r != null) palBoom(m.cx * WW, m.cy * WH, m.r * U, duel.palWall && duel.palWall.segs ? palUnits(duel.palWall) : [{ x: m.cx * WW, y: m.cy * WH }], false);   // their wall's blast
   } else if (m.t === "fs") {   // their MIRAGE's false star (it bends my shots too)
