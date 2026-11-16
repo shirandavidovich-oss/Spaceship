@@ -785,7 +785,7 @@ ok("FRESNEL's snake: one smooth rainbow body, three times as long; a touch sends
   const html = require("fs").readFileSync(require("path").join(__dirname, "../app/src/main/assets/index.html"), "utf8");
   const i = html.indexOf("  snake: { name:"), M = eval("(" + html.slice(html.indexOf("{", i), html.indexOf("},", i) + 1) + ")");
   assert(M.most >= 150 && M.grow * M.last >= 150);
-  assert(html.includes('N.hitT = M.spare; N.phase = "back";') && !html.includes("roundRect(p.x - w / 2, p.y - w / 2, w, w, w * 0.25)"));
+  assert(html.includes('N.hitT = M.spare; N.phase = "flee";') && !html.includes("roundRect(p.x - w / 2, p.y - w / 2, w, w, w * 0.25)"));
 });
 ok("the account: money and purchases on the server (banks table); merging keeps the larger of each", () => {
   const fs = require("fs"), path = require("path"), html = fs.readFileSync(path.join(__dirname, "../app/src/main/assets/index.html"), "utf8"), sql = fs.readFileSync(path.join(__dirname, "../server/supabase.sql"), "utf8");
