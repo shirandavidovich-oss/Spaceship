@@ -783,7 +783,7 @@ the nose turns away into the screen (toward space), down toward you, left and ri
 further, it turns and fires. The further the drag, the faster, as far round as you like (loops, barrel rolls); let go
 and it stays as it is. Turns are round the ship's own axes, so rolled over, tilt and yaw turn it the other ways too.
 Button 2 stays a plain fire button; the buttons sit 1 cm further in and up. Tilted, the engine pushes it into the depth
-(smaller, down to 0.3x far away) or toward you (up to 2x near); the depth wraps like the sides (out near, back in from
+(smaller, down to 0.1x far away) or toward you (up to 4x near); the depth wraps like the sides (out near, back in from
 far away, fading). Out of the plane it passes over or under the body in the middle. The other phone sees its depth,
 tilt and roll; ships with no model are squashed as they tilt and roll. So far shots and hits still go by the plane (`TILT3`). Models so far: FRESNEL,
 BOILER, THUL, PUFF (slim; puffed up it is drawn in 2D), BLOOM. **The camera button** (3D view, under the map; saved): 🔭 from above, as always, or 🎥 behind the ship — the chase

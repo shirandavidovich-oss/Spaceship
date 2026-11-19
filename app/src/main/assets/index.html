@@ -4471,7 +4471,7 @@ function draw3dShip(S, o, ang, bank) {
 // big, at +near). The depth wraps like the sides do: out at the near side, it comes back in from far away, and the
 // other way round. Out of the plane (|z3| more than a body's radius) it passes over or under the body in the middle.
 // So far shots and hits still go by the plane; the other phone sees its depth, tilt and roll (z3, p3, r3).
-const TILT3 = { rate: 2.6, roll: 3.2, yaw: 3.0, dead: 0.25, full: 1.3, fireAt: 1.45, far: 4, near: 2, small: 0.3, big: 2.0, fade: 0.35 };
+const TILT3 = { rate: 2.6, roll: 3.2, yaw: 3.0, dead: 0.25, full: 1.3, fireAt: 1.45, far: 8, near: 4, small: 0.1, big: 4.0, fade: 0.5 };   // (depth twice as deep each way: further and smaller, nearer and bigger)
 // a drag on one of the sticks: how hard (0 inside the dead zone, 1 at `full`), and whether it is pushed right out
 function stick3(dx, dy) {
   const r = thrustButton().r, d = Math.hypot(dx, dy), T = TILT3;
