@@ -25,7 +25,7 @@ computer the hangar's ships are split into two random fleets, as before.
 
 Every player has one spaceship. It arrives inside a surprise gift: tap the gift 3 times and it opens.
 The ship is chosen by rarity (common 50%, rare 30%, epic 15%, legendary 5%) and kept on the phone.
-Flying works like Star Control 2's Super Melee: space is 10 screens wide and 10 tall and wraps
+Flying works like Star Control 2's Super Melee: space is 30 screens wide and 30 tall and wraps
 around, with a planet in the middle that pulls the ship. Tilting the phone points the ship's nose
 (all the way round, 360°); held at the usual angle (about 35° from flat) the nose stays where it is.
 The round button for the left thumb fires the engine toward the nose, and it is also a joystick:
