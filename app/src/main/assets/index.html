@@ -3058,7 +3058,7 @@ cv.addEventListener("pointerdown", (e) => {
   if ((picker.open || camp.over) && hitLang(e.clientX, e.clientY)) { setLang(LANG === "he" ? "en" : "he"); audio.pop(); buzz(10); return; }   // עב / EN
   if (picker.open || camp.over) { pickDown(e); return; }   // choosing a ship / the fleet is gone (a long press on a ship: its page)
   if (fleet.open) { fleetDown(e); return; }
-  if (hangar.open) { hangarTap(e.clientX, e.clientY); return; }
+  if (hangar.open) { hangarDown(e); return; }
   if (game.stage === "fly" && !trade.stage && hitDuel(e.clientX, e.clientY)) { duel.pressAt = performance.now(); duelButton(); return; }
   if (game.stage === "fly" && !trade.stage && !realDuel() && hitHangar(e.clientX, e.clientY)) { hangar.open = true; hangar.t = 0; audio.pop(); return; }
   if (game.stage === "fly" && hitDock(e.clientX, e.clientY)) { dock(); return; }   // in the station's bay, slow: dock
@@ -3107,6 +3107,7 @@ function testKillTap(x, y) {
 }
 // dragging the thumb on the thrust button steers, like a joystick
 cv.addEventListener("pointermove", (e) => {
+  if (hangar.press && e.pointerId === hangar.press.id) { hangarMove(e); return; }
   if (dialMove(e)) return;
   if (fleet.open) { fleetMove(e); return; }
   if (game.tilt3 && e.pointerId === game.tilt3.id) tilt3Move(e);
@@ -3116,6 +3117,7 @@ cv.addEventListener("pointermove", (e) => {
   game.stick.dx = e.clientX - game.stick.ox; game.stick.dy = e.clientY - game.stick.oy;
 });
 function fingerUp(e) {
+  if (hangar.press && e.pointerId === hangar.press.id) { const P = hangar.press; hangar.press = null; clearTimeout(P.timer); if (!P.moved && !P.fired) hangarTap(P.x, P.y); return; }
   if (pickPress && e.pointerId === pickPress.id) { clearTimeout(pickPress.timer); const P = pickPress; pickPress = null; if (!P.fired) pickerTap(P.x, P.y); return; }
   if (rowPress && e.pointerId === rowPress.id) { clearTimeout(rowPress.timer); const held = rowPress.fired; rowPress = null; if (!held) fleetRowTap(); return; }
   if (dialUp(e)) return;
@@ -4415,8 +4417,8 @@ function st(k) { return (SHOP_TXT[LANG] || SHOP_TXT.he)[k]; }
 // it is, doing nothing) | "none" (no enemy: it waits far off, out of the game). money: coins and minerals without end
 // (nothing is spent, the real bank is not touched, so none of it reaches the server). Kept on the phone (TEST_KEY).
 const TEST_KEY = "spaceship.test";
-const testState = (() => { try { const t = JSON.parse(LS.getItem(TEST_KEY)); if (t && typeof t === "object") return { foe: ["fight", "safe", "still", "none"].includes(t.foe) ? t.foe : "fight", money: !!t.money, foeShip: typeof t.foeShip === "string" ? t.foeShip : null, pickFoe: false, body: Number.isInteger(t.body) ? t.body : null }; } catch (e) {} return { foe: "fight", money: false, foeShip: null, pickFoe: false }; })();
-function saveTest() { try { LS.setItem(TEST_KEY, JSON.stringify({ foe: testState.foe, money: testState.money, foeShip: testState.foeShip, body: testState.body })); } catch (e) {} }
+const testState = (() => { try { const t = JSON.parse(LS.getItem(TEST_KEY)); if (t && typeof t === "object") return { foe: ["fight", "safe", "still", "none"].includes(t.foe) ? t.foe : "fight", money: !!t.money, foeShip: typeof t.foeShip === "string" ? t.foeShip : null, pickFoe: false, body: Number.isInteger(t.body) ? t.body : null, noStar: !!t.noStar }; } catch (e) {} return { foe: "fight", money: false, foeShip: null, pickFoe: false }; })();
+function saveTest() { try { LS.setItem(TEST_KEY, JSON.stringify({ foe: testState.foe, money: testState.money, foeShip: testState.foeShip, body: testState.body, noStar: !!testState.noStar })); } catch (e) {} }
 function testFoe() { return HANGAR && !BOT ? testState.foe : "fight"; }
 function testMoney() { return HANGAR && !BOT && testState.money; }
 let botTest = "fight";   // (in the computer's window: what the hangar asked of it)
@@ -4530,6 +4532,10 @@ function chaseCompose() {
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(img, 0, 0); ctx.restore();
 }
 function chaseHidesShip(S) { return chaseOn() && view3d.lib.has(S.id) && view3d.lib.ready(S.id); }   // (my ship is the model in the scene: not drawn flat on the floor)
+// the test hangar's 🪐 chip held down: no body in the middle at all (no pull, nothing to touch, not drawn) — for
+// trying how the ships fly without gravity; held again (or a tap: the next body), it is back. On both phones ("ns")
+function testNoStar() { return !!testState.noStar && (HANGAR || BOT); }
+function testNoStarSet(on) { testState.noStar = on; saveTest(); duelSend({ t: "ns", on: on ? 1 : 0 }); audio.pop(); buzz(on ? 40 : 15); }
 function testBody() { return HANGAR && !BOT && testState.body != null && BODIES[testState.body] ? testState.body : null; }
 function pickBody(now) { const t = testBody(); return t != null ? t : nextBody(now); }
 function testFoeShip() { return HANGAR && !BOT && testState.foeShip && shipById(testState.foeShip) ? testState.foeShip : null; }
@@ -4551,8 +4557,8 @@ function botStill() {
   return true;
 }
 const TEST_TXT = {
-  he: { fight: "יורה עם נזק", safe: "יורה, בלי נזק", still: "אויב עומד", none: "בלי אויב", money: "💰 כסף ללא הגבלה", pickFoe: "🤖 בחר חללית למחשב", carrier: "🛸 הפשיטה", pickFoeOn: "🤖 הקש חללית למחשב (שוב: אקראי)", bodyRand: "🪐 גוף אקראי", v3dOn: "🧊 תצוגת תלת־ממד: פועלת", v3dOff: "🧊 תצוגת תלת־ממד" },
-  en: { fight: "Fires & hurts", safe: "Fires, no harm", still: "Still enemy", none: "No enemy", money: "💰 Unlimited money", pickFoe: "🤖 Pick the computer's ship", carrier: "🛸 The raid", pickFoeOn: "🤖 Tap its ship (again: random)", bodyRand: "🪐 Random body", v3dOn: "🧊 3D view: on", v3dOff: "🧊 3D view" }
+  he: { fight: "יורה עם נזק", safe: "יורה, בלי נזק", still: "אויב עומד", none: "בלי אויב", money: "💰 כסף ללא הגבלה", pickFoe: "🤖 בחר חללית למחשב", carrier: "🛸 הפשיטה", pickFoeOn: "🤖 הקש חללית למחשב (שוב: אקראי)", bodyRand: "🪐 גוף אקראי", noBody: "🚫 בלי גוף (החזק)", v3dOn: "🧊 תצוגת תלת־ממד: פועלת", v3dOff: "🧊 תצוגת תלת־ממד" },
+  en: { fight: "Fires & hurts", safe: "Fires, no harm", still: "Still enemy", none: "No enemy", money: "💰 Unlimited money", pickFoe: "🤖 Pick the computer's ship", carrier: "🛸 The raid", pickFoeOn: "🤖 Tap its ship (again: random)", bodyRand: "🪐 Random body", noBody: "🚫 No body (hold)", v3dOn: "🧊 3D view: on", v3dOff: "🧊 3D view" }
 };
 // the chips: the four enemy modes on one row (one lit), the money under them
 function testChips() {
@@ -4568,11 +4574,11 @@ function drawTestChips() {
   const T = TEST_TXT[LANG] || TEST_TXT.he;
   ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
   for (const c of testChips()) {
-    const on = c.v3d ? view3d.on : c.body ? testBody() != null : c.event ? !!carrier : c.pickFoe ? testState.pickFoe || !!testFoeShip() : c.money ? testState.money : testState.foe === c.foe, col = c.v3d ? "#7ef0c8" : c.body ? "#c9a5fc" : c.event ? "#8fb4ff" : c.pickFoe ? "#ff6ad5" : c.money ? "#ffd166" : c.foe === "fight" ? "#ff8a6a" : c.foe === "safe" ? "#7dffb0" : "#7cc8ff";
+    const on = c.v3d ? view3d.on : c.body ? testBody() != null || testNoStar() : c.event ? !!carrier : c.pickFoe ? testState.pickFoe || !!testFoeShip() : c.money ? testState.money : testState.foe === c.foe, col = c.v3d ? "#7ef0c8" : c.body ? "#c9a5fc" : c.event ? "#8fb4ff" : c.pickFoe ? "#ff6ad5" : c.money ? "#ffd166" : c.foe === "fight" ? "#ff8a6a" : c.foe === "safe" ? "#7dffb0" : "#7cc8ff";
     ctx.fillStyle = on ? hexA(col, 0.22) : "rgba(10,12,32,0.8)"; ctx.strokeStyle = on ? col : "rgba(124,140,255,0.45)"; ctx.lineWidth = on ? 2.5 : 1.5;
     roundRect(c.x, c.y, c.w, c.h, c.h / 2); ctx.fill(); ctx.stroke();
     let f = Math.round(c.h * 0.42); ctx.font = `${on ? 800 : 600} ${f}px Rubik, Arial, sans-serif`;
-    const txt = c.v3d ? (view3d.on ? T.v3dOn + (view3d.state === "fail" ? " ⚠" : "") : T.v3dOff) : c.body ? (testBody() != null ? "🪐 " + bodyName(BODIES[testBody()]) : T.bodyRand) : c.event ? T.carrier : c.pickFoe ? (testState.pickFoe ? T.pickFoeOn : testFoeShip() ? "🤖 " + shipById(testFoeShip()).name : T.pickFoe) : c.money ? T.money : T[c.foe];
+    const txt = c.v3d ? (view3d.on ? T.v3dOn + (view3d.state === "fail" ? " ⚠" : "") : T.v3dOff) : c.body && testNoStar() ? T.noBody : c.body ? (testBody() != null ? "🪐 " + bodyName(BODIES[testBody()]) : T.bodyRand) : c.event ? T.carrier : c.pickFoe ? (testState.pickFoe ? T.pickFoeOn : testFoeShip() ? "🤖 " + shipById(testFoeShip()).name : T.pickFoe) : c.money ? T.money : T[c.foe];
     while (f > 8 && ctx.measureText(txt).width > c.w - c.h * 0.5) { f--; ctx.font = `${on ? 800 : 600} ${f}px Rubik, Arial, sans-serif`; }
     ctx.fillStyle = on ? "#ffffff" : "#9fb4d8"; ctx.fillText(txt, c.x + c.w / 2, c.y + c.h / 2 + 1);
     hangar.cards.push({ test: c, x: c.x, y: c.y, w: c.w, h: c.h });
@@ -4582,6 +4588,7 @@ function drawTestChips() {
 function testTap(c) {
   if (c.event === "carrier") { hangar.open = false; if (!carrier) startCarrier(true); audio.pop(); return; }   // set the carrier off now
   if (c.v3d) { view3dSet(!view3d.on); audio.pop(); buzz(10); return; }
+  if (c.body && testNoStar()) { testNoStarSet(false); return; }   // (a tap with no body: it is back)
   if (c.body) {   // the next body, now (from random: the one after the one in the middle); after the last, random again
     const cur = testBody(), i = cur == null ? (cosmos.body + 1) % BODIES.length : cur + 1;
     testState.body = i < BODIES.length ? i : null; saveTest(); audio.pop(); buzz(10);
@@ -6418,7 +6425,7 @@ function vaultOf(o) {
 }
 function vaultHolder() { return game.vault ? game : vaultOf(enemy) ? enemy : null; }
 function vaultBusy() { return !!vaultHolder(); }
-function starGone() { return starOut() || vaultBusy() || starTorn(); }   // the middle is empty (LABYRINTH's dark star, or the star in a vault)
+function starGone() { return starOut() || vaultBusy() || starTorn() || testNoStar(); }   // the middle is empty (LABYRINTH's dark star, or the star in a vault)
 function vaultNet() { const V = game.vault; return V ? [VAULT_PH.indexOf(V.ph), +V.t.toFixed(2)] : 0; }
 function vaultScale(o) { return o === game ? shipScale() : enemyScale(); }
 // the vault's mouth (the middle of the doors' window), in the world
@@ -6429,6 +6436,7 @@ function vaultMouth(o) {
 }
 // the star's pull at (x, y): from the middle as always; while a VAULT holds it, from that VAULT (not on itself)
 function starPull(x, y, self) {
+  if (testNoStar()) return { ax: 0, ay: 0 };   // (the test hangar: no body)
   const H = vaultHolder();
   if (!H) return gravityAt(wrapDelta(x - WW / 2, WW), wrapDelta(y - WH / 2, WH), U, planetR(), bodyPull());
   const V = vaultOf(H);
@@ -11399,11 +11407,12 @@ function drawShip(S, x, y, size, o = {}) {
   if (t3 !== 1) { ctx.scale(t3, t3); ctx.globalAlpha *= depthFade(V3.z3); }
   ctx.lineJoin = "round";
   // engine flames (behind everything)
-  if (!o.out && !S.noFlame && !prop && o.half !== "front" && !(o.jets > 0)) S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
+  const fv3 = V3 && (V3.p3 || 0) < 0 ? Math.max(0, 1 + V3.p3 * 1.8) : 1;   // (flying in 3D, the nose toward you: the engines at the back, turned away and hidden)
+  if (!o.out && !S.noFlame && !prop && o.half !== "front" && !(o.jets > 0) && fv3 > 0.03) S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
     const ey = (S.engineYs ? S.engineYs[n] : S.engineY) * f3;   // a drawing can have its engines at different heights
     // a steam engine's flame is ragged and jumpy
     const rag = S.steam ? (Math.random() - 0.3) * 0.12 * power : 0;
-    const len = (0.1 + power * 0.32 + Math.sin(time * 40 + ex * 9) * 0.03 + rag) * f3;
+    const len = (0.1 + power * 0.32 + Math.sin(time * 40 + ex * 9) * 0.03 + rag) * f3 * fv3;
     const w = S.nozzles.length >= 4 ? 0.035 : 0.05;
     const fg = ctx.createLinearGradient(0, ey, 0, ey + len);
     fg.addColorStop(0, "#ffffff"); fg.addColorStop(0.3, S.flame); fg.addColorStop(1, "rgba(0,0,0,0)");
@@ -16778,6 +16787,7 @@ function draw() {
 function drawPlanet() {
   if (qDeath && drawTornStar()) return;   // NULL destroyed: the star torn into white pixels (drawTornStar)
   if (vaultBusy()) return;   // the star is in a VAULT, or on its way (drawVaultFx)
+  if (testNoStar()) return;   // (the test hangar: no body)
   const p = toScreen(WW / 2, WH / 2);
   const k = ease(cosmos.morph);
   // changing: the old one shrinks and fades as the new one grows in
@@ -18294,6 +18304,7 @@ function duelLink(event, data) {
   } else if (m.t === "lcut") { if (game.elasso) ropeCut(false);   // their BORER's drill cut my LARIAT's rope round it
   } else if (m.t === "mzc") { if (maze && maze.seed === m.sd) mazeCut(m.c, m.s, false);   // their BORER cut a maze wall
   } else if (m.t === "br") { drillBitten(m);   // their BORER's drill bit my hull
+  } else if (m.t === "ns") { testState.noStar = !!m.on;   // (the test hangar: no body in the middle, on the other phone too)
   } else if (m.t === "bd") { if (BODIES[m.b]) setBody(m.b, cosmos.started);   // (the test hangar's body chip: the other phone's middle changed by hand)
   } else if (m.t === "px") { palFx.push({ x: m.x * WW, y: m.y * WH, ang: m.a, t: 0 });
     if (m.r != null) palBoom(m.cx * WW, m.cy * WH, m.r * U, duel.palWall && duel.palWall.segs ? palUnits(duel.palWall) : [{ x: m.cx * WW, y: m.cy * WH }], false);   // their wall's blast
@@ -19253,7 +19264,19 @@ function drawFleet() {
 //  TEST HANGAR (for now): every ship with real drawings, to try them. Picking one only flies it now;
 //  it is not saved (the gift's ship is still yours, and comes back when the game restarts)
 // ======================================================================
-const hangar = { open: false, t: 0, cards: [] };
+const hangar = { open: false, t: 0, cards: [], scroll: 0, maxScroll: 0, press: null };
+// a finger on the hangar: dragged up or down, the ships scroll; let go without dragging, a tap; held on the 🪐 chip, no body
+function hangarDown(e) {
+  const P = hangar.press = { id: e.pointerId, x: e.clientX, y: e.clientY, s0: hangar.scroll, moved: false, fired: false, timer: 0 };
+  const c = hangar.cards.find((k) => k.test && k.test.body && e.clientX > k.x && e.clientX < k.x + k.w && e.clientY > k.y && e.clientY < k.y + k.h);
+  if (c) P.timer = setTimeout(() => { if (hangar.press === P && !P.moved) { P.fired = true; testNoStarSet(!testState.noStar); } }, 550);
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+}
+function hangarMove(e) {
+  const P = hangar.press, dy = e.clientY - P.y;
+  if (!P.moved && Math.abs(dy) > 10) P.moved = true;
+  if (P.moved) hangar.scroll = clamp(P.s0 - dy, 0, hangar.maxScroll);
+}
 function hangarShips() { return SHIPS.filter((S) => S.anim); }
 function hangarBtn() { const m = mapBox(), r = FLEET_ICON * MM / 2; return { x: m.x + m.w / 2, y: m.y + m.h + U * 0.03 + r, r }; }   // under the map
 function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.4; }
@@ -19312,23 +19335,22 @@ function drawHangar() {
   const fb = fleetBtn();
   if (THREE_SHIPS && profile && !trade.stage) hangar.cards.push({ fleet: true, x: fb.x - fb.r * 1.4, y: fb.y - fb.r * 1.4, w: fb.r * 2.8, h: fb.r * 2.8 });
   // the cards: as many columns as fit
-  // as many columns as make the cards biggest on this screen (2 to 4)
+  // two columns of big cards, scrolling (drag up and down) under the test chips
   drawTestChips();   // the test modes: the enemy, the money
-  const top = testRowBottom() + U * 0.01, gap = U * 0.025;
-  let cols = 2, best = 0;
-  for (let c = 2; c <= 4; c++) {
-    const r = Math.ceil(list.length / c), w = (W - gap * (c + 1)) / c, h = (H - top - gap * (r + 1)) / r, k = Math.min(w, h / 1.15);
-    if (k > best) { best = k; cols = c; }
-  }
-  const rows = Math.ceil(list.length / cols), cw = (W - gap * (cols + 1)) / cols, ch = Math.min((H - top - gap * (rows + 1)) / rows, cw * 1.25);
+  const top = testRowBottom() + U * 0.01, gap = U * 0.025, cols = 2;
+  const cw = (W - gap * (cols + 1)) / cols, ch = cw * 1.12, rows = Math.ceil(list.length / cols);
+  hangar.maxScroll = Math.max(0, gap + rows * (ch + gap) - (H - top));
+  hangar.scroll = clamp(hangar.scroll, 0, hangar.maxScroll);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, top, W, H - top); ctx.clip();
   list.forEach((S, i) => {
-    const x = gap + (i % cols) * (cw + gap), y = top + gap + Math.floor(i / cols) * (ch + gap), R = RARITY[S.rarity], mine = S.id === game.ship, foe = S.id === testFoeShip();
+    const x = gap + (i % cols) * (cw + gap), y = top + gap + Math.floor(i / cols) * (ch + gap) - hangar.scroll, R = RARITY[S.rarity], mine = S.id === game.ship, foe = S.id === testFoeShip();
+    if (y > H || y + ch < top) return;   // (scrolled out of sight)
     ctx.fillStyle = mine ? "rgba(79,195,255,0.18)" : foe ? "rgba(255,106,213,0.16)" : "rgba(20,24,52,0.9)"; roundRect(x, y, cw, ch, ch * 0.08); ctx.fill();
     ctx.strokeStyle = mine ? "#4fc3ff" : foe ? "#ff6ad5" : R.color; ctx.lineWidth = mine || foe ? 3 : 1.5; ctx.stroke();
     if (foe) { ctx.save(); ctx.font = `${Math.round(ch * 0.1)}px Rubik, Arial, sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("🤖", x + ch * 0.04, y + ch * 0.04); ctx.restore(); }
     if (testState.pickFoe && !foe) { ctx.save(); ctx.strokeStyle = "rgba(255,106,213," + (0.35 + 0.3 * Math.sin(time * 6)) + ")"; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); roundRect(x + 3, y + 3, cw - 6, ch - 6, ch * 0.07); ctx.stroke(); ctx.restore(); }
-    // the ship, hovering and turning a little
-    const sz = Math.min(cw, ch) * 0.48;
+    // the ship, big, hovering and turning a little
+    const sz = Math.min(cw, ch) * 0.66;
     drawShip(S, x + cw / 2, y + ch * 0.38 + Math.sin(time * 2 + i) * ch * 0.015, sz, { power: 0.35, ang: Math.sin(time * 0.8 + i) * 0.25 });
     // its name, its weapons and its magic
     ctx.textAlign = "center"; ctx.direction = "ltr"; ctx.fillStyle = "#ffffff"; ctx.font = `800 ${Math.round(ch * 0.085)}px Rubik, Arial, sans-serif`;
@@ -19337,9 +19359,13 @@ function drawHangar() {
     ws.forEach((w, j) => weaponIcon(w, x + cw / 2 + (j - (ws.length - 1) / 2) * ir * 3, y + ch * 0.86, ir, WEAPONS[w].color));
     ctx.direction = textDir(); ctx.fillStyle = M ? M.color : "#6c6c78"; ctx.font = `600 ${Math.round(ch * 0.055)}px Rubik, Arial, sans-serif`;
     ctx.fillText(M ? magicName(M) : tr("noMagicYet"), x + cw / 2, y + ch * 0.95);
-    hangar.cards.push({ id: S.id, x, y, w: cw, h: ch });
+    hangar.cards.push({ id: S.id, x, y: Math.max(y, top), w: cw, h: Math.min(y + ch, H) - Math.max(y, top) });   // (only its part in sight can be tapped)
   });
-  ctx.restore();
+  ctx.restore(); ctx.restore();
+  if (hangar.maxScroll > 0) {   // the scroll bar
+    const bh = (H - top) * (H - top) / (H - top + hangar.maxScroll), by = top + (H - top - bh) * hangar.scroll / hangar.maxScroll;
+    ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.25)"; roundRect(W - 5, by, 3, bh, 1.5); ctx.fill(); ctx.restore();
+  }
 }
 
 // ======================================================================
