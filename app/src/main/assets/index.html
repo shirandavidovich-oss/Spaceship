@@ -3068,6 +3068,7 @@ cv.addEventListener("pointerdown", (e) => {
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
     game.thrust = e.pointerId; buzz(12);
     game.stick = { ox: e.clientX, oy: e.clientY, dx: 0, dy: 0 };   // the joystick starts where the thumb lands
+    if (view3d.on && !BOT) { game.stick = null; game.yaw3 = { id: e.pointerId, ox: e.clientX, oy: e.clientY, yaw: 0, engine: true }; }   // flying in 3D: the thrust button is a stick that yaws
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
     return;
   }
@@ -3109,6 +3110,7 @@ cv.addEventListener("pointermove", (e) => {
   if (fleet.open) { fleetMove(e); return; }
   if (game.tilt3 && e.pointerId === game.tilt3.id) tilt3Move(e);
   if (game.aim && e.pointerId === game.aim.id) { game.aim.dx = e.clientX - game.aim.ox; game.aim.dy = e.clientY - game.aim.oy; return; }
+  if (game.yaw3 && e.pointerId === game.yaw3.id) { yaw3Move(e); return; }
   if (e.pointerId !== game.thrust || !game.stick) return;
   game.stick.dx = e.clientX - game.stick.ox; game.stick.dy = e.clientY - game.stick.oy;
 });
@@ -3118,7 +3120,7 @@ function fingerUp(e) {
   if (dialUp(e)) return;
   if (fleet.open && fleet.press) { fleetUp(e); return; }
   if (e.pointerId === game.magicFinger) { game.magicFinger = null; return; }
-  if (e.pointerId === game.thrust) { game.thrust = null; game.stick = null; return; }
+  if (e.pointerId === game.thrust) { game.thrust = null; game.stick = null; game.yaw3 = null; return; }
   if (game.tilt3 && e.pointerId === game.tilt3.id) { game.tilt3 = null; if (game.fire[0] !== e.pointerId) return; }   // (let go: it levels out again)
   if (game.aim && e.pointerId === game.aim.id) game.aim = null;
   const f = game.fire.indexOf(e.pointerId);
@@ -3347,6 +3349,7 @@ function flyShip(dt) {
   let sh = game.stick ? stickHeading(game.stick.dx, game.stick.dy, thrustButton().r) : null;
   if (BOT && botAI.head != null) sh = botAI.head;   // the computer player steers like a thumb on the joystick
   if (sh !== null) { target = sh; turn = 1; }
+  if (view3d.on && !BOT) { target = null; turn = 0; }   // flying in 3D: no pointing; it turns only by the sticks (updateTilt3)
   if (game.scramble > 0) { if (target !== null) target = wrapAngle(target + Math.PI); turn = STEER === "turn" ? -turn : turn; }   // scrambled: reversed
   const wasEmpty = game.locked;
   // out of fuel: the engine stops, but a thumb still holding keeps steering, and the engine
@@ -3368,7 +3371,7 @@ function flyShip(dt) {
     return;
   }
   const operating = surgPrep();   // FRANKENSTEIN at work: held where it stopped, facing the way it was
-  const hit = moveShip(game, S, anchored || operating ? { target: game.ang, turn: 0, thrust: false } : { target, turn, thrust: game.thrust !== null }, dt);
+  const hit = moveShip(game, S, anchored || operating ? { target: game.ang, turn: 0, thrust: false } : { target, turn, thrust: thrusting() }, dt);
   if (operating) { const k = Math.exp(-dt * 12); game.vx *= k; game.vy *= k; game.ang = game.surg.ang; }
   if (anchored) {   // ZORIAN's anchor: it stops, holds and spins; after `hold` seconds it lets go
     const M = magicOf(S), k = Math.exp(-dt * M.brake);
@@ -3377,7 +3380,7 @@ function flyShip(dt) {
     if (game.anchor.t >= M.hold) { game.anchor = null; game.magicCool = M.cool; }
   }
   // LYTH: the engine vent plates slide open / shut (a sound only when it changes)
-  const burning = game.thrust !== null && !game.locked;
+  const burning = thrusting() && !game.locked;
   if (burning !== !!game.burning) { game.burning = burning; if (S.sfx) audio.sfx(S.sfx, burning ? "thrusters_open" : "thrusters_close", 0, 0.7); }
   if (game.locked && !wasEmpty) { if (game.thrust === "key") game.thrust = null; audio.empty(); buzz(120); }
   if (hit > U * 0.15) { if (!flipperWin()) audio.bump(); buzz(Math.min(70, hit / U * 50)); }
@@ -4444,37 +4447,49 @@ function draw3dShip(S, o, ang, bank) {
   const ok = L.draw(ctx, S.id, ang, bank * 0.75 + (V ? V.r3 || 0 : 0), (V ? V.p3 || 0 : 0) - (o.power || 0) * 0.12);   // (rolling into the turn; its nose up a little under power; tilted)
   ctx.restore(); return ok;
 }
-// flying in 3D (the 3D view): space becomes a cube. The left thumb steers (turns) as always; the right thumb on fire
-// button 1 is a stick too: dragged up, the nose turns away, into the screen (toward space); down, toward you; left and
-// right, it rolls round its length — the further, the faster, as far round as you like (over onto its back, loops,
-// barrel rolls). Tilting while rolled turns it sideways as well (as a plane does). Fire button 1: a tap or a hold without
-// moving fires; dragged out to steer, it stops firing; dragged further, past the button's edge (TILT3.fireAt), it fires
-// again while it steers. Button 2 stays a plain fire button. Let go: it turns back level the short way round. The engine
-// pushes the way the nose points, so a tilted ship climbs into the depth or dives toward you (z3, in U: far, small, at
-// -far; near, big, at +near). Depth wraps like the sides do: flying out at the near side, it comes back in from far
-// away, and the other way round. Out of the plane (|z3| more than a body's radius) it passes over or under the body in
-// the middle without touching it. So far shots and hits still go by the plane; the other phone sees its depth, tilt and
-// roll (z3, p3, r3).
-const TILT3 = { rate: 2.6, roll: 3.2, level: 1.6, dead: 0.25, full: 1.3, fireAt: 1.45, far: 4, near: 2, small: 0.3, big: 2.0, fade: 0.35 };
-function tilt3Move(e) {
-  const T = game.tilt3, dx = e.clientX - T.ox, dy = e.clientY - T.oy, r = thrustButton().r, d = Math.hypot(dx, dy);
-  if (d < r * TILT3.dead) { T.want = T.roll = 0; return; }
-  const k = Math.min(1, (d - r * TILT3.dead) / (r * (TILT3.full - TILT3.dead))) / d;   // (how hard: 0 at the dead zone's edge, 1 at `full`)
-  T.want = -dy * k; T.roll = dx * k;
-  game.fire[0] = d > r * TILT3.fireAt ? T.id : null;   // (dragged right out: firing as it steers)
+// flying in 3D (the 3D view; nothing changes in 2D): space becomes a cube, and the ship flies like a spaceship in a
+// simulator, not a 2D shooter. Nothing turns it but the two thumbs, and turning never changes where it is going: only
+// the engine does (it pushes the way the nose points; with no engine it drifts on, its speed kept, whichever way it faces).
+// Both thumbs work the same way, each on its button:
+//   the left thumb, on the thrust button: pressed in place — the engine; dragged left or right — it yaws (turns round its
+//     own up and down), the engine off; dragged further, past the button's edge — it yaws with the engine on;
+//   the right thumb, on fire button 1: pressed in place — it fires; dragged up — the nose turns away into the screen
+//     (toward space), down — toward you, left and right — it rolls round its length, not firing; dragged further, past the
+//     button's edge — it turns and fires.
+// The further the drag, the faster it turns, as far round as you like (loops, barrel rolls); let go, it stays as it is.
+// Turns are round the ship's own axes, so rolled over, its tilt and yaw turn it the other ways too. Button 2 stays a
+// plain fire button. Tilted, the engine pushes it into the depth or toward you (z3, in U: far, small, at -far; near,
+// big, at +near). The depth wraps like the sides do: out at the near side, it comes back in from far away, and the
+// other way round. Out of the plane (|z3| more than a body's radius) it passes over or under the body in the middle.
+// So far shots and hits still go by the plane; the other phone sees its depth, tilt and roll (z3, p3, r3).
+const TILT3 = { rate: 2.6, roll: 3.2, yaw: 3.0, dead: 0.25, full: 1.3, fireAt: 1.45, far: 4, near: 2, small: 0.3, big: 2.0, fade: 0.35 };
+// a drag on one of the sticks: how hard (0 inside the dead zone, 1 at `full`), and whether it is pushed right out
+function stick3(dx, dy) {
+  const r = thrustButton().r, d = Math.hypot(dx, dy), T = TILT3;
+  if (d < r * T.dead) return { k: 0, d, out: false, still: true };
+  return { k: Math.min(1, (d - r * T.dead) / (r * (T.full - T.dead))) / d, d, out: d > r * T.fireAt, still: false };
 }
+function tilt3Move(e) {
+  const T = game.tilt3, dx = e.clientX - T.ox, dy = e.clientY - T.oy, s3 = stick3(dx, dy);
+  T.want = -dy * s3.k; T.roll = dx * s3.k;
+  game.fire[0] = s3.still || s3.out ? T.id : null;   // (in place, or dragged right out: firing)
+}
+function yaw3Move(e) {
+  const Y = game.yaw3, dx = e.clientX - Y.ox, s3 = stick3(dx, 0);
+  Y.yaw = dx * s3.k; Y.engine = s3.still || s3.out;   // (in place, or dragged right out: the engine)
+}
+function thrusting() { return game.thrust !== null && (!game.yaw3 || game.yaw3.engine); }
 function updateTilt3(dt) {
   if (!view3d.on || BOT) { game.p3 = game.z3 = game.vz3 = game.r3 = 0; return; }
   let p = game.p3 || 0, rl = game.r3 || 0;
-  const T = game.tilt3;
-  if (T && (T.want || T.roll)) {
-    const q = T.want * TILT3.rate * dt;   // (tilting: along the ship's own up and down, so rolled, partly sideways)
-    p += q * Math.cos(rl); if (!game.dead) game.ang = wrapAngle(game.ang - q * Math.sin(rl));
-    rl += T.roll * TILT3.roll * dt;
-  } else {   // (let go: levelling out, the short way)
-    p = wrapAngle(p); p -= Math.sign(p) * Math.min(Math.abs(p), TILT3.level * dt);
-    rl = wrapAngle(rl); rl -= Math.sign(rl) * Math.min(Math.abs(rl), TILT3.level * 1.5 * dt);
+  const T = game.tilt3, Y = game.yaw3;
+  // round the ship's own axes: its tilt (nose away/toward) and yaw (nose right/left), seen through its roll
+  const q = T ? T.want * TILT3.rate * dt : 0, w = Y ? Y.yaw * TILT3.yaw * dt : 0, c = Math.cos(rl), sn = Math.sin(rl);
+  if ((q || w) && !game.dead) {
+    p += q * c + w * sn;
+    game.ang = wrapAngle(game.ang + w * c - q * sn);
   }
+  if (T) rl += T.roll * TILT3.roll * dt;
   game.p3 = wrapAngle(p); game.r3 = wrapAngle(rl);
 }
 // depth -> how big it looks (1 in the plane)
