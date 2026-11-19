@@ -1,4 +1,4 @@
-// Orbit Break — the 3D view's ships (stage 1 of the 3D mode).
+// Orbit Break — the 3D view's ships, and the chase camera. (Its name has its version: change both with every change.)
 // The game itself stays 2D: in the 3D view, a ship that has a model (SHIP_MODELS) is rendered by three.js from the
 // same top-down view the 2D game shows, into a small off-screen WebGL canvas, and that picture is drawn in place of
 // its 2D drawing (so everything else — shots, effects, the order things are drawn in — stays exactly as it is).
@@ -125,6 +125,8 @@ function chase(o) {
 }
 
 export const Ship3D = {
+  version: 2,   // (index.html checks it; the file's name carries it too — lib/ship3d-v2.js — so the app never mixes a new
+                // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
   on: false,
