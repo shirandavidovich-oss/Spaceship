@@ -3065,6 +3065,7 @@ cv.addEventListener("pointerdown", (e) => {
   if (game.stage === "fly" && !trade.stage && hitFleetRow(e.clientX, e.clientY)) { rowDown(e); return; }   // a tap: the next view; held: the ship's page   // the fleet row: mine only / my fleet / theirs
   if (game.stage === "fly" && !game.dead && hitShieldBtn(e.clientX, e.clientY)) { useShield(); return; }   // the active shield
   if (hitCamButton(e.clientX, e.clientY)) { camButtonTap(); return; }   // the 3D view's camera
+  if (hit3dButton(e.clientX, e.clientY)) { view3dTap(); return; }   // 2D ⇄ 3D
   // the left thumb on the thrust button (another finger can still swipe at the same time)
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
     game.thrust = e.pointerId; buzz(12);
@@ -4511,19 +4512,39 @@ function depthFade(z) { const T = TILT3; return clamp(Math.min((T.near - z) / T.
 const CHASE = { zoom: 0.45, follow: 3.2, len: 1.0 };   // (zoom: how much of space round it is drawn for the floor; follow: how fast the camera catches up; len: the ship's size)
 view3d.cam = LS.getItem("cam3d") === "chase" ? "chase" : "top";
 function chaseOn() { return view3d.on && !BOT && view3d.cam === "chase" && view3d.state === "ready" && game.stage === "fly" && typeof view3d.lib.chase === "function"; }
-function camButton() { const M = mapBox(), h = hangarBtn(), r = Math.max(14, U * 0.035); return { x: M.x + M.w / 2, y: h.y + h.r * 1.4 + U * 0.02 + r, r }; }   // (under the map, below the hangar's button)
-function hitCamButton(x, y) { if (!view3d.on || BOT || game.stage !== "fly") return false; const b = camButton(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.3; }
+// the two view buttons, under the map (and under the test hangar's button): the camera (only in the 3D view) and, below
+// it, 2D ⇄ 3D. Their pictures: art/ui/btn-camera.webp, art/ui/btn-2d3d.webp; the size of the sound dials
+function viewBtns() {
+  const M = mapBox(), d = FLEET_ICON * MM, gap = U * 0.02, x = M.x + M.w / 2;
+  let y = M.y + M.h + gap;
+  if (HANGAR) { const h = hangarBtn(); y = h.y + h.r * 1.4 + gap; }
+  return { cam: { x, y: y + d / 2, r: d / 2 }, v3: { x, y: y + d * 1.5 + gap, r: d / 2 } };
+}
+function camButton() { return viewBtns().cam; }
+function viewsShown() { return !BOT && game.stage === "fly" && !hangar.open && !picker.open && !fleet.open && !result.mode && !trade.stage; }
+function hitCamButton(x, y) { if (!view3d.on || !viewsShown()) return false; const b = camButton(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.25; }
+function hit3dButton(x, y) { if (!viewsShown()) return false; const b = viewBtns().v3; return Math.hypot(x - b.x, y - b.y) < b.r * 1.25; }
 function camButtonTap() {
   view3d.cam = view3d.cam === "chase" ? "top" : "chase"; LS.setItem("cam3d", view3d.cam);
   if (view3d.lib && view3d.lib.chaseReset) view3d.lib.chaseReset(); audio.pop(); buzz(10);
 }
+function view3dTap() { view3dSet(!view3d.on); audio.pop(); buzz(10); }
+// a view button: its picture, lit (a glowing ring) while it is on
+function drawViewBtn(b, file, on) {
+  const img = artImage(file), d = b.r * 2;
+  ctx.save();
+  if (on) { ctx.shadowColor = "#7ef0c8"; ctx.shadowBlur = b.r * 0.6; }
+  if (img) ctx.drawImage(img, b.x - b.r, b.y - b.r * img.height / img.width, d, d * img.height / img.width);
+  else { ctx.fillStyle = "rgba(10,12,32,0.7)"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); }
+  ctx.shadowBlur = 0;
+  if (on) { ctx.strokeStyle = "rgba(126,240,200,0.9)"; ctx.lineWidth = 2; roundRect(b.x - b.r - 2, b.y - b.r - 2, d + 4, d + 4, b.r * 0.3); ctx.stroke(); }
+  ctx.restore();
+}
 function drawCamButton() {
-  if (!view3d.on || BOT || game.stage !== "fly") return;
-  const b = camButton(), on = view3d.cam === "chase";
-  ctx.save(); ctx.fillStyle = on ? "rgba(126,240,200,0.28)" : "rgba(10,12,32,0.6)"; ctx.strokeStyle = on ? "#7ef0c8" : "rgba(124,140,255,0.6)"; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = "#ffffff"; ctx.font = `${Math.round(b.r * 1.05)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(on ? "🎥" : "🔭", b.x, b.y + 1); ctx.restore();
+  if (!viewsShown()) return;
+  const B = viewBtns();
+  if (view3d.on) drawViewBtn(B.cam, "art/ui/btn-camera.webp", view3d.cam === "chase");
+  drawViewBtn(B.v3, "art/ui/btn-2d3d.webp", view3d.on);
 }
 // the chase camera: the picture of space just drawn (round my ship, from above) becomes the floor of the 3D scene,
 // and the scene is drawn over it (before the buttons, the map and the rest are drawn on top)
@@ -4544,6 +4565,15 @@ function chaseHidesShip(S) { return chaseOn() && view3d.lib.has(S.id) && view3d.
 // trying how the ships fly without gravity; held again (or a tap: the next body), it is back. On both phones ("ns")
 function testNoStar() { return !!testState.noStar && (HANGAR || BOT); }
 function testNoStarSet(on) { testState.noStar = on; saveTest(); duelSend({ t: "ns", on: on ? 1 : 0 }); audio.pop(); buzz(on ? 40 : 15); }
+// a button with my ship behind it fades to 10% (and back), so the ship can be seen through it
+const padFade = {};
+function padSee(key, list, fn) {
+  const p = zoomed(shipScreen()), r = shipSize() * game.zoom * (game.z3 ? depthScale(game.z3) : 1) * (chaseOn() ? 1.6 : 0.5);
+  const under = list.some((b) => b && b.r > 5 && Math.hypot(p.x - b.x, p.y - b.y) < b.r * 1.1 + r);
+  const a = padFade[key] = lerp(padFade[key] == null ? 1 : padFade[key], under ? 0.1 : 1, 1 - Math.exp(-(frameDt || 0.016) * 10));
+  if (a > 0.99) { fn(); return; }
+  ctx.save(); ctx.globalAlpha *= a; fn(); ctx.restore();
+}
 function testBody() { return HANGAR && !BOT && testState.body != null && BODIES[testState.body] ? testState.body : null; }
 function pickBody(now) { const t = testBody(); return t != null ? t : nextBody(now); }
 function testFoeShip() { return HANGAR && !BOT && testState.foeShip && shipById(testState.foeShip) ? testState.foeShip : null; }
@@ -5100,18 +5130,25 @@ function drawPracticeNote() {
   ctx.restore();
 }
 // the money under my fleet row: this ship's, and the total
-function drawWallet() {
-  if (BOT) return;
-  const L = fleetRowLayout(), f = Math.round(U * 0.03);
+// the money's box: in the top row, between the ship icons and CONNECT, when the icons all fit on that line and there is
+// room (an opened Fold, or just my ship's icon): no line of its own under them, so the screen stays clear. Else under the
+// icons. The two sound dials (effects, music) sit right after it, at its height
+function walletBox() {
+  const L = fleetRowLayout(), f = Math.round(U * 0.03), icon = FLEET_ICON * MM;
   const txt = `🪙 ${wallet(game.ship).toLocaleString("en-US")}   ·   Σ ${totalMoney().toLocaleString("en-US")}`;
-  ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = "ltr";
-  const w = ctx.measureText(txt).width + f * 1.2;
-  // in the top row, between the ship icons and CONNECT, when the icons all fit on that line and there is room (an opened
-  // Fold, or just my ship's icon): no line of its own under them, so the screen stays clear. Else under the icons
+  ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; const w = ctx.measureText(txt).width + f * 1.2; ctx.restore();
+  const dw = (icon + L.gap) * 2;   // (the dials after it)
   const P = L.pos.filter(Boolean), one = P.length && P.every((p) => p.y === P[0].y), endX = P.length ? P[P.length - 1].x + L.sz + L.gap : L.x0;
   let x, y;
-  if (one && endX + w <= L.connect.x - L.gap) { x = endX; y = L.y0 + (FLEET_ICON * MM) / 2; }
-  else { const ys = P.map((p) => p.y); y = (ys.length ? Math.max(...ys) + L.sz : U * 0.12) + f * 1.1; x = P[0] ? P[0].x : U * 0.03; }
+  if (one && endX + w + dw <= L.connect.x - L.gap) { x = endX; y = L.y0 + icon / 2; }
+  else { const ys = P.map((p) => p.y); y = (ys.length ? Math.max(...ys) + L.sz : U * 0.12) + Math.max(f * 1.1, icon * 0.55); x = P[0] ? P[0].x : U * 0.03; }
+  const dials = [{ ch: "effects", x: x + w + L.gap, y: y - icon / 2, d: icon, art: "sfx" }, { ch: "music", x: x + w + L.gap * 2 + icon, y: y - icon / 2, d: icon, art: "music" }];
+  return { x, y, w, f, txt, dials };
+}
+function drawWallet() {
+  if (BOT) return;
+  const B = walletBox(), f = B.f, txt = B.txt, w = B.w, x = B.x, y = B.y;
+  ctx.save(); ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.direction = "ltr";
   ctx.fillStyle = "rgba(10,12,32,0.65)"; roundRect(x, y - f * 0.75, w, f * 1.5, f * 0.5); ctx.fill();
   ctx.fillStyle = bounty.t > 2.6 ? "#ffffff" : "#ffd166"; ctx.fillText(txt, x + f * 0.6, y);
   ctx.restore();
@@ -10173,6 +10210,7 @@ function updateWeapons(dt) {
     if (s.seek && inWater(s) && enemy.on) { const t = steerShot(s.vx, s.vy, wrapDelta(enemy.x - s.x, WW), wrapDelta(enemy.y - s.y, WH), 3 * dt); s.vx = t.vx; s.vy = t.vy; }   // COURIER's capsule in the water: after BOILER
     if (shotFx(shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
+    if (s.vz3) { s.z3 += s.vz3 / U * dt; if (s.z3 > TILT3.near || s.z3 < -TILT3.far) { shots.splice(k, 1); continue; } }   // (flying in 3D: on into the depth, gone at its ends)
     if (s.w === "missile" && Math.random() < 0.6) burstAt(s.x, s.y, 1, ["#b8fff0", "#ffffff"], 0.05, 0.6);
     if (Wp.ptorp) ptorpTrail(s);
     if (Wp.buoy) canStep(s, dt);
@@ -10180,7 +10218,7 @@ function updateWeapons(dt) {
     if (Wp.phase) phaseTrail(s);
     if (s.life > Wp.life + (s.ext || 0)) { if (s.w === "iris") burstAt(s.x, s.y, 10, [Wp.color, "#fff3b0"], 0.25, 0.7); if (Wp.blast) torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }
     // into the planet: a puff, and it is gone
-    if (!starGone() && !(Wp.boilerW && inWater(s)) && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
+    if (!starGone() && !(Wp.boilerW && inWater(s)) && Math.abs(s.z3 || 0) * U < R && Math.hypot(wrapDelta(s.x - WW / 2, WW), wrapDelta(s.y - WH / 2, WH)) < R) {
       if (Wp.magnet) burstAt(s.x, s.y, 10, [Wp.colors[(s.ix || 0) % Wp.colors.length], "#ffffff"], 0.35, 0.7);
       burstAt(s.x, s.y, 5, ["#b8a3ff", "#ffffff"], 0.2, 0.6); shots.splice(k, 1); continue;
     }
@@ -10219,7 +10257,7 @@ function updateWeapons(dt) {
     if (pollenStops(s)) { shots.splice(k, 1); continue; }   // BLOOM's cloud: only half the shots get through it
     if (s.sub && inWater(s) && popTheirShot(s, Wp)) { shots.splice(k, 1); continue; }   // CORSAIR's round in the water: BOILER's can or torpedo blown up
     // into the enemy
-    if (enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked() && !(Wp.hack && quantumShip(enemy.ship))) {   // (docked in the station: out of reach)   // (GLITCH's hack pulse: no use on NULL, it passes through)   // (their STRATA up high: shots pass under it)
+    if (enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked() && !(Wp.hack && quantumShip(enemy.ship)) && Math.abs((s.z3 || 0) - (enemy.z3 || 0)) * U < size * 1.2) {   // (docked in the station: out of reach)   // (flying in 3D: only at about their depth)   // (GLITCH's hack pulse: no use on NULL, it passes through)   // (their STRATA up high: shots pass under it)
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
       if (Math.hypot(dx, dy) < size * 0.42 * enemyScale() + (Wp.r * shotScale(s, Wp) + (Wp.prox || 0)) * size) {   // (prox: it goes off near it)
         if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
@@ -10334,7 +10372,8 @@ function spawnShots(w, g, rot) {
   for (const a of pelletAngles(Wp)) {
     const dir = game.ang + a + hk + (Wp.rear ? Math.PI : 0) + (Wp.splay && g ? Math.sign(g[0]) * Wp.splay : 0) + (Wp.aimAt && g ? Math.atan2(-g[0], Wp.aimAt + g[1]) : 0) + (Wp.broadside ? wrapAngle(game.broadAng - game.ang) : 0) + (game.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;   // (XELTAR's crystal: out of the stern; scrambled: the wrong way)
     const sv = Wp.magnet ? v * (0.55 + Math.random() * 0.9) : v;   // RIVET's magnets scatter unevenly
-    shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * sv, vy: game.vy - Math.cos(dir) * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined });
+    const c3 = Math.cos(game.p3 || 0), s3 = Math.sin(game.p3 || 0);   // (flying in 3D: out of the nose, wherever it points — tilted, partly into the depth)
+    shots.push({ w, x, y, vx: game.vx + Math.sin(dir) * sv * c3, vy: game.vy - Math.cos(dir) * sv * c3, z3: game.z3 || 0, vz3: (game.vz3 || 0) - s3 * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined });
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
   if (S.id === "drakon" && game.splitUsed && game.zombie) drakFlares.push({ x, y, ang: game.ang, t: time });
@@ -10355,7 +10394,7 @@ function spawnShots(w, g, rot) {
   // in a duel the other phone shows these shots too
   if (duel.stage === "on") for (const s of shots.slice(-pelletAngles(Wp).length)) {
     if (Wp.broadside && corsairDestroyer()) s.sub = true;   // (a sub hunter's round: it goes into the water)
-    s.id = ++shotSeq; duelSend({ t: "f", w, ...netPos(s), s: S.id, id: s.id, v: s.lvl || 0, ix: s.ix, sb: s.sub ? 1 : 0 });
+    s.id = ++shotSeq; duelSend({ t: "f", w, ...netPos(s), s: S.id, id: s.id, v: s.lvl || 0, ix: s.ix, sb: s.sub ? 1 : 0, ...(s.vz3 || s.z3 ? { d3: +s.z3.toFixed(2), dv: +(s.vz3 / U).toFixed(2) } : {}) });
   }
   // shots with their own drawing (THUL's cannonball, VEXAR's thorns). THUL's flash, shock ring and sparks are in its frames
   const art = S.anim && S.anim.shotArt && S.anim.shotArt[w];
@@ -11668,14 +11707,14 @@ function preloadSounds() { for (const p of ["audio/result/you-win.ogg", "audio/r
 // the map at the top right: a square as high as the health bar and the first row of my fleet together
 // (the whole of space squeezed into it, so the fleet row and its buttons reach further to the right)
 function mapBox() {
-  const hb = Math.max(12, U * 0.032), top = U * 0.04, side = Math.max(U * 0.14, U * 0.05 + hb + U * 0.02 + FLEET_ICON * MM - top);
+  const hb = Math.max(12, U * 0.032), top = U * 0.04, side = 1.5 * Math.max(U * 0.14, U * 0.05 + hb + U * 0.02 + FLEET_ICON * MM - top);   // (1.5: bigger, in the room the sound dials left beside it)
   return { x: W - U * 0.04 - side, y: top, w: side, h: side };
 }
 function connectBox() { return fleetRowLayout().connect; }   // (in the top row, beside my fleet)
 // the dials: the pink one (effects) and the mint one (music), side by side under CONNECT
 function dialBoxes() {
   if (game.stage === "title") { const d = U * 0.16, y = H - d * 1.9; return [{ ch: "effects", x: W / 2 - d * 1.25, y, d, art: "sfx" }, { ch: "music", x: W / 2 + d * 0.25, y, d, art: "music" }]; }   // (on the title: at the bottom)
-  return fleetRowLayout().dials;   // (in the top row, after CONNECT)
+  return walletBox().dials;   // (right after the money)
 }
 const dial = { drag: null };
 function dialsShown() { return !BOT && (game.stage === "fly" || game.stage === "title") && !hangar.open && !picker.open && !fleet.open && !result.mode && !trade.stage; }
@@ -16769,7 +16808,10 @@ function draw() {
     drawHealth();
     drawScrambleNote(); drawHackNote(); drawZombieNote(); drawLieNote();
     if (game.flash > 0) { ctx.save(); ctx.globalAlpha = Math.min(0.7, game.flash * 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
-    if (!game.dead && !result.mode && !game.docked) { drawThrust(); drawFire(); drawMagic(); drawShieldBtn(); drawDockPrompt(); }
+    if (!game.dead && !result.mode && !game.docked) {   // (my ship behind a button: the button nearly see-through, 90%)
+      const tb = thrustButton(), mb = magicButton(), sb = shieldButton();
+      padSee("thrust", [tb], drawThrust); padSee("fire", fireButtons(), drawFire); padSee("magic", [mb], drawMagic); padSee("shield", [sb], drawShieldBtn); drawDockPrompt();
+    }
     else if (result.mode) drawThrust();   // (the gas, to kick the letters)
     drawDuel(); drawDials();
     drawHangarButton(); drawFleetRow(); drawLevel();   // ("my ships" and the language: in the hangar)
@@ -17250,21 +17292,19 @@ function drawMarkStain() {
 }
 // a shot's drawing now (NIMBUS's bolt flickers through its frames, 50 ms each)
 function shotSrc(s) { return s.art.frames ? s.art.frames[Math.floor(s.life * 20) % s.art.frames.length] : s.art.src; }
-function drawShots(list = shots) {
-  const size = shipSize();
-  ctx.save(); ctx.lineCap = "round";
-  for (const s of list) {
-    if (s.inside) { drawExitMark(s); continue; }
-    if (s.w === "magnet") { drawMagnetBall(s); continue; }
-    if (s.w === "bubble") { drawBubble(s); continue; }
-    if (s.w === "torpedo") { drawTorpedo(s); continue; }
-    if (s.w === "ptorp") { drawPTorp(s); continue; }   // BOILER's
-    if (s.w === "fcan") { drawCan(s); continue; }
-    if (s.w === "mailcap") { drawCapsule(s); continue; }   // COURIER's
-    if (s.w === "forgeball") { drawForgeBall(s); continue; }
-    if (s.w === "piston" || s.w === "solarfire") { drawVaultShot(s); continue; }   // VAULT's
-    if (WEAPONS[s.w] && WEAPONS[s.w].pirate) { drawPirateShot(s, WEAPONS[s.w]); continue; }   // CORSAIR's
-    if (s.w === "lensflash" || s.w === "lightshard") { drawFresnelShot(s, WEAPONS[s.w]); continue; }   // FRESNEL's, glowing   // LABYRINTH's   // VANTA's drop inside the planet: only the exit mark, at the end
+// one shot (drawShots)
+function drawShot1(s, size) {
+    if (s.inside) { drawExitMark(s); return; }
+    if (s.w === "magnet") { drawMagnetBall(s); return; }
+    if (s.w === "bubble") { drawBubble(s); return; }
+    if (s.w === "torpedo") { drawTorpedo(s); return; }
+    if (s.w === "ptorp") { drawPTorp(s); return; }   // BOILER's
+    if (s.w === "fcan") { drawCan(s); return; }
+    if (s.w === "mailcap") { drawCapsule(s); return; }   // COURIER's
+    if (s.w === "forgeball") { drawForgeBall(s); return; }
+    if (s.w === "piston" || s.w === "solarfire") { drawVaultShot(s); return; }   // VAULT's
+    if (WEAPONS[s.w] && WEAPONS[s.w].pirate) { drawPirateShot(s, WEAPONS[s.w]); return; }   // CORSAIR's
+    if (s.w === "lensflash" || s.w === "lightshard") { drawFresnelShot(s, WEAPONS[s.w]); return; }   // FRESNEL's, glowing   // LABYRINTH's   // VANTA's drop inside the planet: only the exit mark, at the end
     const Wp = WEAPONS[s.w], p = toScreen(s.x, s.y), sp = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / sp, uy = s.vy / sp;
     if (s.gold) {   // turned by GIMBAL's gate: a gold ring round it
       ctx.save(); ctx.strokeStyle = "rgba(233,182,106,0.85)"; ctx.lineWidth = 2; ctx.shadowColor = "#e9b66a"; ctx.shadowBlur = 6;
@@ -17275,14 +17315,14 @@ function drawShots(list = shots) {
       ctx.save(); ctx.shadowColor = Wp.color; ctx.shadowBlur = 10;
       if (s.w === "bouquet") { ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy)); ctx.fillStyle = "#ffd27a"; ctx.beginPath(); ctx.ellipse(0, 0, k * 0.45, k, 0, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff9ad8"; ctx.beginPath(); ctx.ellipse(0, k * 0.2, k * 0.2, k * 0.55, 0, 0, TAU); ctx.fill(); }
       else flowerShape(p.x, p.y, k, time * 7 + (s.x % 7), "#ff7ac8", "#ffe08a");
-      ctx.restore(); continue;
+      ctx.restore(); return;
     }
     if (s.w === "blade") {   // GIMBAL's rim blade: a curved cyan crescent, bowed outward to its side
       const k = size * 0.11, side = Math.sign(s.side || 1);
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(ux, -uy));
       ctx.shadowColor = "#6fe9ff"; ctx.shadowBlur = 10; ctx.fillStyle = "rgba(200,250,255,0.95)"; ctx.strokeStyle = "#6fe9ff"; ctx.lineWidth = Math.max(1, k * 0.08);
       ctx.beginPath(); ctx.moveTo(-side * k * 0.55, k * 0.35); ctx.quadraticCurveTo(side * k * 0.25, -k * 0.2, -side * k * 0.3, -k * 0.75);
-      ctx.quadraticCurveTo(side * k * 0.6, -k * 0.15, -side * k * 0.55, k * 0.35); ctx.fill(); ctx.stroke(); ctx.restore(); continue;
+      ctx.quadraticCurveTo(side * k * 0.6, -k * 0.15, -side * k * 0.55, k * 0.35); ctx.fill(); ctx.stroke(); ctx.restore(); return;
     }
     if (s.w === "hack") {   // GLITCH's pulse: a cyan diamond in a jittering square, with magenta ghosts
       const r = size * 0.11, j = () => (Math.random() - 0.5) * r * 0.25;
@@ -17292,12 +17332,12 @@ function drawShots(list = shots) {
       ctx.fillStyle = g; ctx.fillRect(-r * 1.4, -r * 1.4, r * 2.8, r * 2.8);
       ctx.fillStyle = "#e8ffff"; ctx.fillRect(-r * 0.4, -r * 0.4, r * 0.8, r * 0.8);
       ctx.restore();
-      continue;
+      return;
     }
-    if (s.w === "seed") { drawSeed(s, p, size); continue; }
+    if (s.w === "seed") { drawSeed(s, p, size); return; }
     if (s.w === "spine") {   // PUFF's spine, flying point first (anchor (15,58) of its 30 x 63 drawing)
       const im = artImage(framePath("puff", "spine.webp")), L = size * 0.225;
-      if (im) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(s.vx, -s.vy)); ctx.drawImage(im, -L * 15 / 63, -L * 58 / 63, L * 30 / 63, L); ctx.restore(); continue; }
+      if (im) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(s.vx, -s.vy)); ctx.drawImage(im, -L * 15 / 63, -L * 58 / 63, L * 30 / 63, L); ctx.restore(); return; }
     }
     if (s.w === "twin" || s.w === "laser" || s.w === "spread" || s.w === "neon" || s.w === "amber" || s.w === "floors" || s.w === "needles" || s.w === "blaster" || s.w === "mpulse" || s.w === "prism" || s.w === "shrapnel" || s.w === "ricochet" || s.w === "pshard" || s.w === "rivet") {
       const len = size * (s.w === "rivet" ? 0.14 : s.w === "ricochet" ? 0.18 : s.w === "pshard" ? 0.12 : s.w === "mpulse" ? 0.32 : s.w === "prism" ? 0.14 : s.w === "shrapnel" ? 0.09 : s.w === "laser" ? 0.55 : s.w === "twin" ? 0.16 : s.w === "neon" ? 0.2 : s.w === "amber" ? 0.22 : s.w === "floors" ? 0.14 : s.w === "needles" ? 0.13 : s.w === "blaster" ? 0.22 : 0.08), wd = Math.max(2, Wp.r * size * (s.w === "spread" ? 2.2 : 1.6));
@@ -17409,7 +17449,7 @@ function drawShots(list = shots) {
       const R = Wp.r * size * s.sz, d = 160 * R / 64, c = Math.min(2, s.life / 0.6);
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate((s.rot || 0) + s.life * 1.5);
       for (const [n, a] of [["rock_hot", Math.max(0, 1 - c)], ["rock_warm", 1 - Math.abs(c - 1)], ["rock_cool", Math.max(0, c - 1)]]) {
-        const im = artImage(framePath("talus", n + ".webp")); if (!im || a <= 0) continue;
+        const im = artImage(framePath("talus", n + ".webp")); if (!im || a <= 0) return;
         ctx.globalAlpha = a; ctx.drawImage(im, -d / 2, -d / 2, d, d);
       }
       ctx.restore();
@@ -17448,6 +17488,15 @@ function drawShots(list = shots) {
       ctx.fillStyle = Wp.color; ctx.beginPath(); ctx.arc(-l * 0.5, 0, l * 0.2 + Math.random() * l * 0.1, 0, TAU); ctx.fill();
       ctx.restore();
     }
+  }
+function drawShots(list = shots) {
+  const size = shipSize();
+  ctx.save(); ctx.lineCap = "round";
+  for (const s of list) {
+    // flying in 3D: a shot off the plane, drawn smaller (far) or bigger (near) round where it is
+    const k3 = s.z3 ? depthScale(s.z3) : 1;
+    if (k3 !== 1) { const q = toScreen(s.x, s.y); ctx.save(); ctx.translate(q.x, q.y); ctx.scale(k3, k3); ctx.translate(-q.x, -q.y); ctx.globalAlpha *= depthFade(s.z3); drawShot1(s, size); ctx.restore(); }
+    else drawShot1(s, size);
   }
   ctx.restore();
 }
@@ -18284,7 +18333,7 @@ function duelLink(event, data) {
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
     const S = shipById(m.s), a0 = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
     const art = a0 && a0.files && m.ix != null ? { ...a0, file: a0.files[m.ix] } : a0;   // CANTOR: each bolt its groove's colour
-    duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, sub: m.sb === 1, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c,
+    duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, sub: m.sb === 1, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c, z3: m.d3 || 0, vz3: (m.dv || 0) * U,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
     if (duel.shots.length < 60) audio.shot(m.w, enemy.ship, enemy);
     if (m.w === "solarfire") enemy.vaultFireT = MAGIC.vault.fireShow;
@@ -18559,6 +18608,7 @@ function updateDuel(dt) {
     if (s.seek && inWater(s) && !game.dead) { const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), 3 * dt); s.vx = t.vx; s.vy = t.vy; }   // their COURIER's capsule after my BOILER
     if (shotFx(duel.shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
+    if (s.vz3) s.z3 += s.vz3 / U * dt;   // (flying in 3D: their shot on into the depth)
     if (Wp.ptorp) ptorpTrail(s);
     if (Wp.buoy) canStep(s, dt);
     if (Wp.phase && phaseStep(s, Wp, dt)) continue;   // their VANTA drop inside the planet (the exit mark warns me)
@@ -18937,10 +18987,9 @@ function fleetRowLayout() {
   const hb = Math.max(12, U * 0.032), x0 = U * 0.04, y0 = U * 0.05 + hb + U * 0.02;
   const gap = Math.max(3, MM * 0.8), icon = FLEET_ICON * MM, m = mapBox();
   const right = m.x - gap * 0.6;   // (right up to the map's left edge)
-  const cw = icon * 900 / 264, ctl = cw + gap + (icon + gap) * 2;
+  const cw = icon * 900 / 264, ctl = cw;   // (CONNECT, against the map; the sound dials are by the money now: walletBox)
   const cx = Math.max(x0, right - ctl);
   const connect = { x: cx, y: y0, w: cw, h: icon };
-  const dials = [{ ch: "effects", x: cx + cw + gap, y: y0, d: icon, art: "sfx" }, { ch: "music", x: cx + cw + gap * 2 + icon, y: y0, d: icon, art: "music" }];
   const n = BOT ? 0 : shownFleet().ids.length, pos = [];
   // all in one line if they can be at least 60% of the usual size there; else lines of the usual size
   const one = n ? (cx - gap - x0 - gap * (n - 1)) / n : 0, sz = one >= icon * 0.6 ? Math.min(icon, one) : icon;
@@ -18949,7 +18998,7 @@ function fleetRowLayout() {
     if (x + sz > lineEnd + 0.5) { x = x0; y += sz + gap; lineEnd = right; }   // next line (under the buttons, up to the map)
     pos.push({ x, y }); x += sz + gap;
   }
-  return { x0, y0, gap, n, pos, sz, connect, dials };
+  return { x0, y0, gap, n, pos, sz, connect };
 }
 // the fleet row has three views, a tap on it going to the next: 0 only the ship I fly; 1 my whole fleet; 2 the other
 // player's fleet (the computer's or the other phone's), its lost ships crossed out the same way. (No other fleet known
