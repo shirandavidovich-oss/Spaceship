@@ -774,11 +774,14 @@ its nose a little under power, the light fixed in space. `lib/ship3d.js` (its `S
 points in the file, length on screen), `lib/three/` (three.js r187, MIT: the core, GLTFLoader, the meshopt decoder,
 RoomEnvironment), `models/*.glb` (the Meshy exports run through gltfpack: ~40k triangles, meshopt-compressed, 1024 px
 textures, about 1 MB a ship). Only loaded once the view is turned on; off, loading or without WebGL: the 2D drawings.
-Tilting: on a fire button, dragging straight up tilts the nose away into the screen (toward space), straight down tilts it
-toward you; a straight drag only tilts (the firing stops), a diagonal one tilts and fires, a sideways one only fires. Tilted,
-the ship climbs or dives in depth (smaller going away, bigger coming near, its engines foreshortened); let go, it levels
-out and settles back into the game's plane (`TILT3`). So far only how it looks on this phone: hits still go by the
-plane. Models so far: FRESNEL. **Test hangar: 🪐 the body in the middle** — the chip shows its name; each tap changes it at once to the next one (stars, planets, the moon, Earth...), on both phones, and it stays for the next rounds; after the last one it goes back to a random body each round. **Test hangar: 🤖 the computer's ship** — tap the chip, then a ship: the computer flies it at once and after every loss (the same ship again: back to random).
+Flying in 3D: space becomes a cube. On a fire button, dragging straight up turns the nose away, into the screen (toward
+space), straight down turns it toward you — the further the drag, the faster, right over onto its back and round (loops);
+a straight drag only tilts (the firing stops), a diagonal one tilts and fires, a sideways one only fires; let go, it turns
+back level the short way. The engine pushes along the nose, so a tilted ship climbs into the depth (smaller, down to 0.3x
+far away) or comes toward you (up to 2x near). The depth wraps like the sides: flying out at the near side it comes back
+from far away, fading out and in. Out of the plane it passes over or under the body in the middle. The other phone sees
+its depth and tilt; ships with no model are squashed as they tilt and flipped on their backs. So far shots and hits
+still go by the plane (`TILT3`). Models so far: FRESNEL, BOILER. **Test hangar: 🪐 the body in the middle** — the chip shows its name; each tap changes it at once to the next one (stars, planets, the moon, Earth...), on both phones, and it stays for the next rounds; after the last one it goes back to a random body each round. **Test hangar: 🤖 the computer's ship** — tap the chip, then a ship: the computer flies it at once and after every loss (the same ship again: back to random).
 
 **VANTA's colours** — each magic tap turns the liquid one colour on (lime → blue → red → white, and it stays white). Both weapons hit harder: the marking drops +50% blue, +70% red, +100% white; the phase drop does half a tank lime, one tank blue, 1.5 red and 2 tanks white — and firing it uses the colour up, so the white drop is one chance. Damage bigger than the bar left now carries on into the next tanks.
 

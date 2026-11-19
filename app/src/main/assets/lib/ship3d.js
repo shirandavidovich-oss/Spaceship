@@ -16,6 +16,7 @@ import { RoomEnvironment } from "./three/RoomEnvironment.js";
 // (the 2D ship is about 1 long); up: which way is its top in the file ("+y", or "-y" if it came upside down)
 export const SHIP_MODELS = {
   fresnel: { file: "models/fresnel.glb", fwd: "+x", len: 0.68 },
+  boiler: { file: "models/boiler.glb", fwd: "+z", len: 0.8 },
 };
 
 const PX = 512, PAD = 1.3;   // the off-screen picture's size (px), and its room round the ship (for rolling and tilting)
