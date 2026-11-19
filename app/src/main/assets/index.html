@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v3.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v4.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -3323,7 +3323,7 @@ function update(dt) {
     else if (game.docked) { const DS = dockedStation(), L = stationLook(DS), P = stationWorld(DS, L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
-    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateTilt3(dt); updateVault(dt); updateCorsair(dt); updatePaddles(dt); updateLightFx(dt); updateHusk(dt);
+    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateTilt3(dt); updateRcs(dt); updateVault(dt); updateCorsair(dt); updatePaddles(dt); updateLightFx(dt); updateHusk(dt);
   }
   updateTrade(dt);
   updateDuel(dt);
@@ -4429,10 +4429,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v3.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v4.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 3, SHIP3D_FILE = "./lib/ship3d-v3.js";
+const SHIP3D_VER = 4, SHIP3D_FILE = "./lib/ship3d-v4.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4501,6 +4501,50 @@ function updateTilt3(dt) {
   }
   if (T) rl += T.roll * TILT3.roll * dt;
   game.p3 = wrapAngle(p); game.r3 = wrapAngle(rl);
+}
+// ---- the attitude jets (flying in 3D): as a satellite turns, small puffs of compressed gas squirt from the ship's
+// edges while it yaws, tilts or rolls — the nose and tail opposite ways for a yaw, wingtips for a roll, the nose and tail
+// toward or away from you for a tilt (seen from above: puffs that bloom in place) — each puff with a little "psss" ----
+const RCS = { every: 0.13, life: 0.45, speed: 0.55, size: 0.05, vol: 0.05 };   // (every: s between puffs from one jet while turning; speed, size: in ship sizes)
+const rcsPuffs = [];
+let rcsT = 0;
+function rcsHiss(vol) {   // the psss: a short burst of high hiss
+  const c = audio.ctx; if (!c || !audio.out) return;
+  const dur = 0.16 + Math.random() * 0.08, n = Math.round(c.sampleRate * dur), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) { const t = i / n; d[i] = (Math.random() * 2 - 1) * Math.min(1, t * 25) * Math.pow(1 - t, 1.5); }
+  const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+  src.buffer = buf; f.type = "highpass"; f.frequency.value = 2600 + Math.random() * 1500; g.gain.value = vol;
+  src.connect(f); f.connect(g); g.connect(audio.out); src.start();
+}
+// a puff from the ship at (fx, fy) (in ship sizes, its own frame: x right, y back), blown out along (dx, dy) (its frame too)
+function rcsPuff(fx, fy, dx, dy) {
+  const L = shipSize() * (game.z3 ? depthScale(game.z3) : 1), ca = Math.cos(game.ang), sa = Math.sin(game.ang);
+  const wx = fx * ca - fy * sa, wy = fx * sa + fy * ca, vx = dx * ca - dy * sa, vy = dx * sa + dy * ca, j = 0.25;
+  rcsPuffs.push({ x: game.x + wx * L, y: game.y + wy * L, vx: game.vx + (vx + (Math.random() - 0.5) * j) * RCS.speed * L, vy: game.vy + (vy + (Math.random() - 0.5) * j) * RCS.speed * L, t: 0, r: RCS.size * L, z3: game.z3 || 0 });
+}
+function updateRcs(dt) {
+  for (let i = rcsPuffs.length - 1; i >= 0; i--) { const P = rcsPuffs[i]; P.t += dt; P.x = wrapX(P.x + P.vx * dt); P.y = wrapY(P.y + P.vy * dt); P.vx *= Math.exp(-dt * 3); P.vy *= Math.exp(-dt * 3); if (P.t > RCS.life) rcsPuffs.splice(i, 1); }
+  if (!view3d.on || BOT || game.dead || game.stage !== "fly") return;
+  const T = game.tilt3, Y = game.yaw3, q = T ? T.want || 0 : 0, rl = T ? T.roll || 0 : 0, w = Y ? Y.yaw || 0 : 0;
+  const most = Math.max(Math.abs(q), Math.abs(rl), Math.abs(w));
+  if (most < 0.08) { rcsT = 0; return; }
+  rcsT -= dt; if (rcsT > 0) return;
+  rcsT = RCS.every * (1.4 - 0.6 * most);   // (pushed harder: puffing faster)
+  if (Math.abs(w) > 0.08) { const sg = Math.sign(w); rcsPuff(-0.16 * sg, -0.42, -sg, 0); rcsPuff(0.16 * sg, 0.4, sg, 0); }   // a yaw: nose one way, tail the other
+  if (Math.abs(q) > 0.08) { rcsPuff(0, -0.45, 0, -0.3); rcsPuff(0, 0.42, 0, 0.3); }   // a tilt: nose and tail, up or down (seen from above: in place)
+  if (Math.abs(rl) > 0.08) { rcsPuff(-0.36, 0.05, -1, 0); rcsPuff(0.36, 0.05, 1, 0); }   // a roll: the wingtips
+  rcsHiss(RCS.vol * (0.5 + 0.5 * most));
+}
+function drawRcs() {
+  if (!rcsPuffs.length) return;
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  for (const P of rcsPuffs) {
+    const k = P.t / RCS.life, p = toScreen(P.x, P.y), r = P.r * (0.5 + k * 2.2), a = 0.55 * (1 - k) * (1 - k);
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+    g.addColorStop(0, `rgba(235,245,255,${a})`); g.addColorStop(0.5, `rgba(200,220,240,${a * 0.5})`); g.addColorStop(1, "rgba(200,220,240,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
 }
 // depth -> how big it looks (1 in the plane)
 function depthScale(z) { const T = TILT3; return z < 0 ? Math.pow(T.small, -z / T.far) : Math.pow(T.big, z / T.near); }
@@ -16773,7 +16817,7 @@ function draw() {
         ctx.beginPath(); ctx.arc(p.x, p.y, shipSize() * (1.2 - game.arriveT * 0.6), 0, TAU); ctx.fill(); ctx.restore();
       }
     }
-    drawShots();
+    drawShots(); drawRcs();
     drawShots(duel.shots);
     drawShots(eshots);
     drawStorms();
