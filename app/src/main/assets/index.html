@@ -3064,6 +3064,7 @@ cv.addEventListener("pointerdown", (e) => {
   if (game.stage === "fly" && hitDock(e.clientX, e.clientY)) { dock(); return; }   // in the station's bay, slow: dock
   if (game.stage === "fly" && !trade.stage && hitFleetRow(e.clientX, e.clientY)) { rowDown(e); return; }   // a tap: the next view; held: the ship's page   // the fleet row: mine only / my fleet / theirs
   if (game.stage === "fly" && !game.dead && hitShieldBtn(e.clientX, e.clientY)) { useShield(); return; }   // the active shield
+  if (hitCamButton(e.clientX, e.clientY)) { camButtonTap(); return; }   // the 3D view's camera
   // the left thumb on the thrust button (another finger can still swipe at the same time)
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
     game.thrust = e.pointerId; buzz(12);
@@ -3403,6 +3404,7 @@ function flyShip(dt) {
     z = clamp(Math.min(dx ? (W / 2 - m) / dx : 1, dy ? (H / 2 - m) / dy : 1, 1), ZOOM_MIN, 1);
   }
   game.zoom = lerp(game.zoom, z, 1 - Math.exp(-dt * (z < game.zoom ? 3 : 1)));
+  if (chaseOn()) { game.lx = game.ly = 0; game.zoom = CHASE.zoom; }   // (the chase camera: the floor round my ship, my ship in the middle)
   audio.engine(THRUST_LOOPS[game.ship] ? 0 : game.power);   // (their own loops instead: rowingSound)   // (CORSAIR rows, FLIPPER's playfield rings instead: rowingSound)
 }
 
@@ -4496,6 +4498,38 @@ function updateTilt3(dt) {
 function depthScale(z) { const T = TILT3; return z < 0 ? Math.pow(T.small, -z / T.far) : Math.pow(T.big, z / T.near); }
 // near either end of the depth, it fades (out at one end, in at the other: wrapping round)
 function depthFade(z) { const T = TILT3; return clamp(Math.min((T.near - z) / T.fade, (z + T.far) / T.fade), 0, 1); }
+// ---- the camera button (the 3D view, in flight; under the map): from above (as always) / behind the ship (the chase
+// camera: my ship always in the middle, the camera following behind and a little above it, easing after its turns; the
+// game's own picture of space laid out as the floor round it, at its depth). Saved ----
+const CHASE = { zoom: 0.45, follow: 3.2, len: 1.0 };   // (zoom: how much of space round it is drawn for the floor; follow: how fast the camera catches up; len: the ship's size)
+view3d.cam = LS.getItem("cam3d") === "chase" ? "chase" : "top";
+function chaseOn() { return view3d.on && !BOT && view3d.cam === "chase" && view3d.state === "ready" && game.stage === "fly"; }
+function camButton() { const M = mapBox(), h = hangarBtn(), r = Math.max(14, U * 0.035); return { x: M.x + M.w / 2, y: h.y + h.r * 1.4 + U * 0.02 + r, r }; }   // (under the map, below the hangar's button)
+function hitCamButton(x, y) { if (!view3d.on || BOT || game.stage !== "fly") return false; const b = camButton(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.3; }
+function camButtonTap() {
+  view3d.cam = view3d.cam === "chase" ? "top" : "chase"; LS.setItem("cam3d", view3d.cam);
+  if (view3d.lib) view3d.lib.chaseReset(); audio.pop(); buzz(10);
+}
+function drawCamButton() {
+  if (!view3d.on || BOT || game.stage !== "fly") return;
+  const b = camButton(), on = view3d.cam === "chase";
+  ctx.save(); ctx.fillStyle = on ? "rgba(126,240,200,0.28)" : "rgba(10,12,32,0.6)"; ctx.strokeStyle = on ? "#7ef0c8" : "rgba(124,140,255,0.6)"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#ffffff"; ctx.font = `${Math.round(b.r * 1.05)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(on ? "🎥" : "🔭", b.x, b.y + 1); ctx.restore();
+}
+// the chase camera: the picture of space just drawn (round my ship, from above) becomes the floor of the 3D scene,
+// and the scene is drawn over it (before the buttons, the map and the rest are drawn on top)
+let chaseLast = 0;
+function chaseCompose() {
+  if (!chaseOn()) return;
+  const S = shipById(game.ship), now = performance.now(), dt = Math.min(0.1, chaseLast ? (now - chaseLast) / 1000 : 0.016); chaseLast = now;
+  const z = game.zoom, img = view3d.lib.chase({ src: cv, w: cv.width, h: cv.height, fw: W / z / U, fh: H / z / U, id: view3d.lib.has(S.id) && !game.dead ? S.id : null,
+    ang: game.ang, pitch: game.p3 || 0, roll: game.r3 || 0, depth: game.z3 || 0, len: shipSize() / U * CHASE.len, dt, follow: CHASE.follow });
+  if (!img) return;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(img, 0, 0); ctx.restore();
+}
+function chaseHidesShip(S) { return chaseOn() && view3d.lib.has(S.id) && view3d.lib.ready(S.id); }   // (my ship is the model in the scene: not drawn flat on the floor)
 function testBody() { return HANGAR && !BOT && testState.body != null && BODIES[testState.body] ? testState.body : null; }
 function pickBody(now) { const t = testBody(); return t != null ? t : nextBody(now); }
 function testFoeShip() { return HANGAR && !BOT && testState.foeShip && shipById(testState.foeShip) ? testState.foeShip : null; }
@@ -16642,7 +16676,7 @@ function draw() {
         for (const e of exhausts(game, S)) burstAt(e.x, e.y, 2, ["#fff8ce", "#ffcc63"], 0.12, 0.5, game.vx * 0.3, game.vy * 0.3);
       const dug = shown === S && game.dive;
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
-      drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
+      if (!chaseHidesShip(shown)) drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { prep: shown === S && surgPrep() ? game.surg.t : null, kiln: shown === S && game.kiln ? kilnRig(game.kiln.t) : null, strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && (game.zombie || !!game.cough), power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null, vt: shown === S ? game : null, haunt: shown === S && hauntOn(),
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0, jets: shown === S ? game.jets || 0 : 0,
@@ -16704,6 +16738,7 @@ function draw() {
     drawRings();
     drawNullFlash();   // (NULL's inversion flashes, over everything out in space)
     ctx.restore();
+    chaseCompose();   // the chase camera: all that, seen from behind my ship
     drawNullNegative();   // NULL destroyed: the whole scene in negative (over the arena, under the buttons and text)
     drawCarrierOver();
     drawMazeHud(); drawFloodHud();
@@ -16713,7 +16748,7 @@ function draw() {
     if (crate.on) edgeArrow(crate.x, crate.y, WEAPONS[crate.w].color);
     for (const c of comets) edgeArrow(c.x, c.y, c.kind === "gold" ? "#ffd166" : mineralById(c.mineral).color);   // the comets, off screen
     drawCard(shown, Math.min(1, game.card * 2));
-    drawRadar();
+    drawRadar(); drawCamButton();
     drawHealth();
     drawScrambleNote(); drawHackNote(); drawZombieNote(); drawLieNote();
     if (game.flash > 0) { ctx.save(); ctx.globalAlpha = Math.min(0.7, game.flash * 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }

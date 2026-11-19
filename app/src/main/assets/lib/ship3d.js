@@ -71,7 +71,62 @@ function want(id) {
   return E;
 }
 
+// ---- the chase camera: the game's own top-down picture of space (everything but the buttons, drawn as always, round
+// my ship in the middle) laid flat as the floor of a 3D scene, my ship's model above it at its depth, and a camera
+// following behind it, a little above, easing after its turns. Space round it: a sphere of stars ----
+let C = null;
+function chaseInit() {
+  if (C) return true;
+  let R2;
+  try { R2 = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" }); } catch (e) { return false; }
+  R2.setPixelRatio(1); R2.outputColorSpace = THREE.SRGBColorSpace; R2.toneMapping = THREE.NeutralToneMapping;
+  const sc = new THREE.Scene(); sc.background = new THREE.Color(0x05060f); sc.fog = new THREE.Fog(0x05060f, 6, 16);
+  const pm = new THREE.PMREMGenerator(R2); sc.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose(); sc.environmentIntensity = 0.55;
+  const cam = new THREE.PerspectiveCamera(62, 1, 0.02, 80);
+  const tex = new THREE.Texture(); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, fog: true, side: THREE.DoubleSide }));
+  floor.rotation.x = -Math.PI / 2; sc.add(floor);
+  // the stars all round (far off, not in the fog)
+  const n = 1500, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, t = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); pos.set([r * Math.cos(t) * 60, u * 60, r * Math.sin(t) * 60], i * 3); }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  const stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.8 }));
+  sc.add(stars);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.4); sun.position.set(-3, 6, -2); sc.add(sun, new THREE.AmbientLight(0xffffff, 0.3));
+  const ship = new THREE.Group(); sc.add(ship);
+  C = { R: R2, sc, cam, tex, floor, stars, ship, q: new THREE.Quaternion(), pos: new THREE.Vector3(), first: true };
+  return true;
+}
+const _e = new THREE.Euler(), _q = new THREE.Quaternion(), _v = new THREE.Vector3();
+// o: { src (the game's canvas), w, h (its size, px), fw, fh (the floor's size, in U), id (my ship: its model, or none),
+//      ang, pitch, roll, depth (z3, in U), len (the ship's length, in U), dt, follow (how fast the camera eases) }
+// -> the canvas with the picture, or null
+function chase(o) {
+  if (!chaseInit()) return null;
+  const { R: R2, sc, cam, tex, floor, ship } = C;
+  if (R2.domElement.width !== o.w || R2.domElement.height !== o.h) { R2.setSize(o.w, o.h, false); cam.aspect = o.w / o.h; cam.updateProjectionMatrix(); }
+  if (tex.image !== o.src) tex.image = o.src;
+  tex.needsUpdate = true;
+  floor.scale.set(o.fw, o.fh, 1); floor.position.y = -o.depth;   // (the plane of the game: below or above my ship by its depth)
+  sc.fog.near = Math.min(o.fw, o.fh) * 0.3; sc.fog.far = Math.max(o.fw, o.fh) * 0.5;   // (the floor's edges fading into the dark)
+  // my ship: its model, turned (yaw, then tilt, then roll round its length), at the middle
+  ship.clear();
+  const E = o.id ? want(o.id) : null;
+  if (E && E.state === "ready") { ship.add(E.obj); E.obj.rotation.set(0, 0, 0); ship.scale.setScalar(o.len); }
+  ship.rotation.set(-o.pitch, -o.ang, -o.roll, "YXZ");
+  // the camera: behind and a little above, along the ship's heading and tilt (not its roll), easing after it
+  _e.set(-o.pitch, -o.ang, 0, "YXZ"); _q.setFromEuler(_e);
+  if (C.first) { C.q.copy(_q); C.first = false; } else C.q.slerp(_q, 1 - Math.exp(-o.dt * o.follow));
+  _v.set(0, o.len * 1.1, o.len * 3.6).applyQuaternion(C.q);
+  cam.position.copy(_v); cam.quaternion.copy(C.q);
+  cam.rotateX(-0.2);   // (looking a little down, past the ship, ahead)
+  R2.render(sc, cam);
+  return R2.domElement;
+}
+
 export const Ship3D = {
+  chase,
+  chaseReset() { if (C) C.first = true; },
   on: false,
   has(id) { return !!SHIP_MODELS[id]; },
   ready(id) { const E = want(id); return !!E && E.state === "ready"; },

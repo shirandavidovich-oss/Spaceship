@@ -786,7 +786,12 @@ Button 2 stays a plain fire button; the buttons sit 1 cm further in and up. Tilt
 (smaller, down to 0.3x far away) or toward you (up to 2x near); the depth wraps like the sides (out near, back in from
 far away, fading). Out of the plane it passes over or under the body in the middle. The other phone sees its depth,
 tilt and roll; ships with no model are squashed as they tilt and roll. So far shots and hits still go by the plane (`TILT3`). Models so far: FRESNEL,
-BOILER, THUL, PUFF (slim; puffed up it is drawn in 2D), BLOOM. **Test hangar: 🪐 the body in the middle** — the chip shows its name; each tap changes it at once to the next one (stars, planets, the moon, Earth...), on both phones, and it stays for the next rounds; after the last one it goes back to a random body each round. **Test hangar: 🤖 the computer's ship** — tap the chip, then a ship: the computer flies it at once and after every loss (the same ship again: back to random).
+BOILER, THUL, PUFF (slim; puffed up it is drawn in 2D), BLOOM. **The camera button** (3D view, under the map; saved): 🔭 from above, as always, or 🎥 behind the ship — the chase
+camera: my ship always in the middle, the camera behind it and a little above, following its heading and tilt (not its
+roll) and easing after its turns. The game's own picture of space round the ship (drawn as always, at `CHASE.zoom`) is
+laid out as the floor of a 3D scene at the ship's depth, fading into the dark at its edges, with stars all round; my
+ship is its model in the scene (a ship with no model stays drawn on the floor). `chase()` in `lib/ship3d.js`,
+`chaseCompose()` in index.html. **Test hangar: 🪐 the body in the middle** — the chip shows its name; each tap changes it at once to the next one (stars, planets, the moon, Earth...), on both phones, and it stays for the next rounds; after the last one it goes back to a random body each round. **Test hangar: 🤖 the computer's ship** — tap the chip, then a ship: the computer flies it at once and after every loss (the same ship again: back to random).
 
 **VANTA's colours** — each magic tap turns the liquid one colour on (lime → blue → red → white, and it stays white). Both weapons hit harder: the marking drops +50% blue, +70% red, +100% white; the phase drop does half a tank lime, one tank blue, 1.5 red and 2 tanks white — and firing it uses the colour up, so the white drop is one chance. Damage bigger than the bar left now carries on into the next tanks.
 
