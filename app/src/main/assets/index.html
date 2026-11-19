@@ -19343,9 +19343,9 @@ function drawHangar() {
   const fb = fleetBtn();
   if (THREE_SHIPS && profile && !trade.stage) hangar.cards.push({ fleet: true, x: fb.x - fb.r * 1.4, y: fb.y - fb.r * 1.4, w: fb.r * 2.8, h: fb.r * 2.8 });
   // the cards: as many columns as fit
-  // two columns of big cards, scrolling (drag up and down) under the test chips
+  // five cards a row, scrolling (drag up and down) under the test chips
   drawTestChips();   // the test modes: the enemy, the money
-  const top = testRowBottom() + U * 0.01, gap = U * 0.025, cols = 2;
+  const top = testRowBottom() + U * 0.01, gap = U * 0.015, cols = 5;
   const cw = (W - gap * (cols + 1)) / cols, ch = cw * 1.12, rows = Math.ceil(list.length / cols);
   hangar.maxScroll = Math.max(0, gap + rows * (ch + gap) - (H - top));
   hangar.scroll = clamp(hangar.scroll, 0, hangar.maxScroll);
@@ -19358,7 +19358,7 @@ function drawHangar() {
     if (foe) { ctx.save(); ctx.font = `${Math.round(ch * 0.1)}px Rubik, Arial, sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("🤖", x + ch * 0.04, y + ch * 0.04); ctx.restore(); }
     if (testState.pickFoe && !foe) { ctx.save(); ctx.strokeStyle = "rgba(255,106,213," + (0.35 + 0.3 * Math.sin(time * 6)) + ")"; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); roundRect(x + 3, y + 3, cw - 6, ch - 6, ch * 0.07); ctx.stroke(); ctx.restore(); }
     // the ship, big, hovering and turning a little
-    const sz = Math.min(cw, ch) * 0.66;
+    const sz = Math.min(cw, ch) * 0.62;
     drawShip(S, x + cw / 2, y + ch * 0.38 + Math.sin(time * 2 + i) * ch * 0.015, sz, { power: 0.35, ang: Math.sin(time * 0.8 + i) * 0.25 });
     // its name, its weapons and its magic
     ctx.textAlign = "center"; ctx.direction = "ltr"; ctx.fillStyle = "#ffffff"; ctx.font = `800 ${Math.round(ch * 0.085)}px Rubik, Arial, sans-serif`;
