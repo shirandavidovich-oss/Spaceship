@@ -11386,6 +11386,7 @@ function drawShip(S, x, y, size, o = {}) {
   if (o.zombie && o.half && S.id === "drakon" && drawDrakonBloomHalf(S, o.half)) { ctx.restore(); return; }   // DRAKON split and a zombie: that piece in BLOOM's growth
   if (o.zombie && S.id === "vexar" && drawVexarBloomHunt(S, o.anim)) { ctx.restore(); return; }   // VEXAR a zombie, laying an egg: the Bloom frames
   if (o.zombie && drawZombieShip(S, o)) { ctx.restore(); return; }
+  if (S.bloom && draw3dShip(S, o, ang, bank)) { ctx.restore(); return; }   // (BLOOM in the 3D view: its model, before its moving drawing)
   if (S.bloom && drawBloomMoving(S, power)) { ctx.restore(); return; }
   if (S.ballast && drawBallastRig(o.tow)) { ctx.restore(); return; }
   if (S.kiln && drawKilnRig(o.kiln)) { ctx.restore(); return; }

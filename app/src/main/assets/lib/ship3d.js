@@ -13,12 +13,13 @@ import { RoomEnvironment } from "./three/RoomEnvironment.js";
 
 // per ship: its file; which way its nose points in the file (fwd: "+x" | "-x" | "+z" | "-z"); turn: an extra turn
 // round its up axis (rad) to line it up with the 2D drawing; len: its length on screen, in the 2D drawing's units
-// (the 2D ship is about 1 long); up: which way is its top in the file ("+y", or "-y" if it came upside down)
+// (the 2D ship is about 1 long; with fit: "max", its widest way across); up: which way is its top in the file ("+y", or "-y" if it came upside down)
 export const SHIP_MODELS = {
   fresnel: { file: "models/fresnel.glb", fwd: "+x", len: 0.68 },
   boiler: { file: "models/boiler.glb", fwd: "+z", len: 0.8 },
   brass: { file: "models/thul.glb", fwd: "-x", len: 0.85 },
   puff: { file: "models/puff.glb", fwd: "-x", len: 0.8 },
+  bloom: { file: "models/bloom.glb", fwd: "-z", len: 0.8, fit: "max", upright: 1 },
 };
 
 const PX = 512, PAD = 1.3;   // the off-screen picture's size (px), and its room round the ship (for rolling and tilting)
@@ -49,9 +50,9 @@ function init() {
 
 // fit a loaded model: centred, nose to -z (the screen's up), top to +y, 1 long
 function fit(obj, M) {
-  obj.removeFromParent(); obj.position.set(0, 0, 0); obj.updateMatrixWorld(true);
+  obj.removeFromParent(); obj.position.set(0, 0, 0); obj.rotation.set(M.upright ? -Math.PI / 2 * M.upright : 0, 0, 0); obj.updateMatrixWorld(true);   // (upright: a model standing up, facing +z (1) or -z (-1): laid down, its face up)
   const box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
-  const along = M.fwd[1] === "x" ? s.x : s.z;
+  const along = M.fit === "max" ? Math.max(s.x, s.z) : M.fwd[1] === "x" ? s.x : s.z;   // (fit "max": its widest way across, for a ship wider than it is long)
   const inner = new THREE.Group(); obj.position.sub(c); inner.add(obj);
   const turn = { "-z": 0, "+z": Math.PI, "-x": -Math.PI / 2, "+x": Math.PI / 2 }[M.fwd] + (M.turn || 0);
   inner.rotation.y = turn; if (M.up === "-y") inner.rotation.z = Math.PI;
