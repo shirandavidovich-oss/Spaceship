@@ -1,0 +1,24 @@
+<!DOCTYPE html><html><body style="margin:0;background:#0a0c18">
+<script type="importmap">{"imports":{"three":"./lib/three/three.module.js"}}</script>
+<canvas id="c" width="1500" height="700"></canvas>
+<script type="module">
+import { Ship3D, SHIP_MODELS } from "./lib/ship3d.js";
+const ctx = document.getElementById("c").getContext("2d");
+const img = (s) => new Promise((r) => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = s; });
+const ids = location.hash.slice(1).split(",");
+let row = 0;
+for (const pair of ids) {
+  const [id, spr] = pair.split("=");
+  const sp = await img(spr);
+  Ship3D.preload([id]);
+  while (!Ship3D.ready(id)) await new Promise((r) => setTimeout(r, 100));
+  if (sp) ctx.drawImage(sp, 20, row * 350 + 20, 300, 300);
+  ["-z", "+z", "-x", "+x"].forEach((f, i) => {
+    SHIP_MODELS[id].fwd = f; Ship3D._reset(id);
+    ctx.save(); ctx.translate(500 + i * 260, row * 350 + 170); ctx.scale(220, 220); Ship3D.draw(ctx, id, 0, 0, 0); ctx.restore();
+    ctx.fillStyle = "#fff"; ctx.font = "20px sans-serif"; ctx.fillText(id + " " + f, 460 + i * 260, row * 350 + 330);
+  });
+  row++;
+}
+window.done = true;
+</script></body></html>

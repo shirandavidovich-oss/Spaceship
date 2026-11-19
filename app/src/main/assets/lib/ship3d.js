@@ -17,6 +17,8 @@ import { RoomEnvironment } from "./three/RoomEnvironment.js";
 export const SHIP_MODELS = {
   fresnel: { file: "models/fresnel.glb", fwd: "+x", len: 0.68 },
   boiler: { file: "models/boiler.glb", fwd: "+z", len: 0.8 },
+  brass: { file: "models/thul.glb", fwd: "-x", len: 0.85 },
+  puff: { file: "models/puff.glb", fwd: "-x", len: 0.8 },
 };
 
 const PX = 512, PAD = 1.3;   // the off-screen picture's size (px), and its room round the ship (for rolling and tilting)
@@ -75,13 +77,13 @@ export const Ship3D = {
   preload(ids) { for (const id of ids) want(id); },
   _reset(id) { const E = models[id]; if (E && E.raw) E.obj = fit(E.raw, SHIP_MODELS[id]); },
   // draw ship `id` into the 2D context, whose origin is the ship's middle and whose units are the 2D drawing's (the
-  // ship already turned to its heading `ang` there). roll, pitch: rad (roll: right wing down; pitch: nose up)
+  // ship already turned to its heading `ang` there). roll, pitch: rad (roll: right wing away from you; pitch: nose away, into the screen)
   draw(ctx, id, ang, roll = 0, pitch = 0) {
     if (!init()) return false;
     const E = want(id); if (!E || E.state !== "ready") return false;
     const M = SHIP_MODELS[id];
     root.clear(); root.add(E.obj);
-    E.obj.rotation.set(pitch, 0, -roll, "YXZ");
+    E.obj.rotation.set(-pitch, 0, -roll, "YXZ");   // (pitch > 0: the nose away from the camera, into the screen; then rolled round the nose)
     // the light fixed in space: the picture gets turned by `ang` on the screen, so the light here turns the other way
     const lx = -0.55, lz = -0.6, ca = Math.cos(-ang), sa = Math.sin(-ang);
     key.position.set(lx * ca - lz * sa, 1.1, lx * sa + lz * ca);
