@@ -19,6 +19,7 @@ export const SHIP_MODELS = {
   boiler: { file: "models/boiler.glb", fwd: "+z", len: 0.8 },
   brass: { file: "models/thul.glb", fwd: "-x", len: 0.85 },
   puff: { file: "models/puff.glb", fwd: "-x", len: 0.8 },
+  zorian: { file: "models/zorian.glb", fwd: "-x", len: 0.9 },
   cantor: { file: "models/cantor.glb", fwd: "+z", len: 0.95 },
   frankenstein: { file: "models/frankenstein.glb", fwd: "-x", len: 1.0 },
   vexar: { file: "models/vexar.glb", fwd: "-x", len: 0.95 },
@@ -94,7 +95,7 @@ function chaseInit() {
   const cam = new THREE.PerspectiveCamera(62, 1, 0.02, 80);
   const tex = new THREE.Texture(); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, fog: true, side: THREE.DoubleSide }));
-  floor.rotation.x = -Math.PI / 2; sc.add(floor);
+  floor.rotation.x = -Math.PI / 2; floor.renderOrder = -1; floor.material.depthWrite = false; sc.add(floor);   // (drawn first, never hiding what stands in it: the body's ball whole, above and below the plane)
   // the stars all round (far off, not in the fog)
   const n = 1500, pos = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, t = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); pos.set([r * Math.cos(t) * 60, u * 60, r * Math.sin(t) * 60], i * 3); }
@@ -103,7 +104,14 @@ function chaseInit() {
   sc.add(stars);
   const sun = new THREE.DirectionalLight(0xffffff, 2.4); sun.position.set(-3, 6, -2); sc.add(sun, new THREE.AmbientLight(0xffffff, 0.3));
   const ship = new THREE.Group(); sc.add(ship);
-  C = { R: R2, sc, cam, tex, floor, stars, ship, q: new THREE.Quaternion(), pos: new THREE.Vector3(), first: true };
+  // the body in the middle: a ball in the scene (a lit sphere; a star glowing; a picture body a billboard of its picture)
+  const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0, fog: false });
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), ballMat); sc.add(ball);
+  const gcv = document.createElement("canvas"); gcv.width = gcv.height = 128;
+  { const g = gcv.getContext("2d"), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.35, "rgba(255,255,255,0.45)"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); }
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(gcv), blending: THREE.AdditiveBlending, depthWrite: false, fog: false, transparent: true })); sc.add(glow);
+  const pic = new THREE.Sprite(new THREE.SpriteMaterial({ fog: false, transparent: true })); sc.add(pic);
+  C = { ball, ballMat, glow, pic, picImg: null, R: R2, sc, cam, tex, floor, stars, ship, q: new THREE.Quaternion(), pos: new THREE.Vector3(), first: true };
   return true;
 }
 const _e = new THREE.Euler(), _q = new THREE.Quaternion(), _v = new THREE.Vector3();
@@ -117,6 +125,21 @@ function chase(o) {
   if (tex.image !== o.src) tex.image = o.src;
   tex.needsUpdate = true;
   floor.scale.set(o.fw, o.fh, 1); floor.position.y = -o.depth;   // (the plane of the game: below or above my ship by its depth)
+  // the body: where it is from my ship, in the plane of the game; you can fly in front of it and behind it
+  const B = o.body, { ball, ballMat, glow, pic } = C;
+  ball.visible = glow.visible = pic.visible = false;
+  if (B) {
+    const pos = new THREE.Vector3(B.dx, -o.depth, B.dz);
+    if (B.kind === "image" && B.img) {
+      if (C.picImg !== B.img) { const t = new THREE.Texture(B.img); t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; if (pic.material.map) pic.material.map.dispose(); pic.material.map = t; pic.material.needsUpdate = true; C.picImg = B.img; }
+      pic.visible = true; pic.position.copy(pos); pic.scale.setScalar(B.r * 2 * 1.04);
+    } else {
+      ball.visible = true; ball.position.copy(pos); ball.scale.setScalar(B.r);
+      const col = new THREE.Color(B.color || "#ffcc66"), star = B.kind === "star" || B.kind === "compact", hole = B.kind === "hole";
+      ballMat.color.copy(hole ? new THREE.Color(0x000000) : col); ballMat.emissive.copy(star ? col : new THREE.Color(0x000000)); ballMat.emissiveIntensity = star ? 1.4 : 0;
+      if (star || hole) { glow.visible = true; glow.position.copy(pos); glow.scale.setScalar(B.r * (hole ? 3.2 : 4)); glow.material.color.copy(hole ? new THREE.Color(0xff8a30) : col); }
+    }
+  }
   sc.fog.near = Math.min(o.fw, o.fh) * 0.3; sc.fog.far = Math.max(o.fw, o.fh) * 0.5;   // (the floor's edges fading into the dark)
   // my ship: its model, turned (yaw, then tilt, then roll round its length), at the middle
   ship.clear();
@@ -174,7 +197,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 11,   // (index.html checks it; the file's name carries it too — lib/ship3d-v11.js — so the app never mixes a new
+  version: 12,   // (index.html checks it; the file's name carries it too — lib/ship3d-v12.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },

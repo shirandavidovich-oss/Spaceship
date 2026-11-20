@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v11.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v12.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4430,10 +4430,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v11.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v12.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 11, SHIP3D_FILE = "./lib/ship3d-v11.js";
+const SHIP3D_VER = 12, SHIP3D_FILE = "./lib/ship3d-v12.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4473,7 +4473,7 @@ function draw3dShip(S, o, ang, bank) {
 // big, at +near). The depth wraps like the sides do: out at the near side, it comes back in from far away, and the
 // other way round. Out of the plane (|z3| more than a body's radius) it passes over or under the body in the middle.
 // So far shots and hits still go by the plane; the other phone sees its depth, tilt and roll (z3, p3, r3).
-const TILT3 = { rate: 2.6, roll: 3.2, yaw: 3.0, dead: 0.25, full: 1.3, fireAt: 1.45, far: 8, near: 6, small: 0.1, big: 8.0, fade: 0.5 };   // (depth twice as deep each way: further and smaller, nearer and bigger)
+const TILT3 = { rate: 2.6, roll: 3.2, yaw: 3.0, dead: 0.25, full: 1.3, fireAt: 1.45, far: 6, near: 6, small: 0.33, big: 3.0, fade: 0.5 };   // (the body in the middle of the depth: 3 times bigger at the near end, 3 times smaller at the far)   // (depth twice as deep each way: further and smaller, nearer and bigger)
 // a drag on one of the sticks: how hard (0 inside the dead zone, 1 at `full`), and whether it is pushed right out
 function stick3(dx, dy) {
   const r = thrustButton().r, d = Math.hypot(dx, dy), T = TILT3;
@@ -4732,7 +4732,9 @@ function chaseCompose() {
   const S = shipById(game.ship), now = performance.now(), dt = Math.min(0.1, chaseLast ? (now - chaseLast) / 1000 : 0.016); chaseLast = now;
   let img = null;
   try {
-  const z = game.zoom; img = view3d.lib.chase({ src: cv, w: cv.width, h: cv.height, fw: W / z / U, fh: H / z / U, id: view3d.lib.has(S.id) && !game.dead ? S.id : null,
+  const z = game.zoom, B = body();
+  const bodyP = testNoStar() || vaultBusy() ? null : { dx: wrapDelta(WW / 2 - game.x, WW) / U, dz: wrapDelta(WH / 2 - game.y, WH) / U, r: planetR() / U, color: B.color, kind: B.kind, id: B.id, img: B.kind === "image" ? artImage(B.art) : null };
+  img = view3d.lib.chase({ body: bodyP, src: cv, w: cv.width, h: cv.height, fw: W / z / U, fh: H / z / U, id: view3d.lib.has(S.id) && !game.dead ? S.id : null,
     ang: game.ang, pitch: game.p3 || 0, roll: game.r3 || 0, depth: game.z3 || 0, len: shipSize() / U * CHASE.len, dt, follow: CHASE.follow });
   } catch (e) { view3d.cam = "top"; LS.setItem("cam3d", "top"); noteIssue("chase camera: " + (e && e.message || e)); return; }   // (anything wrong: back to the view from above, never a blank game)
   if (!img) return;
@@ -4770,6 +4772,20 @@ function seeThrough(key, under, fn) {
   if (a > 0.99) { fn(); return; }
   ctx.save(); ctx.globalAlpha *= a; seeA = a;
   try { fn(); } finally { seeA = 1; ctx.restore(); }
+}
+// flying in 3D, from above: the body in the middle and the station sit in the plane of the game; a ship deeper than that
+// (behind them) is drawn over by them where they overlap — they are drawn again, only inside a circle round the ship
+function coverBehind() {
+  if (!view3d.on || BOT || chaseOn()) return;
+  for (const V of [game, enemy]) {
+    if (!V || !((V.z3 || 0) < -0.05)) continue;
+    if (V === enemy && !enemyShown()) continue;
+    if (V === game && game.dead) continue;
+    const p = V === game ? zoomed(shipScreen()) : toScreen(enemy.x, enemy.y), r = shipSize() * game.zoom * depthScale(V.z3) * 0.75;
+    ctx.save(); ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.clip();
+    drawPlanet(); drawStation();
+    ctx.restore();
+  }
 }
 function testBody() { return HANGAR && !BOT && testState.body != null && BODIES[testState.body] ? testState.body : null; }
 function pickBody(now) { const t = testBody(); return t != null ? t : nextBody(now); }
@@ -16985,6 +17001,7 @@ function draw() {
         ctx.beginPath(); ctx.arc(p.x, p.y, shipSize() * (1.2 - game.arriveT * 0.6), 0, TAU); ctx.fill(); ctx.restore();
       }
     }
+    coverBehind();   // (flying in 3D: a ship behind the body or the station, hidden by it where they overlap)
     drawShots(); drawRcs();
     drawShots(duel.shots);
     drawShots(eshots);
@@ -17051,6 +17068,7 @@ function drawPlanet() {
   if (qDeath && drawTornStar()) return;   // NULL destroyed: the star torn into white pixels (drawTornStar)
   if (vaultBusy()) return;   // the star is in a VAULT, or on its way (drawVaultFx)
   if (testNoStar()) return;   // (the test hangar: no body)
+  if (chaseOn()) return;   // (the chase camera: the body is a ball in its 3D scene, not on the floor)
   const p = toScreen(WW / 2, WH / 2);
   const k = ease(cosmos.morph);
   // changing: the old one shrinks and fades as the new one grows in
