@@ -12005,12 +12005,13 @@ const FEEL = { grip: 1.7, drift: 0.75, slip: 0.35, kick: 0.22, turnIn: 0.14, tur
 // through this frame, not only where it ends up
 const AIM = { side: 0.2, cone: 0.09, depth: 2.2, lead: true };
 // while the engine pushes, the drift is pulled round toward the nose (grip), less so in a hard turn (drift): a slide
+// (o.slideA, not o.slip: GLITCH's slip magic already uses game.slip)
 function carve(o, S, st, pa, dt) {
-  const v = Math.hypot(o.vx, o.vy); if (v < U * 0.15) { o.slip = 0; return; }
-  const va = Math.atan2(o.vx, -o.vy), slip = wrapAngle(pa - va); if (Math.abs(slip) > 2.2) { o.slip = 0; return; }   // (pointing back against the drift: the engine brakes it, no grip)
+  const v = Math.hypot(o.vx, o.vy); if (v < U * 0.15) { o.slideA = 0; return; }
+  const va = Math.atan2(o.vx, -o.vy), slip = wrapAngle(pa - va); if (Math.abs(slip) > 2.2) { o.slideA = 0; return; }   // (pointing back against the drift: the engine brakes it, no grip)
   const hard = clamp(Math.abs(o.spin || 0) / Math.max(0.1, st.turn), 0, 1), grip = FEEL.grip * (1 - FEEL.drift * hard * hard) * (TRUCK[S.id] ? 0.6 : 1);
   const turn = clamp(slip, -grip * dt, grip * dt), a = va + turn;
-  o.vx = Math.sin(a) * v; o.vy = -Math.cos(a) * v; o.slip = slip;
+  o.vx = Math.sin(a) * v; o.vy = -Math.cos(a) * v; o.slideA = slip;
   if (Math.abs(slip) > FEEL.slip && v > st.top * U * 0.35 && Math.random() < dt * 30) {   // sliding: smoke off its tail, sideways
     const tail = rotatePt(0, shipSize() * 0.45, o.ang); burstAt(o.x + tail.x, o.y + tail.y, 2, ["rgba(200,210,225,0.8)", "#8ea0b8", S.flame || "#ffb347"], 0.12, 0.7, o.vx * 0.4, o.vy * 0.4);
   }
