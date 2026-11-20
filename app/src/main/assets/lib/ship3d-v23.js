@@ -27,6 +27,7 @@ export const SHIP_MODELS = {
   corsair: { file: "models/corsair.glb", fwd: "-x", len: 0.85 },
   cinder: { file: "models/cinder.glb", fwd: "-z", len: 0.98, upright: 1 },
   lyth: { file: "models/lyth.glb", fwd: "-z", len: 1.03, fit: "max", split: 0.37 },
+  lariat: { file: "models/lariat.glb", fwd: "+z", len: 1.03, upright: -1 },
   ballast: { file: "models/ballast.glb", fwd: "-x", len: 0.95 },
   zorian: { file: "models/zorian.glb", fwd: "-x", len: 0.9 },
   cantor: { file: "models/cantor.glb", fwd: "+z", len: 0.95 },
@@ -263,7 +264,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 22,   // (index.html checks it; the file's name carries it too — lib/ship3d-v22.js — so the app never mixes a new
+  version: 23,   // (index.html checks it; the file's name carries it too — lib/ship3d-v23.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },

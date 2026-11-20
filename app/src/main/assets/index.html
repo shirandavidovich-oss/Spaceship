@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v22.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v23.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4453,10 +4453,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v22.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v23.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 22, SHIP3D_FILE = "./lib/ship3d-v22.js";
+const SHIP3D_VER = 23, SHIP3D_FILE = "./lib/ship3d-v23.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -11685,17 +11685,25 @@ const LAR = { reach: 306, slack: 64, reel: 28, spring: 4.7, damping: 2.2, maxPul
   hookLife: 1.05, boost: 120, cap: 335, fxMs: 32, fxFrames: 16, fxSize: 188, socket: [-17, -43] };
 const larFx = [];   // the release: { who, t, ang } (ang: the new way it flies)
 function larU() { return shipSize() * 1.2 / 106; }
-function larSocket(o) { const u = larU(), q = rotatePt(LAR.socket[0] * u, LAR.socket[1] * u, o.ang); return { x: o.x + q.x, y: o.y + q.y }; }
-function larFromStar(o) { const dx = wrapDelta(o.x - WW / 2, WW), dy = wrapDelta(o.y - WH / 2, WH); return { dx, dy, d: Math.hypot(dx, dy) }; }
+// flying in 3D: a ship's orientation (mine as it is; theirs from its heading, tilt and roll), else null
+function lar3(o) { if (!view3d.on || BOT) return null; if (o === game) return game.q3 || null; return (o.p3 || o.r3) ? Q3.fromAngles(o.ang, o.p3 || 0, o.r3 || 0) : null; }
+// the boom's socket — in 3D turned with the ship (z: its depth, in U)
+function larSocket(o) {
+  const u = larU(), q3 = lar3(o);
+  if (q3) { const v = Q3.rot(q3, [LAR.socket[0] * u, 0, LAR.socket[1] * u]); return { x: o.x + v[0], y: o.y + v[2], z: (o.z3 || 0) + v[1] / U }; }
+  const q = rotatePt(LAR.socket[0] * u, LAR.socket[1] * u, o.ang); return { x: o.x + q.x, y: o.y + q.y, z: o.z3 || 0 };
+}
+// the ship from the body's middle (in 3D its depth too: dz, and d the real distance through space)
+function larFromStar(o) { const dx = wrapDelta(o.x - WW / 2, WW), dy = wrapDelta(o.y - WH / 2, WH), dz = view3d.on && !BOT ? (o.z3 || 0) * U : 0; return { dx, dy, dz, d: Math.hypot(dx, dy, dz) }; }
 function larEnd(why) { if (game.tether) { audio.tone(why === "snap" ? 900 : 300, 0.12, "triangle", 0.04, 0.6); } game.tether = null; }
 // moveShip, before the ship moves: the winch reels in, and a taut cable pulls toward the body's middle
 function larPull(o, dt) {
   const T = game.tether, u = larU(), R = planetR(), q = larFromStar(o);
   if (!q.d || q.d < R || q.d > R + LAR.reach * u) { larEnd("snap"); return; }
   T.rest = Math.max(R + LAR.slack * u, T.rest - LAR.reel * u * dt);
-  const ix = -q.dx / q.d, iy = -q.dy / q.d, radial = o.vx * ix + o.vy * iy;
+  const ix = -q.dx / q.d, iy = -q.dy / q.d, iz = -q.dz / q.d, radial = o.vx * ix + o.vy * iy + (o.vz3 || 0) * iz;   // (in 3D: toward the ball's middle, through the depth too)
   const f = cablePull(q.d, T.rest, radial, LAR.spring, LAR.damping, LAR.maxPull * u);
-  o.vx += ix * f * dt; o.vy += iy * f * dt;
+  o.vx += ix * f * dt; o.vy += iy * f * dt; if (iz) o.vz3 = (o.vz3 || 0) + iz * f * dt;
 }
 function updateLariat(dt) {
   const u = larU();
@@ -11708,8 +11716,8 @@ function updateLariat(dt) {
     game.hookWait += dt;
     if (game.hookWait >= LAR.hookAt) {
       game.hookWait = null;
-      const p = larSocket(game), v = LAR.hookSpeed * u;
-      game.hook = { x: p.x, y: p.y, vx: Math.sin(game.ang) * v, vy: -Math.cos(game.ang) * v, t: 0, ox: p.x, oy: p.y };
+      const p = larSocket(game), v = LAR.hookSpeed * u, q3 = lar3(game), n = q3 ? Q3.rot(q3, [0, 0, -1]) : [Math.sin(game.ang), 0, -Math.cos(game.ang)];   // (in 3D: along the tilted nose, into or out of the depth)
+      game.hook = { x: p.x, y: p.y, z: p.z, vx: n[0] * v, vy: n[2] * v, vz: n[1] * v, t: 0, ox: p.x, oy: p.y };
       audio.tone(220, 0.25, "sawtooth", 0.03, 2.4); audio.noise(0.15, 0.08, 3000);
     }
   }
@@ -11717,8 +11725,12 @@ function updateLariat(dt) {
   if (H) {
     H.t += dt;
     const dx = H.vx * dt, dy = H.vy * dt, R = planetR(), px = wrapDelta(H.x - WW / 2, WW), py = wrapDelta(H.y - WH / 2, WH);
-    const hit = gateSweep(px, py, dx, dy, R), q = larFromStar(game);
-    const hitShip = enemy.on && enemy.warp < 0.5 ? gateSweep(wrapDelta(H.x - enemy.x, WW), wrapDelta(H.y - enemy.y, WH), dx, dy, shipSize() * 0.45) : null;
+    // in 3D the body is a ball: at the hook's depth it is a smaller circle (none past its top or bottom); a ship is
+    // caught only at about its own depth
+    const hz = (H.z || 0) * U, Rz = Math.sqrt(Math.max(0, R * R - hz * hz));
+    const hit = Rz > 0 ? gateSweep(px, py, dx, dy, Rz) : null, q = larFromStar(game);
+    const atDepth = Math.abs((H.z || 0) - (enemy.z3 || 0)) * U < shipSize() * 0.7;
+    const hitShip = enemy.on && enemy.warp < 0.5 && atDepth ? gateSweep(wrapDelta(H.x - enemy.x, WW), wrapDelta(H.y - enemy.y, WH), dx, dy, shipSize() * 0.45) : null;
     if (hitShip != null && (hit == null || hitShip <= hit) && !enemyAloft()) { game.hook = null; larCatch(); }   // an enemy ship: the rope winds round it
     else if (hit != null && q.d <= R + LAR.reach * u) {   // it reaches the body: the rope winds round it (the cable)
       game.hook = null;
@@ -11726,7 +11738,7 @@ function updateLariat(dt) {
       audio.tone(140, 0.2, "square", 0.05, 0.5); audio.noise(0.1, 0.2, 2500); shake(0.25); buzz(60);
     } else if (H.t > LAR.hookLife || Math.hypot(wrapDelta(H.x - H.ox, WW), wrapDelta(H.y - H.oy, WH)) > LAR.reach * u * 1.4 || hit != null) {
       game.hook = null; audio.tone(500, 0.1, "triangle", 0.03, 0.5);   // missed (or the ship was too far from the body)
-    } else { H.x = (((H.x + dx) % WW) + WW) % WW; H.y = (((H.y + dy) % WH) + WH) % WH; }
+    } else { H.x = (((H.x + dx) % WW) + WW) % WW; H.y = (((H.y + dy) % WH) + WH) % WH; H.z = (H.z || 0) + (H.vz || 0) / U * dt; }
   }
   if (game.tether) { game.tether.t += dt; if (game.tether.t >= LAR.life) larEnd("time"); }
   if (game.clutch) {   // the magic: at its cue the cable lets go with a push along the swing (if it is still on)
@@ -11787,7 +11799,7 @@ function larDash(dt) {
 // there). `bands`: the rope's turns round the hull, `wind` s to tie them
 const ELASSO = { hold: 30, turn: 0, fire: 0.5, drag: 4, tug: 0.3, minRest: 1.2, loops: 4, taps: 10, decay: 0.45, bands: 3, wind: 0.6 };
 function larCatch() {
-  const d = Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH));
+  const d = Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH), view3d.on && !BOT ? ((enemy.z3 || 0) - (game.z3 || 0)) * U : 0);
   game.elasso = { rest: Math.max(shipSize() * ELASSO.minRest, d), t: 0 };
   if (enemy.remote) link.send({ t: "lso", on: 1, r: +(game.elasso.rest / U).toFixed(3) });
   audio.tone(140, 0.2, "square", 0.05, 0.5); audio.noise(0.12, 0.2, 2500); shake(0.3); buzz(70);
@@ -11799,11 +11811,12 @@ function larLetGo() {
   audio.tone(900, 0.12, "triangle", 0.04, 0.6);
 }
 // a ship on a cable to another ship: pulled toward it when the cable is taut (each phone its own ship)
-function larShipPull(o, toward, rest, dt, k) {
-  const dx = wrapDelta(toward.x - o.x, WW), dy = wrapDelta(toward.y - o.y, WH), d = Math.hypot(dx, dy); if (!d) return;
-  const ix = dx / d, iy = dy / d, u = larU(), rel = (o.vx - toward.vx) * -ix + (o.vy - toward.vy) * -iy;
+function larShipPull(o, toward, rest, dt, k) {   // (in 3D: through the depth too — the rope runs between the two ships where they really are)
+  const dz = o === game && view3d.on && !BOT ? ((toward.z3 || 0) - (game.z3 || 0)) * U : 0;
+  const dx = wrapDelta(toward.x - o.x, WW), dy = wrapDelta(toward.y - o.y, WH), d = Math.hypot(dx, dy, dz); if (!d) return;
+  const ix = dx / d, iy = dy / d, iz = dz / d, u = larU(), rel = (o.vx - toward.vx) * -ix + (o.vy - toward.vy) * -iy + (o.vz3 || 0) * -iz;
   const f = cablePull(d, rest, -rel, LAR.spring, LAR.damping, LAR.maxPull * u * 2) * k;
-  o.vx += ix * f * dt; o.vy += iy * f * dt;
+  o.vx += ix * f * dt; o.vy += iy * f * dt; if (iz) o.vz3 = (o.vz3 || 0) + iz * f * dt;
 }
 // the winch on the hull (inside drawShip: turned to the heading, 1 = a ship-length): the drum turns, "out" while the
 // hook flies, "in" while the cable reels in
@@ -11835,7 +11848,7 @@ function drawCable(o, hook, on) {
   ctx.strokeStyle = on ? "#eaa276" : "#c9a27a"; ctx.lineWidth = Math.max(1.5, shipSize() * 0.016); ctx.setLineDash([6, 4]); ctx.lineDashOffset = -time * (on ? 40 : 120);
   ctx.stroke(); ctx.setLineDash([]);
   const img = artImage("art/ships/lariat/harpoon.webp"), d = 20 * larU() * 1.6;
-  if (img && hook) { const ang = hook ? Math.atan2(hook.vx, -hook.vy) : Math.atan2(p1.x - p0.x, -(p1.y - p0.y)); ctx.translate(p1.x, p1.y); ctx.rotate(ang); ctx.drawImage(img, -d / 2, -d / 2, d, d); }
+  if (img && hook) { const ang = hook ? Math.atan2(hook.vx, -hook.vy) : Math.atan2(p1.x - p0.x, -(p1.y - p0.y)), k3 = hook.z != null && view3d.on ? depthScale(hook.z) : 1; ctx.translate(p1.x, p1.y); ctx.rotate(ang); ctx.scale(k3, k3); ctx.drawImage(img, -d / 2, -d / 2, d, d); }
   ctx.restore();
 }
 // ---- the lasso: the hook does not stick in the body, the rope winds round it, 4 loops, and holds it tight ----
