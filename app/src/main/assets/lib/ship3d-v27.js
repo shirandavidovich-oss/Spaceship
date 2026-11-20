@@ -21,13 +21,14 @@ export const SHIP_MODELS = {
   puff: { file: "models/puff.glb", fwd: "-x", len: 0.8 },
   xeltar: { file: "models/xeltar.glb", fwd: "-x", len: 0.95 },
   strata: { file: "models/strata.glb", fwd: "-x", len: 0.95 },
-  skarn: { file: "models/skarn.glb", fwd: "+x", len: 0.95, fit: "max" },
+  skarn: { file: "models/skarn.glb", fwd: "-x", len: 0.95, fit: "max" },
   glitch: { file: "models/glitch.glb", fwd: "-x", len: 0.95, fit: "max" },
   borer: { file: "models/borer.glb", fwd: "-x", len: 1.0 },
   corsair: { file: "models/corsair.glb", fwd: "-x", len: 0.85 },
   cinder: { file: "models/cinder.glb", fwd: "-z", len: 0.98, upright: 1 },
   lyth: { file: "models/lyth.glb", fwd: "-z", len: 1.03, fit: "max", split: 0.37 },
   lariat: { file: "models/lariat.glb", fwd: "+z", len: 1.03, upright: -1 },
+  palisade: { file: "models/palisade.glb", fwd: "-z", len: 1.05, fit: "max", upright: 1 },
   gimbal: { file: "models/gimbal.glb", fwd: "-z", len: 1.03, upright: 1, gyro: { cz: 0.0513, spine: 0.045, bar: 0.045, rings: [[0.14, 0.245], [0.245, 0.31], [0.31, 0.4]] } },
   talus: { file: "models/talus.glb", fwd: "-z", len: 0.89, upright: 1, bands: true },
   reprise: { file: "models/reprise.glb", fwd: "+z", len: 0.787, upright: -1, blocks: [0.375, 0.02, -0.30], pad: 2.9 },   // (its four buildings, tallest first)
@@ -368,7 +369,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 26,   // (index.html checks it; the file's name carries it too — lib/ship3d-v26.js — so the app never mixes a new
+  version: 27,   // (index.html checks it; the file's name carries it too — lib/ship3d-v27.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
