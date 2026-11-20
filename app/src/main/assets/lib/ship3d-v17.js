@@ -22,6 +22,7 @@ export const SHIP_MODELS = {
   xeltar: { file: "models/xeltar.glb", fwd: "-x", len: 0.95 },
   strata: { file: "models/strata.glb", fwd: "-x", len: 0.95 },
   skarn: { file: "models/skarn.glb", fwd: "+x", len: 0.95, fit: "max" },
+  glitch: { file: "models/glitch.glb", fwd: "-x", len: 0.95, fit: "max" },
   ballast: { file: "models/ballast.glb", fwd: "-x", len: 0.95 },
   zorian: { file: "models/zorian.glb", fwd: "-x", len: 0.9 },
   cantor: { file: "models/cantor.glb", fwd: "+z", len: 0.95 },
@@ -201,7 +202,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 16,   // (index.html checks it; the file's name carries it too — lib/ship3d-v16.js — so the app never mixes a new
+  version: 17,   // (index.html checks it; the file's name carries it too — lib/ship3d-v17.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
