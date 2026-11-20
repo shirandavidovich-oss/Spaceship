@@ -1046,7 +1046,7 @@ ok("3D view: a camera button (from above / behind the ship): the chase camera la
 });
 ok("test hangar: five cards a row that scroll; the 🪐 chip held down: no body (no pull, nothing to touch, not drawn) on both phones", () => assert(/const cw = \(W - gap \* \(cols \+ 1\)\) \/ cols, ch = cw \* 1\.12/.test(html) && /hangar\.scroll = clamp\(P\.s0 - dy, 0, hangar\.maxScroll\)/.test(html) && /function testNoStar\(\)/.test(html) && /starTorn\(\) \|\| testNoStar\(\)/.test(html) && /if \(testNoStar\(\)\) return \{ ax: 0, ay: 0 \};/.test(html) && /m\.t === "ns"/.test(html)));
 ok("flying in 3D: the engine flames hidden as the tail turns away (the nose toward you)", () => assert(/hide = clamp\(1 \+ np\[1\] \/ Math\.max\(0\.05, Math\.abs\(ey\)\) \* 1\.2, 0, 1\)/.test(html)));
-ok("flying in 3D: shots leave along the nose (tilted: partly into the depth), fly on in depth, hit only at about the enemy's depth, pass over the body; drawn by depth; sent to the other phone (d3, dv)", () => assert(/vx: game\.vx \+ dv\[0\] \* sv, vy: game\.vy \+ dv\[2\] \* sv, z3: z0, vz3: \(game\.vz3 \|\| 0\) \+ dv\[1\] \* sv/.test(html) && /Math\.abs\(\(s\.z3 \|\| 0\) - \(enemy\.z3 \|\| 0\)\) \* U < size \* 1\.2/.test(html) && /function drawShot1\(s, size\)/.test(html) && /z3: m\.d3 \|\| 0, vz3: \(m\.dv \|\| 0\) \* U/.test(html)));
+ok("flying in 3D: shots leave along the nose (tilted: partly into the depth), fly on in depth, hit only at about the enemy's depth, pass over the body; drawn by depth; sent to the other phone (d3, dv)", () => assert(/vx: iv\[0\] \+ dv\[0\] \* sv, vy: iv\[2\] \+ dv\[2\] \* sv, z3: z0, vz3: iv\[1\] \+ dv\[1\] \* sv/.test(html) && /Math\.abs\(\(s\.z3 \|\| 0\) - \(enemy\.z3 \|\| 0\)\) \* U < size \* 1\.2/.test(html) && /function drawShot1\(s, size\)/.test(html) && /z3: m\.d3 \|\| 0, vz3: \(m\.dv \|\| 0\) \* U/.test(html)));
 ok("a control button with my ship behind it fades to 10%; the sound dials beside the money; the map half again as big; under it the camera and 2D/3D picture buttons", () => {
   assert(/function padSee\(key, list, fn\)/.test(html) && /under \? 0\.1 : 1/.test(html) && /return walletBox\(\)\.dials;/.test(html) && /side = 1\.5 \* Math\.max/.test(html) && /if \(hit3dButton\(e\.clientX, e\.clientY\)\) \{ view3dTap\(\); return; \}/.test(html));
   for (const f of ["art/ui/btn-camera.webp", "art/ui/btn-2d3d.webp"]) assert(fs.existsSync(require("path").join(__dirname, "../app/src/main/assets", f)), f);
@@ -1089,7 +1089,7 @@ ok("flying in 3D: the RESET button between the buttons with the orientation pyra
   const t = Q3.rot(Q3.fromAngles(0, 0.5, 0), [0, 0, -1]);   // (tilted away: the nose away from you)
   assert(t[1] < -0.4);
 });
-ok("flying in 3D: shots leave from the gun point turned as the ship is (tilt, roll, depth) and along its nose; the engine flames turned with it, hidden round behind the hull; any ship with a model drawn before its rigs", () => assert(/if \(q3s\) \{ const k = game\.z3 \? depthScale\(game\.z3\) : 1, gp = Q3\.rot\(q3s/.test(html) && /const dv = q3s \? Q3\.rot\(q3s, \[Math\.sin\(dir - game\.ang\), 0, -Math\.cos\(dir - game\.ang\)\]\)/.test(html) && /const np = Q3\.rot\(q3f, \[ex, 0, ey\]\)/.test(html) && /if \(draw3dShip\(S, o, ang, bank\)\) \{ ctx\.restore\(\); return; \}   \/\/ \(the 3D view: its model, before any rig/.test(html)));
+ok("flying in 3D: shots leave from the gun point turned as the ship is (tilt, roll, depth) and along its nose; the engine flames turned with it, hidden round behind the hull; any ship with a model drawn before its rigs", () => assert(/if \(q3s\) \{ const k = game\.z3 \? depthScale\(game\.z3\) : 1, gp = Q3\.rot\(q3s/.test(html) && /let dv = q3s \? Q3\.rot\(q3s, \[Math\.sin\(dir - game\.ang\), 0, -Math\.cos\(dir - game\.ang\)\]\)/.test(html) && /const np = Q3\.rot\(q3f, \[ex, 0, ey\]\)/.test(html) && /if \(draw3dShip\(S, o, ang, bank\)\) \{ ctx\.restore\(\); return; \}   \/\/ \(the 3D view: its model, before any rig/.test(html)));
 ok("flying in 3D: the body in the middle of the depth; from above a ship behind it is hidden by it (and by the station); the chase camera shows the body as a ball you can pass in front of and behind", () => {
   assert(/function coverBehind\(\)/.test(html) && /coverBehind\(\);   \/\/ \(flying in 3D/.test(html) && /if \(chaseOn\(\)\) return;   \/\/ \(the chase camera: the body is a ball/.test(html) && /img = view3d\.lib\.chase\(\{ body: bodyP,/.test(html));
   const lib = fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/lib/ship3d-v36.js"), "utf8");
@@ -1201,5 +1201,13 @@ ok("maneuver training: a card beside the shop, 10 levels, objects coloured and l
   const layerOf = (z) => { const front = z >= 0, per = (front ? T.near : T.far) / T.layers; return { front, n: Math.min(T.layers, Math.ceil(Math.abs(z) / per - 0.02)) }; };
   for (let k = -6; k <= 6; k++) { const L = layerOf(layerZ(k)); assert(L.n === Math.abs(k) && (k >= 0 ? L.front : !L.front)); }
   assert(/strata: \{ file: "models\/strata\.glb", fwd: "-x"/.test(fs.readFileSync(require("path").join(A, "lib/ship3d-v36.js"), "utf8")));
+});
+ok("the feel: grip and drift, a kick, turns with weight, 3D spin coasting; shots keep little sideways drift, bend onto a target just off the nose, and hit what they pass through", () => {
+  const html = fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/index.html"), "utf8");
+  assert(/const FEEL = \{ grip:/.test(html) && /const AIM = \{ side:/.test(html) && /function carve\(o, S, st, pa, dt\)/.test(html) && /function aimShot\(/.test(html));
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const sweptNear = new Function("clamp", "return " + html.slice(html.indexOf("function sweptNear"), html.indexOf("// the ship's drift a shot keeps")))(clamp);
+  assert(sweptNear(0, 50, 0, -100) < 1e-9);   // (moved 100 up; the ship 50 behind where it is now: passed right through it)
+  assert(Math.abs(sweptNear(10, 50, 0, -100) - 10) < 1e-9 && Math.abs(sweptNear(0, -30, 0, -100) - 30) < 1e-9);
 });
 console.log(n + " checks passed");

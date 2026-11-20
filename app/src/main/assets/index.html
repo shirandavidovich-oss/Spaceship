@@ -3466,9 +3466,12 @@ function moveShip(o, S, c, dt) {
     // a heavy ship (TRUCK) gets its turning going slowly too: its rate builds up over `ramp` s of steering, and dies away
     const TK = TRUCK[S.id], want = c.target == null ? Math.abs(c.turn) > 0.02 : Math.abs(wrapAngle(c.target - o.ang)) > 0.02;
     if (TK) o.tRamp = clamp((o.tRamp || 0) + (want ? dt / TK.ramp : -dt / TK.settle), TK.min, 1);
-    const tr = st.turn * (TK ? o.tRamp : 1);
-    if (c.target === null || c.target === undefined) o.ang += c.turn * tr * dt;
-    else o.ang = turnToward(o.ang, c.target, tr * dt * c.turn);
+    // (every ship: its turn rate builds up as it steers and eases away when let go — FEEL.turnIn / turnOut)
+    o.tFeel = want ? Math.min(1, (o.tFeel ?? FEEL.turnMin) + dt / FEEL.turnIn) : Math.max(FEEL.turnMin, (o.tFeel ?? FEEL.turnMin) - dt / FEEL.turnOut);
+    if (!want && o.tFeel > FEEL.turnMin && o.turnDir) o.ang = wrapAngle(o.ang + o.turnDir * st.turn * (o.tFeel - FEEL.turnMin) * dt * 0.5);   // (a little follow-through)
+    const tr = st.turn * (TK ? o.tRamp : 1) * o.tFeel;
+    if (c.target === null || c.target === undefined) { o.ang += c.turn * tr * dt; if (want) o.turnDir = Math.sign(c.turn); }
+    else { const b0 = o.ang; o.ang = turnToward(o.ang, c.target, tr * dt * c.turn); if (want) o.turnDir = Math.sign(wrapAngle(o.ang - b0)) || 0; }
     o.ang = wrapAngle(o.ang);
     o.spin = lerp(o.spin, wrapAngle(o.ang - before) / Math.max(dt, 0.001), 1 - Math.exp(-dt * 10));
   }
@@ -3490,6 +3493,12 @@ function moveShip(o, S, c, dt) {
     o.vy -= Math.cos(pa) * push * U * dt * c3;
     if (p3) game.vz3 = (game.vz3 || 0) - Math.sin(p3) * push * U * dt;
   }
+  if (on && !o.wasOn && !S.clockwork) {   // (lighting up: a shove — FEEL.kick)
+    o.vx += Math.sin(pa) * push * U * FEEL.kick * c3; o.vy -= Math.cos(pa) * push * U * FEEL.kick * c3;
+    if (o === game && !BOT) shake(0.06);
+  }
+  o.wasOn = on;
+  if (on && !S.clockwork) carve(o, S, st, pa, dt);   // grip and drift
   o.fuel = f.fuel; o.locked = f.locked;
   o.power = lerp(o.power, on ? 1 : 0, 1 - Math.exp(-dt * 10));
 
@@ -4919,7 +4928,10 @@ function updateTilt3(dt) {
   const TK = TRUCK[game.ship], steer = (T && (Math.abs(T.want) > 0.02 || Math.abs(T.roll) > 0.02)) || (Y && Math.abs(Y.yaw) > 0.02);
   if (TK) game.tRamp3 = clamp((game.tRamp3 || 0) + (steer ? dt / TK.ramp : -dt / TK.settle), TK.min, 1);
   const tk = TK ? game.tRamp3 * 0.6 : 1;   // (a truck: slower to tilt, roll and yaw, and slow to get going)
-  const pitch = T && !game.dead ? T.want * TILT3.rate * dt * tk : 0, yaw = Y && !game.dead ? Y.yaw * TILT3.yaw * dt * tk : 0, roll = T && !game.dead ? T.roll * TILT3.roll * dt * tk : 0;
+  // (its own spin, eased: it builds up and coasts on a moment after you let go — FEEL.rot3)
+  const tw = [T && !game.dead ? T.want * TILT3.rate * tk : 0, Y && !game.dead ? Y.yaw * TILT3.yaw * tk : 0, T && !game.dead ? T.roll * TILT3.roll * tk : 0];
+  const w3 = game.w3 || (game.w3 = [0, 0, 0]), ek = 1 - Math.exp(-dt / FEEL.rot3); for (let i = 0; i < 3; i++) { w3[i] += (tw[i] - w3[i]) * ek; if (Math.abs(w3[i]) < 1e-3) w3[i] = 0; }
+  const pitch = w3[0] * dt, yaw = w3[1] * dt, roll = w3[2] * dt;
   if (pitch || yaw || roll) {
     // round its own axes (multiplied on the right: in the ship's frame). Yaw right: the nose toward its right wing
     // (round +y, negative); tilt away: the nose toward its bottom (round +x, negative); roll right: the right wing down,
@@ -11366,7 +11378,7 @@ function updateWeapons(dt) {
     // into the enemy
     if (enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked() && !(Wp.hack && quantumShip(enemy.ship)) && Math.abs((s.z3 || 0) - (enemy.z3 || 0)) * U < size * 1.2) {   // (docked in the station: out of reach)   // (flying in 3D: only at about their depth)   // (GLITCH's hack pulse: no use on NULL, it passes through)   // (their STRATA up high: shots pass under it)
       const dx = wrapDelta(enemy.x - s.x, WW), dy = wrapDelta(enemy.y - s.y, WH);
-      if (Math.hypot(dx, dy) < size * 0.42 * enemyScale() + (Wp.r * shotScale(s, Wp) + (Wp.prox || 0)) * size) {   // (prox: it goes off near it)
+      if (sweptNear(dx, dy, (s.vx - enemy.vx) * dt, (s.vy - enemy.vy) * dt) < size * 0.42 * enemyScale() + (Wp.r * shotScale(s, Wp) + (Wp.prox || 0)) * size) {   // (prox: it goes off near it; swept: what it passed through this frame)
         if (Wp.blast) { torpedoBlast(s, Wp, true); shots.splice(k, 1); continue; }   // CINDER's torpedo: the blast does it
         if ((s.sub || s.seek) && enemyDiver()) { pierceEnemy(shotHit(s, Wp).dmg || Wp.dmg, s.x, s.y); shots.splice(k, 1); continue; }   // into their BOILER under its water
         const Hw = shotHit(s, Wp); hitEnemy(s, Hw); shots.splice(k, 1);
@@ -11456,6 +11468,31 @@ function shoot(i) {
   audio.shot(w);
 }
 // the shots leave from a gun point on the ship, turned with the ship
+// how near a shot came to a point this frame: the point (dx, dy) from where it is now, and how far it moved (ux, uy) —
+// the nearest point of that stretch, so a fast shot cannot jump past a ship between two frames
+function sweptNear(dx, dy, ux, uy) {
+  const uu = ux * ux + uy * uy; if (uu < 1e-6) return Math.hypot(dx, dy);
+  const k = clamp((dx * ux + dy * uy) / uu, -1, 0); return Math.hypot(dx - k * ux, dy - k * uy);
+}
+// the ship's drift a shot keeps: all of it along the shot's way, AIM.side of it across (in 3D: [x, depth, y])
+function inherit(dv) {
+  const V = [game.vx, (game.vz3 || 0), game.vy], L = Math.hypot(dv[0], dv[1], dv[2]) || 1, d = [dv[0] / L, dv[1] / L, dv[2] / L], along = V[0] * d[0] + V[1] * d[1] + V[2] * d[2];
+  return [0, 1, 2].map((i) => along * d[i] + (V[i] - along * d[i]) * AIM.side);
+}
+// a shot leaving within AIM.cone of the enemy (or a training target) is bent onto where it will be when the shot arrives
+function aimShot(dv, x, y, z0, sv, Wp) {
+  if (BOT || Wp.homing || Wp.gravity) return dv;
+  const T = enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked() ? enemy : null; if (!T) return dv;
+  const L = Math.hypot(dv[0], dv[2]) || 1, ux = dv[0] / L, uy = dv[2] / L;
+  let dx = wrapDelta(T.x - x, WW), dy = wrapDelta(T.y - y, WH); const d = Math.hypot(dx, dy); if (d < 1 || d > sv * (Wp.life || 1) * 1.1) return dv;
+  if (AIM.lead) { const t = d / Math.max(1, sv), rv = inherit(dv); dx += (T.vx - rv[0]) * t; dy += (T.vy - rv[2]) * t; }   // (where it will be)
+  const want = Math.atan2(dx, -dy), have = Math.atan2(ux, -uy), off = wrapAngle(want - have);
+  if (Math.abs(off) > AIM.cone) return dv;
+  const a = have + off, flat = Math.hypot(dv[0], dv[2]);
+  let vz = dv[1];
+  if (view3d.on && Math.abs((T.z3 || 0) - z0) < AIM.depth) vz = ((T.z3 || 0) - z0) * U / Math.max(0.05, d / sv) / sv;   // (in 3D: its depth lined up)
+  return [Math.sin(a) * flat, clamp(vz, -0.5, 0.5), -Math.cos(a) * flat];
+}
 function spawnShots(w, g, rot) {
   const Wp = WEAPONS[w], S = shipById(game.ship), size = shipSize() * shipScale();
   // hacked (GLITCH's pulse): this firing goes off a quarter turn clockwise, once (a burst's later rounds pass `rot` on)
@@ -11484,8 +11521,10 @@ function spawnShots(w, g, rot) {
     const dir = game.ang + a + hk + (Wp.rear ? Math.PI : 0) + (Wp.splay && g ? Math.sign(g[0]) * Wp.splay : 0) + (Wp.aimAt && g ? Math.atan2(-g[0], Wp.aimAt + g[1]) : 0) + (Wp.broadside ? wrapAngle(game.broadAng - game.ang) : 0) + (game.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;   // (XELTAR's crystal: out of the stern; scrambled: the wrong way)
     const sv = Wp.magnet ? v * (0.55 + Math.random() * 0.9) : v;   // RIVET's magnets scatter unevenly
     // (flying in 3D: along the nose, wherever it points — the shot's own spread turned with the ship's tilt and roll too)
-    const dv = q3s ? Q3.rot(q3s, [Math.sin(dir - game.ang), 0, -Math.cos(dir - game.ang)]) : [Math.sin(dir), 0, -Math.cos(dir)];
-    shots.push({ w, x, y, vx: game.vx + dv[0] * sv, vy: game.vy + dv[2] * sv, z3: z0, vz3: (game.vz3 || 0) + dv[1] * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined });
+    let dv = q3s ? Q3.rot(q3s, [Math.sin(dir - game.ang), 0, -Math.cos(dir - game.ang)]) : [Math.sin(dir), 0, -Math.cos(dir)];
+    if (!Wp.rear && !Wp.broadside && !Wp.mines) dv = aimShot(dv, x, y, z0, sv, Wp);   // (bent onto a target just off the nose — AIM)
+    const iv = inherit(dv);   // (the ship's own drift: all of it along the shot, little of it sideways — AIM.side)
+    shots.push({ w, x, y, vx: iv[0] + dv[0] * sv, vy: iv[2] + dv[2] * sv, z3: z0, vz3: iv[1] + dv[1] * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined });
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
   if (S.id === "drakon" && game.splitUsed && game.zombie) drakFlares.push({ x, y, ang: game.ang, t: time });
@@ -11951,6 +11990,31 @@ function shipScreen() { return toScreen(game.x, game.y); }
 // the same point after the zoom (for touches and the edge arrow)
 function zoomed(p) { const z = game.zoom; return { x: W / 2 + (p.x - W / 2) * z, y: H / 2 + (p.y - H / 2) * z }; }
 
+// ---- the feel of flying (FEEL) ----
+// grip: while the engine pushes, the ship's drift is pulled round toward where its nose points (1/s) — like tyres on a
+//   road, so it carves through turns instead of sliding like a puck; drift: how much of that grip it loses when turning
+//   hard (0..1): a hard turn at speed breaks loose into a slide, smoke streaming off it, and catches again as you ease off
+// kick: a shove as the engine lights (seconds' worth of push); turnIn / turnOut: s for the turning to build up and to
+//   die away (a ship has weight: it swings into a turn and a little past it); turnMin: the share at once
+// in 3D: rot3 — s for the tilts, rolls and yaws to build up and coast on (its own spin, eased, a touch of follow-through)
+const FEEL = { grip: 1.7, drift: 0.75, slip: 0.35, kick: 0.22, turnIn: 0.14, turnOut: 0.1, turnMin: 0.45, rot3: 0.11 };
+// the feel of shooting (AIM): side — the share of the ship's sideways drift a shot keeps (the rest is cancelled, so shots
+// go where the nose points even when sliding; along the nose it keeps all its speed); cone — a shot within this angle
+// (rad) of a target is bent onto it, leading it (where it will be when the shot gets there); depth — in 3D, a target
+// within this depth (layers of z3) has the shot's depth lined up with it; swept hits: a fast shot hits what it passed
+// through this frame, not only where it ends up
+const AIM = { side: 0.2, cone: 0.09, depth: 2.2, lead: true };
+// while the engine pushes, the drift is pulled round toward the nose (grip), less so in a hard turn (drift): a slide
+function carve(o, S, st, pa, dt) {
+  const v = Math.hypot(o.vx, o.vy); if (v < U * 0.15) { o.slip = 0; return; }
+  const va = Math.atan2(o.vx, -o.vy), slip = wrapAngle(pa - va); if (Math.abs(slip) > 2.2) { o.slip = 0; return; }   // (pointing back against the drift: the engine brakes it, no grip)
+  const hard = clamp(Math.abs(o.spin || 0) / Math.max(0.1, st.turn), 0, 1), grip = FEEL.grip * (1 - FEEL.drift * hard * hard) * (TRUCK[S.id] ? 0.6 : 1);
+  const turn = clamp(slip, -grip * dt, grip * dt), a = va + turn;
+  o.vx = Math.sin(a) * v; o.vy = -Math.cos(a) * v; o.slip = slip;
+  if (Math.abs(slip) > FEEL.slip && v > st.top * U * 0.35 && Math.random() < dt * 30) {   // sliding: smoke off its tail, sideways
+    const tail = rotatePt(0, shipSize() * 0.45, o.ang); burstAt(o.x + tail.x, o.y + tail.y, 2, ["rgba(200,210,225,0.8)", "#8ea0b8", S.flame || "#ffb347"], 0.12, 0.7, o.vx * 0.4, o.vy * 0.4);
+  }
+}
 // heavy ships: their turning builds up and dies away (min: the share of their turn rate at once; ramp: s to full; settle:
 // s to let go of it). CINDER, the truck. In 3D the same for its tilts and rolls
 const TRUCK = { cinder: { min: 0.2, ramp: 0.9, settle: 0.5, from: 0.3, spool: 1.8 } };

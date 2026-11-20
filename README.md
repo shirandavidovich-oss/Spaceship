@@ -663,6 +663,15 @@ the name on the left, the shop banner on the right.
 keeps each ship's last picture (two per ship) and draws it again until the ship turns by a quarter of a degree; the
 orientation pyramid likewise. At most 6 models are held at once (`KEEP`): the one drawn longest ago is freed.
 
+**The feel of flying and shooting.** `FEEL` (index.html): while the engine pushes, the ship's drift is pulled round
+toward its nose (`grip`), so it carves through turns; a hard turn at speed loses grip (`drift`) and breaks into a slide,
+smoke streaming off its tail (`carve`), catching again as you ease off; lighting the engine gives a shove (`kick`); turns
+build up and ease away with a little follow-through (`turnIn`, `turnOut`, `turnMin`); in 3D the tilts, rolls and yaws
+build up and coast on a moment (`rot3`). `AIM`: a shot keeps all of the ship's speed along its way but only `side` of its
+sideways drift, so it goes where the nose points even when sliding; a shot leaving within `cone` of the enemy is bent onto
+where it will be when the shot arrives (in 3D its depth lined up too, within `depth`); and the hit test is swept
+(`sweptNear`): a fast shot hits a ship it passed through between two frames.
+
 **ZORIAN's sound and anchor in 3D.** Its gas plays `audio/zorian/throttle.ogg` (a sports car's revs climbing through the gears, then
 holding the top one: `THRUST_LOOPS.zorian`, its third number where the loop starts again). In the 3D view its anchor spins it
 round its own up axis, keeping its tilt; with a weapon held while it spins it also tumbles nose over tail (`MAGIC.anchor.tumble`),
