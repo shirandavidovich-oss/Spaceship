@@ -4806,7 +4806,7 @@ const TILT3 = { rate: 2.6, roll: 3.2, yaw: 3.0, dead: 0.25, full: 1.3, fireAt: 1
 // how hard a stick turns the ship for how far the thumb is out (in button radii): from the dead zone to `full` it
 // follows a curve (`curve`: above 1, small drags turn gently, for fine aiming), reaching the usual rate at `full`; dragged
 // on past that it keeps getting faster, up to `top` times the usual rate at `far` radii out
-const STEER3 = { curve: 1.6, far: 2.4, top: 2 };
+const STEER3 = { curve: 1.6, far: 2.4, top: 2.5 };
 function stickPower(u) {   // u: drag distance in button radii -> 0 .. STEER3.top
   const T = TILT3, S = STEER3;
   if (u <= T.dead) return 0;
@@ -5006,7 +5006,7 @@ function updateRcs(dt) {
   if (!view3d.on || BOT || game.dead || game.stage !== "fly") { rcsHiss(0); return; }
   const T = game.tilt3, Y = game.yaw3, q = T ? T.want || 0 : 0, rl = T ? T.roll || 0 : 0, w = Y ? Y.yaw || 0 : 0;
   const most = game.level3 ? 0.7 : Math.max(Math.abs(q), Math.abs(rl), Math.abs(w));   // (the autopilot levelling it: puffing too)
-  rcsHiss(most < 0.08 ? 0 : RCS.vol * (0.6 + 0.4 * Math.min(1, most)));   // (pushed past the edge, up to 2x: no louder)   // (the hiss: steady while it turns, gone when it stops)
+  rcsHiss(most < 0.08 ? 0 : RCS.vol * (0.6 + 0.4 * Math.min(1, most)));   // (pushed past the edge, up to 2.5x: no louder)   // (the hiss: steady while it turns, gone when it stops)
   if (most < 0.08) { rcsT = 0; return; }
   rcsT -= dt; if (rcsT > 0) return;
   rcsT = RCS.every * (1.4 - 0.6 * most);   // (pushed harder: puffing faster)
