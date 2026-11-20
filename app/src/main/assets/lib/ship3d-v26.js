@@ -28,6 +28,7 @@ export const SHIP_MODELS = {
   cinder: { file: "models/cinder.glb", fwd: "-z", len: 0.98, upright: 1 },
   lyth: { file: "models/lyth.glb", fwd: "-z", len: 1.03, fit: "max", split: 0.37 },
   lariat: { file: "models/lariat.glb", fwd: "+z", len: 1.03, upright: -1 },
+  gimbal: { file: "models/gimbal.glb", fwd: "-z", len: 1.03, upright: 1, gyro: { cz: 0.0513, spine: 0.045, bar: 0.045, rings: [[0.14, 0.245], [0.245, 0.31], [0.31, 0.4]] } },
   talus: { file: "models/talus.glb", fwd: "-z", len: 0.89, upright: 1, bands: true },
   reprise: { file: "models/reprise.glb", fwd: "+z", len: 0.787, upright: -1, blocks: [0.375, 0.02, -0.30], pad: 2.9 },   // (its four buildings, tallest first)
   ballast: { file: "models/ballast.glb", fwd: "-x", len: 0.95 },
@@ -198,13 +199,50 @@ function bandShader(E) {
   });
   E.bands = U;
 }
+// a gyroscope (GIMBAL: `gyro`): the spine through the middle stays where it is (it turns with the heading, as drawn);
+// the cage (the crossbar and the hub) and the rings round it are cut off at load, each onto a turntable of its own at the
+// middle: E.turns[0] the cage, then the rings from the inside out. In the fitted model's units: spine — the spine's
+// half-width; bar — the crossbar's half-height; rings — [inner, outer] radius of each ring
+function splitGyro(E, M) {
+  const outer = E.obj, G = M.gyro; outer.updateMatrixWorld(true);
+  const meshes = []; outer.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  const n = 1 + G.rings.length, v = new THREE.Vector3();
+  E.turns = Array.from({ length: n }, () => { const t = new THREE.Group(); outer.add(t); t.position.set(0, 0, (G.cz || 0) / outer.scale.x); return t; });   // (at the rings' own middle: cz)
+  outer.updateMatrixWorld(true);
+  // (a ring has no pieces of its own under the spine and the crossbar — the model has nothing there: those stay put,
+  // and the rings turn in quarter turns, so at rest their gaps are back under the spine and the bar)
+  const which = (x, z) => {
+    const r = Math.hypot(x, z);
+    if (Math.abs(x) < G.spine || Math.abs(z) < G.bar) return [-1];
+    for (let k = 0; k < G.rings.length; k++) if (r >= G.rings[k][0] && r < G.rings[k][1]) return [1 + k];
+    return [-1];
+  };
+  for (const m of meshes) {
+    const g = m.geometry, P = g.attributes.position, idx = g.index ? g.index.array : null, cnt = idx ? idx.length : P.count;
+    const px = new Float32Array(P.count), pz = new Float32Array(P.count);
+    for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld); px[i] = v.x; pz[i] = v.z; }
+    const lists = Array.from({ length: n + 1 }, () => []);
+    for (let t = 0; t < cnt; t += 3) {
+      const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2;
+      for (const k of which((px[a] + px[b] + px[c]) / 3, (pz[a] + pz[b] + pz[c]) / 3 - (G.cz || 0))) lists[k + 1].push(a, b, c);
+    }
+    lists.forEach((L, k) => {
+      if (!L.length) return;
+      const Gm = new THREE.BufferGeometry(); for (const key in g.attributes) Gm.setAttribute(key, g.attributes[key]); Gm.setIndex(L);
+      const X = new THREE.Mesh(Gm, m.material); X.frustumCulled = false;
+      m.parent.add(X); X.position.copy(m.position); X.quaternion.copy(m.quaternion); X.scale.copy(m.scale); X.updateMatrixWorld(true);
+      if (k > 0) E.turns[k - 1].attach(X);
+    });
+    m.visible = false;
+  }
+}
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
   let E = models[id];
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -330,7 +368,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 25,   // (index.html checks it; the file's name carries it too — lib/ship3d-v25.js — so the app never mixes a new
+  version: 26,   // (index.html checks it; the file's name carries it too — lib/ship3d-v26.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -352,7 +390,8 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "");   // (a new picture only when it has turned a quarter of a degree)
+    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "");   // (a new picture only when it has turned a quarter of a degree)
+    if (E.turns) { const T = (opt && opt.turns) || []; E.turns.forEach((g, i) => g.rotation.set(0, -(T[i] || 0), 0)); }   // (opt.turns: the cage's and each ring's turn, screen-clockwise rad)
     if (E.bands) {   // (opt.bands: [{ lo, hi, c: "#rrggbb" }], the layers grown, from the middle out)
       const Bd = (opt && opt.bands) || []; E.bands.uN.value = Math.min(5, Bd.length);
       Bd.slice(0, 5).forEach((b, j) => { E.bands.uLo.value[j] = b.lo; E.bands.uHi.value[j] = b.hi; E.bands.uC.value[j].set(b.c); });

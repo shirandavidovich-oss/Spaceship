@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v25.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v26.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4453,10 +4453,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v25.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v26.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 25, SHIP3D_FILE = "./lib/ship3d-v25.js";
+const SHIP3D_VER = 26, SHIP3D_FILE = "./lib/ship3d-v26.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4482,6 +4482,13 @@ function draw3dShip(S, o, ang, bank) {
   const roll3 = bank * 0.75 + (V ? V.r3 || 0 : 0), pitch3 = (V ? V.p3 || 0 : 0) - (o.power || 0) * 0.12;
   if (S.id === "corsair") {   // CORSAIR rowing: its 2D oars, under the model (their roots hidden by its hull), squeezed as it rolls and tilts
     ctx.save(); ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll3))), Math.max(0.05, Math.abs(Math.cos(pitch3)))); try { drawCorsairOars(S, o, "normal"); } catch (e) {} ctx.restore();
+  }
+  if (S.clockwork) {   // GIMBAL: the model is one piece with its spine and cage, so in 3D the whole of it ticks round with the
+    // heading, and its three rings tick on their own like an escapement: quarter turns, eased and settling (gimbalTurn's
+    // step), each ring at its own pace and the middle one the other way; at rest their gaps sit under the spine again
+    const ms = time * 1000, q = (per, off) => { const T = ms + off, i = Math.floor(T / per), p = clamp((T - i * per - 40) / 260, 0, 1), e = p * p * (3 - 2 * p), st = p > 0.78 && p < 1 ? Math.sin((p - 0.78) / 0.22 * Math.PI) * 0.06 : 0; return Math.PI / 2 * (i + e + st); };
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { turns: [0, q(1640, 0), -q(1230, 400), q(2050, 800)] }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
   }
   if (S.grows && o.talus) {   // TALUS: the layers it has grown, each tinted the colour of the body it came from (as talusPicture)
     const T = o.talus, st = S.anim.stages, n = T.stage || 0, bands = [];
