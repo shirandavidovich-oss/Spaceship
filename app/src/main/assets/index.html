@@ -4506,11 +4506,11 @@ function draw3dShip(S, o, ang, bank) {
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
-  try { ok = L.draw(ctx, S.id, ang, roll3, pitch3); }
+  try { ok = L.draw(ctx, S.id, ang, roll3, pitch3); }   // (rolling into the turn; its nose up a little under power; tilted)
+  catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }   // (anything wrong in the 3D drawing: back to 2D, never a blank game)
   if (ok && S.vaultDoors && o.vt) {   // VAULT: its doors sliding open over the model's mouth, and the star held inside (its 2D drawing's, on top)
     ctx.save(); ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll3))), Math.max(0.05, Math.abs(Math.cos(pitch3)))); try { drawVaultDoors(o.vt, S); } catch (e) {} ctx.restore();
-  }   // (rolling into the turn; its nose up a little under power; tilted)
-  catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }   // (anything wrong in the 3D drawing: back to 2D, never a blank game)
+  }
   ctx.restore(); return ok;
 }
 // flying in 3D (the 3D view; nothing changes in 2D): space becomes a cube, and the ship flies like a spaceship in a
