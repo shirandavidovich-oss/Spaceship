@@ -32,6 +32,7 @@ export const SHIP_MODELS = {
   courier: { file: "models/courier.glb", fwd: "-x", len: 0.855 },
   kiln: { file: "models/kiln.glb", fwd: "+x", len: 1.03 },
   vault: { file: "models/vault.glb", fwd: "-z", len: 0.8, upright: 1 },   // (its mouth face is the top seen from above)
+  orian: { file: "models/orian.glb", fwd: "-x", len: 0.9, fan: { back: -0.055, hinge: [0, -0.085, -0.07], normal: [0, 0.94, -0.34], cuts: [-46, -15, 15, 46], round: [144, 72, 0, -72, -144], cone: 9, narrow: 0.45, shorten: 0.72 } },   // (shut: narrower across, and shorter — the sheath of the 2D drawing)
   gimbal: { file: "models/gimbal.glb", fwd: "-z", len: 1.03, upright: 1, gyro: { cz: 0.0513, spine: 0.045, bar: 0.045, rings: [[0.14, 0.245], [0.245, 0.31], [0.31, 0.4]] } },
   talus: { file: "models/talus.glb", fwd: "-z", len: 0.89, upright: 1, bands: true },
   reprise: { file: "models/reprise.glb", fwd: "+z", len: 0.787, upright: -1, blocks: [0.375, 0.02, -0.30], pad: 2.9 },   // (its four buildings, tallest first)
@@ -240,13 +241,63 @@ function splitGyro(E, M) {
     m.visible = false;
   }
 }
+// a ship whose model came with its fan of panels open (ORIAN: `fan`) — folded shut by us: the panels (all that lies
+// behind `back`) are cut off at load into groups by their angle round the hinge seen from above (`cuts`, degrees, 0 =
+// straight back), each on a pivot at the hinge H. Shut, each panel is turned rigidly so it lies along the tail, tipped
+// out by `cone` degrees, at its own place round the tail (`round`, degrees from the top toward the right), its golden face
+// outward: together a closed, round, tapering sheath behind the pod. E.fan: [{ pivot, shut (a quaternion) }]
+function splitFan(E, M) {
+  const F = M.fan, outer = E.obj; outer.updateMatrixWorld(true);
+  const meshes = []; outer.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  const H = new THREE.Vector3(...F.hinge), n = F.cuts.length + 1, v = new THREE.Vector3(), s = outer.scale.x;
+  const sums = Array.from({ length: n }, () => new THREE.Vector3()), cnt = new Array(n).fill(0);
+  const group = (x, z) => { const a = Math.atan2(-x, z - H.z) * 180 / Math.PI; let k = 0; while (k < F.cuts.length && a > F.cuts[k]) k++; return k; };
+  const plan = meshes.map((m) => {
+    const g = m.geometry, P = g.attributes.position, idx = g.index ? g.index.array : null, c = idx ? idx.length : P.count;
+    const X = new Float32Array(P.count), Y = new Float32Array(P.count), Z = new Float32Array(P.count);
+    for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld); X[i] = v.x; Y[i] = v.y; Z[i] = v.z; }
+    const lists = Array.from({ length: n + 1 }, () => []);
+    for (let t = 0; t < c; t += 3) {
+      const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, d = idx ? idx[t + 2] : t + 2, cx = (X[a] + X[b] + X[d]) / 3, cy = (Y[a] + Y[b] + Y[d]) / 3, cz = (Z[a] + Z[b] + Z[d]) / 3;
+      if (cz <= F.back) { lists[0].push(a, b, d); continue; }   // the pod
+      const k = group(cx, cz); lists[k + 1].push(a, b, d); sums[k].add(v.set(cx, cy, cz)); cnt[k]++;
+    }
+    return lists;
+  });
+  // each panel's way out from the hinge, and the fan's face (its normal), open and shut
+  const N0 = new THREE.Vector3(...F.normal).normalize(), back = new THREE.Vector3(0, 0, 1), m3 = new THREE.Matrix4(), m4 = new THREE.Matrix4();
+  E.fan = sums.map((S, k) => {
+    const d = S.divideScalar(Math.max(1, cnt[k])).sub(H).normalize(), nO = N0.clone().sub(d.clone().multiplyScalar(N0.dot(d))).normalize(), wO = new THREE.Vector3().crossVectors(nO, d);
+    const phi = F.round[k] * Math.PI / 180, r = new THREE.Vector3(Math.sin(phi), Math.cos(phi), 0);
+    const d2 = back.clone().add(r.clone().multiplyScalar(Math.tan(F.cone * Math.PI / 180))).normalize(), n2 = r.clone().sub(d2.clone().multiplyScalar(r.dot(d2))).normalize(), w2 = new THREE.Vector3().crossVectors(n2, d2);
+    m3.makeBasis(d, wO, nO); m4.makeBasis(d2, w2, n2);
+    const shut = new THREE.Quaternion().setFromRotationMatrix(m4.multiply(m3.clone().transpose()));
+    const pivot = new THREE.Group(); outer.add(pivot); pivot.position.copy(H).divideScalar(s);
+    // (inside it, a group lined up with the panel's own axes — along it, across it, its face — so the panel can be
+    // narrowed across as it shuts, `narrow`: folded panels overlap less and the sheath stays slim; and drawn in, `shorten`)
+    const Qo = new THREE.Quaternion().setFromRotationMatrix(m3), squash = new THREE.Group(), unrot = new THREE.Group();
+    squash.quaternion.copy(Qo); unrot.quaternion.copy(Qo).invert(); pivot.add(squash); squash.add(unrot);
+    return { pivot, shut, squash, unrot };
+  });
+  outer.updateMatrixWorld(true);
+  meshes.forEach((m, mi) => {
+    plan[mi].forEach((L, k) => {
+      if (!L.length) return;
+      const G = new THREE.BufferGeometry(); for (const key in m.geometry.attributes) G.setAttribute(key, m.geometry.attributes[key]); G.setIndex(L);
+      const X = new THREE.Mesh(G, m.material); X.frustumCulled = false;
+      m.parent.add(X); X.position.copy(m.position); X.quaternion.copy(m.quaternion); X.scale.copy(m.scale); X.updateMatrixWorld(true);
+      if (k > 0) E.fan[k - 1].unrot.attach(X);
+    });
+    m.visible = false;
+  });
+}
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
   let E = models[id];
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -372,7 +423,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 30,   // (index.html checks it; the file's name carries it too — lib/ship3d-v30.js — so the app never mixes a new
+  version: 31,   // (index.html checks it; the file's name carries it too — lib/ship3d-v31.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -394,7 +445,8 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "");   // (a new picture only when it has turned a quarter of a degree)
+    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "");   // (a new picture only when it has turned a quarter of a degree)
+    if (E.fan) { const O = (opt && opt.open) || [], nw = M.fan.narrow || 1; E.fan.forEach((P, i) => { const k = O[i] || 0; P.pivot.quaternion.identity().slerp(P.shut, 1 - k); const sl = M.fan.shorten || 1; P.squash.scale.set(sl + (1 - sl) * k, nw + (1 - nw) * k, 1); }); }   // (opt.open: how open each panel is, 0 shut .. 1 as modelled)
     if (E.turns) { const T = (opt && opt.turns) || []; E.turns.forEach((g, i) => g.rotation.set(0, -(T[i] || 0), 0)); }   // (opt.turns: the cage's and each ring's turn, screen-clockwise rad)
     if (E.bands) {   // (opt.bands: [{ lo, hi, c: "#rrggbb" }], the layers grown, from the middle out)
       const Bd = (opt && opt.bands) || []; E.bands.uN.value = Math.min(5, Bd.length);
