@@ -64,6 +64,19 @@ function init() {
   return true;
 }
 
+// the last pictures made of each ship (2D canvases), by pose: a ship flying straight on is not drawn again every frame,
+// its picture is reused (copying a WebGL picture onto the game's canvas makes the phone wait for its graphics chip)
+const poseCache = {};
+function cached(id, key) {
+  const A = poseCache[id] || (poseCache[id] = []);
+  return A.find((c) => c.key === key) || null;
+}
+function store(id, key) {
+  const A = poseCache[id] || (poseCache[id] = []);
+  let c = A.length < 2 ? null : A.sort((a, b) => a.t - b.t)[0];   // (two per ship: the same ship on both sides)
+  if (!c) { const cv = document.createElement("canvas"); cv.width = cv.height = PX; c = { cv, cx: cv.getContext("2d") }; A.push(c); }
+  c.key = key; c.cx.clearRect(0, 0, PX, PX); c.cx.drawImage(R.domElement, 0, 0); return c;
+}
 // fit a loaded model: centred, nose to -z (the screen's up), top to +y, 1 long
 function fit(obj, M) {
   obj.removeFromParent(); obj.position.set(0, 0, 0); obj.rotation.set(M.upright ? -Math.PI / 2 * M.upright : 0, 0, 0); obj.updateMatrixWorld(true);   // (upright: a model standing up, facing +z (1) or -z (-1): laid down, its face up)
@@ -77,12 +90,26 @@ function fit(obj, M) {
   return outer;
 }
 
+// at most KEEP models held on the graphics chip at once: past that, the one drawn longest ago is let go (its meshes and
+// pictures freed; loaded again if it comes back). Each holds a few 1024 px pictures: dozens of them fill a phone's memory
+const KEEP = 6;
+function evict() {
+  const held = Object.keys(models).filter((k) => models[k].state === "ready");
+  if (held.length <= KEEP) return;
+  held.sort((a, b) => (models[a].used || 0) - (models[b].used || 0));
+  for (const k of held.slice(0, held.length - KEEP)) {
+    const E = models[k]; if (performance.now() - (E.used || 0) < 2000) continue;   // (never one drawn just now)
+    E.raw.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { for (const v of Object.values(m)) if (v && v.isTexture) v.dispose(); m.dispose(); } } });
+    delete models[k]; delete poseCache[k];
+  }
+}
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
   let E = models[id];
+  if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); E.state = "ready"; }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -194,16 +221,21 @@ function gaugeInit() {
 // draw it, turned by q ([x, y, z, w], the ship's orientation), into a circle of radius `r` round (x, y) of the 2D context
 function gauge(ctx, q, x, y, r) {
   if (!gaugeInit()) return false;
-  G3.turn.quaternion.set(q[0], q[1], q[2], q[3]);
-  R.toneMapping = THREE.NeutralToneMapping;
-  R.render(G3.sc, G3.cam);
-  ctx.drawImage(R.domElement, x - r, y - r, r * 2, r * 2);
+  const key = q.map((v) => Math.round(v * 300)).join("|");   // (drawn again only when the ship has turned: else its last picture)
+  if (G3.key !== key) {
+    G3.turn.quaternion.set(q[0], q[1], q[2], q[3]);
+    R.toneMapping = THREE.NeutralToneMapping;
+    R.render(G3.sc, G3.cam);
+    if (!G3.cv) { G3.cv = document.createElement("canvas"); G3.cv.width = G3.cv.height = 256; G3.cx = G3.cv.getContext("2d"); }
+    G3.cx.clearRect(0, 0, 256, 256); G3.cx.drawImage(R.domElement, 0, 0, 256, 256); G3.key = key;
+  }
+  ctx.drawImage(G3.cv, x - r, y - r, r * 2, r * 2);
   return true;
 }
 
 export const Ship3D = {
   gauge,
-  version: 18,   // (index.html checks it; the file's name carries it too — lib/ship3d-v18.js — so the app never mixes a new
+  version: 19,   // (index.html checks it; the file's name carries it too — lib/ship3d-v19.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -211,13 +243,16 @@ export const Ship3D = {
   has(id) { return !!SHIP_MODELS[id]; },
   ready(id) { const E = want(id); return !!E && E.state === "ready"; },
   preload(ids) { for (const id of ids) want(id); },
-  _reset(id) { const E = models[id]; if (E && E.raw) E.obj = fit(E.raw, SHIP_MODELS[id]); },
+  _reset(id) { const E = models[id]; delete poseCache[id]; if (E && E.raw) E.obj = fit(E.raw, SHIP_MODELS[id]); },
   // draw ship `id` into the 2D context, whose origin is the ship's middle and whose units are the 2D drawing's (the
   // ship already turned to its heading `ang` there). roll, pitch: rad (roll: right wing away from you; pitch: nose away, into the screen)
   draw(ctx, id, ang, roll = 0, pitch = 0) {
     if (!init()) return false;
     const E = want(id); if (!E || E.state !== "ready") return false;
-    const M = SHIP_MODELS[id];
+    const M = SHIP_MODELS[id], L = (M.len || 1) * PAD;
+    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200);   // (a new picture only when it has turned a quarter of a degree)
+    let c = cached(id, pk);
+    if (c) { c.t = performance.now(); ctx.drawImage(c.cv, -L / 2, -L / 2, L, L); return true; }
     root.clear(); root.add(E.obj);
     E.obj.rotation.set(-pitch, 0, -roll, "YXZ");   // (pitch > 0: the nose away from the camera, into the screen; then rolled round the nose)
     // the light fixed in space: the picture gets turned by `ang` on the screen, so the light here turns the other way
@@ -225,8 +260,8 @@ export const Ship3D = {
     key.position.set(lx * ca - lz * sa, 1.1, lx * sa + lz * ca);
     rim.position.set(-(lx * ca - lz * sa), 0.4, -(lx * sa + lz * ca));
     R.render(scene, cam);
-    const L = (M.len || 1) * PAD;
-    ctx.drawImage(R.domElement, -L / 2, -L / 2, L, L);
+    c = store(id, pk); c.t = performance.now();
+    ctx.drawImage(c.cv, -L / 2, -L / 2, L, L);
     return true;
   },
 };
