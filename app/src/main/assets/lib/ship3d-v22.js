@@ -26,6 +26,7 @@ export const SHIP_MODELS = {
   borer: { file: "models/borer.glb", fwd: "-x", len: 1.0 },
   corsair: { file: "models/corsair.glb", fwd: "-x", len: 0.85 },
   cinder: { file: "models/cinder.glb", fwd: "-z", len: 0.98, upright: 1 },
+  lyth: { file: "models/lyth.glb", fwd: "-z", len: 1.03, fit: "max", split: 0.37 },
   ballast: { file: "models/ballast.glb", fwd: "-x", len: 0.95 },
   zorian: { file: "models/zorian.glb", fwd: "-x", len: 0.9 },
   cantor: { file: "models/cantor.glb", fwd: "+z", len: 0.95 },
@@ -101,9 +102,34 @@ function evict() {
   held.sort((a, b) => (models[a].used || 0) - (models[b].used || 0));
   for (const k of held.slice(0, held.length - KEEP)) {
     const E = models[k]; if (performance.now() - (E.used || 0) < 2000) continue;   // (never one drawn just now)
-    E.raw.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { for (const v of Object.values(m)) if (v && v.isTexture) v.dispose(); m.dispose(); } } });
+    E.obj.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { for (const v of Object.values(m)) if (v && v.isTexture) v.dispose(); m.dispose(); } } });
     delete models[k]; delete poseCache[k];
   }
+}
+// a model in one piece with a ring round it (LYTH: `split`, the radius in ship-lengths past which a triangle is the
+// ring's): cut in two at load — the hull, and the ring on a turntable of its own (E.spin) that can spin, or be hidden
+// while the ring flies away (or drawn alone, where it flies). The original meshes stay, hidden
+function splitRing(E, M) {
+  const outer = E.obj; outer.updateMatrixWorld(true);
+  const spin = new THREE.Group(); outer.add(spin); spin.updateMatrixWorld(true);
+  const meshes = []; outer.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  const v = new THREE.Vector3(); E.hull = [];
+  for (const m of meshes) {
+    const g = m.geometry, P = g.attributes.position, idx = g.index ? g.index.array : null, n = idx ? idx.length : P.count;
+    const rad = new Float32Array(P.count);
+    for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld); rad[i] = Math.hypot(v.x, v.z); }
+    const ia = [], ib = [];
+    for (let t = 0; t < n; t += 3) {
+      const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2;
+      ((rad[a] + rad[b] + rad[c]) / 3 > M.split ? ib : ia).push(a, b, c);
+    }
+    const make = (list) => { const G = new THREE.BufferGeometry(); for (const k in g.attributes) G.setAttribute(k, g.attributes[k]); G.setIndex(list); const X = new THREE.Mesh(G, m.material); X.frustumCulled = false; return X; };
+    const H = make(ia), Rg = make(ib);
+    m.parent.add(H); H.position.copy(m.position); H.quaternion.copy(m.quaternion); H.scale.copy(m.scale);
+    m.parent.add(Rg); Rg.position.copy(m.position); Rg.quaternion.copy(m.quaternion); Rg.scale.copy(m.scale); spin.attach(Rg);
+    m.visible = false; E.hull.push(H);
+  }
+  E.spin = spin;
 }
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
@@ -111,7 +137,7 @@ function want(id) {
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -237,7 +263,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 21,   // (index.html checks it; the file's name carries it too — lib/ship3d-v21.js — so the app never mixes a new
+  version: 22,   // (index.html checks it; the file's name carries it too — lib/ship3d-v22.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -248,11 +274,15 @@ export const Ship3D = {
   _reset(id) { const E = models[id]; delete poseCache[id]; if (E && E.raw) E.obj = fit(E.raw, SHIP_MODELS[id]); },
   // draw ship `id` into the 2D context, whose origin is the ship's middle and whose units are the 2D drawing's (the
   // ship already turned to its heading `ang` there). roll, pitch: rad (roll: right wing away from you; pitch: nose away, into the screen)
-  draw(ctx, id, ang, roll = 0, pitch = 0) {
+  // opt (a ship with a ring, `split`): part — "hull" (the ring away) or "ring" (only the ring, where it flies), else the
+  // whole ship; spin — the ring's turn on its turntable (rad)
+  draw(ctx, id, ang, roll = 0, pitch = 0, opt) {
     if (!init()) return false;
     const E = want(id); if (!E || E.state !== "ready") return false;
     const M = SHIP_MODELS[id], L = (M.len || 1) * PAD;
-    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200);   // (a new picture only when it has turned a quarter of a degree)
+    const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
+    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200);   // (a new picture only when it has turned a quarter of a degree)
+    if (E.spin) { E.spin.visible = part !== "hull"; E.spin.rotation.y = -sp; for (const H of E.hull) H.visible = part !== "ring"; }
     let c = cached(id, pk);
     if (c) { c.t = performance.now(); ctx.drawImage(c.cv, -L / 2, -L / 2, L, L); return true; }
     root.clear(); root.add(E.obj);

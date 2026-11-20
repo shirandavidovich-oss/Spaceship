@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v21.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v22.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -1504,7 +1504,8 @@ const MAGIC = {
   //   thrust or shoot; it drifts on the way it was going, at the speed it had (only the planet bounces it)
   // KRAAL's hammer: dashes at `speed` screens a second the way its nose points (it does not aim; `range` is unused), for at most
   //   `dash` seconds; reaching a ship in the way, the hammer-head hits: `dmg`, and the enemy is knocked away (`knock` screens a second)
-  hammer: { name: "מכת פטיש", range: 2.2, speed: 3.6, dash: 0.8, dmg: 30, knock: 1.4, cool: 9, look: "hammer", color: "#ff4a3a" },
+  //   ramp: s to full speed (easing out); ease: s to slow down after a miss. In 3D it dashes along its tilted nose, into the depth too
+  hammer: { name: "מכת פטיש", range: 2.2, speed: 3.6, dash: 0.8, dmg: 30, knock: 1.4, cool: 9, look: "hammer", color: "#ff4a3a", ramp: 0.14, ease: 0.2 },
   // CANTOR's resonance: rings of sound spread from where it was cast (`speed` ship-lengths a second, out to `range`).
   //   A ship they reach is scrambled for `scramble` seconds: its steering is reversed (it turns the other way) and its
   //   shots fly off the wrong way
@@ -1990,7 +1991,14 @@ function enemySees(hidden) { return !(hidden > 0); }
 function lootOf(S) { return S.drop || LOOT[Math.max(0, SHIPS.indexOf(S)) % LOOT.length]; }
 function weaponsOf(S, mode = 0) { return mode && S.flip ? S.flip.weapons : S.weapons || ["twin", "iris"]; }   // (RIVET turned: its other two)
 // where each weapon's shots leave the ship (ship units, nose up). Without a drawing: from the nose
-function gunsOf(S, w) { return (S.guns && S.guns[w]) || (w === "twin" ? [[-0.06, -0.5], [0.06, -0.5]] : [[0, -0.5]]); }
+// the ships whose 3D model has its guns on the other sides from the 2D drawing: in the 3D view their shots leave from
+// the model's guns (THUL: the twin gun on the model's right, the round cannon of the heavy ball on its left)
+const GUN_MIRROR3 = { brass: true };
+function gunsOf(S, w) {
+  const G = (S.guns && S.guns[w]) || (w === "twin" ? [[-0.06, -0.5], [0.06, -0.5]] : [[0, -0.5]]);
+  if (GUN_MIRROR3[S.id] && typeof view3d !== "undefined" && !BOT && view3d.on && view3d.state === "ready" && view3d.lib.has(S.id)) return G.map((g) => [-g[0], g[1]]);
+  return G;
+}
 // a point on the ship, turned with the ship (ang: 0 = nose up, clockwise)
 function rotatePt(x, y, ang) { const c = Math.cos(ang), s = Math.sin(ang); return { x: x * c - y * s, y: x * s + y * c }; }
 // ammo for one moment: the ship's own weapons fill back up, a picked-up one does not
@@ -3370,6 +3378,7 @@ function flyShip(dt) {
   const anchored = anchoring();
   if (game.dash) {   // KRAAL's dash: it flies by itself (updateDash), past gravity and the engine
     game.x = (((game.x + game.vx * dt) % WW) + WW) % WW; game.y = (((game.y + game.vy * dt) % WH) + WH) % WH;
+    if (view3d.on && !BOT) { const T = TILT3; let z = (game.z3 || 0) + (game.vz3 || 0) / U * dt; if (z > T.near) z -= T.near + T.far; else if (z < -T.far) z += T.near + T.far; game.z3 = z; }   // (in 3D: into or out of the depth too)
     return;
   }
   if (game.dive) return;   // BORER in its dive: it is moved by updateDive
@@ -4444,10 +4453,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v21.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v22.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 21, SHIP3D_FILE = "./lib/ship3d-v21.js";
+const SHIP3D_VER = 22, SHIP3D_FILE = "./lib/ship3d-v22.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4473,6 +4482,10 @@ function draw3dShip(S, o, ang, bank) {
   const roll3 = bank * 0.75 + (V ? V.r3 || 0 : 0), pitch3 = (V ? V.p3 || 0 : 0) - (o.power || 0) * 0.12;
   if (S.id === "corsair") {   // CORSAIR rowing: its 2D oars, under the model (their roots hidden by its hull), squeezed as it rolls and tilts
     ctx.save(); ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll3))), Math.max(0.05, Math.abs(Math.cos(pitch3)))); try { drawCorsairOars(S, o, "normal"); } catch (e) {} ctx.restore();
+  }
+  if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
+    try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
   }
   try { ok = L.draw(ctx, S.id, ang, roll3, pitch3); }   // (rolling into the turn; its nose up a little under power; tilted)
   catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }   // (anything wrong in the 3D drawing: back to 2D, never a blank game)
@@ -9690,24 +9703,33 @@ function updateDash(dt) {
   if (!D) return;
   if (!M || M.look !== "hammer" || game.dead) { game.dash = null; return; }
   D.t += dt;
-  const v = M.speed * U;   // along the nose's own heading
-  game.vx = Math.sin(game.ang) * v; game.vy = -Math.cos(game.ang) * v;
+  // along the nose — in 3D its real nose, tilted into or out of the screen too (the depth moves with it: z3). The
+  // speed comes on fast but smoothly (from what it had to full in `ramp` s, easing out) and eases off at the end
+  if (D.v0 == null) { D.v0 = Math.hypot(game.vx, game.vy); }
+  const n3 = view3d.on && !BOT && game.q3 ? Q3.rot(game.q3, [0, 0, -1]) : null;
+  const nx = n3 ? n3[0] : Math.sin(game.ang), ny = n3 ? n3[2] : -Math.cos(game.ang), nz = n3 ? n3[1] : 0;
+  const up = 1 - Math.pow(1 - clamp(D.t / M.ramp, 0, 1), 3), v = lerp(D.v0, M.speed * U, up);
+  game.vx = nx * v; game.vy = ny * v; if (n3) game.vz3 = nz * v;
   D.trail.push({ x: game.x, y: game.y, ang: game.ang }); if (D.trail.length > 8) D.trail.shift();
-  if (!D.hit && enemy.on && enemy.warp < 0.5 && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < shipSize() * 0.75) {
+  if (!D.hit && enemy.on && enemy.warp < 0.5 && Math.abs((enemy.z3 || 0) - (game.z3 || 0)) * U < shipSize() * 1.2 && Math.hypot(wrapDelta(enemy.x - game.x, WW), wrapDelta(enemy.y - game.y, WH)) < shipSize() * 0.75) {
     // the blow
     D.hit = true;
-    const nx = Math.sin(game.ang), ny = -Math.cos(game.ang), hx = game.x + nx * shipSize() * 0.45, hy = game.y + ny * shipSize() * 0.45;
+    const hx = game.x + nx * shipSize() * 0.45, hy = game.y + ny * shipSize() * 0.45;
     hitEnemy({ x: hx, y: hy, vx: game.vx, vy: game.vy }, { dmg: M.dmg, color: "#ff4a3a" });
     if (enemy.remote) link.send({ t: "knock", vx: nx * M.knock, vy: ny * M.knock });
     else { enemy.vx = nx * M.knock * U; enemy.vy = ny * M.knock * U; enemy.spin = 7; }
     burstAt(hx, hy, 40, ["#ffffff", "#ffd166", "#ff4a3a", "#c0161b"], 0.8, 0.9, enemy.vx * 0.3, enemy.vy * 0.3);
     rings.push({ x: hx, y: hy, t: 0, max: 0.4, r: shipSize() * 1.1, c: "#ff6a4a" });
     audio.sfx(S.sfx, "convergence_blast"); audio.boom(); shake(0.7); buzz(200);
-    game.vx = -nx * U * 0.5; game.vy = -ny * U * 0.5;   // bounced back
+    game.vx = -nx * U * 0.5; game.vy = -ny * U * 0.5; if (n3) game.vz3 = -nz * U * 0.5;   // bounced back
     game.dash = null;
     return;
   }
-  if (D.t >= M.dash) { game.vx *= 0.35; game.vy *= 0.35; game.dash = null; }   // missed: it slows down again
+  if (D.t >= M.dash) {   // missed: it slows down again, easing off over `ease` s (not cut at once)
+    const k = clamp((D.t - M.dash) / M.ease, 0, 1), f = lerp(1, 0.35, k * k * (3 - 2 * k));
+    game.vx = nx * v * f; game.vy = ny * v * f; if (n3) game.vz3 = nz * v * f;
+    if (k >= 1) game.dash = null;
+  }
 }
 // red streaks behind the dashing ship
 function drawDash() {
@@ -10381,6 +10403,70 @@ function updateGrind(dt) {
   }
 }
 function endGrind() { game.grind = null; }
+// LYTH in 3D (ship units, inside drawShip). The ring is its own part of the model: it spins up on its turntable as the
+// latches let go (before it flies out), is gone from the hull while it flies (drawn where it flies: drawRing), settles
+// back with a last swing as it locks on, and while grinding spins hard with the saw teeth out round it
+function drawLyth3d(L, S, o, ang, roll, pitch) {
+  const V = o.vt || o, dt = frameDt || 0.016, ph = o.ring;
+  let part = "", spin = 0;
+  if (ph === "unlock") { V.rsv = lerp(V.rsv || 0, 11, 1 - Math.exp(-dt * 5)); V.rs = (V.rs || 0) + V.rsv * dt; spin = V.rs; V.lockT = 0; }
+  else if (ph === "out" || ph === "back") { part = "hull"; V.rs = 0; V.rsv = 0; V.lockT = 0; }
+  else if (ph === "lock") { V.lockT = (V.lockT || 0) + dt; spin = 0.9 * Math.exp(-V.lockT * 7) * Math.cos(V.lockT * 26); }   // (a last swing as it seats)
+  else { V.rs = 0; V.rsv = 0; }
+  if (o.grind) {   // grinding: the hull, the teeth sliding out under the ring, the ring spinning hard
+    if (!L.draw(ctx, S.id, ang, roll, pitch, { part: "hull" })) return false;
+    ctx.save(); ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll))), Math.max(0.05, Math.abs(Math.cos(pitch)))); grinderTeeth(o.grind); ctx.restore();
+    L.draw(ctx, S.id, ang, roll, pitch, { part: "ring", spin: o.grind.spin || 0 });
+    return true;
+  }
+  return L.draw(ctx, S.id, ang, roll, pitch, { part, spin });
+}
+// the grinder's saw teeth on the ring's rim, turning with it (ship units)
+function grinderTeeth(G) {
+  const t = G.teeth || 0, n = 20, r0 = 0.47, h = 0.14 * t;
+  if (h <= 0.003) return;
+  ctx.save(); ctx.rotate(G.spin || 0);
+  for (let i = 0; i < n; i++) {
+    ctx.save(); ctx.rotate(i / n * TAU);
+    const g = ctx.createLinearGradient(0, -r0, 0, -r0 - h);
+    g.addColorStop(0, "#5d6d84"); g.addColorStop(0.5, "#ecf3fb"); g.addColorStop(1, G.phase === "grind" ? "#ffb347" : "#a7b9cd");
+    ctx.fillStyle = g; ctx.strokeStyle = "#1e2b40"; ctx.lineWidth = 0.006;
+    ctx.beginPath(); ctx.moveTo(-0.045, -r0 + 0.01); ctx.lineTo(0.03, -r0 - h); ctx.lineTo(0.045, -r0 + 0.01); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+// the teeth biting the other ship (grinding, either side): a white-hot gash in its hull where the rim touches it,
+// growing as the grinding goes on, molten drips glowing in it, and sparks and shavings flung off along the rim
+function drawGrindCut() {
+  const cuts = [];
+  if (game.grind && game.grind.phase === "grind" && enemy.on) cuts.push({ by: game, on: enemy, G: game.grind });
+  if (duel.grind && duel.grind.phase === "grind" && enemy.on && !game.dead) cuts.push({ by: enemy, on: game, G: duel.grind });
+  for (const C of cuts) {
+    const size = shipSize(), M = MAGIC.grind, a = toScreen(C.by.x, C.by.y), dx = wrapDelta(C.on.x - C.by.x, WW), dy = wrapDelta(C.on.y - C.by.y, WH);
+    const d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, b = { x: a.x + dx, y: a.y + dy };
+    const k = C.G === game.grind ? clamp((C.G.t - M.pull) / M.grind, 0, 1) : clamp(0.5 + 0.5 * Math.sin(time), 0, 1);
+    const face = Math.atan2(-uy, -ux), span = 0.35 + 0.9 * k, r = size * 0.36;   // (its side toward the ring)
+    ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+    for (const [w, c] of [[size * 0.12, "rgba(255,90,20,0.35)"], [size * 0.06, "rgba(255,170,60,0.8)"], [size * 0.022, "rgba(255,250,220,1)"]]) {
+      ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath();
+      for (let i = 0; i <= 14; i++) {   // a jagged gash along the hull's edge
+        const u = i / 14, ang = face + (u - 0.5) * span, j = (Math.sin(i * 7.3 + Math.floor(time * 30)) * 0.5 + 0.5) * size * 0.025;
+        const x = b.x + Math.cos(ang) * (r - j), y = b.y + Math.sin(ang) * (r - j);
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    }
+    const sp = C.G.spin || 0;
+    for (let i = 0; i < 9; i++) {   // sparks flung off the rim, along its turning
+      const ang = face + (Math.random() - 0.5) * span, x = b.x + Math.cos(ang) * r, y = b.y + Math.sin(ang) * r;
+      const tx = -Math.sin(ang), ty = Math.cos(ang), L2 = size * (0.15 + Math.random() * 0.35), sgn = Math.sin(sp) >= 0 ? 1 : -1;
+      ctx.strokeStyle = Math.random() < 0.5 ? "rgba(255,240,180,0.9)" : "rgba(255,150,40,0.8)"; ctx.lineWidth = size * 0.012;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (tx * sgn + Math.cos(ang) * 0.4) * L2, y + (ty * sgn + Math.sin(ang) * 0.4) * L2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
 // LYTH's ring while grinding (ship units, inside drawShip): spinning, with saw teeth sliding out of its rim
 function drawGrinderRing(S, G) {
   const ring = artImage(framePath(S.anim.dir, S.anim.ring)), R = S.anim.size;
@@ -11063,7 +11149,7 @@ function updateRing(dt) {
   R.t += dt; R.phase = ringPhase(Wp, R.t);
   if (was === "unlock" && R.phase !== "unlock") {   // let go, toward the nose
     const v = Wp.speed * U;
-    Object.assign(R, { x: game.x, y: game.y, vx: game.vx + Math.sin(game.ang) * v, vy: game.vy - Math.cos(game.ang) * v, ang: game.ang });
+    Object.assign(R, { x: game.x, y: game.y, vx: game.vx + Math.sin(game.ang) * v, vy: game.vy - Math.cos(game.ang) * v, ang: game.ang, z: game.z3 || 0 });
     audio.sfx(S.sfx, "ring_release");
   }
   if (was === "out" && R.phase !== "out") R.from = { x: R.x, y: R.y, vx: R.vx, vy: R.vy, ang: R.ang };
@@ -11083,6 +11169,7 @@ function updateRing(dt) {
     a += Math.atan2(Math.sin(game.ang - a), Math.cos(game.ang - a)) * smoothStep((p - 0.62) / 0.38);
     R.ang = a;
     R.lift = 1 - smoothStep((p - 0.65) / 0.35);
+    R.z = (R.z || 0) + ((game.z3 || 0) - (R.z || 0)) * q;   // (back to my ship's depth)
   } else R.lift = 0;
   if (R.phase === "out" || R.phase === "back") {
     R.trace.push({ x: R.x, y: R.y }); if (R.trace.length > 18) R.trace.shift();
@@ -11103,6 +11190,22 @@ function drawRing(R, S) {
   const img = artImage(framePath(S.anim.dir, S.anim.ring));
   if (!img) return;
   const size = shipSize(), p = toScreen(R.x, R.y), d = S.anim.size * size * (1 + 0.14 * (R.lift || 0));
+  const L3 = view3d.on && !BOT && view3d.state === "ready" && view3d.lib.has(S.id) && view3d.lib.ready(S.id) ? view3d.lib : null;
+  if (L3) {   // in 3D: the model's own ring, spinning on its turntable and gently tipping and rocking as it sails (its trail as ever)
+    if (R.trace && R.trace.length > 2) {
+      ctx.save(); ctx.strokeStyle = "rgba(127,155,255,0.28)"; ctx.lineWidth = size * 0.04; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.beginPath(); R.trace.forEach((q, i) => { const s = toScreen(q.x, q.y); i ? ctx.lineTo(s.x, s.y) : ctx.moveTo(s.x, s.y); }); ctx.stroke(); ctx.restore();
+    }
+    const z = R.z || 0, k3 = depthScale(z), t = time + (R.x % 7), lift = R.lift || 0;
+    const gl = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, d * 0.5 * k3);
+    gl.addColorStop(0, "rgba(237,219,255,0.18)"); gl.addColorStop(0.6, "rgba(159,130,255,0.1)"); gl.addColorStop(1, "rgba(104,104,255,0)");
+    ctx.save(); ctx.globalAlpha *= depthFade(z); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, p.y, d * 0.5 * k3, 0, TAU); ctx.fill();
+    ctx.translate(p.x, p.y); ctx.scale(size * k3 * (1 + 0.14 * lift), size * k3 * (1 + 0.14 * lift));
+    let ok = false;
+    try { ok = L3.draw(ctx, S.id, 0, (0.22 + 0.12 * Math.sin(t * 2.3)) * lift, 0.16 * Math.sin(t * 3.1) * lift, { part: "ring", spin: R.ang }); } catch (e) {}
+    ctx.restore();
+    if (ok) return;
+  }
   ctx.save();
   // its trail
   if (R.trace && R.trace.length > 2) {
@@ -17394,6 +17497,7 @@ function draw() {
         if (game.drillOn) drawDrillAir(X, Y, shipSize() * sc, game.ang, game.drillSpin || 0);
       }
       if (game.grind && enemy.on) drawBeam(game, enemy, game.grind.phase === "release" ? 1 - game.grind.teeth : 1);
+      drawGrindCut();   // the teeth biting the held ship
       if (shown === S) drawBeam2(game, S, game.beam);
       if (shown === S) drawDevour(game, S, game.devour);
       if (shown === S) drawDash();
