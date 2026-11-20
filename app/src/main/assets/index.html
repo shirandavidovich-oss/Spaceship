@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v14.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v15.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -3045,12 +3045,15 @@ cv.addEventListener("pointerdown", (e) => {
   if (shipPage) { shipPage = null; audio.pop(); buzz(8); return; }   // the ship's page (long press on its icon): any tap, or its button, closes it
   if (game.stage === "title") {   // the title screen: the language, the dials, else start
     if (shop.open) { shopTap(e.clientX, e.clientY); return; }   // (the ship shop, opened from here)
+    if (train.menu) { trainMenuTap(e.clientX, e.clientY); return; }   // the training's levels
+    if (!BOT && hitMenuTrain(e.clientX, e.clientY)) { train.press = 0.18; audio.pop(); buzz(15); setTimeout(() => { train.menu = true; train.sel = Math.min(10, train.best + 1); }, 120); return; }   // the training card
     if (!BOT && hitMenuShop(e.clientX, e.clientY)) { menuShop.press = 0.18; audio.pop(); buzz(15); setTimeout(() => shopOpen("ship"), 120); return; }   // the ship shop
     if (hitLang(e.clientX, e.clientY)) { setLang(LANG === "he" ? "en" : "he"); audio.pop(); buzz(10); return; }
     if (!BOT && server.on && hitAccount(e.clientX, e.clientY)) { showAccount(); audio.pop(); buzz(10); return; }   // the account: money on the server
     if (dialDown(e)) return;
     startFromTitle(); return;
   }
+  if (game.stage === "fly" && trainTap(e.clientX, e.clientY)) return;   // the training: ✕, and its end's buttons
   if (result.mode) { resultTap(e.clientX, e.clientY); return; }   // YOU WIN / GAME OVER: its buttons, and the gas kicks a letter
   if (trade.stage && tradeTap(e.clientX, e.clientY)) return;
   if (shop.open) { shopTap(e.clientX, e.clientY); return; }   // the station's shop
@@ -3324,7 +3327,7 @@ function update(dt) {
     else if (game.docked) { const DS = dockedStation(), L = stationLook(DS), P = stationWorld(DS, L.dock[0], L.dock[1]); game.x = P.x; game.y = P.y; game.vx = game.vy = 0; game.docked.t += dt; game.fire = [null, null, null, null]; game.thrust = null; }   // in the station
     else { flyShip(dt); updateMagic(dt); }
     updateEnemy(dt); updateWeapons(dt); if (!game.dead) updateCrate(dt);
-    updateGear(dt); updatePractice(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateTilt3(dt); updateRcs(dt); updateVault(dt); updateCorsair(dt); updatePaddles(dt); updateLightFx(dt); updateHusk(dt);
+    updateGear(dt); updatePractice(dt); updateTrain(dt); updateShop(dt); updateComets(dt); updatePinballs(dt); updateOrbitMines(dt); updateSnake(dt); updateTilt3(dt); updateRcs(dt); updateVault(dt); updateCorsair(dt); updatePaddles(dt); updateLightFx(dt); updateHusk(dt);
   }
   updateTrade(dt);
   updateDuel(dt);
@@ -4430,10 +4433,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v14.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v15.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 14, SHIP3D_FILE = "./lib/ship3d-v14.js";
+const SHIP3D_VER = 15, SHIP3D_FILE = "./lib/ship3d-v15.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -5348,6 +5351,350 @@ function drawPracticeNote() {
   ctx.fillStyle = "rgba(8,20,40,0.8)"; roundRect(W / 2 - w / 2, y - f, w, f * 2, f); ctx.fill();
   ctx.fillStyle = "#bff6ff"; ctx.fillText(t, W / 2, y, W * 0.9);
   ctx.restore();
+}
+// ======================================================================
+//  MANEUVER TRAINING (the card beside the shop on the first page): 10 levels, no enemy. Fly through the rings (in order:
+//  the next one glows), pick up the crystals and, on the later levels, shoot the targets. Each object sits at a depth:
+//  blue in front of the star, red behind it, with a short line beside it for each layer of depth (the same colour and
+//  lines as the map's frame for my ship: the same colour and number of lines = the same depth). On the map too.
+//  The 3D view is turned on for it (and back off after, if it was off). Progress saved: trainBest
+// ======================================================================
+const TRAIN_KEY = "trainBest";
+// rings: how many; r: their size (screens); depth: each ring's layer (+ in front, - behind); gems / tgts: crystals and
+// targets (gd / td: their layers; none: random within ±spread); move: the targets circle; limit: seconds (0: no clock)
+const TRAIN_LEVELS = [
+  { rings: 4, r: 0.32, turn: 0.4 },
+  { rings: 6, r: 0.28, turn: 1.1 },
+  { rings: 3, r: 0.28, gems: 8, turn: 0.8 },
+  { rings: 5, r: 0.3, depth: [0, 1, 2, 1, 0], turn: 0.7 },
+  { rings: 6, r: 0.28, depth: [1, -1, 2, -2, 1, 0], turn: 0.8 },
+  { rings: 0, gems: 4, tgts: 4, turn: 0.9 },
+  { rings: 0, gems: 3, tgts: 5, td: [0, 1, -1, 2, -2], turn: 0.9 },
+  { rings: 5, r: 0.27, depth: [0, 2, -2, 1, -1], tgts: 3, td: [1, -1, 0], move: true, turn: 0.9 },
+  { rings: 6, r: 0.25, depth: [1, 3, -1, -3, 2, 0], gems: 6, spread: 2, tgts: 4, spreadT: 3, move: true, turn: 1.0, limit: 150 },
+  { rings: 8, r: 0.23, depth: [0, 3, -3, 5, -5, 2, -2, 0], gems: 6, spread: 3, tgts: 5, spreadT: 4, move: true, turn: 1.2, limit: 200 },
+];
+const TRAIN_TXT = {
+  en: { title: "MANEUVER TRAINING", lvl: "LEVEL", done: "COMPLETE!", fail: "TIME UP", next: "NEXT ▶", again: "AGAIN", menu: "LEVELS", locked: "Finish the level before to open it",
+    tips: ["Fly through the rings", "A slalom of rings", "Pick up the crystals", "Rings in front of the star: blue", "Blue in front, red behind", "Shoot the targets",
+      "Targets at different depths", "Rings and moving targets", "Everything, against the clock", "The final course"] },
+  he: { title: "אימון תמרון", lvl: "שלב", done: "הושלם!", fail: "נגמר הזמן", next: "הבא ◀", again: "שוב", menu: "שלבים", locked: "סיימו את השלב הקודם כדי לפתוח",
+    tips: ["עברו דרך הטבעות", "סלאלום בין טבעות", "אספו את הגבישים", "טבעות לפני הכוכב: כחול", "כחול לפני, אדום מאחור", "ירו במטרות",
+      "מטרות בעומקים שונים", "טבעות ומטרות זזות", "הכול, נגד השעון", "המסלול האחרון"] },
+};
+function tt(k) { return (TRAIN_TXT[LANG] || TRAIN_TXT.en)[k]; }
+const train = { on: false, menu: false, lvl: 1, best: +(LS.getItem(TRAIN_KEY) || 0) || 0, rings: [], gems: [], tgts: [], next: 0, t: 0, limit: 0, done: null, intro: 0, prev3d: false, sel: 0, press: 0 };
+function trainOpen(l) { return HANGAR || l <= train.best + 1; }
+// the middle of a layer of depth (k: + in front, - behind; 0: level with the star)
+function layerZ(k) { if (!k) return 0; const T = TILT3, per = (k > 0 ? T.near : T.far) / (T.layers || 3); return Math.sign(k) * (Math.abs(k) - 0.5) * per; }
+// a depth's colour and number of lines (as depthLayers does for my ship)
+function layerOf(z) { const T = TILT3, L = T.layers || 3, front = z >= 0, per = (front ? T.near : T.far) / L; return { front, n: Math.min(L, Math.ceil(Math.abs(z) / per - 0.02)), color: front ? "#4fa8ff" : "#ff4d5e" }; }
+function trainBuild(lvl) {
+  const D = TRAIN_LEVELS[lvl - 1], dice = seededDice(lvl * 7919 + 13), L = TILT3.layers || 3;
+  const pts = [], n = Math.max(D.rings, D.tgts || 0, Math.ceil((D.gems || 0) / 2), 3);
+  let x = game.x, y = game.y, dir = -Math.PI / 2;
+  for (let i = 0; i < n; i++) {
+    dir += (dice() - 0.5) * D.turn * 2;
+    const cx = wrapDelta(x - WW / 2, WW), cy = wrapDelta(y - WH / 2, WH), out = Math.atan2(cy, cx);   // (away from the star in the middle)
+    if (Math.hypot(cx, cy) < planetR() * 2.5 + U * 2.2) dir += wrapAngle(out - dir) * 0.6;
+    const d = U * (2.0 + dice() * 0.8); x = wrapX(x + Math.cos(dir) * d); y = wrapY(y + Math.sin(dir) * d);
+    pts.push({ x, y, a: dir });
+  }
+  const rk = (s) => Math.round((dice() * 2 - 1) * Math.min(L, s || 0));
+  train.rings = []; for (let i = 0; i < D.rings; i++) train.rings.push({ x: pts[i].x, y: pts[i].y, a: pts[i].a, z: layerZ((D.depth || [])[i] || 0), r: U * (D.r || 0.3), side: null, done: 0 });
+  train.gems = []; for (let i = 0; i < (D.gems || 0); i++) {
+    const P = pts[Math.floor(i / 2) % pts.length], Q = i ? pts[Math.max(0, Math.floor(i / 2) - 1) % pts.length] : { x: game.x, y: game.y }, off = (i % 2 ? 1 : -1) * U * 0.7;
+    const mx = Q.x + wrapDelta(P.x - Q.x, WW) * 0.5, my = Q.y + wrapDelta(P.y - Q.y, WH) * 0.5;
+    train.gems.push({ x: wrapX(mx - Math.sin(P.a) * off), y: wrapY(my + Math.cos(P.a) * off), z: layerZ(rk(D.spread)), done: 0, ph: dice() * TAU });
+  }
+  train.tgts = []; for (let i = 0; i < (D.tgts || 0); i++) {
+    const P = pts[(i * 2 + 1) % pts.length], off = (i % 2 ? 1 : -1) * U * (D.rings ? 0.9 : 0.2);
+    const k = D.td ? D.td[i] || 0 : rk(D.spreadT);
+    train.tgts.push({ cx: wrapX(P.x - Math.sin(P.a) * off), cy: wrapY(P.y + Math.cos(P.a) * off), x: 0, y: 0, z: layerZ(k), hp: 24, hurt: 0, done: 0, move: !!D.move, ph: dice() * TAU, sp: (dice() < 0.5 ? -1 : 1) * (0.5 + dice() * 0.4) });
+  }
+  for (const T of train.tgts) { T.x = T.cx; T.y = T.cy; }
+  train.next = 0; train.t = 0; train.limit = D.limit || 0; train.done = null; train.intro = 3;
+}
+function trainStart(lvl) {
+  audio.wake(); preloadSounds();
+  const S = shipById(game.ship);
+  if (!S || !S.anim) { const all = hangarShips(); game.ship = all[Math.floor(Math.random() * all.length)].id; }
+  stopMatch(); result.mode = null; picker.open = false; camp.over = false; camp.mine = [game.ship]; enemy.on = false;
+  if (!train.on) train.prev3d = view3d.on;
+  if (!view3d.on) view3dSet(true);   // (the depth is the point: the 3D view)
+  placeShip(); game.stage = "fly"; game.t = 0; game.dead = 0; game.pick = false; game.arriveT = 1; game.zoom = 1;
+  game.p3 = game.z3 = game.vz3 = game.r3 = 0; game.q3 = null;
+  if (!cosmos.chosen) { setBody(pickBody(cosmos.body), false); cosmos.started = true; cosmos.chosen = true; }
+  train.on = true; train.menu = false; train.lvl = lvl; trainBuild(lvl);
+  audio.whoosh(); buzz(30);
+}
+function trainExit() {
+  const back = train.prev3d; train.on = false; train.done = null; train.rings = []; train.gems = []; train.tgts = [];
+  toTitle(); if (!back && view3d.on) view3dSet(false);
+  train.menu = true; train.sel = Math.min(10, train.lvl + 1);
+}
+function updateTrain(dt) {
+  if (!train.on || BOT) return;
+  if (game.stage !== "fly") { train.on = false; return; }
+  train.intro = Math.max(0, train.intro - dt); train.press = Math.max(0, train.press - dt);
+  if (game.dead) { game.pick = false; return; }   // (a crash: back at the start, the course as it was)
+  weaponsOf(shipById(game.ship), game.flipMode || 0).forEach((w, i) => { game.ammo[i] = ammoStep(game.ammo[i], WEAPONS[w], dt * (SHOP.practiceRefill - 1)); });   // (ammo refills faster)
+  for (const o of [...train.rings, ...train.gems, ...train.tgts]) if (o.done) o.done += dt;
+  for (const T of train.tgts) { T.hurt = Math.max(0, T.hurt - dt); if (T.move && !T.done) { T.ph += T.sp * dt; T.x = wrapX(T.cx + Math.cos(T.ph) * U * 0.6); T.y = wrapY(T.cy + Math.sin(T.ph * 1.3) * U * 0.45); } }
+  if (train.done) { train.done.t += dt; return; }
+  train.t += dt;
+  const z = game.z3 || 0, near = (o, tol) => Math.abs(z - o.z) < tol;
+  const R = train.rings[train.next];
+  if (R) {   // the next ring: crossing its plane, inside it, at its depth
+    const dx = wrapDelta(game.x - R.x, WW), dy = wrapDelta(game.y - R.y, WH), nx = Math.cos(R.a), ny = Math.sin(R.a);
+    const side = dx * nx + dy * ny, lat = -dx * ny + dy * nx;
+    if (R.side != null && Math.sign(side) !== Math.sign(R.side) && Math.abs(side) < U * 0.6) {
+      if (Math.abs(lat) < R.r && near(R, 1.0)) {
+        R.done = 0.001; train.next++; buzz(40);
+        audio.tone(660, 0.1, "sine", 0.05); setTimeout(() => audio.tone(990, 0.16, "sine", 0.05), 90);
+        burstAt(R.x, R.y, 24, [layerOf(R.z).color, "#ffffff", "#5ee7ff"], 0.5, 0.7);
+        rings.push({ x: R.x, y: R.y, t: 0, max: 0.5, r: R.r * 1.6, c: layerOf(R.z).color });
+      } else if (Math.abs(lat) < R.r * 1.6) { audio.tone(180, 0.12, "square", 0.02); buzz(15); }   // (missed: beside it, or at another depth)
+    }
+    R.side = side;
+  }
+  for (const G of train.gems) {
+    if (G.done || !near(G, 1.0)) continue;
+    if (Math.hypot(wrapDelta(game.x - G.x, WW), wrapDelta(game.y - G.y, WH)) < U * 0.26) {
+      G.done = 0.001; audio.tone(1200, 0.08, "triangle", 0.05); setTimeout(() => audio.tone(1600, 0.1, "triangle", 0.04), 60); buzz(20);
+      burstAt(G.x, G.y, 14, ["#ffd166", "#ffffff"], 0.3, 0.5);
+    }
+  }
+  const left = train.rings.length - train.next + train.gems.filter((g) => !g.done).length + train.tgts.filter((g) => !g.done).length;
+  if (!left) {
+    train.done = { ok: true, t: 0 };
+    if (train.lvl > train.best) { train.best = train.lvl; try { LS.setItem(TRAIN_KEY, String(train.best)); } catch (e) {} walletAdd(game.ship, train.lvl * 10); saveBank(); coinPops.push({ x: game.x, y: game.y, n: train.lvl * 10, t: 0 }); }
+    audio.reveal(3); buzz(200);
+  } else if (train.limit && train.t > train.limit) { train.done = { ok: false, t: 0 }; audio.tone(220, 0.5, "sawtooth", 0.04, 0.5); buzz(150); }
+}
+// one of my shots into a target (true: the shot is used up). Only at the target's depth
+function trainHit(s, Wp) {
+  const size = shipSize();
+  for (const T of train.tgts) {
+    if (T.done || Math.abs((s.z3 || 0) - T.z) > 1.0) continue;
+    if (Math.hypot(wrapDelta(T.x - s.x, WW), wrapDelta(T.y - s.y, WH)) > U * 0.12 + ((Wp.r || 0) + (Wp.prox || 0)) * size) continue;
+    T.hp -= Wp.blast ? Wp.blastDmg : (shotHit(s, Wp).dmg || Wp.dmg || 8); T.hurt = 0.15;
+    burstAt(s.x, s.y, 6, [Wp.color, "#ffffff"], 0.2, 0.4); audio.hit();
+    if (T.hp <= 0) { T.done = 0.001; burstAt(T.x, T.y, 30, ["#ffffff", layerOf(T.z).color, "#ffd166"], 0.7, 0.9); rings.push({ x: T.x, y: T.y, t: 0, max: 0.4, r: size * 0.8, c: layerOf(T.z).color }); audio.boom(); buzz(60); }
+    return true;
+  }
+  return false;
+}
+// the short lines beside an object: one for each layer of depth (in its colour)
+function depthTicks(x, y, n, color, len, gap, lw) {
+  if (!n) return;
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = "round";
+  for (let i = 0; i < n; i++) { const ly = y + (i - (n - 1) / 2) * gap; ctx.beginPath(); ctx.moveTo(x, ly); ctx.lineTo(x + len, ly); ctx.stroke(); }
+  ctx.restore();
+}
+// the course out in space. pass "behind": what is deeper than my ship (drawn before it); "front": what is nearer
+function drawTraining(pass) {
+  if (!train.on || BOT) return;
+  const zs = game.z3 || 0, mine = (z) => (pass === "front") === (z > zs + 0.05);
+  const at = (o, f) => {
+    if (!mine(o.z)) return;
+    const p = toScreen(o.x, o.y), k = depthScale(o.z), a = depthFade(o.z) * (o.done ? Math.max(0, 1 - o.done * 3) : 1);
+    if (a <= 0.01) return;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.scale(k, k); ctx.globalAlpha = a; f(layerOf(o.z)); ctx.restore();
+  };
+  // a dotted line from the next ring on to the one after it (as on the card)
+  const R0 = train.rings[train.next], R1 = train.rings[train.next + 1];
+  if (R0 && R1 && pass === "behind") {
+    const p0 = toScreen(R0.x, R0.y), p1 = { x: p0.x + wrapDelta(R1.x - R0.x, WW), y: p0.y + wrapDelta(R1.y - R0.y, WH) };
+    ctx.save(); ctx.strokeStyle = "rgba(94,231,255,0.45)"; ctx.lineWidth = 3; ctx.setLineDash([10, 12]); ctx.lineDashOffset = -time * 30;
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); ctx.restore();
+  }
+  train.rings.forEach((R, i) => {
+    if (i < train.next && !R.done) return;
+    at(R, (D) => {
+      const next = i === train.next, pulse = next ? 0.75 + 0.25 * Math.sin(time * 6) : 0.35;
+      ctx.rotate(R.a);
+      ctx.globalAlpha *= next || R.done ? 1 : 0.45;
+      ctx.shadowColor = D.color; ctx.shadowBlur = next ? R.r * 0.5 : 0;
+      ctx.strokeStyle = D.color; ctx.lineWidth = R.r * 0.16;
+      ctx.beginPath(); ctx.ellipse(0, 0, R.r * 0.34, R.r, 0, 0, TAU); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.strokeStyle = `rgba(255,255,255,${pulse * 0.8})`; ctx.lineWidth = R.r * 0.05; ctx.setLineDash([R.r * 0.25, R.r * 0.12]);
+      ctx.beginPath(); ctx.ellipse(0, 0, R.r * 0.34, R.r, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      if (next) {   // the way through: an arrow along its middle
+        ctx.fillStyle = "rgba(255,255,255,0.6)"; ctx.beginPath(); ctx.moveTo(R.r * 0.3, 0); ctx.lineTo(-R.r * 0.1, R.r * 0.18); ctx.lineTo(-R.r * 0.1, -R.r * 0.18); ctx.closePath(); ctx.fill();
+      }
+      ctx.rotate(-R.a);
+      depthTicks(R.r * 1.15, 0, D.n, D.color, R.r * 0.35, R.r * 0.18, R.r * 0.07);
+    });
+  });
+  for (const G of train.gems) at(G, (D) => {
+    const s = U * 0.065, b = Math.sin(time * 3 + G.ph) * s * 0.25;
+    ctx.translate(0, b);
+    ctx.strokeStyle = D.color; ctx.lineWidth = s * 0.18; ctx.beginPath(); ctx.arc(0, 0, s * 1.5, 0, TAU); ctx.stroke();
+    const g = ctx.createLinearGradient(-s, -s, s, s); g.addColorStop(0, "#fff3b0"); g.addColorStop(0.5, "#ffc430"); g.addColorStop(1, "#d98a00");
+    ctx.fillStyle = g; ctx.shadowColor = "#ffd166"; ctx.shadowBlur = s;
+    ctx.beginPath(); ctx.moveTo(0, -s * 1.1); ctx.lineTo(s * 0.7, 0); ctx.lineTo(0, s * 1.1); ctx.lineTo(-s * 0.7, 0); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0; depthTicks(s * 1.9, 0, D.n, D.color, s * 0.6, s * 0.32, s * 0.16);
+  });
+  for (const T of train.tgts) at(T, (D) => {
+    const s = U * 0.1;
+    ctx.rotate(time * 0.8);
+    for (let j = 0; j < 3; j++) { ctx.fillStyle = j % 2 ? "#ffffff" : T.hurt > 0 ? "#ffffff" : D.color; ctx.beginPath(); ctx.arc(0, 0, s * (1 - j * 0.3), 0, TAU); ctx.fill(); }
+    ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = s * 0.06; ctx.beginPath(); ctx.moveTo(-s, 0); ctx.lineTo(s, 0); ctx.moveTo(0, -s); ctx.lineTo(0, s); ctx.stroke();
+    ctx.rotate(-time * 0.8);
+    ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(-s * 0.8, -s * 1.35, s * 1.6, s * 0.14);
+    ctx.fillStyle = D.color; ctx.fillRect(-s * 0.8, -s * 1.35, s * 1.6 * Math.max(0, T.hp / 24), s * 0.14);
+    depthTicks(s * 1.2, 0, D.n, D.color, s * 0.4, s * 0.2, s * 0.08);
+  });
+}
+// on the map (training: a close-up, about 9 screens across, my ship in the middle): each object in its depth's colour
+// with its lines (the next ring bigger, blinking), the course's dotted line, the star where it is
+function drawTrainMap(x0, y0, rw, rh) {
+  const k = rw / (U * 9), cx = x0 + rw / 2, cy = y0 + rh / 2;
+  const at = (o) => ({ x: cx + wrapDelta(o.x - game.x, WW) * k, y: cy + wrapDelta(o.y - game.y, WH) * k });
+  const tick = (P, D, dx) => depthTicks(P.x + dx, P.y, D.n, D.color, 5, 3, 1.4);
+  ctx.strokeStyle = "rgba(94,231,255,0.08)"; ctx.lineWidth = 1;
+  const g = U * k; for (let i = -6; i <= 6; i++) { ctx.beginPath(); ctx.moveTo(cx + i * g - wrapDelta(game.x, U) * k, y0); ctx.lineTo(cx + i * g - wrapDelta(game.x, U) * k, y0 + rh); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x0, cy + i * g - wrapDelta(game.y, U) * k); ctx.lineTo(x0 + rw, cy + i * g - wrapDelta(game.y, U) * k); ctx.stroke(); }
+  const S = at({ x: WW / 2, y: WH / 2 }); ctx.fillStyle = body().color; ctx.beginPath(); ctx.arc(S.x, S.y, Math.max(3, planetR() * k), 0, TAU); ctx.fill();
+  const left = train.rings.slice(train.next);
+  if (left.length) { ctx.save(); ctx.strokeStyle = "rgba(94,231,255,0.4)"; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(cx, cy); for (const R of left) { const P = at(R); ctx.lineTo(P.x, P.y); } ctx.stroke(); ctx.restore(); }
+  left.forEach((R, i) => {
+    const D = layerOf(R.z), P = at(R), nx = i === 0;
+    if (nx && Math.sin(time * 8) < -0.4) return;
+    ctx.strokeStyle = D.color; ctx.lineWidth = nx ? 2.5 : 1.5;
+    ctx.save(); ctx.translate(P.x, P.y); ctx.rotate(R.a); ctx.beginPath(); ctx.ellipse(0, 0, 2.2, nx ? 6 : 4.5, 0, 0, TAU); ctx.stroke(); ctx.restore();
+    tick(P, D, 7);
+  });
+  for (const G of train.gems) { if (G.done) continue; const D = layerOf(G.z), P = at(G); ctx.fillStyle = "#ffd166"; ctx.strokeStyle = D.color; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(P.x, P.y - 4); ctx.lineTo(P.x + 3, P.y); ctx.lineTo(P.x, P.y + 4); ctx.lineTo(P.x - 3, P.y); ctx.closePath(); ctx.fill(); ctx.stroke(); tick(P, D, 5); }
+  for (const T of train.tgts) { if (T.done) continue; const D = layerOf(T.z), P = at(T); ctx.fillStyle = D.color; ctx.beginPath(); ctx.arc(P.x, P.y, 3.5, 0, TAU); ctx.fill(); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(P.x, P.y, 1.5, 0, TAU); ctx.fill(); tick(P, D, 5); }
+  const M = layerOf(game.z3 || 0);
+  ctx.translate(cx, cy); ctx.rotate(game.ang); ctx.fillStyle = shipById(game.ship).hull; ctx.strokeStyle = view3d.on ? M.color : "#ffffff"; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 4); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+}
+function trainArrows() {
+  if (!train.on) return;
+  const R = train.rings[train.next]; if (R) edgeArrow(R.x, R.y, layerOf(R.z).color);
+  for (const G of train.gems) if (!G.done) edgeArrow(G.x, G.y, "#ffd166");
+  for (const T of train.tgts) if (!T.done) edgeArrow(T.x, T.y, layerOf(T.z).color);
+}
+// the panel at the top: the level, what is left, the clock; ✕ to leave. And the end: COMPLETE / TIME UP with its buttons
+function trainPanel() { const f = Math.round(U * 0.03), w = Math.min(W * 0.6, U * 0.95), h = f * 2.4, y = H * 0.2; return { x: W / 2 - w / 2, y, w, h, f, close: { x: W / 2 - w / 2 - h * 0.7, y: y + h / 2, r: h * 0.5 } }; }
+function trainEndButtons() {
+  const bw = Math.min(W * 0.36, U * 0.5), bh = U * 0.11, y = H * 0.5 + U * 0.08, gap = U * 0.05, ok = train.done && train.done.ok;
+  const B = [];
+  if (ok && train.lvl < 10) B.push({ act: "next", label: tt("next") }); else if (!ok) B.push({ act: "again", label: tt("again") });
+  B.push({ act: "menu", label: tt("menu") });
+  const tw = B.length * bw + (B.length - 1) * gap;
+  return B.map((b, i) => ({ ...b, x: W / 2 - tw / 2 + i * (bw + gap), y, w: bw, h: bh }));
+}
+function drawTrainHud() {
+  if (!train.on || BOT) return;
+  const P = trainPanel(), f = P.f, rtl = LANG === "he";
+  ctx.save();
+  ctx.fillStyle = "rgba(6,14,30,0.78)"; ctx.strokeStyle = "rgba(94,231,255,0.55)"; ctx.lineWidth = 1.5; roundRect(P.x, P.y, P.w, P.h, P.h / 2); ctx.fill(); ctx.stroke();
+  ctx.textBaseline = "middle"; ctx.direction = "ltr";
+  const parts = [`${tt("lvl")} ${train.lvl}/10`];
+  if (train.rings.length) parts.push(`◯ ${train.next}/${train.rings.length}`);
+  if (train.gems.length) parts.push(`◆ ${train.gems.filter((g) => g.done).length}/${train.gems.length}`);
+  if (train.tgts.length) parts.push(`◎ ${train.tgts.filter((g) => g.done).length}/${train.tgts.length}`);
+  const sec = train.limit ? Math.max(0, train.limit - train.t) : train.t, mm = Math.floor(sec / 60), ss = Math.floor(sec % 60);
+  parts.push(`⏱ ${mm}:${String(ss).padStart(2, "0")}`);
+  ctx.font = `800 ${f}px Rubik, Arial, sans-serif`; ctx.textAlign = "center";
+  ctx.fillStyle = train.limit && train.limit - train.t < 15 && !train.done ? (Math.sin(time * 10) > 0 ? "#ff4d5e" : "#ffffff") : "#bff6ff";
+  ctx.fillText(parts.join("   "), W / 2, P.y + P.h / 2, P.w - f);
+  const C = P.close; ctx.fillStyle = "rgba(6,14,30,0.78)"; ctx.beginPath(); ctx.arc(C.x, C.y, C.r, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.lineCap = "round"; const q = C.r * 0.38;
+  ctx.beginPath(); ctx.moveTo(C.x - q, C.y - q); ctx.lineTo(C.x + q, C.y + q); ctx.moveTo(C.x + q, C.y - q); ctx.lineTo(C.x - q, C.y + q); ctx.stroke();
+  if (train.intro > 0 && !train.done) {   // the level's task, for a moment
+    ctx.globalAlpha = Math.min(1, train.intro); ctx.direction = rtl ? "rtl" : "ltr"; ctx.font = `900 ${Math.round(f * 1.6)}px Rubik, Arial, sans-serif`;
+    ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#5ee7ff"; ctx.shadowBlur = f; ctx.fillText(tt("tips")[train.lvl - 1], W / 2, H * 0.3, W * 0.9);
+  }
+  ctx.restore();
+  if (!train.done) return;
+  const ok = train.done.ok, a = Math.min(1, train.done.t * 2);
+  ctx.save(); ctx.globalAlpha = a * 0.6; ctx.fillStyle = "#02040c"; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = a;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = rtl ? "rtl" : "ltr";
+  ctx.font = `900 ${Math.round(U * 0.09)}px Rubik, Arial, sans-serif`; ctx.fillStyle = ok ? "#5ee7ff" : "#ff4d5e"; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = U * 0.04;
+  ctx.fillText(ok ? `${tt("lvl")} ${train.lvl} ${tt("done")}` : tt("fail"), W / 2, H * 0.4, W * 0.9);
+  ctx.shadowBlur = 0;
+  for (const B of trainEndButtons()) {
+    ctx.fillStyle = B.act === "menu" ? "rgba(20,30,60,0.9)" : "#ffb030"; ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 2;
+    roundRect(B.x, B.y, B.w, B.h, B.h * 0.3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = B.act === "menu" ? "#ffffff" : "#1a1206"; ctx.font = `900 ${Math.round(B.h * 0.42)}px Rubik, Arial, sans-serif`; ctx.fillText(B.label, B.x + B.w / 2, B.y + B.h / 2, B.w * 0.9);
+  }
+  ctx.restore();
+}
+// a touch in flight (true: it was the training's)
+function trainTap(x, y) {
+  if (!train.on) return false;
+  if (train.done) {
+    if (train.done.t < 0.5) return true;
+    for (const B of trainEndButtons()) if (x > B.x && x < B.x + B.w && y > B.y - 8 && y < B.y + B.h + 8) {
+      audio.pop(); buzz(15);
+      if (B.act === "next") trainStart(train.lvl + 1); else if (B.act === "again") trainStart(train.lvl); else trainExit();
+      return true;
+    }
+    return true;
+  }
+  const C = trainPanel().close; if (Math.hypot(x - C.x, y - C.y) < C.r * 1.5) { audio.pop(); buzz(10); trainExit(); return true; }
+  return false;
+}
+// ---- the first page: the training card beside the shop, and its 10 levels ----
+function hitMenuTrain(x, y) { const L = menuShopLayout().train; return !!L && x > L.x && x < L.x + L.w && y > L.y && y < L.y + L.h; }
+function drawMenuTrain() {
+  if (BOT || shop.open) return;
+  const L = menuShopLayout().train; if (!L) return;
+  const im = artImage("art/ui/train-card.webp"); if (!im) return;
+  const k = train.press > 0 ? 0.96 : 1;
+  ctx.save(); ctx.translate(L.x + L.w / 2, L.y + L.h / 2); ctx.scale(k, k);
+  ctx.shadowColor = "rgba(94,231,255,0.5)"; ctx.shadowBlur = U * 0.02 + U * 0.01 * Math.sin(time * 2.5);
+  ctx.drawImage(im, -L.w / 2, -L.h / 2, L.w, L.h); ctx.restore();
+  train.press = Math.max(0, train.press - frameDt);
+}
+function trainMenuLayout() {
+  const w = Math.min(W * 0.94, U * 1.6), h = Math.min(H * 0.86, w * 0.62), x = (W - w) / 2, y = (H - h) / 2;
+  const cell = Math.min(w * 0.15, h * 0.24), gx = (w - cell * 5) / 6, top = y + h * 0.24;
+  const btns = []; for (let i = 0; i < 10; i++) btns.push({ l: i + 1, x: x + gx + (i % 5) * (cell + gx), y: top + Math.floor(i / 5) * (cell + h * 0.06), s: cell });
+  const go = { w: w * 0.38, h: h * 0.11 }; go.x = x + (w - go.w) / 2; go.y = y + h - go.h - h * 0.04;
+  return { x, y, w, h, btns, close: { x: x + w - h * 0.07, y: y + h * 0.07, r: h * 0.045 }, go };
+}
+function drawTrainMenu() {
+  if (!train.menu || BOT) return;
+  const M = trainMenuLayout(), rtl = LANG === "he", f = Math.round(M.h * 0.06);
+  if (!train.sel) train.sel = Math.min(10, train.best + 1);
+  ctx.save();
+  ctx.fillStyle = "rgba(2,4,12,0.8)"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "rgba(10,18,36,0.96)"; ctx.strokeStyle = "rgba(94,231,255,0.7)"; ctx.lineWidth = 2; roundRect(M.x, M.y, M.w, M.h, U * 0.03); ctx.fill(); ctx.stroke();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = rtl ? "rtl" : "ltr";
+  ctx.font = `900 ${f}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#e8f6ff"; ctx.fillText(tt("title"), M.x + M.w / 2, M.y + M.h * 0.1, M.w * 0.8);
+  ctx.font = `700 ${Math.round(f * 0.6)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#9fdcff";
+  ctx.fillText(trainOpen(train.sel) ? `${tt("lvl")} ${train.sel}: ${tt("tips")[train.sel - 1]}` : tt("locked"), M.x + M.w / 2, M.y + M.h * 0.17, M.w * 0.9);
+  for (const B of M.btns) {
+    const open = trainOpen(B.l), won = B.l <= train.best, sel = B.l === train.sel, cx = B.x + B.s / 2, cy = B.y + B.s / 2;
+    ctx.save(); ctx.globalAlpha = open ? 1 : 0.4;
+    ctx.fillStyle = sel ? "#ffb030" : won ? "rgba(40,90,140,0.95)" : "rgba(24,34,60,0.95)"; ctx.strokeStyle = sel ? "#ffffff" : "rgba(94,231,255,0.7)"; ctx.lineWidth = sel ? 3 : 1.5;
+    ctx.beginPath(); for (let j = 0; j < 6; j++) { const a = j * TAU / 6 + Math.PI / 6; ctx.lineTo(cx + Math.cos(a) * B.s * 0.5, cy + Math.sin(a) * B.s * 0.5); } ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.direction = "ltr"; ctx.fillStyle = sel ? "#1a1206" : "#ffffff"; ctx.font = `900 ${Math.round(B.s * 0.38)}px Rubik, Arial, sans-serif`;
+    ctx.fillText(open ? String(B.l) : "🔒", cx, cy - (won ? B.s * 0.06 : 0));
+    if (won) { ctx.font = `${Math.round(B.s * 0.2)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.fillText("★", cx, cy + B.s * 0.27); }
+    ctx.restore();
+  }
+  const G = M.go; ctx.fillStyle = "#ffb030"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; roundRect(G.x, G.y, G.w, G.h, G.h * 0.3); ctx.fill(); ctx.stroke();
+  ctx.direction = rtl ? "rtl" : "ltr"; ctx.fillStyle = "#1a1206"; ctx.font = `900 ${Math.round(G.h * 0.45)}px Rubik, Arial, sans-serif`;
+  ctx.fillText(rtl ? "◀ התחילו" : "▶ START", G.x + G.w / 2, G.y + G.h / 2, G.w * 0.9);
+  const C = M.close; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.lineCap = "round"; const q = C.r * 0.6;
+  ctx.beginPath(); ctx.moveTo(C.x - q, C.y - q); ctx.lineTo(C.x + q, C.y + q); ctx.moveTo(C.x + q, C.y - q); ctx.lineTo(C.x - q, C.y + q); ctx.stroke();
+  ctx.restore();
+}
+function trainMenuTap(x, y) {
+  const M = trainMenuLayout();
+  if (Math.hypot(x - M.close.x, y - M.close.y) < M.close.r * 2.2 || x < M.x || x > M.x + M.w || y < M.y || y > M.y + M.h) { train.menu = false; audio.pop(); buzz(8); return; }
+  for (const B of M.btns) if (x > B.x && x < B.x + B.s && y > B.y && y < B.y + B.s) {
+    if (!trainOpen(B.l)) { audio.tone(200, 0.1, "square", 0.02); buzz(10); train.sel = B.l; return; }
+    if (train.sel === B.l) { trainStart(B.l); return; }   // (a second tap on it: go)
+    train.sel = B.l; audio.pop(); buzz(8); return;
+  }
+  const G = M.go; if (x > G.x && x < G.x + G.w && y > G.y && y < G.y + G.h && trainOpen(train.sel)) trainStart(train.sel);
 }
 // the money under my fleet row: this ship's, and the total
 // the money's box: in the top row, between the ship icons and CONNECT, when the icons all fit on that line and there is
@@ -10301,7 +10648,7 @@ function shake(k) { game.shakeT = Math.min(1.2, Math.max(game.shakeT, k * SHAKE)
 function damageShip(n, src) {
   if (game.dead || game.stage !== "fly" || n <= 0) return;
   if (game.qc) return;   // NULL dissolved into its cloud: nothing touches it
-  if (testFoe() === "safe") { game.hurt = 0.2; buzz(20); return; }   // the hangar's "fires, no harm": a flash, nothing taken
+  if (testFoe() === "safe" || train.on) { game.hurt = 0.2; buzz(20); return; }   // (and in training: nothing taken)   // the hangar's "fires, no harm": a flash, nothing taken
   if (src !== "env" && src !== "pierce" && floodSafe()) { floodShield(); return; }   // ("pierce": COURIER's mines and capsule, CORSAIR's broadside and depth charges get to it)   // BOILER in its flood: the enemy cannot hurt it (src "env": walls, the star)
   if (game.docked || game.undockT > 0 || practiceOn()) return;   // in the station, just out of it, or practising: safe
   if (src !== "env") { n = shieldsTake(n); if (n <= 0) return; }   // the station's shields
@@ -10463,7 +10810,8 @@ function updateWeapons(dt) {
     }
     if (comets.length && cometHit(s, Wp)) { shots.splice(k, 1); continue; }   // a resource comet
     if (fishes.length && fishHit(s, Wp)) { shots.splice(k, 1); continue; }   // a fish in BOILER's water: coins
-    if (drones.length && droneHit(s, Wp)) { shots.splice(k, 1); continue; }   // a practice ship (while they are docked)
+    if (drones.length && droneHit(s, Wp)) { shots.splice(k, 1); continue; }
+    if (train.on && trainHit(s, Wp)) { shots.splice(k, 1); continue; }   // a training target   // a practice ship (while they are docked)
     // sent back by their PALISADE's wall: now it can only hit me
     if (s.back) {
       const r = (Wp.r || 0) * shotScale(s, Wp) * size;
@@ -12570,8 +12918,23 @@ function menuShopLayout() {
     const top = T.cy + s * 0.62 + f * 1.75, bottom = T.dialTop - d * 0.7, room = Math.max(0, bottom - top);
     bw = Math.min(W * 0.98, room * 1672 / 941, U * 1.5); bh = bw * 941 / 1672; x = (W - bw) / 2; y = top + (room - bh) / 2;
   }
+  // the training card (art/ui/train-card.webp, 3:2) beside it: the shop shrinks to make room (side by side; in the
+  // right column of a wide screen, one over the other when that leaves them bigger)
+  let train = null;
+  if (!BOT) {
+    const gap = U * 0.03, A = 1672 / 941, B = 1.5, cx = x + bw / 2, cy = y + bh / 2;
+    const boxW = T.wide ? T.colW : W * 0.98, boxH = T.wide ? T.room : bh;
+    const hSide = Math.min(boxH, (boxW - gap) / (A + B)), wStack = Math.min(boxW, (boxH - gap) / (1 / A + 1 / B));
+    if (T.wide && wStack / A > hSide) {
+      const sh = wStack / A, th = wStack / B, top = cy - (sh + gap + th) / 2;
+      bw = wStack; bh = sh; x = cx - bw / 2; y = top; train = { x: cx - wStack / 2, y: top + sh + gap, w: wStack, h: th };
+    } else {
+      bh = Math.min(hSide, bh); bw = bh * A; const tw = bh * B, left = cx - (bw + gap + tw) / 2;
+      x = left; y = cy - bh / 2; train = { x: left + bw + gap, y, w: tw, h: bh };
+    }
+  }
   const btnW = bw * 0.34, btnH = btnW * 211 / 744;
-  return { x, y, w: bw, h: bh, btn: { x: x + bw * 0.06, y: y + bh * 0.7, w: btnW, h: btnH } };
+  return { x, y, w: bw, h: bh, btn: { x: x + bw * 0.06, y: y + bh * 0.7, w: btnW, h: btnH }, train };
 }
 function hitMenuShop(x, y) { const L = menuShopLayout(); return L.h > U * 0.2 && x > L.x && x < L.x + L.w && y > L.y && y < L.y + L.h; }   // (anywhere on the banner, not only its SHOP button)
 function drawMenuShop() {
@@ -12606,7 +12969,7 @@ function startFromTitle() {
 }
 function toTitle() {
   if (duel.stage && !duel.bot) { endDuel(true); duel.stage = null; } duel.fleet = null;
-  stopMatch(); result.mode = null; picker.open = false; camp.over = false; camp.mine = []; camp.lost = [];
+  stopMatch(); result.mode = null; picker.open = false; camp.over = false; camp.mine = []; camp.lost = []; train.on = false;
   game.stage = "title"; game.dead = 0; game.pick = false; game.thrust = null; game.stick = null; game.fire = [null, null, null, null];
   enemy.on = false;
 }
@@ -16956,7 +17319,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawRaiders(); drawEnemy(); drawPractice(); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawHuskCreature(); drawParasites(); drawLightFx(); drawGhosts(); drawCorsairAim();
+    drawRaiders(); drawEnemy(); drawPractice(); drawTraining("behind"); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawHuskCreature(); drawParasites(); drawLightFx(); drawGhosts(); drawCorsairAim();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -17027,6 +17390,7 @@ function draw() {
     if (!game.dead && (game.actOn > 0 || game.shieldFx > 0)) { const q = shipScreen(); drawShieldBubble(q.x, q.y, shipSize() * shipScale(), game.actOn > 0 ? 1 : 2, game.shieldFx); }   // my shields
     if (enemyShown() && duel.net && duel.net.sh) { const q = toScreen(enemy.x, enemy.y); drawShieldBubble(q.x, q.y, shipSize() * enemyScale(), duel.net.sh, 0.3); }   // theirs
     drawParts();
+    drawTraining("front");   // (the training's objects nearer than my ship)
     drawRings();
     drawNullFlash();   // (NULL's inversion flashes, over everything out in space)
     ctx.restore();
@@ -17038,6 +17402,7 @@ function draw() {
     if (enemyShown()) edgeArrow(enemy.x, enemy.y, "#ff4d6d");
     if (game.rift && game.rift.mark) edgeArrow(game.rift.mark.x, game.rift.mark.y, "#ff68c7");   // DRAKON's mark, off screen
     if (crate.on) edgeArrow(crate.x, crate.y, WEAPONS[crate.w].color);
+    trainArrows();
     for (const c of comets) edgeArrow(c.x, c.y, c.kind === "gold" ? "#ffd166" : mineralById(c.mineral).color);   // the comets, off screen
     drawCard(shown, Math.min(1, game.card * 2));
     const hudL = hudLeftRect(), hudR = hudRightRect();   // (the top of the screen: see-through over my ship, like the buttons)
@@ -17052,7 +17417,7 @@ function draw() {
     else if (result.mode) drawThrust();   // (the gas, to kick the letters)
     hudSee("hudL", hudL, () => { drawDuel(); drawDials(); });
     hudSee("hudR", hudR, drawHangarButton); hudSee("hudL", hudL, () => { drawFleetRow(); drawLevel(); });   // ("my ships" and the language: in the hangar)
-    hudSee("hudL", hudL, () => { drawWallet(); drawBounty(); }); drawPracticeNote();   // the money: this ship's and the total
+    hudSee("hudL", hudL, () => { drawWallet(); drawBounty(); }); drawPracticeNote(); drawTrainHud();   // the money: this ship's and the total
     drawBodyLabel();
     drawNova();
   } else drawParts();
@@ -17065,7 +17430,8 @@ function draw() {
   drawBreak();   // (on LARIAT's rope: the BREAK FREE button)
   drawShop(); if (shop.open) drawShipInfo();
   if (shipPage) drawShipInfo(shipPage);   // (the long press on the ship's icon)   // the station's shop: over everything (and a ship's page over it)
-  if (game.stage === "title" && !shop.open) { drawTitle(); drawMenuShop(); drawDials(); drawLangBtn(); drawAccountBtn(); }   // (the ship shop covers it)
+  if (game.stage === "title" && !shop.open) { drawTitle(); drawMenuShop(); drawMenuTrain(); drawDials(); drawLangBtn(); drawAccountBtn(); }   // (the ship shop covers it)
+  if (game.stage === "title" && !shop.open) drawTrainMenu();
   if (picker.open || camp.over) drawLangBtn();   // (switch the language while choosing a ship, too)
   if (hangar.open && !picker.open && !camp.over) { if (THREE_SHIPS) drawFleetBtn(); }   // in the hangar's second header row (the language button left the hangar: title and ship picker only)
 }
@@ -17368,6 +17734,7 @@ function drawRadar() {
     ctx.restore();
   }
   ctx.beginPath(); ctx.rect(x0, y0, rw, rh); ctx.clip();
+  if (train.on) { drawTrainMap(x0, y0, rw, rh); ctx.restore(); return; }   // training: a close-up of the course round my ship
   ctx.fillStyle = body().color; ctx.beginPath(); ctx.arc(x0 + rw / 2, y0 + rh / 2, Math.max(3, planetR() * k * 1.6), 0, TAU); ctx.fill();
   const sx = x0 + game.x * kx, sy = y0 + game.y * ky;
   ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1;
@@ -19175,7 +19542,7 @@ function campWon() {   // the computer's whole fleet is beaten: the next level
 function campTick(dt) {
   if (BOT) return;
   camp.banner = Math.max(0, camp.banner - dt);
-  if (game.stage !== "fly") return;
+  if (game.stage !== "fly" || train.on) return;   // (training: no match)
   makeBot();
   if (!camp.mine.length) newCampaign();
   // the match runs by itself; it waits while something else is open (a real duel, a trade, the pages)
