@@ -10963,16 +10963,16 @@ function updateTail(dt) {
   T.t += dt;
   const tip0 = T.pts ? T.pts[TAIL_SEGS] : null;
   if (!moveTail(T, game, S, M, dt)) { game.tail = null; return; }
-  const size = shipSize(), b = T.pts[TAIL_SEGS];
+  const size = shipSize(), b = tailWorld(T, T.pts[TAIL_SEGS]);
   const bvx = tip0 ? wrapDelta(b.x - tip0.x, WW) / dt : 0, bvy = tip0 ? wrapDelta(b.y - tip0.y, WH) / dt : 0;
   T.touch = Math.max(0, T.touch - dt); T.hitT = Math.max(0, (T.hitT || 0) - dt); T.bodyT = Math.max(0, (T.bodyT || 0) - dt);
   if (!enemy.on || enemy.warp >= 0.5 || tailOut(M, T.t) < 0.5) return;
   const dx = wrapDelta(enemy.x - b.x, WW), dy = wrapDelta(enemy.y - b.y, WH), d = Math.hypot(dx, dy);
-  if (d > size * (0.36 + M.ball) || T.hitT > 0) {   // not the ball: the tail itself, touching them, hurts like one shot
+  if (d > size * (0.36 + M.ball) || T.hitT > 0 || !tailNearZ(b, enemy)) {   // not the ball (or not at its depth): the tail itself, touching them, hurts like one shot
     if (T.bodyT > 0) return;
     for (let i = 2; i < TAIL_SEGS - 1; i++) {
-      const q = T.pts[i];
-      if (Math.hypot(wrapDelta(enemy.x - q.x, WW), wrapDelta(enemy.y - q.y, WH)) < size * (0.34 * enemyScale() + tailWidth(i) * 0.5)) {
+      const q = tailWorld(T, T.pts[i]);
+      if (tailNearZ(q, enemy) && Math.hypot(wrapDelta(enemy.x - q.x, WW), wrapDelta(enemy.y - q.y, WH)) < size * (0.34 * enemyScale() + tailWidth(i) * 0.5)) {
         T.bodyT = M.every;
         hitEnemy({ x: q.x, y: q.y, vx: 0, vy: 0 }, { dmg: WEAPONS[weaponsOf(S)[0]].dmg, color: M.color });
         burstAt(q.x, q.y, 10, ["#d8ff5a", "#b8ff3a", "#ffffff"], 0.3, 0.5, enemy.vx, enemy.vy); audio.zap(); buzz(40);
@@ -10989,36 +10989,61 @@ function updateTail(dt) {
   burstAt(b.x, b.y, 22, ["#ffffff", "#d8ff5a", "#b8c6d8"], 0.5, 0.6, enemy.vx, enemy.vy);
   audio.boom(); playClip("audio/vexar/whip.ogg", false, 0.5); shake(0.5); buzz(120);   // the spiked ball lands: boom
 }
-// moves a tail along with its ship o (yours or the other player's). False once it is all the way back in
+// the tail in 3D: a ship's orientation (mine as it is; theirs from its heading, tilt and roll), or null (2D)
+function tail3q(o) { if (!view3d.on || BOT) return null; if (o === game) return game.q3 || null; return Q3.fromAngles(o.ang, o.p3 || 0, o.r3 || 0); }
+// moves a tail along with its ship o (yours or the other player's). False once it is all the way back in.
+// The segments live in space with a depth (z, in the same units as x and y): the first sits on the ship's abdomen as the
+// ship is turned — tilted and rolled too — and each next one follows the one before at a fixed spacing, dragging after
+// it, leaning back along the ship's own tail line. So flying flat the tail swings in the ship's plane, and when the ship
+// tilts the tail is dragged into or out of the depth after it. Each segment keeps a little of its own swing (TAIL_CARRY),
+// so it whips and settles smoothly instead of snapping
+const TAIL_CARRY = 0.55, TAIL_LEAN = 2.2;
 function moveTail(T, o, S, M, dt) {
   const out = tailOut(M, T.t);
   if (out < 0) return false;
-  const size = shipSize(), base = tailBase(o, S), step = out * M.len * size / TAIL_SEGS;
-  const bx = -Math.sin(o.ang), by = Math.cos(o.ang), lean = 1 - Math.exp(-dt * 2.5);
-  // it starts as a short straight line behind the ship (so every segment knows which way is "back")
-  if (!T.pts) T.pts = Array.from({ length: TAIL_SEGS + 1 }, (_, i) => ({ x: base.x + bx * i * 0.5, y: base.y + by * i * 0.5 }));
-  const old = T.pts.slice();
-  let px = bx, py = by;   // the way the segment before points (the first one: straight back out of the ship)
+  T.ow = o === game ? 1 : 2;
+  const size = shipSize(), step = out * M.len * size / TAIL_SEGS, q = tail3q(o), oz = q ? (o.z3 || 0) * U : 0;
+  const b3 = q ? Q3.rot(q, [0, 0, 1]) : [-Math.sin(o.ang), 0, Math.cos(o.ang)], bx = b3[0], by = b3[2], bz = b3[1];   // (the ship's tail line: straight back)
+  const m3 = q ? Q3.rot(q, [0, 0, (S.tailY || 0.4) * size]) : [bx * (S.tailY || 0.4) * size, 0, by * (S.tailY || 0.4) * size];
+  const base = { x: o.x + m3[0], y: o.y + m3[2], z: oz + m3[1] }, lean = 1 - Math.exp(-dt * TAIL_LEAN);
+  if (!T.pts) T.pts = Array.from({ length: TAIL_SEGS + 1 }, (_, i) => ({ x: base.x + bx * i * 0.5, y: base.y + by * i * 0.5, z: base.z + bz * i * 0.5 }));
+  const old = T.pts.map((p) => ({ x: p.x, y: p.y, z: p.z || 0 }));
+  let px = bx, py = by, pz = bz;
   T.pts[0] = base;
   for (let i = 1; i <= TAIL_SEGS; i++) {
     const a = T.pts[i - 1], b = old[i];
-    // the way this segment pointed a moment ago
-    let ox = wrapDelta(b.x - old[i - 1].x, WW), oy = wrapDelta(b.y - old[i - 1].y, WH), od = Math.hypot(ox, oy);
-    if (od < 1e-6) { ox = bx; oy = by; od = 1; }
-    ox /= od; oy /= od;
-    // follow: point from the segment before (where it is now) to where this one was. That makes the tail drag.
-    // (while the tail grows, that could fold it back on itself: then it keeps pointing the way it did)
-    let dx = wrapDelta(b.x - a.x, WW), dy = wrapDelta(b.y - a.y, WH), d = Math.hypot(dx, dy);
-    if (d < 1e-6 || dx * ox + dy * oy <= 0) { dx = ox; dy = oy; d = 1; }
-    dx = dx / d * (1 - lean) + bx * lean; dy = dy / d * (1 - lean) + by * lean;   // leans back behind the ship
-    // a little stiff, like real chitin: each segment bends only partly away from the one before (no sharp kinks)
-    dx = dx * (1 - TAIL_STIFF) + px * TAIL_STIFF; dy = dy * (1 - TAIL_STIFF) + py * TAIL_STIFF;
-    const n = Math.hypot(dx, dy) || 1;
-    px = dx / n; py = dy / n;
-    T.pts[i] = { x: a.x + px * step, y: a.y + py * step };
+    let ox = wrapDelta(b.x - old[i - 1].x, WW), oy = wrapDelta(b.y - old[i - 1].y, WH), oz2 = b.z - old[i - 1].z, od = Math.hypot(ox, oy, oz2);
+    if (od < 1e-6) { ox = bx; oy = by; oz2 = bz; od = 1; }
+    ox /= od; oy /= od; oz2 /= od;
+    // follow: from the segment before (where it is now) toward where this one was — the drag
+    let dx = wrapDelta(b.x - a.x, WW), dy = wrapDelta(b.y - a.y, WH), dz = b.z - a.z, d = Math.hypot(dx, dy, dz);
+    if (d < 1e-6 || dx * ox + dy * oy + dz * oz2 <= 0) { dx = ox; dy = oy; dz = oz2; d = 1; }
+    dx /= d; dy /= d; dz /= d;
+    // its own swing carried on a little (smooth whip), then leaning back along the ship's tail line
+    dx = dx * (1 - TAIL_CARRY * 0.3) + ox * TAIL_CARRY * 0.3; dy = dy * (1 - TAIL_CARRY * 0.3) + oy * TAIL_CARRY * 0.3; dz = dz * (1 - TAIL_CARRY * 0.3) + oz2 * TAIL_CARRY * 0.3;
+    dx = dx * (1 - lean) + bx * lean; dy = dy * (1 - lean) + by * lean; dz = dz * (1 - lean) + bz * lean;
+    // stiff like chitin: each segment bends only partly from the one before
+    dx = dx * (1 - TAIL_STIFF) + px * TAIL_STIFF; dy = dy * (1 - TAIL_STIFF) + py * TAIL_STIFF; dz = dz * (1 - TAIL_STIFF) + pz * TAIL_STIFF;
+    const n = Math.hypot(dx, dy, dz) || 1;
+    px = dx / n; py = dy / n; pz = dz / n;
+    T.pts[i] = { x: a.x + px * step, y: a.y + py * step, z: a.z + pz * step };
   }
   return true;
 }
+// a tail point on the screen: in 3D, drawn with its ship — its offset from the ship as near or far as the ship is
+function tailScreen(T, q) {
+  const o = T.ow === 2 ? enemy : game;
+  if (!view3d.on || BOT || !o) return toScreen(q.x, q.y);
+  const s = toScreen(o.x, o.y), k = depthScale(o.z3 || 0);
+  return { x: s.x + wrapDelta(q.x - o.x, WW) * k, y: s.y + wrapDelta(q.y - o.y, WH) * k };
+}
+// a tail point where it is drawn (in 3D: drawn with its ship, as near or far as it is) — what it touches
+function tailWorld(T, q) {
+  const o = T.ow === 2 ? enemy : game; if (!view3d.on || BOT || !o) return q;
+  const k = depthScale(o.z3 || 0); return { x: o.x + wrapDelta(q.x - o.x, WW) * k, y: o.y + wrapDelta(q.y - o.y, WH) * k, z: q.z };
+}
+// how near a tail point is to a ship in depth (in 3D a ship must be at the tail's depth to be touched)
+function tailNearZ(q, o) { return !view3d.on || BOT || Math.abs((q.z || 0) / U - (o.z3 || 0)) * U < shipSize() * 0.9; }
 // the tail from VEXAR's own drawings: each piece laid along the bending tail by distance from the mount,
 // pointing from its start to its end. While it grows, the stinger rides at the tip and the vertebrae fill in behind it.
 // Returns false if the drawings are not loaded yet (then the drawn-in-code tail is shown)
@@ -11063,8 +11088,9 @@ function tailWidth(i) { return 0.05 + 0.13 * (1 - i / TAIL_SEGS); }
 // the tail, drawn under the ship: dark green chitin plates with lime edges and a glowing stripe, a thorn for a stinger
 function drawTail(T, S) {
   if (!T || !T.pts) return;
-  const size = shipSize(), pts = T.pts.map((q, i) => {
-    const p = toScreen(q.x, q.y);
+  const k3 = view3d.on && !BOT ? depthScale(((T.ow === 2 ? enemy : game).z3) || 0) : 1;
+  const size = shipSize() * k3, pts = T.pts.map((q, i) => {
+    const p = tailScreen(T, q);
     if (i === 0) return p;
     // a living wave runs down the tail
     const a = T.pts[i - 1], dx = wrapDelta(q.x - a.x, WW), dy = wrapDelta(q.y - a.y, WH), d = Math.hypot(dx, dy) || 1;
