@@ -33,6 +33,7 @@ export const SHIP_MODELS = {
   kiln: { file: "models/kiln.glb", fwd: "+x", len: 1.03 },
   vault: { file: "models/vault.glb", fwd: "-z", len: 0.8, upright: 1 },   // (its mouth face is the top seen from above)
   orian: { file: "models/orian.glb", fwd: "-x", len: 0.9, fan: { back: -0.055, hinge: [0, -0.085, -0.07], normal: [0, 0.94, -0.34], cuts: [-46, -15, 15, 46], round: [144, 72, 0, -72, -144], cone: 9, narrow: 0.45, shorten: 0.72 } },   // (shut: narrower across, and shorter — the sheath of the 2D drawing)
+  vanta: { file: "models/vanta.glb", fwd: "-x", len: 0.98, erase: true },   // (its painted ribbon wiped: the game's own liquid goes in the chamber)
   mirage: { file: "models/mirage.glb", fwd: "-x", len: 1.0 },
   gimbal: { file: "models/gimbal.glb", fwd: "-z", len: 1.03, upright: 1, gyro: { cz: 0.0513, spine: 0.045, bar: 0.045, rings: [[0.14, 0.245], [0.245, 0.31], [0.31, 0.4]] } },
   talus: { file: "models/talus.glb", fwd: "-z", len: 0.89, upright: 1, bands: true },
@@ -292,13 +293,27 @@ function splitFan(E, M) {
     m.visible = false;
   });
 }
+// a model with a liquid painted into its texture (VANTA: `erase`, the green ribbon in its chamber): wiped out of the
+// pictures in the shader (the painted liquid (green: its own shape in the model) is cut away, what is left of its edge turned to the glass round it), so the
+// game can pour its own moving, coloured liquid in there
+function eraseGreen(E) {
+  E.obj.traverse((m) => {
+    if (!m.isMesh) return;
+    const mat = m.material.clone(); m.material = mat;
+    mat.onBeforeCompile = (sh) => {
+      sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\nfloat grn = smoothstep(0.0, 0.018, diffuseColor.g - max(diffuseColor.r, diffuseColor.b));\nif (grn > 0.5) discard;\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.16, 0.19), grn);")
+        .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance *= 1.0 - grn;");
+    };
+    mat.customProgramCacheKey = () => "erase";
+  });
+}
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
   let E = models[id];
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -424,7 +439,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 32,   // (index.html checks it; the file's name carries it too — lib/ship3d-v32.js — so the app never mixes a new
+  version: 33,   // (index.html checks it; the file's name carries it too — lib/ship3d-v33.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },

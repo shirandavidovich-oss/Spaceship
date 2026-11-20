@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v32.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v33.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4453,10 +4453,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v32.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v33.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 32, SHIP3D_FILE = "./lib/ship3d-v32.js";
+const SHIP3D_VER = 33, SHIP3D_FILE = "./lib/ship3d-v33.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4484,6 +4484,11 @@ function draw3dShip(S, o, ang, bank) {
   const roll3 = bank * 0.75 + (V ? V.r3 || 0 : 0), pitch3 = (V ? V.p3 || 0 : 0) - (o.power || 0) * 0.12;
   if (S.id === "corsair") {   // CORSAIR rowing: its 2D oars, under the model (their roots hidden by its hull), squeezed as it rolls and tilts
     ctx.save(); ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll3))), Math.max(0.05, Math.abs(Math.cos(pitch3)))); try { drawCorsairOars(S, o, "normal"); } catch (e) {} ctx.restore();
+  }
+  if (S.anim && S.anim.ribbon) {   // VANTA: its own liquid poured into the model's (wiped) chamber, moving and pushed out as it fires
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3); if (ok) { ctx.save(); ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll3))), Math.max(0.05, Math.abs(Math.cos(pitch3)))); drawVantaLiquid(o); ctx.restore(); } }
+    catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
   }
   if (S.id === "mirage") {   // MIRAGE: a clear crystal prism; charging a shot, coloured light runs up inside it to the nose
     try { ok = drawMirage3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
@@ -17237,6 +17242,49 @@ function drawRibbon(S, lvl = 0) {
   ctx.lineJoin = "round"; ctx.lineCap = "round";
   if (T.white) { ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 18 + 6 * Math.sin(t * 0.012); }   // white: it glows
   for (const [w, c, a] of [[18, T.ribbon[0], 0.39], [9, T.ribbon[1], 0.84], [2.2, T.ribbon[2], 0.87]]) { ctx.strokeStyle = c; ctx.globalAlpha = a; ctx.lineWidth = w; ctx.stroke(); }
+  ctx.restore();
+}
+// VANTA in 3D: the liquid in the model's chamber (ship units, nose up: the chamber from -0.27 to +0.08 down the middle,
+// the muzzle at -0.48), in the colour it has now (VANTA_TINTS). At rest the ribbon sways as in 2D. Button 1 (mark): a drop
+// swells at the ribbon's top and peels off up the throat to the nose, leaving at 112 ms. Button 2 (phase): the ribbon
+// squeezes together toward the top, thicker and brighter, until 690 ms, then the whole charge bursts up and out of the
+// nose, and the chamber fills again from the bottom
+const VANTA3 = { top: -0.27, bot: 0.08, amp: 0.05, half: 0.075, muzzle: -0.48, w: [0.042, 0.021, 0.0052] };
+function drawVantaLiquid(o) {
+  const V = VANTA3, t = time * 1000, a = o.anim, lvl = o.tint || 0, T = VANTA_TINTS[lvl] || VANTA_TINTS[0];
+  let top = V.top, bot = V.bot, amp = V.amp * (1 + 0.25 * Math.sin(t * 0.003)), fat = 1, glow = T.white ? 1 : 0, blob = null;
+  if (a && a.seq === "primary") {   // the marking drop
+    const u = a.t / 112;
+    if (u < 1) { const sw = smoothStep(u); top = V.top + 0.03 * sw; blob = { y: V.top - (V.top - V.muzzle) * Math.max(0, (u - 0.35) / 0.65) ** 1.6, r: 0.018 + 0.02 * Math.min(1, u * 2) }; }
+    else if (a.t < 260) { const back = smoothStep((a.t - 112) / 148); top = V.top + 0.03 * (1 - back); }
+  } else if (a && a.seq === "secondary") {   // the phase drop
+    if (a.t < 690) { const q = smoothStep(a.t / 690); bot = V.bot - (V.bot - V.top) * 0.62 * q; amp *= 1 - 0.75 * q; fat = 1 + 1.6 * q; glow = Math.max(glow, q); }
+    else {
+      const u = (a.t - 690) / 110;
+      if (u < 1) { blob = { y: V.top - (V.top - V.muzzle) * u * u, r: 0.05 }; bot = top + 0.001; glow = 1; }
+      else { const f = smoothStep((a.t - 800) / 260); top = V.bot - (V.bot - V.top) * f; }   // (filling again from the bottom)
+    }
+  }
+  ctx.save();
+  // the chamber (a tall narrow hexagon): the liquid stays in it, but for the drop going up the throat to the nose
+  ctx.beginPath(); ctx.moveTo(0, V.top - 0.04); ctx.lineTo(V.half, V.top + 0.03); ctx.lineTo(V.half, V.bot - 0.02); ctx.lineTo(0, V.bot + 0.04); ctx.lineTo(-V.half, V.bot - 0.02); ctx.lineTo(-V.half, V.top + 0.03); ctx.closePath();
+  ctx.save(); ctx.clip();
+  if (glow > 0) { const g = ctx.createRadialGradient(0, (top + bot) / 2, 0, 0, (top + bot) / 2, 0.2); g.addColorStop(0, hexA(T.ribbon[1], 0.35 * glow)); g.addColorStop(1, hexA(T.ribbon[0], 0)); ctx.fillStyle = g; ctx.fillRect(-0.2, -0.5, 0.4, 0.7); }
+  if (bot - top > 0.005) {
+    ctx.beginPath();
+    for (let i = 0; i <= 30; i++) { const u = i / 30, x = amp * Math.sin(u * 9.2 * (bot - top) / (V.bot - V.top) + t * 0.004), y = top + u * (bot - top); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    if (T.white || glow > 0.5) { ctx.shadowColor = T.ribbon[1]; ctx.shadowBlur = 14; }   // (shadowBlur is in screen pixels)
+    for (const [w, c, al] of [[V.w[0] * fat, T.ribbon[0], 0.39], [V.w[1] * fat, T.ribbon[1], 0.84], [V.w[2] * fat, T.ribbon[2], 0.87]]) { ctx.strokeStyle = c; ctx.globalAlpha = al; ctx.lineWidth = w; ctx.stroke(); }
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  if (blob) {   // the drop on its way out
+    ctx.globalCompositeOperation = "lighter";
+    const g = ctx.createRadialGradient(0, blob.y, 0, 0, blob.y, blob.r * 2.4); g.addColorStop(0, hexA(T.ribbon[2], 0.9)); g.addColorStop(0.4, hexA(T.ribbon[1], 0.7)); g.addColorStop(1, hexA(T.ribbon[0], 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, blob.y, blob.r * 2.4, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = "source-over"; ctx.fillStyle = T.ribbon[1]; ctx.beginPath(); ctx.ellipse(0, blob.y, blob.r * 0.8, blob.r * 1.1, 0, 0, TAU); ctx.fill();
+  }
   ctx.restore();
 }
 // MIRAGE in 3D: the model is clear crystal, so its light is ours. Charging a shot (its 12 frames: the pulse 280 ms, the seed
