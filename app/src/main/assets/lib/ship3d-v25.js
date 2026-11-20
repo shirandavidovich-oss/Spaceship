@@ -28,6 +28,7 @@ export const SHIP_MODELS = {
   cinder: { file: "models/cinder.glb", fwd: "-z", len: 0.98, upright: 1 },
   lyth: { file: "models/lyth.glb", fwd: "-z", len: 1.03, fit: "max", split: 0.37 },
   lariat: { file: "models/lariat.glb", fwd: "+z", len: 1.03, upright: -1 },
+  talus: { file: "models/talus.glb", fwd: "-z", len: 0.89, upright: 1, bands: true },
   reprise: { file: "models/reprise.glb", fwd: "+z", len: 0.787, upright: -1, blocks: [0.375, 0.02, -0.30], pad: 2.9 },   // (its four buildings, tallest first)
   ballast: { file: "models/ballast.glb", fwd: "-x", len: 0.95 },
   zorian: { file: "models/zorian.glb", fwd: "-x", len: 0.9 },
@@ -168,13 +169,42 @@ function splitBlocks(E, M) {
     m.visible = false;
   });
 }
+// a ship that grows in layers (TALUS: `bands`): each layer it has grown is tinted the colour of the body it came from,
+// like the 2D drawing's — there the layers are copies of its outline, each a size bigger; here each vertex knows how far
+// out it is (aR: 0 in the middle, 1 at the edge, measured across its outline's ellipse) and the shader multiplies the
+// colour of the layer that distance falls in (85%, as the 2D multiply). E.bands: the uniforms, set at each draw
+function bandShader(E) {
+  const outer = E.obj; outer.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(outer), hx = (box.max.x - box.min.x) / 2, hz = (box.max.z - box.min.z) / 2, v = new THREE.Vector3();
+  const U = { uN: { value: 0 }, uLo: { value: new Array(5).fill(0) }, uHi: { value: new Array(5).fill(0) }, uC: { value: Array.from({ length: 5 }, () => new THREE.Color(1, 1, 1)) } };
+  // its outline seen from above: how far out it reaches in each of NB directions (so a layer follows the outline's shape,
+  // as the 2D layers do, and not a circle)
+  const NB = 96, Rm = new Float32Array(NB), bin = (x, z) => Math.floor(((Math.atan2(z, x) / (2 * Math.PI)) + 1) % 1 * NB) % NB;
+  outer.traverse((m) => { if (!m.isMesh) return; const P = m.geometry.attributes.position; for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld); const b = bin(v.x, v.z); Rm[b] = Math.max(Rm[b], Math.hypot(v.x, v.z)); } });
+  const Rs = Rm.map((_, i) => Math.max(Rm[(i + NB - 1) % NB], Rm[i], Rm[(i + 1) % NB]) || Math.max(hx, hz));   // (a little smoothed)
+  outer.traverse((m) => {
+    if (!m.isMesh) return;
+    const P = m.geometry.attributes.position, aR = new Float32Array(P.count);
+    for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld); aR[i] = Math.hypot(v.x, v.z) / Rs[bin(v.x, v.z)]; }
+    m.geometry.setAttribute("aR", new THREE.BufferAttribute(aR, 1));
+    const mat = m.material.clone(); m.material = mat;
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, U);
+      sh.vertexShader = "attribute float aR;\nvarying float vR;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\nvR = aR;");
+      sh.fragmentShader = "varying float vR;\nuniform int uN;\nuniform float uLo[5];\nuniform float uHi[5];\nuniform vec3 uC[5];\n" + sh.fragmentShader.replace("#include <map_fragment>",
+        "#include <map_fragment>\nfor (int j = 0; j < 5; j++) { if (j < uN && vR >= uLo[j] && vR < uHi[j]) diffuseColor.rgb *= mix(vec3(1.0), uC[j], 0.85); }");
+    };
+    mat.customProgramCacheKey = () => "bands";
+  });
+  E.bands = U;
+}
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
   let E = models[id];
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -300,7 +330,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 24,   // (index.html checks it; the file's name carries it too — lib/ship3d-v24.js — so the app never mixes a new
+  version: 25,   // (index.html checks it; the file's name carries it too — lib/ship3d-v25.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -322,7 +352,11 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp;   // (a new picture only when it has turned a quarter of a degree)
+    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "");   // (a new picture only when it has turned a quarter of a degree)
+    if (E.bands) {   // (opt.bands: [{ lo, hi, c: "#rrggbb" }], the layers grown, from the middle out)
+      const Bd = (opt && opt.bands) || []; E.bands.uN.value = Math.min(5, Bd.length);
+      Bd.slice(0, 5).forEach((b, j) => { E.bands.uLo.value[j] = b.lo; E.bands.uHi.value[j] = b.hi; E.bands.uC.value[j].set(b.c); });
+    }
     if (E.parts) {   // (opt.parts: where each part's middle is, and its turn — screen-clockwise rad; else as in the file)
       const s = E.obj.scale.x, Q = opt && opt.parts;
       E.parts.forEach((B, i) => { const q = Q && Q[i]; B.pivot.position.set((q ? q.x : B.cx) / s, 0, (q ? q.z : B.cz) / s); B.pivot.rotation.set(0, q ? -q.a : 0, 0); });
