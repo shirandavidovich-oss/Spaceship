@@ -24,14 +24,14 @@ export const SHIP_MODELS = {
   skarn: { file: "models/skarn.glb", fwd: "-x", len: 0.95, fit: "max" },
   glitch: { file: "models/glitch.glb", fwd: "-x", len: 0.95, fit: "max" },
   borer: { file: "models/borer.glb", fwd: "-x", len: 1.0 },
-  corsair: { file: "models/corsair.glb", fwd: "-x", len: 0.85 },
+  corsair: { file: "models/corsair.glb", fwd: "-x", len: 0.85, ghost: true },
   cinder: { file: "models/cinder.glb", fwd: "-z", len: 0.98, upright: 1 },
   lyth: { file: "models/lyth.glb", fwd: "-z", len: 1.03, fit: "max", split: 0.37 },
   lariat: { file: "models/lariat.glb", fwd: "+z", len: 1.03, upright: -1 },
   palisade: { file: "models/palisade.glb", fwd: "-z", len: 1.05, fit: "max", upright: 1 },
   courier: { file: "models/courier.glb", fwd: "-x", len: 0.855 },
   kiln: { file: "models/kiln.glb", fwd: "+x", len: 1.03 },
-  vault: { file: "models/vault.glb", fwd: "-z", len: 0.8, upright: 1 },   // (its mouth face is the top seen from above)
+  vault: { file: "models/vault.glb", fwd: "+z", len: 1.0 },   // (lying down, its long way along its flight, a mouth at the front)
   orian: { file: "models/orian.glb", fwd: "-x", len: 0.9, fan: { back: -0.055, hinge: [0, -0.085, -0.07], normal: [0, 0.94, -0.34], cuts: [-46, -15, 15, 46], round: [144, 72, 0, -72, -144], cone: 9, narrow: 0.45, shorten: 0.72 } },   // (shut: narrower across, and shorter — the sheath of the 2D drawing)
   vanta: { file: "models/vanta.glb", fwd: "-x", len: 0.98, erase: true },   // (its painted ribbon wiped: the game's own liquid goes in the chamber)
   mirage: { file: "models/mirage.glb", fwd: "-x", len: 1.0 },
@@ -307,13 +307,40 @@ function eraseGreen(E) {
     mat.customProgramCacheKey = () => "erase";
   });
 }
+// a ship that turns into a ghost (CORSAIR's haunting: `ghost`): uG 0..1 how far. The hull goes pale and sea-green and
+// glows; the red sails (told by their colour) go thin, glowing green and torn — holes in them, flickering, the edges of
+// the holes eaten away as the time runs (uT). Mixed in the shader, so the same model serves both
+function ghostShader(E) {
+  const U = { uG: { value: 0 }, uT: { value: 0 } };
+  E.obj.traverse((m) => {
+    if (!m.isMesh) return;
+    const mat = m.material.clone(); m.material = mat;
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, U);
+      sh.vertexShader = "varying vec3 vGP;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\nvGP = position;");
+      sh.fragmentShader = "varying vec3 vGP;\nuniform float uG;\nuniform float uT;\nfloat ghN(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719))) * 43758.5453); }\n" +
+        sh.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
+float sail = smoothstep(0.015, 0.06, diffuseColor.r - max(diffuseColor.g, diffuseColor.b) * 1.35);
+vec3 gp = vGP * 26.0; float tear = ghN(gp + vec3(0.0, floor(uT * 2.0), 0.0)) * 0.6 + ghN(gp * 0.37) * 0.4;
+if (uG > 0.3 && sail > 0.5 && tear > 1.0 - 0.38 * uG) discard;
+float lum = dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15));
+vec3 ghostHull = vec3(lum) * vec3(0.55, 1.25, 1.05) + vec3(0.01, 0.04, 0.035);
+vec3 ghostSail = vec3(0.12, 0.65, 0.48) * (0.6 + 0.4 * sin(uT * 4.0 + vGP.z * 30.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, mix(ghostHull, ghostSail, sail), uG);`)
+        .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>
+totalEmissiveRadiance += vec3(0.1, 0.75, 0.55) * uG * (0.18 + sail * (0.55 + 0.35 * sin(uT * 5.0 + vGP.x * 40.0)));`);
+    };
+    mat.customProgramCacheKey = () => "ghost";
+  });
+  E.ghost = U;
+}
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
   let E = models[id];
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -439,7 +466,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 33,   // (index.html checks it; the file's name carries it too — lib/ship3d-v33.js — so the app never mixes a new
+  version: 34,   // (index.html checks it; the file's name carries it too — lib/ship3d-v34.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -461,12 +488,13 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "");   // (a new picture only when it has turned a quarter of a degree)
+    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "");   // (a new picture only when it has turned a quarter of a degree)
     // opt.lights: up to 3 coloured lights inside the ship ({ x, y, z } in the fitted model's units, before it is tilted;
     // color; i: how bright) — MIRAGE's light running up its prism
     if (!lamps) { lamps = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xffffff, 0, 1.2, 1.6); scene.add(L); return L; }); }
     const LS = (opt && opt.lights) || [];
     lamps.forEach((L, i) => { const q = LS[i]; L.visible = !!q; if (q) { L.color.set(q.color); L.intensity = q.i; L.position.set(q.x, q.y, q.z).applyEuler(new THREE.Euler(-pitch, 0, -roll, "YXZ")); } });
+    if (E.ghost) { E.ghost.uG.value = (opt && opt.ghost) || 0; E.ghost.uT.value = (opt && opt.t) || 0; }
     if (E.fan) { const O = (opt && opt.open) || [], nw = M.fan.narrow || 1; E.fan.forEach((P, i) => { const k = O[i] || 0; P.pivot.quaternion.identity().slerp(P.shut, 1 - k); const sl = M.fan.shorten || 1; P.squash.scale.set(sl + (1 - sl) * k, nw + (1 - nw) * k, 1); }); }   // (opt.open: how open each panel is, 0 shut .. 1 as modelled)
     if (E.turns) { const T = (opt && opt.turns) || []; E.turns.forEach((g, i) => g.rotation.set(0, -(T[i] || 0), 0)); }   // (opt.turns: the cage's and each ring's turn, screen-clockwise rad)
     if (E.bands) {   // (opt.bands: [{ lo, hi, c: "#rrggbb" }], the layers grown, from the middle out)
