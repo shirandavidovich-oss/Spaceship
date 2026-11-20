@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v12.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v13.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4430,10 +4430,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v12.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v13.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 12, SHIP3D_FILE = "./lib/ship3d-v12.js";
+const SHIP3D_VER = 13, SHIP3D_FILE = "./lib/ship3d-v13.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4775,6 +4775,13 @@ function seeThrough(key, under, fn) {
 }
 // flying in 3D, from above: the body in the middle and the station sit in the plane of the game; a ship deeper than that
 // (behind them) is drawn over by them where they overlap — they are drawn again, only inside a circle round the ship
+// how far in front of or behind the body my ship is: its depth in layers (3 each way; the depth's ends are the third), and
+// the colour for it (blue in front, red behind); null when not flying in 3D
+function depthLayers() {
+  if (!view3d.on || BOT || game.stage !== "fly") return null;
+  const z = game.z3 || 0, T = TILT3, front = z >= 0, per = (front ? T.near : T.far) / 3;
+  return { front, n: Math.min(3, Math.ceil(Math.abs(z) / per - 0.02)), color: front ? "#4fa8ff" : "#ff4d5e" };
+}
 function coverBehind() {
   if (!view3d.on || BOT || chaseOn()) return;
   for (const V of [game, enemy]) {
@@ -17349,8 +17356,17 @@ function edgeArrow(wx, wy, color) {
 function drawRadar() {
   const M = mapBox(), kx = M.w / WW, ky = M.h / WH, k = Math.min(kx, ky), rw = M.w, rh = M.h, x0 = M.x, y0 = M.y;
   ctx.save();
-  ctx.fillStyle = "rgba(10,12,32,0.6)"; ctx.strokeStyle = "rgba(124,140,255,0.45)"; ctx.lineWidth = 1.5;
+  // flying in 3D: the map's frame blue while my ship is in front of the body in the middle, red while it is behind it; and
+  // beside it, on the right, a line in the same colour for each layer of depth it is in front or behind (3 each way)
+  const D3 = depthLayers();
+  ctx.fillStyle = "rgba(10,12,32,0.6)"; ctx.strokeStyle = D3 ? D3.color : "rgba(124,140,255,0.45)"; ctx.lineWidth = D3 ? 2.5 : 1.5;
   roundRect(x0, y0, rw, rh, 6); ctx.fill(); ctx.stroke();
+  if (D3 && D3.n) {
+    const lw = Math.min(12, Math.max(5, W - (x0 + rw) - 6)), gap = Math.max(5, rh * 0.07), lx = x0 + rw + 3;
+    ctx.save(); ctx.strokeStyle = D3.color; ctx.lineWidth = 3; ctx.lineCap = "round";
+    for (let i = 0; i < D3.n; i++) { const ly = y0 + rh / 2 + (i - (D3.n - 1) / 2) * gap; ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + lw, ly); ctx.stroke(); }
+    ctx.restore();
+  }
   ctx.beginPath(); ctx.rect(x0, y0, rw, rh); ctx.clip();
   ctx.fillStyle = body().color; ctx.beginPath(); ctx.arc(x0 + rw / 2, y0 + rh / 2, Math.max(3, planetR() * k * 1.6), 0, TAU); ctx.fill();
   const sx = x0 + game.x * kx, sy = y0 + game.y * ky;
