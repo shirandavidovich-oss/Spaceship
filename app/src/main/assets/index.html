@@ -2014,6 +2014,19 @@ function gunAt(g, size) {
   const m = rotatePt(g[0] * size, g[1] * size, game.ang);
   return { x: game.x + m.x, y: game.y + m.y, z: game.z3 || 0 };
 }
+// Perspective for shots from guns off to the side, flying in 3D (KRAAL's pair, THUL's twins...): each shot is drawn
+// smaller as it goes away round its own point, but the gap between a pair stayed the same, so far away they looked
+// further apart than they are. So the shot's sideways offset from the ship's line of fire (`off`, on the screen) is
+// scaled with how big things are at its depth, against how big they were where it left: going away the pair closes
+// in, coming toward you it opens out. (ox, oy, oz: the gun from the ship's middle; dv: which way the shot flies)
+function spread3(s, ox, oy, oz, dv) {
+  const L = Math.hypot(dv[0], dv[1], dv[2]) || 1, d = [dv[0] / L, dv[1] / L, dv[2] / L], o = [ox, oz * U, oy], a = o[0] * d[0] + o[1] * d[1] + o[2] * d[2];
+  s.off = [o[0] - a * d[0], o[2] - a * d[2]]; s.k0 = depthScale(s.z3 || 0); s.kp = 1;
+}
+function spreadStep(s) {
+  const k = depthScale(s.z3 || 0) / s.k0, f = k - s.kp;
+  s.x = wrapX(s.x + s.off[0] * f); s.y = wrapY(s.y + s.off[1] * f); s.kp = k;
+}
 // a point on the ship, turned with the ship (ang: 0 = nose up, clockwise)
 function rotatePt(x, y, ang) { const c = Math.cos(ang), s = Math.sin(ang); return { x: x * c - y * s, y: x * s + y * c }; }
 // ammo for one moment: the ship's own weapons fill back up, a picked-up one does not
@@ -11380,7 +11393,7 @@ function updateWeapons(dt) {
     if (s.seek && inWater(s) && enemy.on) { const t = steerShot(s.vx, s.vy, wrapDelta(enemy.x - s.x, WW), wrapDelta(enemy.y - s.y, WH), 3 * dt); s.vx = t.vx; s.vy = t.vy; }   // COURIER's capsule in the water: after BOILER
     if (shotFx(shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
-    if (s.vz3) { s.z3 += s.vz3 / U * dt; if (s.z3 > TILT3.near || s.z3 < -TILT3.far) { shots.splice(k, 1); continue; } }   // (flying in 3D: on into the depth, gone at its ends)
+    if (s.vz3) { s.z3 += s.vz3 / U * dt; if (s.z3 > TILT3.near || s.z3 < -TILT3.far) { shots.splice(k, 1); continue; } if (s.off) spreadStep(s); }   // (flying in 3D: on into the depth, gone at its ends; a side gun's pair closing in with distance)
     if (s.w === "missile" && Math.random() < 0.6) burstAt(s.x, s.y, 1, ["#b8fff0", "#ffffff"], 0.05, 0.6);
     if (Wp.ptorp) ptorpTrail(s);
     if (Wp.buoy) canStep(s, dt);
@@ -11577,6 +11590,7 @@ function spawnShots(w, g, rot) {
     if (!Wp.rear && !Wp.broadside && !Wp.mines) dv = aimShot(dv, x, y, z0, sv, Wp);   // (bent onto a target just off the nose — AIM)
     const iv = inherit(dv);   // (the ship's own drift: all of it along the shot, little of it sideways — AIM.side)
     shots.push({ w, x, y, vx: iv[0] + dv[0] * sv, vy: iv[2] + dv[2] * sv, z3: z0, vz3: iv[1] + dv[1] * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined });
+    if (q3s && g && Math.abs(g[0]) > 0.05 && !Wp.splay && !Wp.aimAt) spread3(shots[shots.length - 1], x - game.x, y - game.y, z0 - (game.z3 || 0), dv);   // (side guns: the pair closes in with distance)
   }
   // the drawings already have their own muzzle flash; drawn ships get a little spark burst
   if (S.id === "drakon" && game.splitUsed && game.zombie) drakFlares.push({ x, y, ang: game.ang, t: time });
