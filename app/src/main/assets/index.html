@@ -7751,12 +7751,17 @@ function shipSounds() {
   if (game.ship === "husk" || enemy.ship === "husk") { soundBuf("audio/husk/arm-loop.ogg"); soundBuf("audio/husk/monster-loop.ogg"); }
   const near = hunters.some((h) => Math.hypot(wrapDelta(h.x - game.x, WW), wrapDelta(h.y - game.y, WH)) < U * 2);
   loopClip("swarm", "audio/vexar/swarm-loop.ogg", fly && near, 2.0, 0.55);
+  // BALLAST reeling its asteroid in: a reversing beeper, beep-beep-beep, until it is home
+  const reeling = game.ship === "ballast" && game.tow && game.tow.phase === "tow" && towRig(game.tow, MAGIC.tow).reel < 0.999;
+  loopClip("reel", "audio/ballast/reel-beep.ogg", fly && !!reeling, 3.456, 0.7);
+  if (game.ship === "ballast") { soundBuf("audio/ballast/reel-beep.ogg"); soundBuf("audio/ballast/engine.ogg"); }
 }
 const monsterTalk = { on: false, next: 0, last: -1 };
 // the ships whose gas has its own sound instead of the engine hum: the loop and its length (s)
 const THRUST_LOOPS = { corsair: ["audio/corsair/rowing-loop.ogg", 4.08], flipper: ["audio/flipper/playfield-loop.ogg", 2.4], boiler: ["audio/boiler/engine-loop.ogg", 4.0],
   vexar: ["audio/vexar/fly-loop.ogg", 3.0], borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4], brass: ["audio/thul/tracks-rec.ogg", 5.5],
-  courier: ["audio/courier/loop.ogg", 2.0], zorian: ["audio/zorian/throttle.ogg", 9.45, 6.0] };   // (a third number: where the loop starts again; ZORIAN: the revs climb through the gears once, then hold the top one)
+  courier: ["audio/courier/loop.ogg", 2.0], zorian: ["audio/zorian/throttle.ogg", 9.45, 6.0],
+  ballast: ["audio/ballast/engine.ogg", 23.95, 1.5] };   // (BALLAST: its own engine recording while the gas is held)   // (a third number: where the loop starts again; ZORIAN: the revs climb through the gears once, then hold the top one)
 // THUL's boost: one press of the gas, two engines (its usual speed); tapped twice (the second press within `tap` s) all
 // four light: it accelerates `accel` times as hard and its top speed is `top` times higher. As it passes its usual top
 // speed — however it got going, even from standing still — it breaks the sound barrier: a boom, and a cone of white
@@ -8832,7 +8837,7 @@ function updateTow(dt) {
     const w = rotatePt(lx, ly, game.ang), nx = game.x + w.x, ny = game.y + w.y;
     T.vx = wrapDelta(nx - T.x, WW) / Math.max(dt, 1e-3); T.vy = wrapDelta(ny - T.y, WH) / Math.max(dt, 1e-3);
     T.x = wrapX(nx); T.y = wrapY(ny); T.ang += dt * (k < 1 ? 0.11 : 0.04);
-    if (k < 1 && Math.random() < 6 * dt) audio.tone(95 + Math.random() * 20, 0.12, "sawtooth", 0.02, 0.8);   // the winch
+    // (reeling it in: the reversing beeper, audio/ballast/reel-beep.ogg — played in the ship sounds, while reel < 1)
     if (!held || T.t > M.max) letGoTow(T, M);
   } else if (T.phase === "fly") {
     if (enemyDiver() && floodHeld() && floodSink(T, M, dt)) return;   // their BOILER under water: it sinks onto it
