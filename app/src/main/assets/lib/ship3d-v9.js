@@ -19,6 +19,7 @@ export const SHIP_MODELS = {
   boiler: { file: "models/boiler.glb", fwd: "+z", len: 0.8 },
   brass: { file: "models/thul.glb", fwd: "-x", len: 0.85 },
   puff: { file: "models/puff.glb", fwd: "-x", len: 0.8 },
+  vexar: { file: "models/vexar.glb", fwd: "-x", len: 0.95 },
   labyrinth: { file: "models/labyrinth.glb", fwd: "-x", len: 0.95 },
   kraal: { file: "models/kraal.glb", fwd: "+x", len: 0.75 },
   flipper: { file: "models/flipper.glb", fwd: "+x", len: 0.9 },
@@ -130,8 +131,48 @@ function chase(o) {
   return R2.domElement;
 }
 
+// ---- the attitude gauge (in the RESET button): the orientation pyramid (models/orientation.glb: its apex along +y,
+// yellow along +x, blue along -z, rotated round its root) turned as my ship is, seen from above as the game sees it,
+// fitted (axis tips and all) inside the button's grey window whichever way it turns ----
+let G3 = null;
+function gaugeInit() {
+  if (G3) return G3.state === "ready";
+  if (!init()) return false;
+  G3 = { state: "loading" };
+  const sc = new THREE.Scene();
+  const pm = new THREE.PMREMGenerator(R); sc.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose(); sc.environmentIntensity = 0.9;
+  sc.add(new THREE.HemisphereLight(0xffffff, 0x8890a0, 1.4));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.8); sun.position.set(-1.5, 3, -1); sc.add(sun);
+  const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -10, 10); cam.position.set(0, 5, 0); cam.up.set(0, 0, -1); cam.lookAt(0, 0, 0);
+  const turn = new THREE.Group(), calib = new THREE.Group(); calib.rotation.x = -Math.PI / 2;   // (the apex, +y, to the ship's nose, -z; the pyramid's +z to its top)
+  turn.add(calib); sc.add(turn);
+  Object.assign(G3, { sc, cam, turn, calib });
+  loader.load("models/orientation.glb", (g) => {
+    calib.add(g.scene);
+    let r = 0; g.scene.updateMatrixWorld(true);
+    const v = new THREE.Vector3();
+    g.scene.traverse((o) => {   // (its farthest point from its root, axis tips and all: as big as it can be and still never leave the window)
+      const P = o.isMesh && o.geometry.attributes.position; if (!P) return;
+      for (let i = 0; i < P.count; i++) r = Math.max(r, v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld).length());
+    });
+    cam.left = cam.bottom = -r * 1.02; cam.right = cam.top = r * 1.02; cam.updateProjectionMatrix();   // (fits in every turn: the farthest point from its root)
+    G3.state = "ready";
+  }, undefined, () => { G3.state = "fail"; });
+  return false;
+}
+// draw it, turned by q ([x, y, z, w], the ship's orientation), into a circle of radius `r` round (x, y) of the 2D context
+function gauge(ctx, q, x, y, r) {
+  if (!gaugeInit()) return false;
+  G3.turn.quaternion.set(q[0], q[1], q[2], q[3]);
+  R.toneMapping = THREE.NeutralToneMapping;
+  R.render(G3.sc, G3.cam);
+  ctx.drawImage(R.domElement, x - r, y - r, r * 2, r * 2);
+  return true;
+}
+
 export const Ship3D = {
-  version: 8,   // (index.html checks it; the file's name carries it too — lib/ship3d-v8.js — so the app never mixes a new
+  gauge,
+  version: 9,   // (index.html checks it; the file's name carries it too — lib/ship3d-v9.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
