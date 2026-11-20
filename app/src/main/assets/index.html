@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v27.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v28.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -1993,7 +1993,7 @@ function weaponsOf(S, mode = 0) { return mode && S.flip ? S.flip.weapons : S.wea
 // where each weapon's shots leave the ship (ship units, nose up). Without a drawing: from the nose
 // the ships whose 3D model has its guns on the other sides from the 2D drawing: in the 3D view their shots leave from
 // the model's guns (THUL: the twin gun on the model's right, the round cannon of the heavy ball on its left)
-const GUN_MIRROR3 = { brass: true };
+const GUN_MIRROR3 = { brass: true, courier: true };   // (COURIER: its capsule tube on the model's left)
 function gunsOf(S, w) {
   const G = (S.guns && S.guns[w]) || (w === "twin" ? [[-0.06, -0.5], [0.06, -0.5]] : [[0, -0.5]]);
   if (GUN_MIRROR3[S.id] && typeof view3d !== "undefined" && !BOT && view3d.on && view3d.state === "ready" && view3d.lib.has(S.id)) return G.map((g) => [-g[0], g[1]]);
@@ -4453,10 +4453,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v27.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v28.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 27, SHIP3D_FILE = "./lib/ship3d-v27.js";
+const SHIP3D_VER = 28, SHIP3D_FILE = "./lib/ship3d-v28.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");

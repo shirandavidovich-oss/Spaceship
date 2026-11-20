@@ -29,6 +29,7 @@ export const SHIP_MODELS = {
   lyth: { file: "models/lyth.glb", fwd: "-z", len: 1.03, fit: "max", split: 0.37 },
   lariat: { file: "models/lariat.glb", fwd: "+z", len: 1.03, upright: -1 },
   palisade: { file: "models/palisade.glb", fwd: "-z", len: 1.05, fit: "max", upright: 1 },
+  courier: { file: "models/courier.glb", fwd: "-x", len: 0.855 },
   gimbal: { file: "models/gimbal.glb", fwd: "-z", len: 1.03, upright: 1, gyro: { cz: 0.0513, spine: 0.045, bar: 0.045, rings: [[0.14, 0.245], [0.245, 0.31], [0.31, 0.4]] } },
   talus: { file: "models/talus.glb", fwd: "-z", len: 0.89, upright: 1, bands: true },
   reprise: { file: "models/reprise.glb", fwd: "+z", len: 0.787, upright: -1, blocks: [0.375, 0.02, -0.30], pad: 2.9 },   // (its four buildings, tallest first)
@@ -369,7 +370,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 27,   // (index.html checks it; the file's name carries it too — lib/ship3d-v27.js — so the app never mixes a new
+  version: 28,   // (index.html checks it; the file's name carries it too — lib/ship3d-v28.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
