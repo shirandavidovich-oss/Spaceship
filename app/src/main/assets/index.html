@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v9.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v10.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4430,10 +4430,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v9.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v10.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 9, SHIP3D_FILE = "./lib/ship3d-v9.js";
+const SHIP3D_VER = 10, SHIP3D_FILE = "./lib/ship3d-v10.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4473,7 +4473,7 @@ function draw3dShip(S, o, ang, bank) {
 // big, at +near). The depth wraps like the sides do: out at the near side, it comes back in from far away, and the
 // other way round. Out of the plane (|z3| more than a body's radius) it passes over or under the body in the middle.
 // So far shots and hits still go by the plane; the other phone sees its depth, tilt and roll (z3, p3, r3).
-const TILT3 = { rate: 2.6, roll: 3.2, yaw: 3.0, dead: 0.25, full: 1.3, fireAt: 1.45, far: 8, near: 4, small: 0.1, big: 4.0, fade: 0.5 };   // (depth twice as deep each way: further and smaller, nearer and bigger)
+const TILT3 = { rate: 2.6, roll: 3.2, yaw: 3.0, dead: 0.25, full: 1.3, fireAt: 1.45, far: 8, near: 6, small: 0.1, big: 8.0, fade: 0.5 };   // (depth twice as deep each way: further and smaller, nearer and bigger)
 // a drag on one of the sticks: how hard (0 inside the dead zone, 1 at `full`), and whether it is pushed right out
 function stick3(dx, dy) {
   const r = thrustButton().r, d = Math.hypot(dx, dy), T = TILT3;
@@ -4525,10 +4525,10 @@ const Q3 = {
 // plane of the game (dashed where it passes behind), and beside it a bar for its depth (far at the top, near at the
 // bottom, the plane in the middle) ----
 const GAUGE3 = { size: 1.0, cam: 4.2 };   // (size: of the thrust button's radius; cam: how far the eye is, in gauge sizes: less, more perspective)
-function gaugeBox() {   // (the RESET button with the gauge in it: in the gap between the thrust button and the fire buttons, low, under the magic and shield buttons; as big as fits)
-  const t = thrustButton(), f = fireButtons(), left = t.x + t.r * 0.85, right = Math.min(...f.map((b) => b.x - b.r * 0.85));
-  const r = Math.max(18, Math.min(t.r * GAUGE3.size, (right - left) / 2.35));
-  return { x: (left + right) / 2 - r * 0.15, y: Math.min(H - r * 1.05, t.y + t.r * 0.35), r };
+function gaugeBox() {   // (the RESET button with the gauge in it: right in the middle between the thrust button and fire button 1, as big as fits)
+  const t = thrustButton(), f = fireButtons()[0], gap = Math.hypot(f.x - t.x, f.y - t.y) - t.r - f.r;
+  const r = Math.max(18, Math.min(t.r * GAUGE3.size, gap / 2 - 4));
+  return { x: (t.x + f.x) / 2, y: (t.y + f.y) / 2, r };
 }
 // the drawn pyramid: until the 3D one (lib/ship3d: models/orientation.glb) is ready, or without WebGL; G: its circle
 function drawGauge3(G) {
@@ -4563,21 +4563,13 @@ function drawGauge3(G) {
   const nz = P(W3.nose); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(nz.x, nz.y, Math.max(2, R * 0.07 * cam / (cam - W3.nose[1])), 0, TAU); ctx.fill();   // (the nose: a white dot)
   ctx.restore();
 }
-// the depth bar, right of the RESET button: far (small) at the top, near at the bottom, the plane in the middle
-function drawDepthBar(G) {
-  const T = TILT3, bx = G.x + G.r * 1.18, bh = G.r * 1.5, z = game.z3 || 0, k = z >= 0 ? 0.5 + 0.5 * z / T.near : 0.5 + 0.5 * z / T.far;
-  ctx.save(); ctx.strokeStyle = "rgba(124,140,255,0.55)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, G.y - bh / 2); ctx.lineTo(bx, G.y + bh / 2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(bx - 4, G.y); ctx.lineTo(bx + 4, G.y); ctx.stroke();
-  ctx.fillStyle = "#7ef0c8"; ctx.beginPath(); ctx.arc(bx, G.y - bh / 2 + bh * k, Math.max(3, G.r * 0.08), 0, TAU); ctx.fill();
-  ctx.restore();
-}
 // ---- the level button (flying in 3D; up and to the left of the thrust button): an autopilot that turns the ship back,
 // smoothly, round the shortest way, until it lies level with space, nose up the screen — seen from behind. Its attitude
 // jets puff and hiss as it turns; touching either stick takes the controls back ----
 const LEVEL3 = { rate: 1.8 };   // (rad a second at most)
 function levelButton() { return gaugeBox(); }   // (the RESET button, with the attitude gauge in its window: between the thrust and the fire buttons)
 function levelShown() { return view3d.on && !BOT && game.stage === "fly" && !game.dead && !result.mode && !game.docked && !hangar.open; }
-function hitLevelButton(x, y) { if (!levelShown()) return false; const b = levelButton(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.3; }
+function hitLevelButton(x, y) { if (!levelShown()) return false; const b = levelButton(); return Math.hypot(x - b.x, y - b.y) < b.r; }   // (just the button: the magic buttons are close above it)
 function levelTap() { game.level3 = true; audio.pop(); buzz(15); }
 const RESET_WIN = { x: 0.497, y: 0.47, r: 0.33 };   // (the grey window in art/ui/btn-reset-gauge.webp: its middle and radius, of the picture's width; a little above the RESET label)
 function drawLevelButton() {
@@ -4593,7 +4585,6 @@ function drawLevelButton() {
   let done = false;
   if (game.q3 && view3d.state === "ready" && view3d.lib.gauge) { try { done = view3d.lib.gauge(ctx, game.q3, G.x, G.y, G.r); } catch (e) { done = false; } }
   if (!done) drawGauge3({ x: G.x, y: G.y, r: G.r * 0.62 });
-  drawDepthBar(b);
 }
 // one step of the autopilot: the orientation turned toward level by at most `step` (rad), round the shortest way
 function levelStep(q, step) {
