@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v20.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v21.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -1526,8 +1526,9 @@ const MAGIC = {
   slip:    { name: "קפיצת תקלה", look: "slip", cool: 7, at: 0.4, jump: 2.6, ghost: 2.5, color: "#38f6ff" },
   // CINDER's side slip (dashL to the left, dashR to the right, one shared recharge): the engines swivel for `turn` s,
   //   and at `at` s the ship is kicked `kick` screens a second sideways (its own sideways, its heading untouched)
-  dashL: { name: "החלקה שמאלה", look: "dash", dir: -1, cool: 3.4, turn: 0.66, at: 0.17, kick: 2.34, color: "#ffa040" },   // (kick: 30% more than 1.8)
-  dashR: { name: "החלקה ימינה", look: "dash", dir: 1,  cool: 3.4, turn: 0.66, at: 0.17, kick: 2.34, color: "#ffa040" },
+  //   In 3D it also jumps `layers` layers of depth, toward you or into the screen at random, eased over the slip
+  dashL: { name: "החלקה שמאלה", look: "dash", dir: -1, cool: 3.4, turn: 0.66, at: 0.17, kick: 2.34, color: "#ffa040", layers: 1 },   // (kick: 30% more than 1.8)
+  dashR: { name: "החלקה ימינה", look: "dash", dir: 1,  cool: 3.4, turn: 0.66, at: 0.17, kick: 2.34, color: "#ffa040", layers: 1 },
   // PUFF's inflation: while the spines are out (`guard`, seconds) a touching ship is stabbed (`dmg`, at most every
   //   `every` s) and thrown off (`knock`); it turns at `turn` of its speed while puffed up
   // PUFF: `up` s to puff up; held until a fire press; the spines fly; `down` s crumpling. `cool` counts from the spines.
@@ -4443,10 +4444,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v20.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v21.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 20, SHIP3D_FILE = "./lib/ship3d-v20.js";
+const SHIP3D_VER = 21, SHIP3D_FILE = "./lib/ship3d-v21.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -13598,6 +13599,16 @@ function updateCinder(dt) {
     game.vx += k.x; game.vy += k.y;
     for (const e of exhausts(game, shipById(game.ship))) burstAt(e.x, e.y, 14, ["#ffffff", "#ffd27a", "#ff7a1a"], 0.5, 0.8, game.vx * 0.3, game.vy * 0.3);
     audio.noise(0.3, 0.2, 1800); audio.tone(110, 0.3, "sawtooth", 0.06, 0.5); shake(0.3); buzz(80);
+    if (view3d.on && !BOT) {   // flying in 3D: it also jumps a layer of depth, toward you or away into the screen, at random
+      const per = TILT3.near / (TILT3.layers || 3), z = game.z3 || 0;
+      let s = Math.random() < 0.5 ? -1 : 1;
+      if (z + s * per > TILT3.near - TILT3.fade || z + s * per < -TILT3.far + TILT3.fade) s = -s;   // (not out past either end)
+      D.z0 = z; D.z1 = z + s * per * M.layers;
+    }
+  }
+  if (D.z1 != null && !game.dead) {   // the depth jump: eased over the rest of the slip
+    const k = clamp((D.t - M.at) / (M.turn - M.at), 0, 1), e = k * k * (3 - 2 * k);
+    game.z3 = (game.z3 || 0) + (D.z1 - D.z0) * (e - (D.e || 0)); D.e = e;   // (added on: its own drift into the depth goes on)
   }
   if (D.t >= M.turn) game.dash2 = null;
 }
