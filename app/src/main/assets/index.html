@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v5.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v6.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4429,10 +4429,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v5.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v6.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 5, SHIP3D_FILE = "./lib/ship3d-v5.js";
+const SHIP3D_VER = 6, SHIP3D_FILE = "./lib/ship3d-v6.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4537,16 +4537,25 @@ function updateTilt3(dt) {
 // ---- the attitude jets (flying in 3D): as a satellite turns, small puffs of compressed gas squirt from the ship's
 // edges while it yaws, tilts or rolls — the nose and tail opposite ways for a yaw, wingtips for a roll, the nose and tail
 // toward or away from you for a tilt (seen from above: puffs that bloom in place) — each puff with a little "psss" ----
-const RCS = { every: 0.13, life: 0.45, speed: 0.55, size: 0.05, vol: 0.018, hiss: 0.38 };   // (hiss: s between two psss sounds at most)   // (every: s between puffs from one jet while turning; speed, size: in ship sizes)
+const RCS = { every: 0.13, life: 0.45, speed: 0.55, size: 0.05, vol: 0.009 };   // (vol: the hiss, held as long as it turns)   // (every: s between puffs from one jet while turning; speed, size: in ship sizes)
 const rcsPuffs = [];
 let rcsT = 0;
-function rcsHiss(vol) {   // the psssss: a soft, airy hiss, held a moment and trailing off
+// the hiss: one steady psssss of escaping gas, on as long as the ship turns (louder the harder), easing out when it stops
+let rcsSnd = null;
+function rcsHiss(vol) {
   const c = audio.ctx; if (!c || !audio.out) return;
-  const dur = 0.42 + Math.random() * 0.12, n = Math.round(c.sampleRate * dur), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) { const t = i / n; d[i] = (Math.random() * 2 - 1) * Math.min(1, t * 12) * (t < 0.55 ? 1 : Math.pow(1 - (t - 0.55) / 0.45, 2)); }
-  const src = c.createBufferSource(), hp = c.createBiquadFilter(), bp = c.createBiquadFilter(), g = c.createGain();
-  src.buffer = buf; hp.type = "highpass"; hp.frequency.value = 4200; bp.type = "peaking"; bp.frequency.value = 6500 + Math.random() * 1500; bp.Q.value = 0.8; bp.gain.value = 5; g.gain.value = vol;
-  src.connect(hp); hp.connect(bp); bp.connect(g); g.connect(audio.out); src.start();
+  if (!rcsSnd) {
+    if (vol <= 0) return;
+    const n = c.sampleRate * 2, buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource(), hp = c.createBiquadFilter(), pk = c.createBiquadFilter(), g = c.createGain();
+    src.buffer = buf; src.loop = true; hp.type = "highpass"; hp.frequency.value = 4200; pk.type = "peaking"; pk.frequency.value = 7000; pk.Q.value = 0.8; pk.gain.value = 5;
+    g.gain.value = 0; src.connect(hp); hp.connect(pk); pk.connect(g); g.connect(audio.out); src.start();
+    rcsSnd = { src, g, vol: 0 };
+  }
+  if (Math.abs(rcsSnd.vol - vol) < 0.0005) return;
+  rcsSnd.vol = vol; const now = c.currentTime;
+  rcsSnd.g.gain.cancelScheduledValues(now); rcsSnd.g.gain.setValueAtTime(rcsSnd.g.gain.value, now); rcsSnd.g.gain.linearRampToValueAtTime(vol, now + (vol > 0 ? 0.04 : 0.25));
 }
 // a puff from the ship at (fx, fy) (in ship sizes, its own frame: x right, y back), blown out along (dx, dy) (its frame too)
 function rcsPuff(fx, fy, dx, dy) {
@@ -4556,16 +4565,16 @@ function rcsPuff(fx, fy, dx, dy) {
 }
 function updateRcs(dt) {
   for (let i = rcsPuffs.length - 1; i >= 0; i--) { const P = rcsPuffs[i]; P.t += dt; P.x = wrapX(P.x + P.vx * dt); P.y = wrapY(P.y + P.vy * dt); P.vx *= Math.exp(-dt * 3); P.vy *= Math.exp(-dt * 3); if (P.t > RCS.life) rcsPuffs.splice(i, 1); }
-  if (!view3d.on || BOT || game.dead || game.stage !== "fly") return;
+  if (!view3d.on || BOT || game.dead || game.stage !== "fly") { rcsHiss(0); return; }
   const T = game.tilt3, Y = game.yaw3, q = T ? T.want || 0 : 0, rl = T ? T.roll || 0 : 0, w = Y ? Y.yaw || 0 : 0;
   const most = Math.max(Math.abs(q), Math.abs(rl), Math.abs(w));
+  rcsHiss(most < 0.08 ? 0 : RCS.vol * (0.6 + 0.4 * most));   // (the hiss: steady while it turns, gone when it stops)
   if (most < 0.08) { rcsT = 0; return; }
   rcsT -= dt; if (rcsT > 0) return;
   rcsT = RCS.every * (1.4 - 0.6 * most);   // (pushed harder: puffing faster)
   if (Math.abs(w) > 0.08) { const sg = Math.sign(w); rcsPuff(-0.16 * sg, -0.42, -sg, 0); rcsPuff(0.16 * sg, 0.4, sg, 0); }   // a yaw: nose one way, tail the other
   if (Math.abs(q) > 0.08) { rcsPuff(0, -0.45, 0, -0.3); rcsPuff(0, 0.42, 0, 0.3); }   // a tilt: nose and tail, up or down (seen from above: in place)
   if (Math.abs(rl) > 0.08) { rcsPuff(-0.36, 0.05, -1, 0); rcsPuff(0.36, 0.05, 1, 0); }   // a roll: the wingtips
-  if (time - (RCS.lastHiss || -9) > RCS.hiss) { RCS.lastHiss = time; rcsHiss(RCS.vol * (0.6 + 0.4 * most)); }   // (the hisses one after another, not piled up)
 }
 function drawRcs() {
   if (!rcsPuffs.length) return;
@@ -19509,6 +19518,7 @@ placeShip();
 if (!BOT) { preloadArt(); server.sync(); }
 let last = performance.now(), frameDt = 0;
 function frame(now) {
+  if (rcsSnd && rcsSnd.vol > 0 && (game.stage !== "fly" || document.hidden)) rcsHiss(0);   // (the jets' hiss never left on off the flight)
   const dt = Math.min(0.05, (now - last) / 1000); last = now; frameDt = dt;
   requestAnimationFrame(frame);   // first: an error below must never stop the game
   if (cine.on) { musicTick(); cineWatch(dt); return; }   // a ship's film is playing over the game: everything waits
