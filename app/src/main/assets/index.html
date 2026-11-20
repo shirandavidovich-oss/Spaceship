@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v6.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v7.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -3066,6 +3066,7 @@ cv.addEventListener("pointerdown", (e) => {
   if (game.stage === "fly" && !game.dead && hitShieldBtn(e.clientX, e.clientY)) { useShield(); return; }   // the active shield
   if (hitCamButton(e.clientX, e.clientY)) { camButtonTap(); return; }   // the 3D view's camera
   if (hit3dButton(e.clientX, e.clientY)) { view3dTap(); return; }   // 2D ⇄ 3D
+  if (hitLevelButton(e.clientX, e.clientY)) { levelTap(); return; }   // the 3D autopilot: level
   // the left thumb on the thrust button (another finger can still swipe at the same time)
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
     game.thrust = e.pointerId; buzz(12);
@@ -4429,10 +4430,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v6.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v7.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 6, SHIP3D_FILE = "./lib/ship3d-v6.js";
+const SHIP3D_VER = 7, SHIP3D_FILE = "./lib/ship3d-v7.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4513,12 +4514,52 @@ const Q3 = {
     return { ang: wrapAngle(-ey), p: -ex, r: wrapAngle(-ez) };
   },
 };
+// ---- the level button (flying in 3D; up and to the left of the thrust button): an autopilot that turns the ship back,
+// smoothly, round the shortest way, until it lies level with space, nose up the screen — seen from behind. Its attitude
+// jets puff and hiss as it turns; touching either stick takes the controls back ----
+const LEVEL3 = { rate: 1.8 };   // (rad a second at most)
+function levelButton() { const t = thrustButton(), r = Math.max(14, t.r * 0.36); return { x: t.x - t.r * 0.75, y: t.y - t.r * 1.55 - r, r }; }
+function levelShown() { return view3d.on && !BOT && game.stage === "fly" && !game.dead && !result.mode && !game.docked && !hangar.open; }
+function hitLevelButton(x, y) { if (!levelShown()) return false; const b = levelButton(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.3; }
+function levelTap() { game.level3 = true; audio.pop(); buzz(15); }
+function drawLevelButton() {
+  if (!levelShown()) return;
+  const b = levelButton(), on = !!game.level3;
+  ctx.save();
+  ctx.fillStyle = on ? "rgba(126,240,200,0.3)" : "rgba(10,12,32,0.6)"; ctx.strokeStyle = on ? "#7ef0c8" : "rgba(124,140,255,0.7)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); ctx.stroke();
+  // a little level gauge: a horizon line and a ship's nose mark on it, turning while it levels
+  ctx.translate(b.x, b.y); if (on) ctx.rotate(Math.sin(time * 6) * 0.15);
+  ctx.strokeStyle = "#ffffff"; ctx.lineWidth = Math.max(1.5, b.r * 0.12); ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-b.r * 0.62, 0); ctx.lineTo(-b.r * 0.22, 0); ctx.moveTo(b.r * 0.22, 0); ctx.lineTo(b.r * 0.62, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -b.r * 0.42); ctx.lineTo(-b.r * 0.2, b.r * 0.1); ctx.lineTo(b.r * 0.2, b.r * 0.1); ctx.closePath(); ctx.fillStyle = "#7ef0c8"; ctx.fill();
+  ctx.restore();
+}
+// one step of the autopilot: the orientation turned toward level by at most `step` (rad), round the shortest way
+function levelStep(q, step) {
+  const T = Q3.fromAngles(0, 0, 0);
+  let d = q[0] * T[0] + q[1] * T[1] + q[2] * T[2] + q[3] * T[3];
+  const t2 = d < 0 ? T.map((v) => -v) : T; d = Math.abs(d);
+  const ang = 2 * Math.acos(Math.min(1, d));
+  if (ang < 0.004) return { q: t2, done: true };
+  const k = Math.min(1, step / ang), th = Math.acos(Math.min(1, d)), sn = Math.sin(th);
+  const a = sn < 1e-6 ? 1 - k : Math.sin((1 - k) * th) / sn, b = sn < 1e-6 ? k : Math.sin(k * th) / sn;
+  return { q: Q3.norm([q[0] * a + t2[0] * b, q[1] * a + t2[1] * b, q[2] * a + t2[2] * b, q[3] * a + t2[3] * b]), done: k >= 1 };
+}
 function updateTilt3(dt) {
   if (!view3d.on || BOT) { game.p3 = game.z3 = game.vz3 = game.r3 = 0; game.q3 = null; return; }
   // (anything else that turned the ship — a new life, a magic — since last time: start again from its angles)
   const E = game.q3e;
   if (!game.q3 || !E || Math.abs(wrapAngle(E[0] - game.ang)) > 1e-6 || Math.abs(E[1] - (game.p3 || 0)) > 1e-6 || Math.abs(E[2] - (game.r3 || 0)) > 1e-6) game.q3 = Q3.fromAngles(game.ang, game.p3 || 0, game.r3 || 0);
   const T = game.tilt3, Y = game.yaw3;
+  if (game.level3 && ((T && (T.want || T.roll)) || (Y && Y.yaw) || game.dead)) game.level3 = false;   // (a stick moved: the controls are the pilot's again)
+  if (game.level3) {   // the autopilot levelling it
+    const L = levelStep(game.q3, LEVEL3.rate * dt);
+    game.q3 = L.q; const A = Q3.toAngles(game.q3); game.ang = A.ang; game.p3 = A.p; game.r3 = A.r;
+    if (L.done) game.level3 = false;
+    game.q3e = [game.ang, game.p3 || 0, game.r3 || 0];
+    return;
+  }
   const pitch = T && !game.dead ? T.want * TILT3.rate * dt : 0, yaw = Y && !game.dead ? Y.yaw * TILT3.yaw * dt : 0, roll = T && !game.dead ? T.roll * TILT3.roll * dt : 0;
   if (pitch || yaw || roll) {
     // round its own axes (multiplied on the right: in the ship's frame). Yaw right: the nose toward its right wing
@@ -4567,11 +4608,12 @@ function updateRcs(dt) {
   for (let i = rcsPuffs.length - 1; i >= 0; i--) { const P = rcsPuffs[i]; P.t += dt; P.x = wrapX(P.x + P.vx * dt); P.y = wrapY(P.y + P.vy * dt); P.vx *= Math.exp(-dt * 3); P.vy *= Math.exp(-dt * 3); if (P.t > RCS.life) rcsPuffs.splice(i, 1); }
   if (!view3d.on || BOT || game.dead || game.stage !== "fly") { rcsHiss(0); return; }
   const T = game.tilt3, Y = game.yaw3, q = T ? T.want || 0 : 0, rl = T ? T.roll || 0 : 0, w = Y ? Y.yaw || 0 : 0;
-  const most = Math.max(Math.abs(q), Math.abs(rl), Math.abs(w));
+  const most = game.level3 ? 0.7 : Math.max(Math.abs(q), Math.abs(rl), Math.abs(w));   // (the autopilot levelling it: puffing too)
   rcsHiss(most < 0.08 ? 0 : RCS.vol * (0.6 + 0.4 * most));   // (the hiss: steady while it turns, gone when it stops)
   if (most < 0.08) { rcsT = 0; return; }
   rcsT -= dt; if (rcsT > 0) return;
   rcsT = RCS.every * (1.4 - 0.6 * most);   // (pushed harder: puffing faster)
+  if (game.level3) { rcsPuff(-0.16, -0.42, -1, 0); rcsPuff(0.16, 0.4, 1, 0); rcsPuff(-0.36, 0.05, -1, 0); rcsPuff(0.36, 0.05, 1, 0); }
   if (Math.abs(w) > 0.08) { const sg = Math.sign(w); rcsPuff(-0.16 * sg, -0.42, -sg, 0); rcsPuff(0.16 * sg, 0.4, sg, 0); }   // a yaw: nose one way, tail the other
   if (Math.abs(q) > 0.08) { rcsPuff(0, -0.45, 0, -0.3); rcsPuff(0, 0.42, 0, 0.3); }   // a tilt: nose and tail, up or down (seen from above: in place)
   if (Math.abs(rl) > 0.08) { rcsPuff(-0.36, 0.05, -1, 0); rcsPuff(0.36, 0.05, 1, 0); }   // a roll: the wingtips
@@ -4652,12 +4694,31 @@ function testNoStar() { return !!testState.noStar && (HANGAR || BOT); }
 function testNoStarSet(on) { testState.noStar = on; saveTest(); duelSend({ t: "ns", on: on ? 1 : 0 }); audio.pop(); buzz(on ? 40 : 15); }
 // a button with my ship behind it fades to 10% (and back), so the ship can be seen through it
 const padFade = {};
+function shipOnScreen() { return { p: zoomed(shipScreen()), r: shipSize() * game.zoom * (game.z3 ? depthScale(game.z3) : 1) * (chaseOn() ? 1.6 : 0.5) }; }
 function padSee(key, list, fn) {
-  const p = zoomed(shipScreen()), r = shipSize() * game.zoom * (game.z3 ? depthScale(game.z3) : 1) * (chaseOn() ? 1.6 : 0.5);
-  const under = list.some((b) => b && b.r > 5 && Math.hypot(p.x - b.x, p.y - b.y) < b.r * 1.1 + r);
-  const a = padFade[key] = lerp(padFade[key] == null ? 1 : padFade[key], under ? 0.1 : 1, 1 - Math.exp(-(frameDt || 0.016) * 10));
+  const { p, r } = shipOnScreen();
+  const under = !game.dead && list.some((b) => b && b.r > 5 && Math.hypot(p.x - b.x, p.y - b.y) < b.r * 1.1 + r);
+  seeThrough(key, under, fn);
+}
+// the same for the top of the screen: a whole block (the health, the tanks, the ships' icons, the money, CONNECT and the
+// sound dials on the left; the map and its buttons on the right), see-through while my ship is under any of it
+function hudLeftRect() { const M = mapBox(); let b = U * 0.2; try { b = Math.max(b, walletBox().y + U * 0.035); } catch (e) {} return { x: 0, y: 0, w: M.x, h: b }; }
+function hudRightRect() { const M = mapBox(), V = viewBtns().v3; return { x: M.x - U * 0.01, y: 0, w: W - M.x + U * 0.01, h: Math.max(M.y + M.h, V.y + V.r) + U * 0.01 }; }
+function hudSee(key, R, fn) {
+  const { p, r } = shipOnScreen();
+  const under = !game.dead && game.stage === "fly" && p.x + r > R.x && p.x - r < R.x + R.w && p.y + r > R.y && p.y - r < R.y + R.h;
+  seeThrough(key, under, fn);
+}
+let seeA = 1;   // (while a see-through block is drawn: its fading, for the parts of it that set their own see-through-ness)
+function seeThrough(key, under, fn) {
+  if (padFade[key + "#"] !== time) {   // (eased once a frame, however many times a block is drawn in it)
+    padFade[key + "#"] = time;
+    padFade[key] = lerp(padFade[key] == null ? 1 : padFade[key], under ? 0.1 : 1, 1 - Math.exp(-(frameDt || 0.016) * 10));
+  }
+  const a = padFade[key];
   if (a > 0.99) { fn(); return; }
-  ctx.save(); ctx.globalAlpha *= a; fn(); ctx.restore();
+  ctx.save(); ctx.globalAlpha *= a; seeA = a;
+  try { fn(); } finally { seeA = 1; ctx.restore(); }
 }
 function testBody() { return HANGAR && !BOT && testState.body != null && BODIES[testState.body] ? testState.body : null; }
 function pickBody(now) { const t = testBody(); return t != null ? t : nextBody(now); }
@@ -10830,7 +10891,7 @@ function drawScore() {
 function drawBounty() {
   if (!(bounty.t > 0) || !bounty.r) return;
   const r = bounty.r, a = Math.min(1, bounty.t / 0.4) * Math.min(1, (3.2 - bounty.t) / 0.2), f = Math.round(U * 0.05), y = H * 0.24;
-  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
+  ctx.save(); ctx.globalAlpha = seeA * (a); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
   ctx.fillStyle = "rgba(10,12,32,0.8)"; roundRect(W / 2 - U * 0.3, y - f, U * 0.6, f * 1.6 + f * 0.62 * (r.lines.length + 1), f * 0.4); ctx.fill();
   ctx.direction = "ltr"; ctx.font = `900 ${f}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.fillText(`+${r.total.toLocaleString("en-US")} 🪙`, W / 2, y - f * 0.1 - (1 - a) * f); ctx.direction = textDir();
   ctx.font = `600 ${Math.round(f * 0.42)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#cfd8f0";
@@ -11533,7 +11594,7 @@ function drawShip(S, x, y, size, o = {}) {
   const power = o.power ?? 0.25, bank = o.bank ?? 0, alpha = o.alpha ?? 1, ang = o.ang ?? 0;
   const prop = S.boiler && o.vt && !o.zombie ? boilerProp(o.vt, S) : null;   // BOILER under water: its propeller (no flame)
   ctx.save();
-  ctx.globalAlpha = alpha;
+  ctx.globalAlpha = alpha * (o.icon ? seeA : 1);   // (an icon in a see-through block: faded with it)
   ctx.translate(x, y); ctx.rotate(ang + bank * 0.15); ctx.scale(size * Math.cos(bank * 0.9), size);
   const V3 = o.vt === game || o.vt === enemy ? o.vt : null, t3 = V3 && V3.z3 ? depthScale(V3.z3) : 1, f3 = V3 ? Math.cos(V3.p3 || 0) : 1, w3 = V3 ? Math.cos(V3.r3 || 0) : 1;   // (flying in 3D: nearer or farther, its engines foreshortened as it tilts)
   if (t3 !== 1) { ctx.scale(t3, t3); ctx.globalAlpha *= depthFade(V3.z3); }
@@ -11850,7 +11911,7 @@ function drawDials() {
       ctx.beginPath(); ctx.moveTo(cx - D.d * 0.3, cy + D.d * 0.3); ctx.lineTo(cx + D.d * 0.3, cy - D.d * 0.3); ctx.stroke(); ctx.restore();
     }
     if (D.ch === "music" && music.note && (music.note.t += frameDt || 0.016) < 1.8) {   // just tapped: which music now
-      ctx.save(); ctx.globalAlpha = Math.min(1, (1.8 - music.note.t) * 3); ctx.font = `900 ${Math.round(Math.max(11, D.d * 0.22))}px Rubik, Arial, sans-serif`;
+      ctx.save(); ctx.globalAlpha = seeA * (Math.min(1, (1.8 - music.note.t) * 3)); ctx.font = `900 ${Math.round(Math.max(11, D.d * 0.22))}px Rubik, Arial, sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.direction = "ltr";
       const tx = musicPickName(), tw = ctx.measureText(tx).width + D.d * 0.3, ty = D.y + D.d + Math.max(16, D.d * 0.4);
       ctx.fillStyle = "rgba(10,12,32,0.85)"; roundRect(cx - tw / 2, ty, tw, Math.max(15, D.d * 0.32), 6); ctx.fill();
@@ -16889,18 +16950,19 @@ function draw() {
     if (crate.on) edgeArrow(crate.x, crate.y, WEAPONS[crate.w].color);
     for (const c of comets) edgeArrow(c.x, c.y, c.kind === "gold" ? "#ffd166" : mineralById(c.mineral).color);   // the comets, off screen
     drawCard(shown, Math.min(1, game.card * 2));
-    drawRadar(); drawCamButton();
-    drawHealth();
+    const hudL = hudLeftRect(), hudR = hudRightRect();   // (the top of the screen: see-through over my ship, like the buttons)
+    hudSee("hudR", hudR, () => { drawRadar(); drawCamButton(); });
+    hudSee("hudL", hudL, drawHealth);
     drawScrambleNote(); drawHackNote(); drawZombieNote(); drawLieNote();
     if (game.flash > 0) { ctx.save(); ctx.globalAlpha = Math.min(0.7, game.flash * 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     if (!game.dead && !result.mode && !game.docked) {   // (my ship behind a button: the button nearly see-through, 90%)
       const tb = thrustButton(), mb = magicButton(), sb = shieldButton();
-      padSee("thrust", [tb], drawThrust); padSee("fire", fireButtons(), drawFire); padSee("magic", [mb], drawMagic); padSee("shield", [sb], drawShieldBtn); drawDockPrompt();
+      padSee("thrust", [tb], drawThrust); padSee("fire", fireButtons(), drawFire); padSee("magic", [mb], drawMagic); padSee("shield", [sb], drawShieldBtn); padSee("level", [levelButton()], drawLevelButton); drawDockPrompt();
     }
     else if (result.mode) drawThrust();   // (the gas, to kick the letters)
-    drawDuel(); drawDials();
-    drawHangarButton(); drawFleetRow(); drawLevel();   // ("my ships" and the language: in the hangar)
-    drawWallet(); drawBounty(); drawPracticeNote();   // the money: this ship's and the total
+    hudSee("hudL", hudL, () => { drawDuel(); drawDials(); });
+    hudSee("hudR", hudR, drawHangarButton); hudSee("hudL", hudL, () => { drawFleetRow(); drawLevel(); });   // ("my ships" and the language: in the hangar)
+    hudSee("hudL", hudL, () => { drawWallet(); drawBounty(); }); drawPracticeNote();   // the money: this ship's and the total
     drawBodyLabel();
     drawNova();
   } else drawParts();
@@ -17295,11 +17357,11 @@ function drawTanks(cy, h, left, flash) {
     ctx.fillStyle = "rgba(10,12,32,0.7)"; ctx.strokeStyle = full ? "rgba(140,255,170,0.85)" : "rgba(124,140,255,0.4)"; ctx.lineWidth = 1.5;
     roundRect(x, y, tw, th, tw * 0.35); ctx.fill(); ctx.stroke();
     if (full || just) {
-      ctx.globalAlpha = just ? flash : 1;
+      ctx.globalAlpha = seeA * (just ? flash : 1);
       const g = ctx.createLinearGradient(x, y, x + tw, y);
       g.addColorStop(0, "#2fd47a"); g.addColorStop(0.45, "#9dffc0"); g.addColorStop(1, "#22a862");
       ctx.fillStyle = just ? "#ffffff" : g; roundRect(x + 2, y + 2, tw - 4, th - 4, (tw - 4) * 0.35); ctx.fill();
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = seeA * (1);
     }
     ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(x + tw * 0.3, y - Math.max(1.5, th * 0.08), tw * 0.4, Math.max(1.5, th * 0.08));   // the cap
   }
@@ -18749,10 +18811,10 @@ function drawDuel() {
   ctx.save(); ctx.translate(b.x, b.y);
   if (duel.stage === "looking") for (let i = 0; i < 3; i++) {   // looking: outlines going out round the button
     const k = (time * 0.8 + i / 3) % 1, c = b.box, g = c.h * 0.6 * k;
-    ctx.globalAlpha = 1 - k; ctx.strokeStyle = "#ff9ad8"; ctx.lineWidth = 2;
+    ctx.globalAlpha = seeA * (1 - k); ctx.strokeStyle = "#ff9ad8"; ctx.lineWidth = 2;
     roundRect(c.x - b.x - g, c.y - b.y - g, c.w + g * 2, c.h + g * 2, c.h * 0.3); ctx.stroke();
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = seeA * (1);
   // the CONNECT picture (pressed: just tapped, while looking for the other phone, and while connected)
   const c = b.box, pressed = duel.stage === "looking" || on || performance.now() - (duel.pressAt || -1e9) < 250;
   const img = artImage("art/ui/" + (pressed ? "connect-pressed" : "connect") + ".webp");
@@ -18782,11 +18844,11 @@ function drawDuel() {
   // 3, 2, 1 in the middle, then the fight starts
   if (duel.stage === "count") {
     const n = 3 - Math.floor(duel.t), k = duel.t % 1, f = Math.round(U * 0.3 * (1.3 - k * 0.4));
-    ctx.save(); ctx.globalAlpha = 1 - k * 0.7; ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.save(); ctx.globalAlpha = seeA * (1 - k * 0.7); ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.font = `900 ${f}px Rubik, Arial, sans-serif`; ctx.fillText(String(Math.max(1, n)), W / 2, H * 0.4); ctx.restore();
   }
   // the other player left
-  if (duel.stage === "over" && duel.t < 1.6) { ctx.save(); ctx.globalAlpha = 1 - duel.t / 1.6; cross(b.x, b.y, b.r * 0.8); ctx.restore(); }
+  if (duel.stage === "over" && duel.t < 1.6) { ctx.save(); ctx.globalAlpha = seeA * (1 - duel.t / 1.6); cross(b.x, b.y, b.r * 0.8); ctx.restore(); }
 }
 
 // ======================================================================
@@ -19132,14 +19194,14 @@ function drawFleetRow() {
     if (!pos[i]) return;
     const S = shipById(id), { x, y } = pos[i];
     const lost = F.lost.includes(id), mine = id === F.cur && !lost, hi = F.theirs ? "#ff5a6a" : "#ffd166";
-    ctx.globalAlpha = lost ? 0.35 : 1;
+    ctx.globalAlpha = seeA * (lost ? 0.35 : 1);
     ctx.fillStyle = mine ? (F.theirs ? "rgba(255,90,106,0.22)" : "rgba(255,209,102,0.22)") : F.theirs ? "rgba(40,8,16,0.7)" : "rgba(10,12,32,0.7)";
     ctx.strokeStyle = mine ? hi : F.theirs ? "rgba(255,110,130,0.45)" : "rgba(124,140,255,0.45)"; ctx.lineWidth = mine ? 2.5 : 1.5;
     roundRect(x, y, sz, sz, sz * 0.2); ctx.fill(); ctx.stroke();
     ctx.save(); roundRect(x, y, sz, sz, sz * 0.2); ctx.clip();
     if (S) drawShip(S, x + sz / 2, y + sz / 2, sz * 0.78, { power: 0, ang: 0, icon: true });
     ctx.restore();
-    if (lost) { ctx.globalAlpha = 0.9; cross(x + sz / 2, y + sz / 2, sz * 0.32); }
+    if (lost) { ctx.globalAlpha = seeA * (0.9); cross(x + sz / 2, y + sz / 2, sz * 0.32); }
   });
   ctx.restore();
 }
@@ -19157,7 +19219,7 @@ function drawLevel() {
   ctx.restore();
   if (camp.banner > 0) {   // a level won
     const a = Math.min(1, camp.banner / 0.5) * Math.min(1, (3.5 - camp.banner) / 0.3), F = Math.round(U * 0.09);
-    ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
+    ctx.save(); ctx.globalAlpha = seeA * (a); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = textDir();
     ctx.font = `900 ${F}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffd166"; ctx.fillText(tr("victory"), W / 2, H * 0.3);
     ctx.font = `700 ${Math.round(F * 0.45)}px Rubik, Arial, sans-serif`; ctx.fillStyle = "#ffffff";
     ctx.fillText(tr("levelUp", camp.lvl), W / 2, H * 0.3 + F * 0.85);
