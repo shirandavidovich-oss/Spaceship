@@ -15621,8 +15621,13 @@ function updateForge(dt) {
   const Wp = WEAPONS[F.w], t0 = F.t * 1000; F.t += dt; const ms = F.t * 1000;
   for (const at of [460, 728, 1044]) if (t0 < at && ms >= at) { audio.tone(110, 0.18, "triangle", 0.07, 0.5); audio.noise(0.1, 0.12, 900); shake(0.12); }   // each merge: a thump
   if (t0 < Wp.forge * 1000 && ms >= Wp.forge * 1000) {   // it leaves, from the point ahead of the nose, at the size it was formed
-    const k = forgeK(), P = talusForge(Wp.forge * 1000), m = rotatePt(0, -256 * k, game.ang), v = Wp.speed * U, R = P.radius * k;
-    const q = { w: F.w, x: game.x + m.x, y: game.y + m.y, vx: game.vx + Math.sin(game.ang) * v, vy: game.vy - Math.cos(game.ang) * v, life: 0, sz: R / (Wp.r * shipSize()), rot: P.angle };
+    const k = forgeK(), P = talusForge(Wp.forge * 1000), v = Wp.speed * U, R = P.radius * k, S = shipById(game.ship);
+    // (flying in 3D: from the point ahead of the tilted nose, at the ship's depth, flying on along the nose into or out
+    // of the depth — so it is drawn as big as it is that far from the camera; `sz` its size on the plane)
+    const at = gunAt([0, -256 * S.anim.size / 512], shipSize() * shipScale()), in3 = view3d.on && !BOT && game.q3;
+    const dv = in3 ? Q3.rot(game.q3, [0, 0, -1]) : [Math.sin(game.ang), 0, -Math.cos(game.ang)], iv = in3 ? inherit(dv) : [game.vx, 0, game.vy];
+    const q = { w: F.w, x: at.x, y: at.y, vx: iv[0] + dv[0] * v, vy: iv[2] + dv[2] * v, life: 0, sz: R / (Wp.r * shipSize()), rot: P.angle };
+    if (in3) { q.z3 = at.z; q.vz3 = iv[1] + dv[1] * v; }
     shots.push(q);
     if (duel.stage === "on") { q.id = ++shotSeq; duelSend({ t: "f", w: F.w, ...netPos(q), s: game.ship, id: q.id, z: +q.sz.toFixed(3) }); }
     burstAt(q.x, q.y, 18, ["#ffffff", "#ff4d3a", "#e8dcc4", "#8a7a68"], 0.5, 0.7, q.vx * 0.3, q.vy * 0.3);
@@ -15633,8 +15638,14 @@ function updateForge(dt) {
 // the forging, over the hull (o: the ship, at screen x, y; k: screen px per master px): the fissures glow red, the
 // fragments spiral in, and the rock (still on the ship) grows ahead of the nose
 function drawForge(o, ms, x, y, k) {
-  const P = talusForge(ms);
-  ctx.save(); ctx.translate(x, y); ctx.rotate(o.ang); ctx.scale(k, k);
+  const P = talusForge(ms), q = o === game && view3d.on && !BOT && game.q3 ? game.q3 : null;
+  ctx.save(); ctx.translate(x, y);
+  const base = ctx.getTransform(); let nose = null;
+  if (q) {   // flying in 3D: as big as the ship is at its depth, laid on the ship's own (tilted, rolled) plane
+    const X = Q3.rot(q, [1, 0, 0]), Z = Q3.rot(q, [0, 0, 1]), d = game.z3 ? depthScale(game.z3) : 1;
+    ctx.transform(X[0] * d, X[2] * d, Z[0] * d, Z[2] * d, 0, 0); nose = [-256 * k * Z[0] * d, -256 * k * Z[2] * d];
+  } else ctx.rotate(o.ang);
+  ctx.scale(k, k);
   if (P.glow > 0.01) {   // the hull's fissures lit
     ctx.save(); ctx.globalCompositeOperation = "lighter"; const g = ctx.createRadialGradient(0, 0, 20, 0, 0, 230);
     g.addColorStop(0, `rgba(255,77,58,${0.35 * P.glow})`); g.addColorStop(1, "rgba(255,77,58,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 230, 0, TAU); ctx.fill(); ctx.restore();
@@ -15652,7 +15663,10 @@ function drawForge(o, ms, x, y, k) {
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -256, P.radius * 2.6, 0, TAU); ctx.fill(); ctx.restore();
     }
     const im = artImage(framePath("talus", "rock_hot.webp")), d = 160 * P.radius / 64;
-    if (im) { ctx.translate(0, -256); ctx.rotate(P.angle); ctx.drawImage(im, -d / 2, -d / 2, d, d); }
+    if (im && q) {   // (3D: a ball looks round from any side — only its place follows the tilt; drawn at its depth)
+      const at = gunAt([0, -256 * shipById(game.ship).anim.size / 512], shipSize() * shipScale()), kd = k * (at.z ? depthScale(at.z) : 1);
+      ctx.setTransform(base); ctx.translate(nose[0], nose[1]); ctx.scale(kd, kd); ctx.rotate(P.angle); ctx.drawImage(im, -d / 2, -d / 2, d, d);
+    } else if (im) { ctx.translate(0, -256); ctx.rotate(P.angle); ctx.drawImage(im, -d / 2, -d / 2, d, d); }
   }
   ctx.restore();
 }
@@ -19005,7 +19019,7 @@ function drawShot1(s, size) {
       const R = Wp.r * size * s.sz, d = 160 * R / 64, c = Math.min(2, s.life / 0.6);
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate((s.rot || 0) + s.life * 1.5);
       for (const [n, a] of [["rock_hot", Math.max(0, 1 - c)], ["rock_warm", 1 - Math.abs(c - 1)], ["rock_cool", Math.max(0, c - 1)]]) {
-        const im = artImage(framePath("talus", n + ".webp")); if (!im || a <= 0) return;
+        const im = artImage(framePath("talus", n + ".webp")); if (!im || a <= 0) continue;   // (not return: the restore below must run)
         ctx.globalAlpha = a; ctx.drawImage(im, -d / 2, -d / 2, d, d);
       }
       ctx.restore();
