@@ -28,6 +28,7 @@ export const SHIP_MODELS = {
   cinder: { file: "models/cinder.glb", fwd: "-z", len: 0.98, upright: 1 },
   lyth: { file: "models/lyth.glb", fwd: "-z", len: 1.03, fit: "max", split: 0.37 },
   lariat: { file: "models/lariat.glb", fwd: "+z", len: 1.03, upright: -1 },
+  reprise: { file: "models/reprise.glb", fwd: "+z", len: 0.787, upright: -1, blocks: [0.375, 0.02, -0.30], pad: 2.9 },   // (its four buildings, tallest first)
   ballast: { file: "models/ballast.glb", fwd: "-x", len: 0.95 },
   zorian: { file: "models/zorian.glb", fwd: "-x", len: 0.9 },
   cantor: { file: "models/cantor.glb", fwd: "+z", len: 0.95 },
@@ -132,13 +133,48 @@ function splitRing(E, M) {
   }
   E.spin = spin;
 }
+// a model of separate buildings standing side by side (REPRISE: `blocks`, the file's x where one ends and the next
+// begins, from the right): cut at load into parts, each on a pivot of its own at its middle, so each can be moved and
+// turned on its own (the time-reverse magic takes them apart and puts them back in another shape). E.parts: [{ pivot,
+// cx, cz, w, h }] in the fitted model's units (x to the right, z down the screen; w across, h along)
+function splitBlocks(E, M) {
+  const outer = E.obj, raw = E.raw; outer.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(raw.matrixWorld).invert(), s = outer.scale.x;
+  const meshes = []; raw.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  const n = M.blocks.length + 1, lists = meshes.map(() => Array.from({ length: n }, () => []));
+  const boxes = Array.from({ length: n }, () => new THREE.Box3());
+  const v = new THREE.Vector3(), w = new THREE.Vector3();
+  meshes.forEach((m, mi) => {
+    const g = m.geometry, P = g.attributes.position, idx = g.index ? g.index.array : null, cnt = idx ? idx.length : P.count;
+    const toFile = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld), fx = new Float32Array(P.count);
+    for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i); w.copy(v).applyMatrix4(toFile); fx[i] = w.x; }
+    for (let t = 0; t < cnt; t += 3) {
+      const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2, x = (fx[a] + fx[b] + fx[c]) / 3;
+      let k = 0; while (k < M.blocks.length && x <= M.blocks[k]) k++;
+      lists[mi][k].push(a, b, c);
+      for (const q of [a, b, c]) boxes[k].expandByPoint(v.fromBufferAttribute(P, q).applyMatrix4(m.matrixWorld));
+    }
+  });
+  E.parts = boxes.map((B) => { const c = B.getCenter(new THREE.Vector3()), z = B.getSize(new THREE.Vector3()); const pivot = new THREE.Group(); outer.add(pivot); pivot.position.set(c.x / s, 0, c.z / s); return { pivot, cx: c.x, cz: c.z, w: z.x, h: z.z }; });
+  outer.updateMatrixWorld(true);
+  meshes.forEach((m, mi) => {
+    for (let k = 0; k < n; k++) {
+      if (!lists[mi][k].length) continue;
+      const G = new THREE.BufferGeometry(); for (const key in m.geometry.attributes) G.setAttribute(key, m.geometry.attributes[key]); G.setIndex(lists[mi][k]);
+      const X = new THREE.Mesh(G, m.material); X.frustumCulled = false;
+      m.parent.add(X); X.position.copy(m.position); X.quaternion.copy(m.quaternion); X.scale.copy(m.scale); X.updateMatrixWorld(true);
+      E.parts[k].pivot.attach(X);
+    }
+    m.visible = false;
+  });
+}
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
   let E = models[id];
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -264,12 +300,15 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 23,   // (index.html checks it; the file's name carries it too — lib/ship3d-v23.js — so the app never mixes a new
+  version: 24,   // (index.html checks it; the file's name carries it too — lib/ship3d-v24.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
   on: false,
   has(id) { return !!SHIP_MODELS[id]; },
+  // a ship cut into parts (`blocks`): each part's middle and size in the fitted model's units, and `len` (one fitted unit
+  // is `len` ship-lengths on screen)
+  parts(id) { const E = want(id); return E && E.state === "ready" && E.parts ? { len: SHIP_MODELS[id].len || 1, list: E.parts.map((B) => ({ cx: B.cx, cz: B.cz, w: B.w, h: B.h })) } : null; },
   ready(id) { const E = want(id); return !!E && E.state === "ready"; },
   preload(ids) { for (const id of ids) want(id); },
   _reset(id) { const E = models[id]; delete poseCache[id]; if (E && E.raw) E.obj = fit(E.raw, SHIP_MODELS[id]); },
@@ -280,9 +319,14 @@ export const Ship3D = {
   draw(ctx, id, ang, roll = 0, pitch = 0, opt) {
     if (!init()) return false;
     const E = want(id); if (!E || E.state !== "ready") return false;
-    const M = SHIP_MODELS[id], L = (M.len || 1) * PAD;
+    const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
-    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200);   // (a new picture only when it has turned a quarter of a degree)
+    const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
+    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp;   // (a new picture only when it has turned a quarter of a degree)
+    if (E.parts) {   // (opt.parts: where each part's middle is, and its turn — screen-clockwise rad; else as in the file)
+      const s = E.obj.scale.x, Q = opt && opt.parts;
+      E.parts.forEach((B, i) => { const q = Q && Q[i]; B.pivot.position.set((q ? q.x : B.cx) / s, 0, (q ? q.z : B.cz) / s); B.pivot.rotation.set(0, q ? -q.a : 0, 0); });
+    }
     if (E.spin) { E.spin.visible = part !== "hull"; E.spin.rotation.y = -sp; for (const H of E.hull) H.visible = part !== "ring"; }
     let c = cached(id, pk);
     if (c) { c.t = performance.now(); ctx.drawImage(c.cv, -L / 2, -L / 2, L, L); return true; }
@@ -292,6 +336,7 @@ export const Ship3D = {
     const lx = -0.55, lz = -0.6, ca = Math.cos(-ang), sa = Math.sin(-ang);
     key.position.set(lx * ca - lz * sa, 1.1, lx * sa + lz * ca);
     rim.position.set(-(lx * ca - lz * sa), 0.4, -(lx * sa + lz * ca));
+    if (cam.right !== pad / 2) { cam.left = cam.bottom = -pad / 2; cam.right = cam.top = pad / 2; cam.updateProjectionMatrix(); }
     R.render(scene, cam);
     c = store(id, pk); c.t = performance.now();
     ctx.drawImage(c.cv, -L / 2, -L / 2, L, L);
