@@ -781,7 +781,8 @@ on the thrust button — pressed in place, the engine; dragged left or right, it
 past the button's edge, it yaws with the engine on. The right on fire button 1 — pressed in place, it fires; dragged up
 the nose turns away into the screen (toward space), down toward you, left and right it rolls, not firing; dragged
 further, it turns and fires. The further the drag, the faster, as far round as you like (loops, barrel rolls); let go
-and it stays as it is. Turns are round the ship's own axes, so rolled over, tilt and yaw turn it the other ways too.
+and it stays as it is. Turns are truly round the ship's own axes however it lies (its orientation is kept as a quaternion, `Q3`, and the
+angles come from it), so rolled over, tilt and yaw turn it the other ways too.
 Button 2 stays a plain fire button; the buttons sit 1 cm further in and up. Tilted, the engine pushes it into the depth
 (smaller, down to 0.1x far away) or toward you (up to 4x near); the depth wraps like the sides (out near, back in from
 far away, fading). Out of the plane it passes over or under the body in the middle. The other phone sees its depth,

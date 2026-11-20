@@ -4492,18 +4492,47 @@ function yaw3Move(e) {
   Y.yaw = dx * s3.k; Y.engine = s3.still || s3.out;   // (in place, or dragged right out: the engine)
 }
 function thrusting() { return game.thrust !== null && (!game.yaw3 || game.yaw3.engine); }
+// The ship's turning is kept as a true 3D orientation (a quaternion, game.q3), and each thumb turns it round the ship's
+// OWN axes — yaw round its up, tilt round its right (wing to wing), roll round its length — whichever way it already
+// faces: so a turn does the same thing to the ship however it is lying, not only when it is level. From it come the
+// three angles the rest of the game uses (game.ang: its heading on the screen; p3: its tilt; r3: its roll — as three.js
+// turns a model, yaw, then tilt, then roll). The frame: x to the screen's right, y out of the screen toward you, z down
+// the screen; the ship's nose along its -z, its top along +y, its right wing along +x.
+const Q3 = {
+  mul(a, b) { return [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1], a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0], a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3], a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]]; },
+  axis(x, y, z, t) { const s = Math.sin(t / 2); return [x * s, y * s, z * s, Math.cos(t / 2)]; },
+  norm(q) { const l = Math.hypot(q[0], q[1], q[2], q[3]) || 1; return [q[0] / l, q[1] / l, q[2] / l, q[3] / l]; },
+  // from the game's angles (yaw = -ang, then tilt = -p, then roll = -r: three.js's "YXZ")
+  fromAngles(ang, p, r) { return Q3.mul(Q3.mul(Q3.axis(0, 1, 0, -ang), Q3.axis(1, 0, 0, -p)), Q3.axis(0, 0, 1, -r)); },
+  // back to them (as three.js's Euler.setFromQuaternion, "YXZ")
+  toAngles(q) {
+    const [x, y, z, w] = q, m13 = 2 * (x * z + w * y), m21 = 2 * (x * y + w * z), m22 = 1 - 2 * (x * x + z * z), m23 = 2 * (y * z - w * x), m31 = 2 * (x * z - w * y), m33 = 1 - 2 * (x * x + y * y), m11 = 1 - 2 * (y * y + z * z);
+    const ex = Math.asin(clamp(-m23, -1, 1));
+    let ey, ez;
+    if (Math.abs(m23) < 0.9999999) { ey = Math.atan2(m13, m33); ez = Math.atan2(m21, m22); } else { ey = Math.atan2(-m31, m11); ez = 0; }
+    return { ang: wrapAngle(-ey), p: -ex, r: wrapAngle(-ez) };
+  },
+};
 function updateTilt3(dt) {
-  if (!view3d.on || BOT) { game.p3 = game.z3 = game.vz3 = game.r3 = 0; return; }
-  let p = game.p3 || 0, rl = game.r3 || 0;
+  if (!view3d.on || BOT) { game.p3 = game.z3 = game.vz3 = game.r3 = 0; game.q3 = null; return; }
+  // (anything else that turned the ship — a new life, a magic — since last time: start again from its angles)
+  const E = game.q3e;
+  if (!game.q3 || !E || Math.abs(wrapAngle(E[0] - game.ang)) > 1e-6 || Math.abs(E[1] - (game.p3 || 0)) > 1e-6 || Math.abs(E[2] - (game.r3 || 0)) > 1e-6) game.q3 = Q3.fromAngles(game.ang, game.p3 || 0, game.r3 || 0);
   const T = game.tilt3, Y = game.yaw3;
-  // round the ship's own axes: its tilt (nose away/toward) and yaw (nose right/left), seen through its roll
-  const q = T ? T.want * TILT3.rate * dt : 0, w = Y ? Y.yaw * TILT3.yaw * dt : 0, c = Math.cos(rl), sn = Math.sin(rl);
-  if ((q || w) && !game.dead) {
-    p += q * c + w * sn;
-    game.ang = wrapAngle(game.ang + w * c - q * sn);
+  const pitch = T && !game.dead ? T.want * TILT3.rate * dt : 0, yaw = Y && !game.dead ? Y.yaw * TILT3.yaw * dt : 0, roll = T && !game.dead ? T.roll * TILT3.roll * dt : 0;
+  if (pitch || yaw || roll) {
+    // round its own axes (multiplied on the right: in the ship's frame). Yaw right: the nose toward its right wing
+    // (round +y, negative); tilt away: the nose toward its bottom (round +x, negative); roll right: the right wing down,
+    // away from its top (round its length, z, negative)
+    let q = game.q3;
+    if (yaw) q = Q3.mul(q, Q3.axis(0, 1, 0, -yaw));
+    if (pitch) q = Q3.mul(q, Q3.axis(1, 0, 0, -pitch));
+    if (roll) q = Q3.mul(q, Q3.axis(0, 0, 1, -roll));
+    game.q3 = Q3.norm(q);
+    const A = Q3.toAngles(game.q3);
+    game.ang = A.ang; game.p3 = A.p; game.r3 = A.r;
   }
-  if (T) rl += T.roll * TILT3.roll * dt;
-  game.p3 = wrapAngle(p); game.r3 = wrapAngle(rl);
+  game.q3e = [game.ang, game.p3 || 0, game.r3 || 0];
 }
 // ---- the attitude jets (flying in 3D): as a satellite turns, small puffs of compressed gas squirt from the ship's
 // edges while it yaws, tilts or rolls — the nose and tail opposite ways for a yaw, wingtips for a roll, the nose and tail
