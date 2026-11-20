@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v15.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v16.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -1673,7 +1673,9 @@ const MAGIC = {
   // ZORIAN's anchor: one tap and the ship stops (`brake`) and spins in place by itself (`spin`: radians a second) for
   //   `hold` seconds (a second tap ends it sooner); then `cool` seconds to recharge. A thread laid while it spins is
   //   laid round it at `ring` ship-lengths: a ring of light that enemy shots cannot pass (any thread stops shots)
-  anchor: { name: "עוגן", look: "anchor", hold: 3.5, spin: 6, ring: 0.85, cool: 6, color: "#92f8ff", brake: 18 },
+  //   In 3D it spins round its own up axis, as it is tilted; a weapon held while it spins tumbles it too (`tumble`: as a
+  //   share of the spin), its nose sweeping all round: the shots go out as a sphere, and a sphere of light forms round it
+  anchor: { name: "עוגן", look: "anchor", hold: 3.5, spin: 6, ring: 0.85, cool: 6, color: "#92f8ff", brake: 18, tumble: 0.37 },
   // VEXAR's tail, held: while the magic button is held the tail grows out (over `out` s) and stays out, and the ship
   //   keeps flying; let go and it pulls back in over `back` s.
   //   At its tip a spiked iron ball (`ball`: radius in ship-lengths): touching the enemy it hits for `hit`
@@ -3383,7 +3385,15 @@ function flyShip(dt) {
   if (operating) { const k = Math.exp(-dt * 12); game.vx *= k; game.vy *= k; game.ang = game.surg.ang; }
   if (anchored) {   // ZORIAN's anchor: it stops, holds and spins; after `hold` seconds it lets go
     const M = magicOf(S), k = Math.exp(-dt * M.brake);
-    game.vx *= k; game.vy *= k; game.ang = wrapAngle(game.ang + M.spin * dt);
+    game.vx *= k; game.vy *= k;
+    if (view3d.on && game.q3 && !BOT) {   // flying in 3D: it spins round its own up axis (keeping its tilt), and while a weapon is held it
+      // also tumbles nose over tail, more slowly, so its nose sweeps every way round it: its shots go out as a sphere (anchorSphere)
+      let q = Q3.mul(game.q3, Q3.axis(0, 1, 0, -M.spin * dt));
+      const firing = game.fire.some((f) => f !== null);
+      game.anchor.sph = clamp((game.anchor.sph || 0) + (firing ? dt * 4 : -dt * 3), 0, 1);
+      if (game.anchor.sph > 0) q = Q3.mul(q, Q3.axis(1, 0, 0, -M.spin * M.tumble * game.anchor.sph * dt));
+      game.q3 = Q3.norm(q); const A = Q3.toAngles(game.q3); game.ang = A.ang; game.p3 = A.p; game.r3 = A.r; game.q3e = [game.ang, game.p3, game.r3];
+    } else game.ang = wrapAngle(game.ang + M.spin * dt);
     game.anchor.t += dt;
     if (game.anchor.t >= M.hold) { game.anchor = null; game.magicCool = M.cool; }
   }
@@ -4433,10 +4443,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v15.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v16.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 15, SHIP3D_FILE = "./lib/ship3d-v15.js";
+const SHIP3D_VER = 16, SHIP3D_FILE = "./lib/ship3d-v16.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -7460,12 +7470,12 @@ const monsterTalk = { on: false, next: 0, last: -1 };
 // the ships whose gas has its own sound instead of the engine hum: the loop and its length (s)
 const THRUST_LOOPS = { corsair: ["audio/corsair/rowing-loop.ogg", 4.08], flipper: ["audio/flipper/playfield-loop.ogg", 2.4], boiler: ["audio/boiler/engine-loop.ogg", 4.0],
   vexar: ["audio/vexar/fly-loop.ogg", 3.0], borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4], brass: ["audio/thul/tracks-rec.ogg", 5.5],
-  courier: ["audio/courier/loop.ogg", 2.0] };
+  courier: ["audio/courier/loop.ogg", 2.0], zorian: ["audio/zorian/throttle.ogg", 9.45, 6.0] };   // (a third number: where the loop starts again; ZORIAN: the revs climb through the gears once, then hold the top one)
 // CORSAIR's rowing loop (the package's mix: oars, crew, the captain's "Heave!") instead of the engine while the gas is held;
 // started at the oars' place in their stroke, faded out in about 120 ms when let go
 function rowingSound(on) {
   const c = audio.ctx; if (!c || BOT) return;
-  const TL = THRUST_LOOPS[game.ship] || THRUST_LOOPS.corsair, loop = TL[0], len = TL[1];
+  const TL = THRUST_LOOPS[game.ship] || THRUST_LOOPS.corsair, loop = TL[0], len = TL[1], from = TL[2] || 0;
   if (game.ship === "borer") for (const f of ["loop", "shot", "mine"]) soundBuf("audio/borer/" + f + ".ogg");   // (loaded early)
   if (game.ship === "gimbal") for (const f of ["loop", "blade", "gate"]) soundBuf("audio/gimbal/" + f + ".ogg");
   if (game.ship === "brass") for (const f of ["tracks-rec", "load", "boom", "mg"]) soundBuf("audio/thul/" + f + ".ogg");
@@ -7480,7 +7490,7 @@ function rowingSound(on) {
   if (on && !R.src) {
     const B = soundBuf(loop); if (!B) return;
     const s = c.createBufferSource(), g = c.createGain(), P = game.ship === "corsair" ? game.oarPose : null; R.path = loop;
-    s.buffer = B; s.loop = true; s.loopStart = 0; s.loopEnd = Math.min(B.duration, len);
+    s.buffer = B; s.loop = true; s.loopStart = Math.min(from, B.duration * 0.9); s.loopEnd = Math.min(B.duration, len);
     g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(0.9, c.currentTime + 0.06);
     s.connect(g); g.connect(audio.out); s.start(c.currentTime, P ? P.phase * 0.68 : 0); R.src = s; R.g = g;
   } else if (!on && R.src) {
@@ -9344,6 +9354,7 @@ function anchoring() {
 // the anchor, while held: a ring of light under the ship and three beams fixing it in space
 function drawAnchor(x, y, size) {
   if (!anchoring() || magicOf(shipById(game.ship)).look !== "anchor") return;
+  if (game.anchor.sph > 0) anchorSphere(x, y, size * depthScale(game.z3 || 0), game.anchor.sph);
   ctx.save(); ctx.globalCompositeOperation = "lighter";
   ctx.strokeStyle = `rgba(146,248,255,${0.5 + 0.2 * Math.sin(time * 8)})`; ctx.lineWidth = Math.max(2, size * 0.025);
   ctx.setLineDash([size * 0.08, size * 0.06]); ctx.lineDashOffset = time * 30;
@@ -9354,6 +9365,29 @@ function drawAnchor(x, y, size) {
     ctx.strokeStyle = g; ctx.lineWidth = size * 0.04;
     ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * size * 0.7, y + Math.sin(a) * size * 0.7); ctx.lineTo(x + Math.cos(a) * size * 1.6, y + Math.sin(a) * size * 1.6); ctx.stroke();
   }
+  ctx.restore();
+}
+// ZORIAN in 3D, spinning with a weapon held: a sphere of light round it — a glowing shell, and rings of latitude and
+// longitude turning with the spin (tilted by its tumble), like a globe of light threads
+function anchorSphere(x, y, size, k) {
+  const R = size * 0.95, sp = time * magicOf(shipById(game.ship)).spin;
+  ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = k;
+  const g = ctx.createRadialGradient(x - R * 0.3, y - R * 0.3, R * 0.1, x, y, R);
+  g.addColorStop(0, "rgba(146,248,255,0.05)"); g.addColorStop(0.75, "rgba(72,174,246,0.12)"); g.addColorStop(1, "rgba(146,248,255,0.45)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill();
+  ctx.lineWidth = Math.max(1.5, size * 0.018);
+  for (let i = 0; i < 6; i++) {   // the longitudes: ellipses turning round
+    const c = Math.cos(sp * 0.5 + i * Math.PI / 6);
+    ctx.strokeStyle = `rgba(146,248,255,${0.25 + 0.35 * Math.abs(c)})`;
+    ctx.beginPath(); ctx.ellipse(x, y, R * Math.abs(c), R, sp * 0.13, 0, TAU); ctx.stroke();
+  }
+  for (let j = -2; j <= 2; j++) {   // the latitudes
+    const h = j / 3, r = R * Math.sqrt(1 - h * h);
+    ctx.strokeStyle = "rgba(146,248,255,0.3)";
+    ctx.beginPath(); ctx.ellipse(x + Math.sin(sp * 0.13) * -h * R, y + Math.cos(sp * 0.13) * h * R, r, r * 0.3, sp * 0.13, 0, TAU); ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = Math.max(2, size * 0.025);
+  ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.stroke();
   ctx.restore();
 }
 // VANTA's magic button: a glass drop in the liquid's colour now, three dots for blue, red, white, and the next colour
