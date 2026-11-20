@@ -1994,10 +1994,25 @@ function weaponsOf(S, mode = 0) { return mode && S.flip ? S.flip.weapons : S.wea
 // the ships whose 3D model has its guns on the other sides from the 2D drawing: in the 3D view their shots leave from
 // the model's guns (THUL: the twin gun on the model's right, the round cannon of the heavy ball on its left)
 const GUN_MIRROR3 = { brass: true, courier: true };   // (COURIER: its capsule tube on the model's left)
+// the ships whose 3D model has its guns in other places from the 2D drawing: [x, y, h] (ship units; h up off the hull)
+// CANTOR: the model's bell is narrower than the drawing — its five grooves open at x 0, ±0.123, ±0.235, a little back
+const GUNS3 = { cantor: { tone: [[0, -0.43, 0.03]],
+  chord: [[-0.235, -0.43, 0.03], [-0.123, -0.43, 0.03], [0, -0.43, 0.03], [0.123, -0.43, 0.03], [0.235, -0.43, 0.03]] } };
 function gunsOf(S, w) {
   const G = (S.guns && S.guns[w]) || (w === "twin" ? [[-0.06, -0.5], [0.06, -0.5]] : [[0, -0.5]]);
+  if (GUNS3[S.id] && GUNS3[S.id][w] && typeof view3d !== "undefined" && !BOT && view3d.on && view3d.state === "ready" && view3d.lib.has(S.id)) return GUNS3[S.id][w];
   if (GUN_MIRROR3[S.id] && typeof view3d !== "undefined" && !BOT && view3d.on && view3d.state === "ready" && view3d.lib.has(S.id)) return G.map((g) => [-g[0], g[1]]);
   return G;
+}
+// where gun g of my ship is in the world: { x, y, z } (z: depth layers). Flying in 3D, turned with the ship's tilt and
+// roll and as near or far as it is; else flat, turned with the heading
+function gunAt(g, size) {
+  if (typeof view3d !== "undefined" && view3d.on && !BOT && game.q3) {
+    const k = game.z3 ? depthScale(game.z3) : 1, gp = Q3.rot(game.q3, [g[0] * size * k, (g[2] || 0) * size * k, g[1] * size * k]);
+    return { x: game.x + gp[0], y: game.y + gp[2], z: (game.z3 || 0) + gp[1] / U };
+  }
+  const m = rotatePt(g[0] * size, g[1] * size, game.ang);
+  return { x: game.x + m.x, y: game.y + m.y, z: game.z3 || 0 };
 }
 // a point on the ship, turned with the ship (ang: 0 = nose up, clockwise)
 function rotatePt(x, y, ang) { const c = Math.cos(ang), s = Math.sin(ang); return { x: x * c - y * s, y: x * s + y * c }; }
@@ -11589,8 +11604,10 @@ function chordRelease(w, notes) {
   const Wp = WEAPONS[w], S = shipById(game.ship), A = S.anim, art = A.shotArt[w], size = shipSize() * shipScale(), guns = gunsOf(S, w), v = Wp.speed * U;
   const hk = 0;
   for (const n of notes) {
-    const g = guns[n.i], m = rotatePt(g[0] * size, g[1] * size, game.ang), na = n.ang + hk + (game.scramble > 0 ? wrongWay() : 0);
-    const s = { w, x: game.x + m.x, y: game.y + m.y, vx: game.vx + Math.sin(na) * v, vy: game.vy - Math.cos(na) * v, life: 0,
+    const g = guns[n.i], p = gunAt(g, size), wr = hk + (game.scramble > 0 ? wrongWay() : 0), na = n.ang + wr;
+    // (flying in 3D: out of the model's groove, along the nose as it was tilted when that note sounded)
+    const dv = n.q && view3d.on && !BOT ? Q3.rot(n.q, [Math.sin(wr), 0, -Math.cos(wr)]) : [Math.sin(na), 0, -Math.cos(na)], iv = inherit(dv);
+    const s = { w, x: p.x, y: p.y, z3: p.z, vx: iv[0] + dv[0] * v, vy: iv[2] + dv[2] * v, vz3: iv[1] + dv[1] * v, life: 0,
       art: { src: framePath(A.dir, art.files[n.i]), d: art.size, spin: 0 }, ix: n.i };
     shots.push(s);
     burstAt(s.x, s.y, 6, [Wp.colors[n.i], "#ffffff"], 0.2, 0.6, game.vx, game.vy);
@@ -11605,8 +11622,9 @@ function drawChordGuides() {
   const size = shipSize() * shipScale(), guns = gunsOf(S, a.w), Wp = WEAPONS[a.w];
   ctx.save(); ctx.lineWidth = Math.max(1.5, size * 0.012); ctx.setLineDash([size * 0.03, size * 0.05]);
   for (const n of a.chord) {
-    const g = guns[n.i], m = rotatePt(g[0] * size, g[1] * size, game.ang), o = toScreen(game.x + m.x, game.y + m.y);
-    const L = size * 2.2, fx = o.x + Math.sin(n.ang) * L, fy = o.y - Math.cos(n.ang) * L;
+    const p = gunAt(guns[n.i], size), o = toScreen(p.x, p.y);
+    const d = n.q && view3d.on && !BOT ? Q3.rot(n.q, [0, 0, -1]) : [Math.sin(n.ang), 0, -Math.cos(n.ang)];
+    const L = size * 2.2, fx = o.x + d[0] * L, fy = o.y + d[2] * L;   // (3D: the guide foreshortened as the nose tips in or out)
     ctx.strokeStyle = hexA(Wp.colors[n.i], 0.6); ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(fx, fy); ctx.stroke();
     ctx.fillStyle = Wp.colors[n.i]; ctx.beginPath(); ctx.arc(fx, fy, size * 0.025, 0, TAU); ctx.fill();
   }
@@ -11828,12 +11846,12 @@ function updateAnim(dt) {
     const S = shipById(game.ship), Wp = WEAPONS[a.w];
     while (a.chord.length < Wp.notes.length && a.t >= Wp.notes[a.chord.length]) {
       const i = a.chord.length;
-      a.chord.push({ i, ang: game.ang }); audio.sfx(S.sfx, "note_" + (i + 1)); buzz(12);
+      a.chord.push({ i, ang: game.ang, q: game.q3 ? game.q3.slice() : null }); audio.sfx(S.sfx, "note_" + (i + 1)); buzz(12);
     }
     const cue = cueTime(seq, "fire");
     if (!a.fired && (before <= cue && a.t >= cue || seqFrame(seq, a.t) < 0)) {
       a.fired = true;
-      while (a.chord.length < Wp.notes.length) a.chord.push({ i: a.chord.length, ang: game.ang });
+      while (a.chord.length < Wp.notes.length) a.chord.push({ i: a.chord.length, ang: game.ang, q: game.q3 ? game.q3.slice() : null });
       chordRelease(a.w, a.chord);
     }
   }
