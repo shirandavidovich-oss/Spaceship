@@ -11658,7 +11658,6 @@ function drawShip(S, x, y, size, o = {}) {
   // already turned to its heading): where the nozzle comes to, which way the flame points and how long it looks from
   // here; a nozzle gone round behind the hull, hidden
   const q3f = V3 && ((V3.p3 || 0) || (V3.r3 || 0)) ? Q3.fromAngles(0, V3.p3 || 0, V3.r3 || 0) : null, tail3 = q3f ? Q3.rot(q3f, [0, 0, 1]) : null;
-  const fv3 = 1;
   if (!o.out && !S.noFlame && !prop && o.half !== "front" && !(o.jets > 0)) S.nozzles.forEach((ex, n) => {   // out: the steam engine's fire has gone out, no flame
     let ey = S.engineYs ? S.engineYs[n] : S.engineY;   // a drawing can have its engines at different heights
     if (q3f) {
