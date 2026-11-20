@@ -48,7 +48,7 @@ export const SHIP_MODELS = {
   kraal: { file: "models/kraal.glb", fwd: "+x", len: 0.75 },
   flipper: { file: "models/flipper.glb", fwd: "+x", len: 0.9 },
   rivet: { file: "models/rivet.glb", fwd: "-x", len: 0.82 },
-  nimbus: { file: "models/nimbus.glb", fwd: "-x", len: 1.0 },
+  nimbus: { file: "models/nimbus.glb", fwd: "-x", len: 0.95, cloud: true, pad: 2.2 },   // (the bare ship: its cloud is ours, makeCloud)
   husk: { file: "models/husk.glb", fwd: "-x", len: 1.05 },
   bloom: { file: "models/bloom.glb", fwd: "-z", len: 0.8, fit: "max", upright: 1 },
 };
@@ -361,13 +361,57 @@ function splitSeam(E, M) {
     m.visible = false;
   }
 }
+// NIMBUS's cloud (`cloud`): the model is the bare ship; its cloud is ours — soft puffs (sprites of a drawn puff) in two
+// banks along its sides and a few hugging its spine, each turning slowly round its own place. opt.cloud: { t, power
+// (the gas: the puffs churn faster and wider), boost (0..1: the banks drag away from the hull, back and out, thinning,
+// so the ship shows), flash (0..1: lightning lighting them from inside) }
+let puffTex = null;
+function puffTexture() {
+  if (puffTex) return puffTex;
+  const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d");
+  for (let i = 0; i < 22; i++) {   // a puff: many soft blobs, a cauliflower edge
+    const a = Math.random() * Math.PI * 2, d = Math.pow(Math.random(), 0.7) * 34, cx = 64 + Math.cos(a) * d, cy = 64 + Math.sin(a) * d, r = 12 + Math.random() * 18;
+    const g = x.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, "rgba(255,255,255,0.5)"); g.addColorStop(0.55, "rgba(255,255,255,0.22)"); g.addColorStop(1, "rgba(255,255,255,0)");
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  }
+  // its volume: lit from the upper left, shadowed toward the lower right (multiplied over the white)
+  x.globalCompositeOperation = "source-atop";
+  const sh = x.createLinearGradient(30, 30, 110, 110); sh.addColorStop(0, "rgba(255,255,255,0)"); sh.addColorStop(0.55, "rgba(120,140,175,0.25)"); sh.addColorStop(1, "rgba(70,85,120,0.55)");
+  x.fillStyle = sh; x.fillRect(0, 0, 128, 128);
+  puffTex = new THREE.CanvasTexture(c); puffTex.colorSpace = THREE.SRGBColorSpace; return puffTex;
+}
+function makeCloud(E) {
+  const outer = E.obj, G = new THREE.Group(); G.scale.setScalar(1 / outer.scale.x); outer.add(G);
+  const puffs = [], rnd = (a, b) => a + Math.random() * (b - a);
+  for (let i = 0; i < 120; i++) {
+    const spine = i >= 104, side = i % 2 ? 1 : -1, z = spine ? rnd(-0.3, 0.4) : rnd(-0.22, 0.46), w = 0.1 + 0.32 * clampN((z + 0.22) / 0.68);   // (the banks widen toward the back)
+    const ax = spine ? side * rnd(0.045, 0.08) : side * rnd(0.09, 0.09 + w), ay = spine ? rnd(-0.05, 0.06) : rnd(-0.07, 0.07), size = spine ? rnd(0.07, 0.12) : rnd(0.1, 0.23);
+    const mat = new THREE.SpriteMaterial({ map: puffTexture(), transparent: true, depthWrite: false, color: 0xc4d6ee, opacity: 0.85, rotation: rnd(-0.4, 0.4) });
+    const sp = new THREE.Sprite(mat); sp.scale.setScalar(size); sp.position.set(ax, ay, z); sp.renderOrder = 2; G.add(sp);
+    puffs.push({ sp, mat, ax, ay, az: z, size, ph: Math.random() * 6.3, sp0: rnd(0.4, 1.0) * (Math.random() < 0.5 ? -1 : 1), side, spine, tone: new THREE.Color().setHSL(0.6, rnd(0.15, 0.35), rnd(0.72, 0.92)) });
+  }
+  E.cloud = { G, puffs };
+}
+function clampN(v) { return Math.max(0, Math.min(1, v)); }
+function moveCloud(E, C) {
+  const t = C.t || 0, pw = C.power || 0, bs = C.boost || 0, fl = C.flash || 0, hot = new THREE.Color(0xf4fbff);
+  for (const P of E.cloud.puffs) {
+    const sp = P.sp0 * (0.5 + 2.6 * pw), a = P.ph + t * sp, rr = 0.015 + 0.05 * pw;
+    const out = P.spine ? 0.3 : 1;   // (the boost drags the banks out and back: the hull shows)
+    P.sp.position.set(P.ax + Math.cos(a) * rr + P.side * bs * 0.22 * out, P.ay + Math.sin(a * 1.3) * rr * 0.6, P.az + Math.sin(a) * rr + bs * 0.18 * out);
+    P.mat.rotation = 0.3 * Math.sin(P.ph + t * sp * 0.35);   // (rocking, keeping its lit side up)
+    P.sp.scale.setScalar(P.size * (1 + 0.12 * Math.sin(t * 1.7 + P.ph) + 0.2 * pw) * (1 - 0.25 * bs));
+    P.mat.opacity = (0.8 - 0.4 * bs * out) * (P.spine ? 0.75 : 1);
+    P.mat.color.copy(P.tone).lerp(hot, clampN(fl * (0.6 + 0.4 * Math.sin(P.ph * 7 + t * 40))));
+  }
+}
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
   let E = models[id];
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); if (M.cloud) makeCloud(E); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -493,7 +537,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 35,   // (index.html checks it; the file's name carries it too — lib/ship3d-v35.js — so the app never mixes a new
+  version: 36,   // (index.html checks it; the file's name carries it too — lib/ship3d-v36.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -515,12 +559,13 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "");   // (a new picture only when it has turned a quarter of a degree)
+    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "");   // (a new picture only when it has turned a quarter of a degree)
     // opt.lights: up to 3 coloured lights inside the ship ({ x, y, z } in the fitted model's units, before it is tilted;
     // color; i: how bright) — MIRAGE's light running up its prism
     if (!lamps) { lamps = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xffffff, 0, 1.2, 1.6); scene.add(L); return L; }); }
     const LS = (opt && opt.lights) || [];
     lamps.forEach((L, i) => { const q = LS[i]; L.visible = !!q; if (q) { L.color.set(q.color); L.intensity = q.i; L.position.set(q.x, q.y, q.z).applyEuler(new THREE.Euler(-pitch, 0, -roll, "YXZ")); } });
+    if (E.cloud) { if (opt && opt.cloud) { E.cloud.G.visible = true; moveCloud(E, opt.cloud); } else E.cloud.G.visible = false; }
     if (E.halves) { const h = opt && opt.half; for (const X of E.halves.front) X.visible = !h || h === "front"; for (const X of E.halves.back) X.visible = !h || h !== "front"; }   // (any other half: the rear piece)
     if (E.ghost) { E.ghost.uG.value = (opt && opt.ghost) || 0; E.ghost.uT.value = (opt && opt.t) || 0; }
     if (E.fan) { const O = (opt && opt.open) || [], nw = M.fan.narrow || 1; E.fan.forEach((P, i) => { const k = O[i] || 0; P.pivot.quaternion.identity().slerp(P.shut, 1 - k); const sl = M.fan.shorten || 1; P.squash.scale.set(sl + (1 - sl) * k, nw + (1 - nw) * k, 1); }); }   // (opt.open: how open each panel is, 0 shut .. 1 as modelled)

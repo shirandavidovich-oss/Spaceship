@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v35.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v36.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4456,10 +4456,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v35.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v36.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 35, SHIP3D_FILE = "./lib/ship3d-v35.js";
+const SHIP3D_VER = 36, SHIP3D_FILE = "./lib/ship3d-v36.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4504,7 +4504,7 @@ function draw3dShip(S, o, ang, bank) {
 // (BORER: a round thruster in its flat back, a swirling vortex of colours), light (GIMBAL: no flame — a burst of light
 // when the gas comes on, then waves of light) ----
 const NOZZLES3 = {
-  nimbus: (o) => (o.vt || o).boost4 ? [[0.005, 0.062, 0.47, 0.043, "paper"]] : [[-0.102, 0.017, 0.47, 0.033], [0.1, 0.031, 0.47, 0.043], [0, -0.043, 0.47, 0.048]],   // (boosting: only its fourth, high engine, a long yellow flame shedding burning scraps)
+  nimbus: (o) => (o.vt || o).boost4 ? [[0.005, 0.07, 0.46, 0.034, "paper"]] : [[-0.07, 0.04, 0.46, 0.03], [0.075, 0.04, 0.46, 0.03], [0, -0.005, 0.46, 0.03]],   // (boosting: only its fourth, high engine, a long yellow flame shedding burning scraps)
   vanta: [[-0.1, -0.035, 0.48, 0.034], [0.1, -0.035, 0.48, 0.034]],   // (the model has only blue lines there: its two mouths painted on)
   orian: (o) => [[0, -0.07, o.anim && o.anim.seq === "secondary" ? 0.06 : 0.34, 0.05]],   // (out of the folded sheath's end; the fan open: out of the pod)
   drakon: [[-0.18, -0.13, 0.43, 0.05, { rect: [0.062, 0.022] }], [-0.012, -0.14, 0.43, 0.05, { rect: [0.062, 0.022] }]],
@@ -4738,6 +4738,16 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
+  if (S.id === "nimbus") {   // NIMBUS: its own 3D cloud round the bare ship (lib: cloud) — churning with the gas, dragged off by the boost, lit by its lightning
+    const V = o.vt || o, dt = frameDt || 0.016, a = o.anim, firing = a && (a.seq === "primary" || a.seq === "secondary" || a.seq === "magic");
+    V.cldB = lerp(V.cldB || 0, V.boost4 ? 1 : 0, 1 - Math.exp(-dt * 2.5)); V.cldT = (V.cldT || 0) + dt;
+    if (firing && Math.random() < dt * 14) V.cldBolt = { t: 0.18, seed: Math.random() * 999, a: Math.random() * TAU };
+    if (V.cldBolt) { V.cldBolt.t -= dt; if (V.cldBolt.t <= 0) V.cldBolt = null; }
+    const flash = V.cldBolt ? 1 : firing ? 0.35 : Math.random() < dt * 0.3 ? 0.6 : 0;
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { cloud: { t: V.cldT, power: clamp(((o.power ?? 0) - 0.12) / 0.88, 0, 1), boost: V.cldB, flash } }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    if (ok && V.cldBolt) cloudBolt(V.cldBolt);
     ctx.restore(); return ok;
   }
   try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, o.half ? { half: o.half } : undefined); }   // (rolling into the turn; its nose up a little under power; tilted. DRAKON split: one piece, cut along its seam)
@@ -16869,7 +16879,7 @@ const storms = [], rainbows = [];
 function startStorm(w, x, y, ang, remote) {
   const Wp = WEAPONS[w], mine = storms.filter((q) => !!q.remote === !!remote && q.t < Wp.holdAt + Wp.hold);
   if (mine.length >= Wp.max) mine[0].t = Wp.holdAt + Wp.hold;   // too many: the oldest clears now
-  storms.push({ w, x, y, ang, t: 0, struck: [false, false, false], remote, zapT: 0, bolt: null, chargeT: 0, cbolt: null });
+  storms.push({ w, x, y, ang, t: 0, struck: [false, false, false], remote, zapT: 0, bolt: null, chargeT: 0, cbolt: null, z: remote ? enemy.z3 || 0 : game.z3 || 0, rainAcc: 0, rbolt: null });
   audio.sfx("nimbus", "storm-release", 0, remote ? 0.7 : 1); buzz(remote ? 0 : 70);
 }
 // where a storm's middle is now (it drifts on along the heading it was let go with)
@@ -16914,6 +16924,7 @@ function updateStorms(dt) {
         if (!T.remote) { hitEnemy({ x: o.x, y: o.y, vx: 0, vy: 0 }, { dmg: Wp.zapDmg, color: "#9fd8ff" }); buzz(60); } else buzz(120);
       }
     }
+    stormRain(T, Wp, dt, size);
     const c = stormAt(T), P = stormPose(T.t), R = Wp.radius * P.grow * size, k = Wp.radius * size / 92;
     // the wind: round and round the middle, a gust not a stun (mine pushes the enemy; theirs pushes me)
     if (P.live) {
@@ -16949,8 +16960,8 @@ function drawStorms() {
     const f = hold ? [27, 28, 29, 28][Math.floor((T.t - Wp.holdAt) * 5) % 4] : Math.min(A.field.length - 1, Math.floor((T.t < Wp.holdAt ? T.t : T.t - Wp.hold) * 20));
     const img = artImage(framePath(A.dir, A.field[f]));
     if (!img) continue;
-    const c = toScreen(...Object.values(stormAt(T))), d = 320 * Wp.radius * size / 92;
-    ctx.save(); ctx.translate(c.x, c.y);
+    const c = toScreen(...Object.values(stormAt(T))), z3 = view3d.on && !BOT ? T.z || 0 : 0, d = 320 * Wp.radius * size / 92 * depthScale(z3);   // (in 3D: as near or far as it was let go)
+    ctx.save(); ctx.translate(c.x, c.y); if (z3) ctx.globalAlpha *= depthFade(z3);
     if (hold) {
       ctx.rotate((T.t - Wp.holdAt) * 0.12);
       const flick = T.bolt ? 0.5 : Math.random() < 0.01 ? 0.25 : 0;   // a flicker of lightning inside now and then
@@ -16958,9 +16969,50 @@ function drawStorms() {
     }
     ctx.drawImage(img, -d / 2, -d / 2, d, d);
     ctx.restore();
+    drawRain(T, Wp, c, size);   // (over the cloud, see-through: the rain seen falling out of it, away into the depth)
     if (T.bolt) drawBolt(c, toScreen(T.bolt.x, T.bolt.y), size, T.bolt.seed, T.bolt.t / 0.22);
     if (T.cbolt) drawBolt(c, toScreen(T.cbolt.x, T.cbolt.y), size, T.cbolt.seed, T.cbolt.t / 0.3, true);
   }
+}
+// ---- in the 3D view a storm rains: from the cloud down into the depth (away from you) for `depth` of depth, lightning
+// flickering down inside the rain. A ship flying into the column of rain (under the cloud, within `radius` of its middle,
+// at a depth inside the column) is hurt, `dps` a second (each phone its own ship: mine harms the enemy, theirs me) ----
+const RAIN = { depth: 7, from: 0.7, radius: 0.75, dps: 7, every: 0.35, drops: 110 };
+function rainOn(T, Wp) { return view3d.on && !BOT && T.t > RAIN.from && T.t < Wp.end + Wp.hold - 0.4; }
+function stormRain(T, Wp, dt, size) {
+  if (T.rbolt) { T.rbolt.t -= dt; if (T.rbolt.t <= 0) T.rbolt = null; }
+  if (!rainOn(T, Wp)) return;
+  const c = stormAt(T), v = T.remote ? (game.dead ? null : game) : (enemy.on && enemy.warp < 0.5 && !enemyAloft() ? enemy : null);
+  if (!v) return;
+  const dz = (T.z || 0) - (v.z3 || 0), d = Math.hypot(wrapDelta(v.x - c.x, WW), wrapDelta(v.y - c.y, WH));
+  if (dz < 0.15 || dz > RAIN.depth || d > Wp.radius * size * RAIN.radius) { T.rainAcc = Math.max(0, T.rainAcc - dt * RAIN.dps); return; }
+  T.rainAcc += RAIN.dps * dt;
+  if (T.rainAcc >= RAIN.dps * RAIN.every) {
+    const n = T.rainAcc; T.rainAcc = 0; T.rbolt = { x: v.x, y: v.y, t: 0.2, seed: Math.random() * 999 };
+    burstAt(v.x, v.y, 10, ["#ffffff", "#c8ecff", "#9fd8ff"], 0.3, 0.5, v.vx, v.vy);
+    if (T.remote) { damageShip(n); buzz(40); } else harmEnemy(n);
+    audio.sfx("nimbus", "storm-strike", 0, 0.35);
+  }
+}
+// the rain (drawn over the cloud's picture, see-through): drops falling away from you look like streaks drawn in toward the column's middle,
+// shrinking and fading with depth; now and then a bolt flickers down the column; a ship caught in it: a bolt to it
+function drawRain(T, Wp, c, size) {
+  if (!rainOn(T, Wp)) return;
+  const R = Wp.radius * size * RAIN.radius, z0 = T.z || 0, s0 = depthScale(z0), fade = clamp((T.t - RAIN.from) / 0.4, 0, 1) * clamp((Wp.end + Wp.hold - 0.4 - T.t) / 0.5, 0, 1);
+  ctx.save(); ctx.translate(c.x, c.y); ctx.lineCap = "round";
+  for (let i = 0; i < RAIN.drops; i++) {
+    const u = (time * 1.1 + i * 0.618) % 1, a = i * 2.39996, rr = R * Math.sqrt((i * 0.377) % 1), s1 = depthScale(z0 - u * RAIN.depth) / s0, s2 = depthScale(z0 - Math.max(0, u - 0.06) * RAIN.depth) / s0;
+    const x1 = Math.cos(a) * rr * s1, y1 = Math.sin(a) * rr * s1, x2 = Math.cos(a) * rr * s2, y2 = Math.sin(a) * rr * s2;
+    ctx.strokeStyle = `rgba(190,220,255,${0.85 * fade * (1 - 0.6 * u) * depthFade(z0 - u * RAIN.depth)})`; ctx.lineWidth = Math.max(1.2, size * 0.028 * s1);
+    ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x1, y1); ctx.stroke();
+  }
+  if (Math.sin(time * 7.3 + (T.x % 9)) > 0.93) {   // lightning down the column: from the cloud's rim in toward its deep middle
+    let r = Math.floor(time * 13) * 7.7; const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280 - 0.5; };
+    const a = rnd() * TAU, pts = []; for (let i = 0; i <= 8; i++) { const u = i / 8, s1 = depthScale(z0 - u * RAIN.depth) / s0; pts.push([Math.cos(a) * R * s1 + rnd() * R * 0.15, Math.sin(a) * R * s1 + rnd() * R * 0.15]); }
+    for (const [w, col] of [[size * 0.1, "rgba(110,170,255,0.35)"], [size * 0.035, "#c8ecff"], [Math.max(1, size * 0.012), "#ffffff"]]) { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.globalAlpha = fade; ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
+  }
+  ctx.restore();
+  if (T.rbolt) drawBolt(c, toScreen(T.rbolt.x, T.rbolt.y), size, T.rbolt.seed, T.rbolt.t / 0.2);
 }
 // NIMBUS charged by its own thundercloud: a little health, ammo for both weapons, fuel
 function chargeFromStorm(Wp) {
@@ -17685,6 +17737,18 @@ function drawVantaLiquid(o) {
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, blob.y, blob.r * 2.4, 0, TAU); ctx.fill();
     ctx.globalCompositeOperation = "source-over"; ctx.fillStyle = T.ribbon[1]; ctx.beginPath(); ctx.ellipse(0, blob.y, blob.r * 0.8, blob.r * 1.1, 0, 0, TAU); ctx.fill();
   }
+  ctx.restore();
+}
+// a bolt of lightning leaping out of NIMBUS's cloud, away from the ship, as it fires (ship units): jagged, with a fork
+function cloudBolt(B) {
+  let r = B.seed; const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280 - 0.5; };
+  const a = B.a, x0 = Math.cos(a) * 0.2, y0 = Math.sin(a) * 0.25 + 0.1, L = 0.55 + rnd() * 0.3, pts = [[x0, y0]];
+  for (let i = 1; i <= 7; i++) { const u = i / 7; pts.push([x0 + Math.cos(a) * L * u + rnd() * 0.12, y0 + Math.sin(a) * L * u + rnd() * 0.12]); }
+  const k = B.t / 0.18, line = (q, w, c) => { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); q.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); };
+  ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.globalAlpha *= k;
+  line(pts, 0.06, "rgba(110,170,255,0.35)"); line(pts, 0.02, "#c8ecff"); line(pts, 0.007, "#ffffff");
+  const f = [pts[3]]; for (let i = 1; i <= 3; i++) f.push([pts[3][0] + (Math.cos(a + 0.7) * 0.08 + rnd() * 0.05) * i, pts[3][1] + (Math.sin(a + 0.7) * 0.08 + rnd() * 0.05) * i]);
+  line(f, 0.008, "rgba(200,236,255,0.85)");
   ctx.restore();
 }
 // FRESNEL's lamp in 3D: the model's glass bulb at its nose ([x, up, back], radius). Each shot lights the glass; firing on
