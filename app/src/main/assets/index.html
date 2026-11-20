@@ -3277,6 +3277,7 @@ function update(dt) {
   musicTick();   // (the loop for this screen)
   shipSounds();
   rowingSound(!BOT && !!THRUST_LOOPS[game.ship] && !game.dead && game.stage === "fly" && !game.docked && game.thrust !== null && !result.mode && !shopPaused());   // (CORSAIR's rowing loop)
+  zorianBackfire(dt);   // (ZORIAN's exhaust popping: bpa-bpa-bpa)
   titleShowTick(dt);   // (the menu's films; off the menu, their pictures let go: before anything below returns)
   if (shopPaused()) { time += dt; updateShop(dt); return; }
   // choosing the first ship: the game waits behind the choice (it used to run: the ship fell into the body, shaking)
@@ -4491,64 +4492,162 @@ function draw3dShip(S, o, ang, bank) {
   if (ok) { ctx.save(); undo(); try { engines3d(S, o, q, "over"); } catch (e) {} ctx.restore(); }
   return ok;
 }
-// ---- the engines in 3D, at the model's own engine mouths (NOZZLES3: [x, up, back, radius] in ship-lengths, the ship's
-// own frame: x right, up out of its top, back toward its tail; else its 2D nozzles). Each mouth is a disc facing back:
-// seen from behind it is painted on (a dark rim, its inside glowing the engine's colour, white-hot under full thrust),
-// and the thrust comes toward you — a glow and sparks of fire flying out at you; seen from the side its flame streams
-// back, turned with the ship; seen from the front, the flame goes off behind the hull ----
+// ---- the engines in 3D, at the model's own engine mouths (NOZZLES3: [x, up, back, radius, style, way] in ship-lengths,
+// the ship's own frame: x right, up out of its top, back toward its tail; way: the way it blows, if not straight back;
+// else its 2D nozzles). Each mouth is a disc (or a slot: rect) facing back: seen from behind it is painted on (a dark
+// rim, its inside glowing the engine's colour, white-hot under full thrust) and the thrust comes toward you — a glow and
+// sparks of fire flying out at you; seen from the side its flame streams back, turned with the ship; seen from the front
+// the flame goes off behind the hull. A flame's size goes with its mouth's. Styles: rect (ZORIAN: a flat beam of fire
+// from a slot), camo (CINDER: big layered flames cycling through its camouflage colours, with shock diamonds), vortex
+// (BORER: a round thruster in its flat back, a swirling vortex of colours), light (GIMBAL: no flame — a burst of light
+// when the gas comes on, then waves of light) ----
 const NOZZLES3 = {
   nimbus: [[-0.102, 0.017, 0.47, 0.033], [0.1, 0.031, 0.47, 0.043], [0, -0.043, 0.47, 0.048]],
   vanta: [[-0.1, -0.035, 0.48, 0.034], [0.1, -0.035, 0.48, 0.034]],   // (the model has only blue lines there: its two mouths painted on)
   orian: (o) => [[0, -0.07, o.anim && o.anim.seq === "secondary" ? 0.06 : 0.34, 0.05]],   // (out of the folded sheath's end; the fan open: out of the pod)
+  drakon: [[-0.18, -0.13, 0.43, 0.05, { rect: [0.062, 0.022] }], [-0.012, -0.14, 0.43, 0.05, { rect: [0.062, 0.022] }]],
+  zorian: [[0, 0.016, 0.41, 0.06, { rect: [0.078, 0.032] }]],
+  cinder: [[-0.32, 0.054, 0.47, 0.05, "camo"], [0.33, 0.054, 0.47, 0.05, "camo"]],
+  borer: [[0, -0.01, 0.41, 0.1, "vortex"]],
+  gimbal: [[-0.024, 0.02, 0.416, 0.013, "light"], [0.024, 0.02, 0.416, 0.013, "light"], [-0.024, -0.024, 0.416, 0.013, "light"], [0.024, -0.024, 0.416, 0.013, "light"]],
+  lariat: [[-0.14, 0.14, 0.44, 0.045], [0.11, 0.13, 0.4, 0.036]],
+  flipper: [[-0.19, 0.02, 0.47, 0.045], [0.19, 0.02, 0.47, 0.045]],
+  courier: [[-0.2, 0.04, 0.39, 0.04], [-0.104, 0.05, 0.37, 0.03], [0.1, 0.03, 0.41, 0.022]],   // (three pipes, three sizes)
+  frankenstein: [[-0.11, -0.036, 0.41, 0.014], [0.1, -0.036, 0.41, 0.014]],
+  reprise: (o) => repriseNozzles(o),   // (under its three tall buildings: they move with them as it rebuilds)
 };
+// REPRISE's engines: at the foot of each of its three tall buildings, wherever that building is now, blowing the way its foot faces
+function repriseNozzles(o) {
+  const L = view3d.lib, S = shipById("reprise"), PT = L && L.parts && L.parts("reprise"); if (!PT) return [];
+  const px = S.anim.size / 512, f = px / PT.len, dims = PT.list.map((B) => ({ w: B.w / f, h: B.h / f }));
+  const rep = o.rep && typeof o.rep === "object" ? o.rep : null, P = reprisePose(dims, rep ? rep.form : 0, rep ? rep.age : 0);
+  return [0, 1, 2].map((i) => { const q = P.shape[i], a = q.angle * Math.PI / 180, dx = -Math.sin(a), dz = Math.cos(a), hh = dims[i].h / 2;
+    return [(q.x + dx * hh) * px, 0, (q.y + dz * hh) * px, 0.03, null, [dx, 0, dz]]; });
+}
 function nozzles3(S, o) {
   const N = NOZZLES3[S.id]; if (N) return typeof N === "function" ? N(o) : N;
   return S.nozzles.map((ex, n) => [ex, 0, S.engineYs ? S.engineYs[n] : S.engineY, S.nozzles.length >= 4 ? 0.035 : 0.05]);
 }
+// CINDER's camouflage: its flame runs through sand, rust, olive and flame orange
+const CAMO_FLAME = ["#ffb347", "#e8c27a", "#c0462a", "#8a9a4a", "#ff7a2a"];
+function camoColor(t, k = 0) { const n = CAMO_FLAME.length, u = ((t * 0.7 + k) % n + n) % n, i = Math.floor(u), f = u - i; return mixHex(CAMO_FLAME[i], CAMO_FLAME[(i + 1) % n], f); }
+function mixHex(a, b, f) { const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16), m = (s) => Math.round(((A >> s) & 255) * (1 - f) + ((B >> s) & 255) * f); return "#" + ((1 << 24) + (m(16) << 16) + (m(8) << 8) + m(0)).toString(16).slice(1); }
+// the convex outline of some points (for a beam: a slot pushed back along its tail)
+function hull2(pts) {
+  pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (const p of pts.slice().reverse()) { while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
 function engines3d(S, o, q, pass) {
   if (o.out || (S.noFlame && !NOZZLES3[S.id]) || o.half === "front" || o.jets > 0 || (S.boiler && o.vt && boilerProp(o.vt, S))) return;
-  const power = o.power ?? 0.25, tail = Q3.rot(q, [0, 0, 1]), face = tail[1], L2 = Math.hypot(tail[0], tail[2]), mine = !!NOZZLES3[S.id];
-  const ta = Math.atan2(tail[2], tail[0]);   // (the tail's way across the screen)
-  nozzles3(S, o).forEach(([x, h, z, r], n) => {
-    const np = Q3.rot(q, [x, h, z]);
+  const power = o.power ?? 0.25, mine = !!NOZZLES3[S.id], V = o.vt || o;
+  // (when the gas came on: GIMBAL's burst of light)
+  if (pass === "under") { if (power > 0.3) { if (V.thrOn == null) V.thrOn = time; } else if (power < 0.2) V.thrOn = null; }
+  const since = V.thrOn == null ? 99 : time - V.thrOn;
+  nozzles3(S, o).forEach(([x, h, z, r, style, way], n) => {
+    const tail = Q3.rot(q, way || [0, 0, 1]), face = tail[1], L2 = Math.hypot(tail[0], tail[2]), ta = Math.atan2(tail[2], tail[0]);
+    const np = Q3.rot(q, [x, h, z]), rect = style && style.rect, size = clamp(r / 0.045, 0.3, 1.5);
+    if (style === "light") { if (pass === "over") gimbalLight(np, tail, face, r, power, since, n, S); return; }
     if (pass === "under") {   // the flame streaming back
       if (L2 < 0.04 || power < 0.02) return;
       const hide = clamp(1 + np[1] / Math.max(0.05, Math.abs(z)) * 1.2, 0, 1); if (hide < 0.05) return;
-      const rag = S.steam ? (Math.random() - 0.3) * 0.12 * power : 0, len = (0.1 + power * 0.32 + Math.sin(time * 40 + x * 9 + n) * 0.03 + rag) * L2, w = r * 0.95;
+      const rag = S.steam ? (Math.random() - 0.3) * 0.12 * power : 0, len = (0.1 + power * 0.32 + Math.sin(time * 40 + x * 9 + n) * 0.03 + rag) * L2 * size * (style === "camo" ? 1.35 : 1);
+      if (rect) {   // a flat beam of fire: the slot pushed back along the tail, a white-hot core in it, bands of heat running down it
+        const cor = [[-1, -1], [1, -1], [1, 1], [-1, 1]], tl = Q3.rot(q, way || [0, 0, 1]);
+        for (const [k, col, a] of [[1, S.flame, 0.75], [0.55, "#ffffff", 0.9]]) {
+          const pts = [];
+          for (const [sx, sy] of cor) { const c = Q3.rot(q, [x + sx * rect[0] * k, h + sy * rect[1] * k, z]); pts.push([c[0], c[2]], [c[0] + tl[0] * len * 1.6, c[2] + tl[2] * len * 1.6]); }
+          const H = hull2(pts), g = ctx.createLinearGradient(np[0], np[2], np[0] + tl[0] * len * 1.6, np[2] + tl[2] * len * 1.6);
+          g.addColorStop(0, col); g.addColorStop(0.35, hexA(S.flame, a)); g.addColorStop(1, hexA(S.flame, 0));
+          ctx.save(); ctx.globalAlpha *= hide; ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); H.forEach(([a1, b1], i) => (i ? ctx.lineTo(a1, b1) : ctx.moveTo(a1, b1))); ctx.closePath(); ctx.fill(); ctx.restore();
+        }
+        ctx.save(); ctx.globalAlpha *= hide * 0.5; ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = rect[1] * 0.5;   // (heat bands sliding down the beam)
+        for (let i = 0; i < 3; i++) { const u = ((time * 3 + i / 3) % 1) * len * 1.4, c0 = Q3.rot(q, [x - rect[0] * 0.8, h, z]), c1 = Q3.rot(q, [x + rect[0] * 0.8, h, z]);
+          ctx.beginPath(); ctx.moveTo(c0[0] + tl[0] * u, c0[2] + tl[2] * u); ctx.lineTo(c1[0] + tl[0] * u, c1[2] + tl[2] * u); ctx.stroke(); }
+        ctx.restore(); return;
+      }
+      const w = r * 0.95, c1 = style === "camo" ? camoColor(time, n * 1.7) : S.flame, c2 = style === "camo" ? camoColor(time, n * 1.7 + 2.3) : "#ffffff";
       ctx.save(); ctx.translate(np[0], np[2]); ctx.rotate(Math.atan2(-tail[0], tail[2])); ctx.globalAlpha *= hide;
-      const fg = ctx.createLinearGradient(0, 0, 0, len); fg.addColorStop(0, "#ffffff"); fg.addColorStop(0.3, S.flame); fg.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = fg; ctx.beginPath(); ctx.moveTo(-w, -0.01); ctx.quadraticCurveTo(0, len * 1.4, w, -0.01); ctx.fill(); ctx.restore();
+      const fg = ctx.createLinearGradient(0, 0, 0, len); fg.addColorStop(0, c2); fg.addColorStop(0.3, c1); fg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = fg; ctx.beginPath(); ctx.moveTo(-w, -0.01); ctx.quadraticCurveTo(0, len * 1.4, w, -0.01); ctx.fill();
+      if (style === "camo") {   // a second tongue in another camouflage colour, flickering, and shock diamonds running down it
+        const l2 = len * (0.7 + 0.15 * Math.sin(time * 23 + n)), g2 = ctx.createLinearGradient(0, 0, 0, l2); g2.addColorStop(0, "#fff6d8"); g2.addColorStop(0.4, camoColor(time, n * 1.7 + 1.1)); g2.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g2; ctx.beginPath(); ctx.moveTo(-w * 0.55, -0.01); ctx.quadraticCurveTo(0, l2 * 1.3, w * 0.55, -0.01); ctx.fill();
+        for (let i = 0; i < 4; i++) { const u = ((time * 2.2 + i / 4) % 1), yy = len * (0.12 + 0.8 * u), rr = w * 0.35 * (1 - u * 0.6);
+          ctx.fillStyle = `rgba(255,245,210,${0.75 * (1 - u)})`; ctx.beginPath(); ctx.ellipse(0, yy, rr, rr * 0.55, 0, 0, TAU); ctx.fill(); }
+      }
+      ctx.restore();
       return;
     }
     if (face < 0.12) return;   // (the mouths face away, or edge on)
-    // the mouth: a disc facing back, seen at a slant (squeezed along the tail's way across the screen)
     const k = clamp((face - 0.12) / 0.5, 0, 1), heat = clamp(power, 0, 1);
-    ctx.save(); ctx.translate(np[0], np[2]); ctx.rotate(ta);
-    if (mine) {   // painted on: its rim and its dark throat
-      ctx.globalAlpha *= k;
-      ctx.fillStyle = "#16141c"; ctx.beginPath(); ctx.ellipse(0, 0, r * face, r, 0, 0, TAU); ctx.fill();
-      ctx.strokeStyle = "rgba(170,175,190,0.85)"; ctx.lineWidth = r * 0.18; ctx.stroke();
-      ctx.globalAlpha /= k || 1;
+    if (rect) {   // a slot: its four corners as the ship is turned, a dark throat, glowing inside
+      const poly = (m) => { ctx.beginPath(); [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy], i) => { const c = Q3.rot(q, [x + sx * rect[0] * m, h + sy * rect[1] * m, z]); i ? ctx.lineTo(c[0], c[2]) : ctx.moveTo(c[0], c[2]); }); ctx.closePath(); };
+      ctx.save(); ctx.globalAlpha *= k; poly(1); ctx.fillStyle = "#14121a"; ctx.fill(); ctx.strokeStyle = "rgba(170,175,190,0.85)"; ctx.lineWidth = rect[1] * 0.3; ctx.stroke();
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha *= 0.3 + 0.7 * heat; poly(0.82); ctx.fillStyle = hexA(S.flame, 0.9); ctx.fill(); if (heat > 0.5) { poly(0.5); ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.fill(); }
+      ctx.restore();
+    } else {
+      ctx.save(); ctx.translate(np[0], np[2]); ctx.rotate(ta);
+      if (mine) { ctx.globalAlpha *= k; ctx.fillStyle = "#16141c"; ctx.beginPath(); ctx.ellipse(0, 0, r * face, r, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = "rgba(170,175,190,0.85)"; ctx.lineWidth = r * 0.18; ctx.stroke(); ctx.globalAlpha /= k || 1; }
+      ctx.globalCompositeOperation = "lighter";
+      const ri = r * (mine ? 0.82 : 1);
+      if (style === "vortex") {   // BORER: a swirling vortex of colours, spinning up with the gas
+        ctx.globalAlpha *= k * (0.35 + 0.65 * heat); ctx.scale(face, 1);
+        const spin = time * (2 + 9 * heat);
+        for (let arm = 0; arm < 5; arm++) {
+          ctx.strokeStyle = ["#b46bff", "#4dff9a", "#5ee7ff", "#ff6bd5", "#ffd166"][arm]; ctx.lineWidth = ri * 0.16; ctx.beginPath();
+          for (let i = 0; i <= 18; i++) { const u = i / 18, a = spin + arm * TAU / 5 + u * 4.2, rr = ri * (0.08 + 0.9 * u); i ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+          ctx.stroke();
+        }
+        const vg = ctx.createRadialGradient(0, 0, 0, 0, 0, ri); vg.addColorStop(0, `rgba(255,255,255,${0.9 * heat})`); vg.addColorStop(0.4, hexA(S.flame, 0.6)); vg.addColorStop(1, hexA(S.flame, 0));
+        ctx.fillStyle = vg; ctx.beginPath(); ctx.arc(0, 0, ri, 0, TAU); ctx.fill(); ctx.restore();
+      } else {
+        const glowA = (mine ? 0.35 : 0) + 0.65 * heat, c1 = style === "camo" ? camoColor(time, n * 1.7) : S.flame;
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, ri); g.addColorStop(0, heat > 0.6 ? "#ffffff" : hexA(c1, 1)); g.addColorStop(0.55, hexA(c1, 0.85)); g.addColorStop(1, hexA(c1, 0.15));
+        ctx.globalAlpha *= k * glowA; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, ri * face, ri, 0, 0, TAU); ctx.fill();
+        ctx.restore();
+      }
     }
-    ctx.globalCompositeOperation = "lighter";
-    const ri = r * (mine ? 0.82 : 1), glowA = (mine ? 0.35 : 0) + 0.65 * heat;   // (its inside: a dim glow at rest, the engine's colour under thrust, white-hot at full)
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, ri); g.addColorStop(0, heat > 0.6 ? "#ffffff" : hexA(S.flame, 1)); g.addColorStop(0.55, hexA(S.flame, 0.85)); g.addColorStop(1, hexA(S.flame, 0.15));
-    ctx.globalAlpha *= k * glowA; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, ri * face, ri, 0, 0, TAU); ctx.fill();
-    ctx.restore();
     if (heat < 0.08) return;
     // the thrust toward you: a wide soft glow round the mouth, and sparks of fire flung out at you (spreading as they come)
+    const rr = rect ? Math.max(rect[0], rect[1]) : r, fc = style === "camo" ? camoColor(time, n * 1.7) : S.flame;
     ctx.save(); ctx.translate(np[0], np[2]); ctx.globalCompositeOperation = "lighter";
-    const R = r * (2.2 + 1.6 * heat) * face, gl = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
-    gl.addColorStop(0, hexA(S.flame, 0.55 * heat * k)); gl.addColorStop(0.4, hexA(S.flame, 0.2 * heat * k)); gl.addColorStop(1, hexA(S.flame, 0));
+    const R = rr * (2.2 + 1.6 * heat) * face, gl = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    gl.addColorStop(0, hexA(fc, 0.55 * heat * k)); gl.addColorStop(0.4, hexA(fc, 0.2 * heat * k)); gl.addColorStop(1, hexA(fc, 0));
     ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
     for (let i = 0; i < 9; i++) {
       const T = time * 2.4 + i * 0.111 + n * 0.37, u = T % 1, seed = Math.floor(T) * 13.7 + i * 7.1 + n * 3.3;
-      const a = (Math.sin(seed) * 43758.5453 % 1) * TAU, d = r * (0.4 + 3.6 * u) * (0.6 + 0.4 * face), sz = r * (0.09 + 0.22 * u) * face;
-      ctx.fillStyle = i % 3 ? hexA(S.flame, (1 - u) * heat * k) : `rgba(255,250,220,${(1 - u) * heat * k})`;
+      const a = (Math.abs(Math.sin(seed) * 43758.5453) % 1) * TAU, d = rr * (0.4 + 3.6 * u) * (0.6 + 0.4 * face), sz = rr * (0.09 + 0.22 * u) * face;
+      ctx.fillStyle = i % 3 ? hexA(style === "vortex" ? ["#b46bff", "#4dff9a", "#5ee7ff"][i % 3] : fc, (1 - u) * heat * k) : `rgba(255,250,220,${(1 - u) * heat * k})`;
       ctx.beginPath(); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, sz, 0, TAU); ctx.fill();
     }
     ctx.restore();
   });
+}
+// GIMBAL's motors (it turns all the while, so no flame to steer by): when the gas comes on, a burst of light from each —
+// a flash and a ring flung out; held on, only slow waves of light leaving them, rings drifting back and a soft shimmer
+function gimbalLight(np, tail, face, r, power, since, n, S) {
+  const vis = Math.max(0.35, Math.abs(face)), ta = Math.atan2(tail[2], tail[0]);
+  ctx.save(); ctx.translate(np[0], np[2]); ctx.globalCompositeOperation = "lighter";
+  if (since < 0.45) {   // the burst
+    const u = since / 0.45, R = r * (2 + 14 * u), a = (1 - u);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R); g.addColorStop(0, `rgba(255,255,255,${a})`); g.addColorStop(0.35, hexA(S.flame, a * 0.8)); g.addColorStop(1, hexA(S.flame, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
+    ctx.save(); ctx.rotate(ta); ctx.strokeStyle = `rgba(200,250,255,${a})`; ctx.lineWidth = r * 0.5; ctx.beginPath(); ctx.ellipse(0, 0, R * 0.8 * vis, R * 0.8, 0, 0, TAU); ctx.stroke(); ctx.restore();
+  }
+  if (power > 0.15 && since >= 0.2) {   // the waves: rings of light drifting back from the motor, shrinking and fading
+    const k = clamp((since - 0.2) / 0.4, 0, 1) * power;
+    for (let i = 0; i < 4; i++) {
+      const u = ((time * 1.3 + i / 4 + n * 0.13) % 1), d = r * 22 * u, R = r * (1.2 + 2.5 * Math.sin(u * Math.PI));
+      ctx.save(); ctx.translate(tail[0] * d, tail[2] * d); ctx.rotate(ta);
+      ctx.strokeStyle = hexA(S.flame, 0.6 * k * (1 - u)); ctx.lineWidth = r * 0.35; ctx.beginPath(); ctx.ellipse(0, 0, R * vis, R, 0, 0, TAU); ctx.stroke(); ctx.restore();
+    }
+    const sh = r * (2.4 + 0.6 * Math.sin(time * 9 + n)), g = ctx.createRadialGradient(0, 0, 0, 0, 0, sh); g.addColorStop(0, hexA("#ffffff", 0.5 * k)); g.addColorStop(1, hexA(S.flame, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, sh, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
 }
 function draw3dShipModel(S, o, ang, bank) {
   const L = view3d.lib;
@@ -4568,7 +4667,9 @@ function draw3dShipModel(S, o, ang, bank) {
     ctx.restore(); return ok;
   }
   if (S.anim && S.anim.ribbon) {   // VANTA: its own liquid poured into the model's (wiped) chamber, moving and pushed out as it fires
-    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3); if (ok) { ctx.save(); ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll3))), Math.max(0.05, Math.abs(Math.cos(pitch3)))); drawVantaLiquid(o); ctx.restore(); } }
+    // (only through its top: the liquid fades as the top turns away, gone from below or behind)
+    const top = Q3.rot(Q3.fromAngles(0, pitch3, roll3), [0, 1, 0])[1], see = clamp((top - 0.2) / 0.4, 0, 1);
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3); if (ok && see > 0) { ctx.save(); ctx.globalAlpha *= see; ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll3))), Math.max(0.05, Math.abs(Math.cos(pitch3)))); drawVantaLiquid(o); ctx.restore(); } }
     catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
@@ -7612,6 +7713,44 @@ const monsterTalk = { on: false, next: 0, last: -1 };
 const THRUST_LOOPS = { corsair: ["audio/corsair/rowing-loop.ogg", 4.08], flipper: ["audio/flipper/playfield-loop.ogg", 2.4], boiler: ["audio/boiler/engine-loop.ogg", 4.0],
   vexar: ["audio/vexar/fly-loop.ogg", 3.0], borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4], brass: ["audio/thul/tracks-rec.ogg", 5.5],
   courier: ["audio/courier/loop.ogg", 2.0], zorian: ["audio/zorian/throttle.ogg", 9.45, 6.0] };   // (a third number: where the loop starts again; ZORIAN: the revs climb through the gears once, then hold the top one)
+// ZORIAN's backfire: a sports car's exhaust popping — bpa, bpa, bpa — when it is pushed hard: letting go of the gas after
+// a long hard run near its top speed, and now and then while it is held flat out at the top. Each pop: a sharp burst of
+// noise through a low band, a thump under it and a little crackle after; 3 to 5 pops, uneven, ~70-130 ms apart
+const BACKFIRE = { hold: 1.2, fast: 0.7, every: [2.2, 4.5], vol: 0.5 };
+function zorianBackfire(dt) {
+  const B = game.bf || (game.bf = { held: 0, next: 3 });
+  if (BOT || game.ship !== "zorian" || game.dead || game.stage !== "fly") { B.held = 0; return; }
+  const S = shipById(game.ship), fast = Math.hypot(game.vx, game.vy) > BACKFIRE.fast * shipStats(S).top * U, on = game.thrust !== null && !game.locked;
+  if (on) {
+    B.held += dt;
+    if (fast && B.held > BACKFIRE.hold) { B.next -= dt; if (B.next <= 0) { backfirePops(2 + Math.floor(Math.random() * 2)); B.next = BACKFIRE.every[0] + Math.random() * (BACKFIRE.every[1] - BACKFIRE.every[0]); } }
+  } else {
+    if (B.held > BACKFIRE.hold && fast) backfirePops(3 + Math.floor(Math.random() * 3));   // (off the gas after a hard run)
+    B.held = 0;
+  }
+}
+function backfirePops(n) {
+  const c = audio.ctx; if (!c || !audio.out) return;
+  if (!backfirePops.buf) { const len = Math.floor(c.sampleRate * 0.12), b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2); backfirePops.buf = b; }
+  let t = c.currentTime + 0.02;
+  for (let i = 0; i < n; i++) {
+    const v = BACKFIRE.vol * (0.7 + Math.random() * 0.5);
+    const src = c.createBufferSource(), bp = c.createBiquadFilter(), g = c.createGain();   // the crack
+    src.buffer = backfirePops.buf; bp.type = "bandpass"; bp.frequency.value = 700 + Math.random() * 600; bp.Q.value = 0.9;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 0.004); g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    src.connect(bp); bp.connect(g); g.connect(audio.out); src.start(t); src.stop(t + 0.12);
+    const o = c.createOscillator(), og = c.createGain();   // the thump
+    o.type = "sine"; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.08);
+    og.gain.setValueAtTime(v * 0.9, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.1); o.connect(og); og.connect(audio.out); o.start(t); o.stop(t + 0.11);
+    if (Math.random() < 0.6) {   // a crackle after
+      const s2 = c.createBufferSource(), hp = c.createBiquadFilter(), g2 = c.createGain(), t2 = t + 0.03 + Math.random() * 0.03;
+      s2.buffer = backfirePops.buf; s2.playbackRate.value = 2.5; hp.type = "highpass"; hp.frequency.value = 2500;
+      g2.gain.setValueAtTime(v * 0.35, t2); g2.gain.exponentialRampToValueAtTime(0.001, t2 + 0.04); s2.connect(hp); hp.connect(g2); g2.connect(audio.out); s2.start(t2); s2.stop(t2 + 0.06);
+    }
+    t += 0.07 + Math.random() * 0.06;
+  }
+  if (game.ship === "zorian") for (const e of exhausts(game, shipById("zorian"))) burstAt(e.x, e.y, 6 * n, ["#ffffff", "#ffb347", "#ff5a1f", "#5ee7ff"], 0.2, 0.5, game.vx * 0.5, game.vy * 0.5);   // (a spit of fire with it)
+}
 // CORSAIR's rowing loop (the package's mix: oars, crew, the captain's "Heave!") instead of the engine while the gas is held;
 // started at the oars' place in their stroke, faded out in about 120 ms when let go
 function rowingSound(on) {
@@ -11784,8 +11923,9 @@ function drawGimbalPlume(o, power, pa) {
 }
 function drawGimbal() {
   gimPreload();
-  if (game.ship === "gimbal" && !game.dead) drawGimbalPlume(game, game.power, game.pushAng);
-  if (enemy.on && enemy.ship === "gimbal") drawGimbalPlume(enemy, enemy.power, enemy.pushAng);
+  const G3 = (o) => use3d(shipById("gimbal"), { vt: o });   // (in 3D: its motors' light instead, engines3d)
+  if (game.ship === "gimbal" && !game.dead && !G3(game)) drawGimbalPlume(game, game.power, game.pushAng);
+  if (enemy.on && enemy.ship === "gimbal" && !G3(enemy)) drawGimbalPlume(enemy, enemy.power, enemy.pushAng);
   drawGate(game.gate, true); drawGate(duel.gate, false);
   for (const F of gimFx) {   // the flip: two colours spreading round the ship's middle, not turned with it
     const o = F.who === "me" ? game : enemy; if (F.who === "them" && !enemy.on) continue;
