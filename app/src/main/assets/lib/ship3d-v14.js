@@ -19,6 +19,7 @@ export const SHIP_MODELS = {
   boiler: { file: "models/boiler.glb", fwd: "+z", len: 0.8 },
   brass: { file: "models/thul.glb", fwd: "-x", len: 0.85 },
   puff: { file: "models/puff.glb", fwd: "-x", len: 0.8 },
+  xeltar: { file: "models/xeltar.glb", fwd: "-x", len: 0.95 },
   ballast: { file: "models/ballast.glb", fwd: "-x", len: 0.95 },
   zorian: { file: "models/zorian.glb", fwd: "-x", len: 0.9 },
   cantor: { file: "models/cantor.glb", fwd: "+z", len: 0.95 },
@@ -198,7 +199,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 13,   // (index.html checks it; the file's name carries it too — lib/ship3d-v13.js — so the app never mixes a new
+  version: 14,   // (index.html checks it; the file's name carries it too — lib/ship3d-v14.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },

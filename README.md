@@ -770,7 +770,7 @@ package's frames (`art/bloom/skarn/`, `skarnBloomFrame`).
 
 **PALISADE's wall breaks as it is hit** — every enemy shot it stops puts out a lamp *and* breaks off its newest piece (or the one the arm is carrying) in a spray of ceramic fragments; four hits and it falls. The wall never times out and never falls to shots (four hits put out its lamps; it keeps standing): it stays till its own magic bursts it (or the ship is lost), growing to at most 30 pieces. Its magic is one great blast: a white-hot fireball and a shock ring out to 1.5 times the wall's radius (the circle round the whole wall), 5% of it more for every piece the wall has grown (10 more pieces: twice the wall's radius), a storm of ceramic shards flying to its edge and fading — any enemy ship inside the blast loses a tank and a half. After it goes the next one waits 6 s, so the computer can no longer stand behind wall after wall. **3D view (stage 1)** — turned on with the test hangar's 🧊 chip (saved). The game is the same 2D game; a ship that has a
 3D model is drawn by three.js from the same top-down view in place of its 2D drawing, rolling into its turns and lifting
-its nose a little under power, the light fixed in space. `lib/ship3d-v13.js` (its `SHIP_MODELS`: file, which way the nose
+its nose a little under power, the light fixed in space. `lib/ship3d-v14.js` (its `SHIP_MODELS`: file, which way the nose
 points in the file, length on screen), `lib/three/` (three.js r187, MIT: the core, GLTFLoader, the meshopt decoder,
 RoomEnvironment), `models/*.glb` (the Meshy exports run through gltfpack: ~40k triangles, meshopt-compressed, 1024 px
 textures, about 1 MB a ship). Only loaded once the view is turned on; off, loading or without WebGL: the 2D drawings.
@@ -788,11 +788,11 @@ the ship back smoothly (the shortest way, its jets puffing) until it lies level,
 touching a stick takes the controls back (`LEVEL3`). In its grey window the orientation pyramid (`models/orientation.glb`,
 its apex the ship's nose, yellow its right, blue its belly) turns live exactly as the ship does, seen as the game sees it,
 fitted so it never leaves the window (`gauge()` in the 3D library; a drawn pyramid until that is ready). Button 2 stays a plain fire button; the buttons sit 1 cm further in and up. Tilted, the engine pushes it into the depth
-(smaller, down to a third far away) or toward you (up to 3x near), the body in the middle of the depth; the depth wraps like the sides (out near, back in from
+(smaller, down to a sixth far away) or toward you (up to 6x near), the body in the middle of the depth; the depth wraps like the sides (out near, back in from
 far away, fading). Out of the plane it passes in front of or behind the body in the middle: from above, a ship behind it is hidden by it
 (and by the station) where they overlap (`coverBehind`); the map's frame is blue while the ship is in front of the body
-and red while it is behind, with a line beside it in that colour for each layer of depth it is in front or behind (3
-each way: past the third in front it comes back 3 behind) (`depthLayers`); in the chase camera the body is a real ball (a lit sphere, a
+and red while it is behind, with a line beside it in that colour for each layer of depth it is in front or behind (6
+each way: past the sixth in front it comes back 6 behind) (`depthLayers`); in the chase camera the body is a real ball (a lit sphere, a
 glowing star, a picture body a billboard). The other phone sees its depth,
 tilt and roll; ships with no model are squashed as they tilt and roll. Turning (yaw, tilt, roll), small puffs of compressed gas squirt from the ship's edges as from a satellite's attitude
 jets — nose and tail opposite ways for a yaw, the wingtips for a roll, nose and tail for a tilt — one soft, quiet
@@ -801,14 +801,14 @@ jets — nose and tail opposite ways for a yaw, the wingtips for a roll, nose an
 round behind the hull), and shots leave from the gun point turned the same way. tilted, partly into the depth (upside down, backwards), flying on in depth and drawn
 smaller or bigger with it; they hit the other ship only at about its depth, and pass over or under the body in the
 middle (the other phone gets their depth too). So far shots and hits still go by the plane (`TILT3`). Models so far: FRESNEL,
-BOILER, THUL, PUFF (slim; puffed up it is drawn in 2D), BLOOM, HUSK, NIMBUS, RIVET, FLIPPER, KRAAL, LABYRINTH, VEXAR, FRANKENSTEIN, CANTOR, ZORIAN, BALLAST. **The view buttons** (under the map, the size of the sound dials; pictures `art/ui/btn-2d3d.webp`,
+BOILER, THUL, PUFF (slim; puffed up it is drawn in 2D), BLOOM, HUSK, NIMBUS, RIVET, FLIPPER, KRAAL, LABYRINTH, VEXAR, FRANKENSTEIN, CANTOR, ZORIAN, BALLAST, XELTAR. **The view buttons** (under the map, the size of the sound dials; pictures `art/ui/btn-2d3d.webp`,
 `art/ui/btn-camera.webp`; saved): 2D ⇄ 3D turns the 3D view on and off (as the test hangar's chip does); above it, in
 the 3D view, the camera: from above, as always, or behind the ship — the chase
 camera: my ship always in the middle, the camera behind it and a little above, following its heading and tilt (not its
 roll) and easing after its turns. The game's own picture of space round the ship (drawn as always, at `CHASE.zoom`) is
 laid out as the floor of a 3D scene at the ship's depth, fading into the dark at its edges, with stars all round; my
-ship is its model in the scene (a ship with no model stays drawn on the floor). `chase()` in `lib/ship3d-v13.js`,
-`chaseCompose()` in index.html. The 3D library's file name carries its version (`lib/ship3d-v13.js`, `SHIP3D_VER`): the app keeps saved copies of files and refreshes them only in the background, so a changed library gets a new name, and anything going wrong in the 3D drawing falls back to 2D (and the view from above) instead of stopping the game. **The top of the screen:** the sound dials sit right after the money (`walletBox`), so the map beside CONNECT is
+ship is its model in the scene (a ship with no model stays drawn on the floor). `chase()` in `lib/ship3d-v14.js`,
+`chaseCompose()` in index.html. The 3D library's file name carries its version (`lib/ship3d-v14.js`, `SHIP3D_VER`): the app keeps saved copies of files and refreshes them only in the background, so a changed library gets a new name, and anything going wrong in the 3D drawing falls back to 2D (and the view from above) instead of stopping the game. **The top of the screen:** the sound dials sit right after the money (`walletBox`), so the map beside CONNECT is
 half again as big. A control button (thrust, fire, magic, shield) with my ship behind it fades to 10% so the ship
 shows through (`padSee`), and so does the top of the screen, in two blocks: the left (health, tanks, the ships' icons,
 the money, CONNECT, the sound dials) and the right (the map and the buttons under it) (`hudSee`). **Test hangar: 🪐 the body in the middle** — held down: no body at all (no pull, nothing to touch, not drawn; on both phones), for trying how the ships fly without gravity; held again or tapped, it is back. The hangar's ships are five cards a row, scrolling (drag up and down; a tap without dragging picks). Otherwise — the chip shows its name; each tap changes it at once to the next one (stars, planets, the moon, Earth...), on both phones, and it stays for the next rounds; after the last one it goes back to a random body each round. **Test hangar: 🤖 the computer's ship** — tap the chip, then a ship: the computer flies it at once and after every loss (the same ship again: back to random).
