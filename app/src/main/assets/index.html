@@ -11236,9 +11236,12 @@ function bumpShips(a, A, b, B) {
   if (stratAloft(game) || enemyAloft()) return;   // a STRATA up high passes over
   const dx = wrapDelta(b.x - a.x, WW), dy = wrapDelta(b.y - a.y, WH), d = Math.hypot(dx, dy) || 1;
   const touch = shipSize() * 0.62;
-  if (d >= touch) return;
+  // flying in 3D: at different depths one passes over or under the other (they touch only as two balls do: the depth
+  // counts in the distance, so ships a little apart in depth still graze, far apart they go by without a bump)
+  const dz = view3d.on && !BOT ? ((b.z3 || 0) - (a.z3 || 0)) * U : 0;
+  if (Math.hypot(d, dz) >= touch) return;
   const nx = dx / d, ny = dy / d, ma = A.mass, mb = B.mass;
-  const push = touch - d;
+  const push = touch - Math.hypot(d, dz);   // (in 3D: only as deep as they overlap)
   a.x -= nx * push * mb / (ma + mb); a.y -= ny * push * mb / (ma + mb);
   b.x += nx * push * ma / (ma + mb); b.y += ny * push * ma / (ma + mb);
   const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
