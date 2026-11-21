@@ -11759,16 +11759,18 @@ function layEgg(x, y, Wp, S) {
   const kinds = Object.keys(S.anim.egg.broods), kind = game.eggKind || kinds[Math.floor(Math.random() * kinds.length)];
   game.eggKind = null;
   // it springs forward out of the chamber (vexarEggFlight), drifting a little with the ship's speed
-  const e = { x, y, vx: game.vx * 0.5, vy: game.vy * 0.5, ang: game.ang, fl: 0,
+  const e = { x, y, z3: view3d.on && !BOT ? game.z3 || 0 : 0, vx: game.vx * 0.5, vy: game.vy * 0.5, ang: game.ang, fl: 0,   // (z3: flying in 3D, laid at the ship's depth and stays there)
     t: 0, ht: -1, crushed: false, w: "hive", ship: S.id, kind, bloom: !!game.zombie };   // (laid by a zombie: its Bloom shell, kept)
   eggs.push(e);
-  duelSend({ t: "e", ...netPos(e), a: e.ang, s: S.id, k: kind, zb: e.bloom ? 1 : 0 });   // the other phone shows it too (the same kind)
+  duelSend({ t: "e", ...netPos(e), a: e.ang, s: S.id, k: kind, zb: e.bloom ? 1 : 0, d3: e.z3 ? +e.z3.toFixed(2) : 0 });   // the other phone shows it too (the same kind)
 }
 // who an egg's hunters go after: mine chase the enemy; the other player's (in a duel) chase me
 function eggTarget(e) {
   if (e.remote) return game.dead ? null : game;
   return enemy.on && enemy.warp < 0.5 ? enemy : null;
 }
+// flying in 3D: is ship o near enough in depth to something at depth z (an egg, a hunter) to touch it
+function eggNearZ(z, o, tol) { return !view3d.on || BOT || Math.abs((z || 0) - (o.z3 || 0)) * U < shipSize() * tol; }
 function updateEggs(dt) {
   const size = shipSize();
   for (let k = eggs.length - 1; k >= 0; k--) {
@@ -11783,7 +11785,7 @@ function updateEggs(dt) {
     e.t += dt * 1000;
     const swarm = cueTime(e.B.hatch, "swarm");
     // the enemy flies into it before the hunters are out: crushed, only the shell pieces fly
-    if (!e.crushed && e.ht < swarm && tg &&
+    if (!e.crushed && e.ht < swarm && tg && eggNearZ(e.z3, tg, 0.9) &&
         Math.hypot(wrapDelta(tg.x - e.x, WW), wrapDelta(tg.y - e.y, WH)) < size * 0.42 + Wp.r * size) {
       e.crushed = true; e.ht = swarm; audio.hatch(false);
       burstAt(e.x, e.y, 14, ["#b8ff3a", "#3fae2a", "#e9ffd0"], 0.35, 0.7, tg.vx * 0.3, tg.vy * 0.3);
@@ -11808,10 +11810,11 @@ function updateEggs(dt) {
     a += Math.sin(time * 9 + h.seed) * 0.6 * dt;   // a little wobble, like a wasp
     h.vx = Math.cos(a) * sp; h.vy = Math.sin(a) * sp;
     h.x = (((h.x + h.vx * dt) % WW) + WW) % WW; h.y = (((h.y + h.vy * dt) % WH) + WH) % WH;
+    if (tg && view3d.on && !BOT) { const dz = (tg.z3 || 0) - (h.z3 || 0); h.z3 = (h.z3 || 0) + clamp(dz, -3 * dt, 3 * dt); }   // (3D: they fly from the egg's depth toward the enemy's, 3 layers a second)
     const gone = () => { burstAt(h.x, h.y, 6, [h.color || "#b8ff3a", "#ffffff"], 0.15, 0.5); hunters.splice(k, 1); };
     if (h.life > Wp.hunterLife) { gone(); continue; }
     if (Math.hypot(wrapDelta(h.x - WW / 2, WW), wrapDelta(h.y - WH / 2, WH)) < planetR()) { gone(); continue; }
-    if (tg && (h.remote || enemy.warp < 0.5) && Math.hypot(wrapDelta(tg.x - h.x, WW), wrapDelta(tg.y - h.y, WH)) < shipSize() * 0.45) {
+    if (tg && (h.remote || enemy.warp < 0.5) && eggNearZ(h.z3, tg, 1.2) && Math.hypot(wrapDelta(tg.x - h.x, WW), wrapDelta(tg.y - h.y, WH)) < shipSize() * 0.45) {
       // mine hit the enemy; the other player's reaching me only vanish here (their phone sends the damage)
       if (h.remote) burstAt(h.x, h.y, 8, [h.color || Wp.color, "#ffffff"], 0.25, 0.6, game.vx, game.vy);
       else { hitEnemy(h, Wp); burstAt(h.x, h.y, 8, [h.color || Wp.color, "#ffffff"], 0.25, 0.6, enemy.vx, enemy.vy); }
@@ -11826,7 +11829,7 @@ function releaseHunters(e, Wp) {
   const brood = e.B.brood, n = brood.length;   // one insect per entry, in the egg's own kinds
   brood.forEach((sp, i) => {
     const I = e.E.insects[sp], a = base + (i / Math.max(1, n - 1) - 0.5) * 1.6, v = Wp.hunterSpeed * U * 0.35;
-    hunters.push({ w: e.w, x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, seed: i * 2.1 + Math.random(),
+    hunters.push({ w: e.w, x: e.x, y: e.y, z3: e.z3 || 0, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, seed: i * 2.1 + Math.random(),
       frames: I.flight, color: I.color, d: e.E.hunterSize, dir: e.dir, phase: i * 70, remote: !!e.remote });
   });
 }
@@ -11852,13 +11855,15 @@ function drawEggs() {
     const seq = e.ht < 0 ? e.B.pulse : e.B.hatch, t = e.ht < 0 ? e.t % seqLength(e.B.pulse) : e.ht, f = seqFrame(seq, t);
     const img = f >= 0 && ((e.ht < 0 && e.bloom && artImage(eggPulsePath(e.dir, seq[f][0], true))) || artImage(framePath(e.dir, seq[f][0])));
     if (!img) continue;
-    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(e.ang + F.tilt); ctx.scale(1 / Math.sqrt(F.stretch), F.stretch); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+    const k3 = view3d.on && !BOT && e.z3 ? depthScale(e.z3) : 1;   // (3D: as big as its depth, like the ships)
+    ctx.save(); if (k3 !== 1) ctx.globalAlpha *= depthFade(e.z3); ctx.translate(p.x, p.y); ctx.scale(k3, k3); ctx.rotate(e.ang + F.tilt); ctx.scale(1 / Math.sqrt(F.stretch), F.stretch); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
   }
   for (const h of hunters) {
     const p = toScreen(h.x, h.y), d = h.d * size, f = seqFrame(h.frames, (h.life * 1000 + h.phase) % seqLength(h.frames));
     const img = artImage(framePath(h.dir, h.frames[Math.max(0, f)][0]));
     if (!img) continue;
-    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(h.vx, -h.vy)); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
+    const k3 = view3d.on && !BOT && h.z3 ? depthScale(h.z3) : 1;
+    ctx.save(); if (k3 !== 1) ctx.globalAlpha *= depthFade(h.z3); ctx.translate(p.x, p.y); ctx.scale(k3, k3); ctx.rotate(Math.atan2(h.vx, -h.vy)); ctx.drawImage(img, -d / 2, -d / 2, d, d); ctx.restore();
   }
 }
 
@@ -19944,7 +19949,7 @@ function duelLink(event, data) {
     if (m.w === "lensflash" || m.w === "lightshard") fresnelFlash(m.x * WW, m.y * WH, m.w);
     if (m.w === "huskcannon") enemy.huskFlash = { at: time, side: enemy.huskFlash ? 1 - enemy.huskFlash.side : 0 };   // their FRESNEL's light   // their VAULT's doors open for it
   } else if (m.t === "e" && shipById(m.s)) {   // they laid an egg
-    eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, fl: 0, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", bloom: !!m.zb, remote: true });
+    eggs.push({ x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, ang: m.a, fl: 0, t: 0, ht: -1, crushed: false, w: "hive", ship: m.s, kind: m.k || "mixed", bloom: !!m.zb, remote: true, z3: m.d3 || 0 });
   } else if (m.t === "cv" && shipById(m.s) && Array.isArray(m.p)) {   // their KRAAL's crossing bolts (their phone counts the blast)
     const q = m.p; crosses.push({ w: m.w, ship: m.s, t: 0, remote: true, life: m.l, a: { x: q[0] * WW, y: q[1] * WH }, b: { x: q[2] * WW, y: q[3] * WH }, f: { x: q[4] * WW, y: q[5] * WH } });
     audio.sfx("kraal", "cross_launch", 0, 0.7);
