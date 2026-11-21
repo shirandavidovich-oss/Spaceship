@@ -6002,9 +6002,11 @@ function drawMenuTrain() {
   const L = menuShopLayout().train; if (!L) return;
   const im = artImage("art/ui/train-card.webp"); if (!im) return;
   const k = train.press > 0 ? 0.96 : 1;
-  ctx.save(); ctx.translate(L.x + L.w / 2, L.y + L.h / 2); ctx.scale(k, k);
+  const vis = menuShop.vis ?? 1;   // (faded out with the shop banner while a menu film plays: drawMenuShop)
+  ctx.save(); ctx.globalAlpha = vis; ctx.translate(L.x + L.w / 2, L.y + L.h / 2); ctx.scale(k, k);
   ctx.shadowColor = "rgba(94,231,255,0.5)"; ctx.shadowBlur = U * 0.02 + U * 0.01 * Math.sin(time * 2.5);
   ctx.drawImage(im, -L.w / 2, -L.h / 2, L.w, L.h); ctx.restore();
+  if (vis < 1) { ctx.save(); ctx.globalAlpha = 1 - vis; ctx.strokeStyle = "rgba(94,231,255,0.5)"; ctx.lineWidth = 1.5; roundRect(L.x, L.y, L.w, L.h, U * 0.03); ctx.stroke(); ctx.restore(); }   // (its outline, while faded)
   train.press = Math.max(0, train.press - frameDt);
 }
 function trainMenuLayout() {
@@ -13651,7 +13653,11 @@ function drawMenuShop() {
   const L = menuShopLayout(); if (L.h < U * 0.2) return;   // (no room: a very wide screen)
   const bg = artImage("art/ui/menu-shop-bg.webp"), bt = artImage("art/ui/shop-button.webp");
   menuShop.press = Math.max(0, menuShop.press - frameDt);
-  ctx.save();
+  // while a menu film plays (tshow.kind), the banner and the training card fade out (~0.6 s) so the film shows through:
+  // only their outlines stay; back in when the film is over
+  menuShop.vis = Math.max(0, Math.min(1, (menuShop.vis ?? 1) + (tshow.kind ? -1 : 1) * frameDt / 0.6));
+  const vis = menuShop.vis;
+  ctx.save(); ctx.globalAlpha = vis;
   roundRect(L.x, L.y, L.w, L.h, U * 0.03); ctx.clip();
   if (bg) ctx.drawImage(bg, L.x, L.y, L.w, L.h);
   const fade = ctx.createLinearGradient(L.x, 0, L.x + L.w * 0.35, 0); fade.addColorStop(0, "rgba(5,6,15,0.55)"); fade.addColorStop(1, "rgba(5,6,15,0)");
@@ -13660,7 +13666,7 @@ function drawMenuShop() {
   ctx.save(); ctx.strokeStyle = "rgba(255,176,72,0.45)"; ctx.lineWidth = 1.5; roundRect(L.x, L.y, L.w, L.h, U * 0.03); ctx.stroke(); ctx.restore();
   if (bt) {
     const b = L.btn, k = menuShop.press > 0 ? 0.94 : 1 + 0.02 * Math.sin(time * 3), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
-    ctx.save(); ctx.translate(cx, cy); ctx.scale(k, k);
+    ctx.save(); ctx.globalAlpha = vis; ctx.translate(cx, cy); ctx.scale(k, k);
     ctx.shadowColor = "rgba(255,170,60,0.9)"; ctx.shadowBlur = menuShop.press > 0 ? b.h * 0.8 : b.h * 0.25;
     ctx.drawImage(bt, -b.w / 2, -b.h / 2, b.w, b.h); ctx.restore();
   }
