@@ -5421,7 +5421,7 @@ function useShield() {
   audio.tone(500, 0.25, "sine", 0.05, 2.5); audio.noise(0.3, 0.06, 4000); buzz(40);
 }
 // the active-shield button: to the right of the thrust button (left thumb); the extra weapon: left of fire button 1
-function shieldButton() { const t = thrustButton(); return { x: t.x + t.r * ARC, y: t.y, r: t.r * 0.72 }; }
+function shieldButton() { const t = thrustButton(), N = companionArc(); if (N) return { x: t.x + N.sx * ARC * ARC2, y: t.y - N.cy * ARC * ARC2, r: t.r * 0.72 }; return { x: t.x + t.r * ARC, y: t.y, r: t.r * 0.72 }; }   // (a narrow screen: over the magic button, companionArc)
 function hitShieldBtn(x, y) { if (!myGear().act) return false; const b = shieldButton(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.2; }
 function drawShieldBtn() {
   const G = myGear(); if (!G.act) return;
@@ -12037,6 +12037,18 @@ function updateCrate(dt) {
 // diagonally up-left of button 1 (mirror images), and button 3 (the weapon from a crate) straight above button 1.
 //   PAD_SIZE: the corner buttons' size (1 = the old size)   PAD_IN: how far in from the corner (mm, at least)   ARC: the arc's radius (x button size)
 const PAD_SIZE = 0.8, PAD_IN = 2, ARC = 2.35;
+// a narrow screen (the Fold's closed cover screen, and more so in 3D where the corner buttons move in): the two corners'
+// side buttons met in the middle. Then they stand up over their corner button instead: the magic / button 2 on the arc
+// leaning in only by `lean` (from straight up), and the shield / button 4 / button 3 on a second arc ARC2 times further out,
+// over them. lean: as much as still fits (45° when it can, down to 18°). Wide screens keep the usual places
+const ARC2 = 1.75;
+function companionArc() {
+  const P = pad(), r = P.r, gap = (W - 2 * (r + P.mx)) / r, room = 0.35;   // (the space between the two corner buttons' middles, in button sizes)
+  if (gap >= 2 * Math.max(ARC * Math.SQRT1_2 + 0.85, ARC + 0.72) + room) return null;   // (room enough: the usual arc)
+  let a = Math.PI / 4;
+  while (a > 0.32 && 2 * Math.max(ARC * Math.sin(a) + 0.85, ARC * ARC2 * Math.sin(a) + 0.72) + room > gap) a -= 0.02;
+  return { a, sx: Math.sin(a) * r, cy: Math.cos(a) * r };   // (sx, cy: one arc step across and up, for ARC = 1)
+}
 function pad() {
   const r = Math.min(U * 0.12, 72) * PAD_SIZE;
   // 3 mm nearer the corner than before, but never closer to the edge than PAD_IN
@@ -12049,6 +12061,13 @@ function pad() {
 }
 function fireButtons() {
   const P = pad(), r = P.r, x1 = W - r - P.mx, y1 = H - r - P.my, d = r * ARC / Math.SQRT2;
+  const N = companionArc();
+  if (N) {   // a narrow screen: button 2 up over button 1, leaning in a little; button 4 further out over it; button 3 straight up, above them
+    const list = [{ i: 0, x: x1, y: y1, r }, { i: 1, x: x1 - N.sx * ARC, y: y1 - N.cy * ARC, r: r * 0.85 }];
+    if (myGear().xw) list.push({ i: 3, x: x1 - N.sx * ARC * ARC2, y: y1 - N.cy * ARC * ARC2, r: r * 0.72 });
+    if (game.loot) list.push({ i: 2, x: x1, y: y1 - r * ARC * ARC2 - (myGear().xw ? r * 1.2 : 0), r: r * 0.85 * ease(game.loot.show) });   // (with button 4 there too: a little higher, clear of it)
+    return list;
+  }
   const list = [{ i: 0, x: x1, y: y1, r }, { i: 1, x: x1 - d, y: y1 - d, r: r * 0.85 }];
   // button 3: on the arc straight above button 1, against the right edge
   if (game.loot) { const r3 = r * 0.85; list.push({ i: 2, x: Math.min(x1 + r * 0.15, W - r3 - PAD_IN * MM), y: y1 - r * ARC, r: r3 * ease(game.loot.show) }); }
@@ -12102,7 +12121,7 @@ const TRUCK = { cinder: { min: 0.2, ramp: 0.9, settle: 0.5, from: 0.3, spool: 1.
 function thrustButton() { const P = pad(); return { x: P.r + P.mx, y: H - P.r - P.my, r: P.r }; }
 function hitThrust(x, y) { const b = thrustButton(); return Math.hypot(x - b.x, y - b.y) < b.r * 1.45; }
 // the magic button: above the thrust button, also for the left thumb
-function magicButton() { const t = thrustButton(), d = t.r * ARC / Math.SQRT2; return { x: t.x + d, y: t.y - d, r: t.r * 0.85 }; }   // diagonally up-right of thrust (mirror of button 2)
+function magicButton() { const t = thrustButton(), N = companionArc(); if (N) return { x: t.x + N.sx * ARC, y: t.y - N.cy * ARC, r: t.r * 0.85 }; const d = t.r * ARC / Math.SQRT2; return { x: t.x + d, y: t.y - d, r: t.r * 0.85 }; }   // (a narrow screen: up over thrust, companionArc)   // diagonally up-right of thrust (mirror of button 2)
 // a split magic button (two magics): the left half is the first, the right half the second
 function whichMagic(x) { return shipById(game.ship).magic2 && x > magicButton().x ? 1 : 0; }
 function hitMagic(x, y) { const b = magicButton(); return !!magicOf(shipById(game.ship)) && Math.hypot(x - b.x, y - b.y) < b.r * 1.25; }
