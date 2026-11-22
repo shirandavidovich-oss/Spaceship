@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v39.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v40.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4509,10 +4509,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v39.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v40.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 39, SHIP3D_FILE = "./lib/ship3d-v39.js";
+const SHIP3D_VER = 40, SHIP3D_FILE = "./lib/ship3d-v40.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4796,8 +4796,10 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.kiln) {   // KILN: in 3D its own valve wheel turns with the reverse gravity (lib: wheel) — spun by the same clock as the 2D
     // rig's gear (kilnRig: spinning up, turning while the body pushes, winding down), the furnace glowing under it
-    const rig = o.kiln;
-    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { wheel: rig ? rig.angle : 0, glow: rig ? rig.power : 0 }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    // its nose flaps (lib: grille) open as it lays its mines: open in 0.15 s, held 0.45 s, shut over 0.4 s
+    const rig = o.kiln, V = o.vt || o, ft = V.kflap != null ? time - V.kflap : 99;
+    const flaps = ft < 0.15 ? smoothStep(ft / 0.15) : 1 - smoothStep((ft - 0.6) / 0.4);
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { wheel: rig ? rig.angle : 0, glow: rig ? rig.power : 0, flaps }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.id === "brass") {   // THUL: its gears turn as it fires (lib: gears) — spinning up in 0.2 s while firing, running down
@@ -17663,6 +17665,7 @@ function layMines(w, x, y) {
   }
   while (mines.filter((m) => !m.remote).length > Wp.max) mines.splice(mines.findIndex((m) => !m.remote), 1);   // the oldest go
   duelSend({ t: "mn", w, p: made.map((m) => [m.id, +(m.x / WW).toFixed(5), +(m.y / WH).toFixed(5), +(m.vx / WW).toFixed(5), +(m.vy / WH).toFixed(5), +m.ang.toFixed(3)]) });
+  if (Wp.kiln) game.kflap = time;   // (KILN in 3D: its nose flaps open to let them out)
   if (Wp.drill) { audio.tone(180, 0.15, "square", 0.04, 0.6); audio.noise(0.15, 0.08, 2500); buzz(30); }
   else { audio.sfx(S.sfx, "scatter"); audio.sfx(S.sfx, "pin", 0.05, 0.6); buzz(50); }
 }
@@ -20163,6 +20166,7 @@ function duelLink(event, data) {
   } else if (m.t === "rl" && Array.isArray(m.p)) {   // their RIVET's rail pieces
     for (const q of m.p) railTiles.push({ a: { x: q[0] * WW, y: q[1] * WH }, b: { x: q[2] * WW, y: q[3] * WH }, exp: game.t + (m.e || 2.8), remote: true });
   } else if (m.t === "mn" && WEAPONS[m.w] && Array.isArray(m.p)) {   // their RIVET's nail mines (their phone sets them off)
+    if (WEAPONS[m.w].kiln) enemy.kflap = time;   // (their KILN's nose flaps open)
     for (const q of m.p) mines.push({ id: "r" + q[0], w: m.w, x: q[1] * WW, y: q[2] * WH, vx: q[3] * WW, vy: q[4] * WH, ang: q[5], t: 0, remote: true });
   } else if (m.t === "mx") {   // one of their mines went off on me
     const i = mines.findIndex((q) => q.id === "r" + m.id);
