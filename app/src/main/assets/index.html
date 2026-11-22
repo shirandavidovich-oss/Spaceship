@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v48.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v49.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4519,10 +4519,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v48.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v49.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 48, SHIP3D_FILE = "./lib/ship3d-v48.js";
+const SHIP3D_VER = 49, SHIP3D_FILE = "./lib/ship3d-v49.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4781,6 +4781,22 @@ function bloomFlow(o, S) {
   B.phase = (B.phase + dt) % BLOOM_3D.period; B.filamentTime += dt;
   return B;
 }
+// XELTAR's pose in 3D (the Xeltar 3D Motion package's xeltar-motion.js, kept here for each ship): the fins on their own
+// 1.28 s clock, always; the five rear arms on a 0.64 s clock, blended from their idle drift to the swimming stroke as the
+// gas is pressed (150 ms in, 290 ms out); and, as the big crystal forms at its tail (button 2), the arms gathering round
+// it, letting go as it is fired. XEL_3D.relax: how much the arms keep swimming at rest (0: only their idle drift)
+const XEL_3D = { fin: 1.28, stern: 0.64, attack: 0.15, release: 0.29, relax: 0.25 };
+function xelPose(o) {
+  const V = o.vt || o, dt = Math.min(0.05, frameDt || 0.016);
+  const P = V.xp || (V.xp = { finTime: Math.random() * XEL_3D.fin, sternTime: 0, throttleLevel: 0, swimMix: 0, rearCharge: 0 });   // (each ship its own beat)
+  const want = Math.max(XEL_3D.relax, clamp(o.power != null ? (o.power - 0.12) / 0.88 : 0, 0, 1));
+  P.throttleLevel = Math.max(P.throttleLevel - dt / XEL_3D.release, Math.min(P.throttleLevel + dt / XEL_3D.attack, want));
+  P.swimMix = P.throttleLevel * P.throttleLevel * (3 - 2 * P.throttleLevel);
+  P.finTime = (P.finTime + dt) % XEL_3D.fin; P.sternTime = (P.sternTime + dt) % XEL_3D.stern;
+  const a = o.anim, F = 1070;   // (the crystal: its frames' clock — gathering as it forms, launched at 1,070 ms)
+  P.rearCharge = a && a.seq === "secondary" ? (a.t < F ? smoothStep(a.t / (F * 0.8)) : 1 - smoothStep((a.t - F) / 300)) : 0;
+  return P;
+}
 // BALLAST's bumper light: { c: the rail slug's colour, k: 0..1 } — full as a slug leaves, gone in BUMPER_T s
 const BUMPER_T = 0.22;
 function ballastBumper(o) {
@@ -4843,6 +4859,10 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
+  if (S.id === "xeltar") {   // XELTAR: the rigged squid (lib: xelRig) — fins always beating, the rear arms swimming with the gas
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { xel: xelPose(o) }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.id === "bloom") {   // BLOOM: the rigged flower (lib: bloomRig) — its petals flex back and its pollen trails with the airflow
