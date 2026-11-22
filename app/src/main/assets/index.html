@@ -11736,7 +11736,9 @@ function updateRing(dt) {
   R.t += dt; R.phase = ringPhase(Wp, R.t);
   if (was === "unlock" && R.phase !== "unlock") {   // let go, toward the nose
     const v = Wp.speed * U;
-    Object.assign(R, { x: game.x, y: game.y, vx: game.vx + Math.sin(game.ang) * v, vy: game.vy - Math.cos(game.ang) * v, ang: game.ang, z: game.z3 || 0, vz: 0 });
+    Object.assign(R, { x: game.x, y: game.y, vx: game.vx + Math.sin(game.ang) * v, vy: game.vy - Math.cos(game.ang) * v, ang: game.ang, z: game.z3 || 0, vz: 0,
+      h0: game.ang, p0: view3d.on && !BOT ? game.p3 || 0 : 0, r0: view3d.on && !BOT ? game.r3 || 0 : 0 });   // (h0, p0, r0: the ship's heading, tilt and roll as it let go — the ring flies on at that attitude, in 3D)
+    R.h = R.h0; R.p = R.p0; R.r = R.r0;
     const q3 = view3d.on && !BOT && game.q3 ? game.q3 : null;
     if (q3) {   // flying in 3D: thrown along the nose wherever it points (tilted up or down: into or out of the depth), with the ship's drift
       const dv = Q3.rot(q3, [0, 0, -1]);
@@ -11744,7 +11746,7 @@ function updateRing(dt) {
     }
     audio.sfx(S.sfx, "ring_release");
   }
-  if (was === "out" && R.phase !== "out") R.from = { x: R.x, y: R.y, vx: R.vx, vy: R.vy, ang: R.ang, z: R.z || 0 };
+  if (was === "out" && R.phase !== "out") R.from = { x: R.x, y: R.y, vx: R.vx, vy: R.vy, ang: R.ang, z: R.z || 0, h: R.h || 0, p: R.p || 0, r: R.r || 0 };
   if (was === "back" && R.phase !== "back") { audio.sfx(S.sfx, "ring_capture"); buzz(30); }
   if (!R.phase) { audio.sfx(S.sfx, "ring_lock"); game.ring = null; return; }
   if (R.phase === "out") {
@@ -11763,6 +11765,8 @@ function updateRing(dt) {
     R.ang = a;
     R.lift = 1 - smoothStep((p - 0.65) / 0.35);
     R.z = (F.z || 0) + ((game.z3 || 0) - (F.z || 0)) * q;   // (back to my ship's depth, from where it got to)
+    const ql = smoothStep((p - 0.4) / 0.6);   // (and, coming in, turning to the ship's own attitude to lock back on)
+    R.h = F.h + wrapAngle(game.ang - F.h) * ql; R.p = F.p + ((view3d.on ? game.p3 || 0 : 0) - F.p) * ql; R.r = F.r + wrapAngle((view3d.on ? game.r3 || 0 : 0) - F.r) * ql;
   } else R.lift = 0;
   if (R.phase === "out" || R.phase === "back") {
     R.trace.push({ x: R.x, y: R.y }); if (R.trace.length > 18) R.trace.shift();
@@ -11793,9 +11797,12 @@ function drawRing(R, S) {
     const gl = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, d * 0.5 * k3);
     gl.addColorStop(0, "rgba(237,219,255,0.18)"); gl.addColorStop(0.6, "rgba(159,130,255,0.1)"); gl.addColorStop(1, "rgba(104,104,255,0)");
     ctx.save(); ctx.globalAlpha *= depthFade(z); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, p.y, d * 0.5 * k3, 0, TAU); ctx.fill();
-    ctx.translate(p.x, p.y); ctx.scale(size * k3 * (1 + 0.14 * lift), size * k3 * (1 + 0.14 * lift));
+    // (at the attitude the ship had as it let go — heading h, tilt p, roll r — so a ring thrown tilted flies tilted; spinning
+    // round its own axis, with a gentle rock on top)
+    const h = R.h || 0;
+    ctx.translate(p.x, p.y); ctx.rotate(h); ctx.scale(size * k3 * (1 + 0.14 * lift), size * k3 * (1 + 0.14 * lift));
     let ok = false;
-    try { ok = L3.draw(ctx, S.id, 0, (0.22 + 0.12 * Math.sin(t * 2.3)) * lift, 0.16 * Math.sin(t * 3.1) * lift, { part: "ring", spin: R.ang }); } catch (e) {}
+    try { ok = L3.draw(ctx, S.id, h, (R.r || 0) + 0.08 * Math.sin(t * 2.3) * lift, (R.p || 0) + 0.06 * Math.sin(t * 3.1) * lift, { part: "ring", spin: R.ang - h }); } catch (e) {}
     ctx.restore();
     if (ok) return;
   }
@@ -20229,7 +20236,7 @@ function updateRival(dt) {
     R.x = (((R.x + rvx * WW * dt + wrapDelta(gx - R.x, WW) * kk) % WW) + WW) % WW;
     R.y = (((R.y + rvy * WH * dt + wrapDelta(gy - R.y, WH) * kk) % WH) + WH) % WH;
     if (R.phase !== ph && (ph === "out")) { R.x = gx; R.y = gy; R.trace.length = 0; }
-    R.phase = ph; R.ang = ra; R.lift = rl; R.z = n.rg[7] || 0;   // (its depth, flying in 3D)
+    R.phase = ph; R.ang = ra; R.lift = rl; R.z = n.rg[7] || 0; R.h = n.rg[8] || 0; R.p = n.rg[9] || 0; R.r = n.rg[10] || 0;   // (its depth and attitude, flying in 3D)
     if (ph === "out" || ph === "back") { R.trace.push({ x: R.x, y: R.y }); if (R.trace.length > 18) R.trace.shift(); }
   } else duel.ring = null;
   // their TALUS: how big it is, its layers' colors, its light ring; rock chips fly in when it grows
@@ -20355,7 +20362,7 @@ function updateDuel(dt) {
       lh: game.hook ? [+(game.hook.x / WW).toFixed(5), +(game.hook.y / WH).toFixed(5), +game.hook.vx.toFixed(1), +game.hook.vy.toFixed(1)] : 0, lt: game.tether ? Math.max(0.01, +game.tether.t.toFixed(2)) : 0,
       gt: gateAlive(game.gate) ? [game.gate.id, +(game.gate.x / WW).toFixed(5), +(game.gate.y / WH).toFixed(5), game.gate.left, +game.gate.t.toFixed(2)] : 0,
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
-        +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2), +(game.ring.z || 0).toFixed(2)] : 0,
+        +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2), +(game.ring.z || 0).toFixed(2), +(game.ring.h || 0).toFixed(3), +(game.ring.p || 0).toFixed(3), +(game.ring.r || 0).toFixed(3)] : 0,
       ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
       kn: game.trap ? game.trap.stored : 0, kc: trapOpen() ? 1 : 0,
       fl: game.flail ? [+(game.flail.x / WW).toFixed(5), +(game.flail.y / WH).toFixed(5), game.flail.swing >= 0 ? 1 : 0] : 0, ik: game.inked > 0 ? +game.inked.toFixed(1) : 0,
