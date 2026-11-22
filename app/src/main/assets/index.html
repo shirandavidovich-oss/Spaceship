@@ -8011,7 +8011,7 @@ const monsterTalk = { on: false, next: 0, last: -1 };
 const THRUST_LOOPS = { corsair: ["audio/corsair/rowing-loop.ogg", 4.08], flipper: ["audio/flipper/playfield-loop.ogg", 2.4], boiler: ["audio/boiler/engine-loop.ogg", 4.0],
   vexar: ["audio/vexar/fly-loop.ogg", 3.0], borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4], brass: ["audio/thul/tracks-rec.ogg", 5.5],
   courier: ["audio/courier/loop.ogg", 2.0], zorian: ["audio/zorian/throttle.ogg", 9.45, 6.0],
-  bloom: ["audio/bloom/wind-loop.ogg", 18.17], mirage: ["audio/mirage/throttle.ogg", 3.32, 1.6], ballast: ["audio/ballast/engine.ogg", 23.95, 1.5], cinder: ["audio/cinder/truck.ogg", 9.68, 1.2] };   // (CINDER: a truck's engine)   // (BALLAST: its own engine recording while the gas is held)   // (a third number: where the loop starts again; ZORIAN: the revs climb through the gears once, then hold the top one)
+  bloom: ["audio/bloom/wind-loop.ogg", 18.17], mirage: ["audio/mirage/throttle.ogg", 3.32, 1.6], kiln: ["audio/kiln/engine.ogg", 4.12, 0.57], ballast: ["audio/ballast/engine.ogg", 23.95, 1.5], cinder: ["audio/cinder/truck.ogg", 9.68, 1.2] };   // (CINDER: a truck's engine)   // (BALLAST: its own engine recording while the gas is held)   // (a third number: where the loop starts again; ZORIAN: the revs climb through the gears once, then hold the top one)
 // THUL's boost: one press of the gas, two engines (its usual speed); tapped twice (the second press within `tap` s) all
 // four light: it accelerates `accel` times as hard and its top speed is `top` times higher. As it passes its usual top
 // speed — however it got going, even from standing still — it breaks the sound barrier: a boom, and a cone of white
@@ -8156,6 +8156,7 @@ function rowingSound(on) {
   if (game.ship === "vexar") for (const f of ["fly-loop", "lay", "hatch", "swarm-loop", "whip", "thorn"]) soundBuf("audio/vexar/" + f + ".ogg");   // (loaded early)
   if (game.ship === "frankenstein") soundBuf("audio/frankenstein/workshop-loop.ogg");
   if (game.ship === "mirage") for (const f of ["throttle", "lens", "lens-charge"]) soundBuf("audio/mirage/" + f + ".ogg");   // (loaded early)
+  if (game.ship === "kiln") for (const f of ["engine", "wheel"]) soundBuf("audio/kiln/" + f + ".ogg");
   if (game.ship === "boiler") for (const f of ["engine-loop", "splash", "splash-small", "torp-launch", "missile"]) soundBuf("audio/boiler/" + f + ".ogg");   // (loaded early)
   if (game.ship === "flipper") for (const f of ["playfield-loop", "launch", "paddles", "bumper", "bumper2", "multiball", "win"]) soundBuf("audio/flipper/" + f + ".ogg");   // (loaded early)
   if (game.ship === "corsair") { soundBuf("audio/corsair/rowing-loop.ogg"); for (const f of ["cannon-1", "cannon-2", "cannon-3", "chainshot"]) soundBuf("audio/corsair/" + f + ".ogg"); }   // (loaded early)
@@ -9433,8 +9434,8 @@ function startReverse(M) {
   const seed = Math.floor(Math.random() * 1000) + 1;
   game.kiln = { t: 0, seed }; game.magicCool = M.cool;
   duelSend({ t: "rg", s: seed });
-  audio.tone(90, 0.8, "sawtooth", 0.05, 2.5); audio.noise(0.4, 0.1, 1200); buzz(40);   // the shutters, the gear spinning up
-  audio.tone(220, 1.2, "square", 0.03, 4, 0.2);
+  if (!playClip("audio/kiln/wheel.ogg", false, 0.85)) { audio.tone(90, 0.8, "sawtooth", 0.05, 2.5); audio.noise(0.4, 0.1, 1200); audio.tone(220, 1.2, "square", 0.03, 4, 0.2); }   // the wheel turning: its own recording, the length of the magic
+  buzz(40);
 }
 function updateReverse(dt) {
   const M = MAGIC.reverse;
@@ -20363,7 +20364,7 @@ function duelLink(event, data) {
   } else if (m.t === "cx") {   // their creature was shot down
     if (duel.surg && duel.surg.c) { const C = duel.surg.c; burstAt(C.x, C.y, 90, ["#ffffff", "#c86bff", "#ffd166", "#ff6a1a", "#7fdbc9"], 1.3, 1.3); audio.boom(); duel.surg = null; }
   } else if (m.t === "rg") {   // their KILN reversed the body: it pushes MY ship away and round (worked out here, from their seed)
-    game.reversed = { t: -MAGIC.reverse.at, seed: m.s || 1 }; audio.tone(140, 1.0, "sine", 0.05, 3, 0.5);
+    game.reversed = { t: -MAGIC.reverse.at, seed: m.s || 1 }; if (!playClip("audio/kiln/wheel.ogg", false, 0.7)) audio.tone(140, 1.0, "sine", 0.05, 3, 0.5);   // (their KILN's wheel, heard)
   } else if (m.t === "cm" || m.t === "cmh" || m.t === "cmk") { cometMsg(m);   // the resource comets
   } else if (m.t === "pb") { pinballsArrive();   // their FLIPPER's pinballs, round me
   } else if (m.t === "om" || m.t === "omk") { orbitMsg(m);   // COURIER's orbit mines
