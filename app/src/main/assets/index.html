@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v55.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v56.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -1999,11 +1999,17 @@ const GUN_MIRROR3 = { brass: true, courier: true };   // (COURIER: its capsule t
 // BALLAST: the model's nose block is a little further forward and right than the drawing's, its weight on the right
 // THUL: its machine gun's two barrels on the model, their muzzles (the 2D drawing's are further in, on the other side)
 // COURIER: its package leaves from the mouth of the tube on the model (the left, where the 2D drawing has it on the right)
-const GUNS3 = { courier: { mailcap: [[-0.202, -0.395, 0.02]] }, brass: { twin: [[0.248, -0.42, 0], [0.298, -0.40, 0]], iris: [[-0.27, -0.225, 0]] },   // (THUL's cannonball: from its fitted iris, the muzzle socket's place) ballast: { railslug: [[0.018, -0.49, 0]], sinker: [[0.3, 0.05, 0]] },
+const GUNS3 = { courier: { mailcap: [[-0.202, -0.395, 0.02]] }, brass: { twin: [[0.248, -0.42, 0], [0.298, -0.40, 0]], iris: [[-0.27, -0.225, 0]] }, ballast: { railslug: [[-0.018, -0.49, 0]] },   // (BALLAST's model is turned to match its drawing: its sinker leaves from the bay in the weight, BAL_MINE3)   // (THUL's cannonball: from its fitted iris, the muzzle socket's place)
   cantor: { tone: [[0, -0.43, 0.03]],
   chord: [[-0.235, -0.43, 0.03], [-0.123, -0.43, 0.03], [0, -0.43, 0.03], [0.123, -0.43, 0.03], [0.235, -0.43, 0.03]] } };
+// BALLAST's sinker in 3D: from the mine bay's mouth in its black weight, as far out as the weight is on its cylinder
+// (ship-lengths: x stowed, x more when all the way out, y; the model's Ballast_MineExit)
+const BAL_MINE3 = { x: -0.459, out: -0.394, y: 0.262 };
 function gunsOf(S, w) {
   const G = (S.guns && S.guns[w]) || (w === "twin" ? [[-0.06, -0.5], [0.06, -0.5]] : [[0, -0.5]]);
+  if (S.id === "ballast" && w === "sinker" && typeof view3d !== "undefined" && !BOT && view3d.on && view3d.state === "ready" && view3d.lib.has(S.id)) {
+    const e = game.tow ? towRig(game.tow, MAGIC.tow).weight : 0; return [[BAL_MINE3.x + BAL_MINE3.out * e, BAL_MINE3.y, 0]];
+  }
   if (GUNS3[S.id] && GUNS3[S.id][w] && typeof view3d !== "undefined" && !BOT && view3d.on && view3d.state === "ready" && view3d.lib.has(S.id)) return GUNS3[S.id][w];
   if (GUN_MIRROR3[S.id] && typeof view3d !== "undefined" && !BOT && view3d.on && view3d.state === "ready" && view3d.lib.has(S.id)) return G.map((g) => [-g[0], g[1]]);
   return G;
@@ -3672,7 +3678,7 @@ function smokeAt(x, y, o, S, big = 1, life = 1.6, chem = false, z = null) {
 // second, 0..9 — the loop it plays from the press: from the start, then round again from 1.5 s). Both phones work it out
 // from how long the gas has been held, so the other ship's rings come with its engine's strain too.
 const BALLAST_EFFORT = [3,4,4,5,6,6,6,6,7,6,7,7,7,7,8,6,3,6,8,7,5,2,2,2,3,2,2,5,3,4,6,9,6,5,4,6,6,6,3,4,5,5,5,5,5,5,5,5,5,5,7,4,4,5,7,4,6,8,9,7,5,4,4,2,2,6,7,9,3,3,3,6,4,3,4,3,5,6,5,5,6,5,6,6,5,6,6,5,5,6,4,4,4,5,4];
-const BALLAST_PIPES = { at: [[-0.094, 0.3], [0.094, 0.3]], lift: 0.07, rate: 9, from: 1.5, len: 23.95 };   // (ship-lengths: across, back; lift: how high the stacks stand in 3D; rate: rings a second each at full strain)
+const BALLAST_PIPES = { at: [[-0.094, 0.3], [0.094, 0.3]], lift: 0.07, rate: 4, from: 1.5, len: 23.95 };   // (ship-lengths: across, back; lift: how high the stacks stand in 3D; rate: rings a second each at full strain)
 function ballastSmoke(o, S, running, dt) {
   if (!running) { o.stackT = 0; return; }
   const P = BALLAST_PIPES, t = (o.stackT = (o.stackT || 0) + dt), pos = t < P.len ? t : P.from + ((t - P.from) % (P.len - P.from));
@@ -3696,7 +3702,7 @@ function smokeRing(o, S, side, big) {
   }
   const g = 48 + Math.round(Math.random() * 30);   // (a diesel's dark smoke)
   parts.push({ w: true, ring: true, x, y, z, vx: vx + o.vx * 0.5, vy: vy + o.vy * 0.5, vz, life: 0, max: 1.5 + Math.random() * 0.7,
-    s: size * 0.05 * big, grow: 3 + Math.random() * 1.2, c: `rgb(${g},${g},${g + 6})`, op: 0.6 + 0.3 * big, tilt: Math.random() * Math.PI, sq: 0.78 + Math.random() * 0.2 });
+    s: size * 0.05 * big, grow: 6 + Math.random() * 2, g, op: 0.65 + 0.3 * big, tilt: Math.random() * Math.PI, sq: 0.78 + Math.random() * 0.2 });
 }
 // my chemical smoke: an enemy inside it is eaten away (my phone counts it, in a duel too)
 function chemSmoke(dt) {
@@ -4568,10 +4574,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v55.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v56.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 55, SHIP3D_FILE = "./lib/ship3d-v55.js";
+const SHIP3D_VER = 56, SHIP3D_FILE = "./lib/ship3d-v56.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4851,6 +4857,9 @@ function xelPose(o) {
 }
 // BALLAST's bumper light: { c: the rail slug's colour, k: 0..1 } — full as a slug leaves, gone in BUMPER_T s
 const BUMPER_T = 0.22;
+// BALLAST's mine bay in 3D, played round the game's sinker (it leaves the moment the button is pressed): the doors fly
+// open in `snap` ms, then the rest of the bay's clip (the sled through the slot, back, the doors shut) by `end` ms
+const BAL_BAY = { snap: 70, end: 620 };
 function ballastBumper(o) {
   const V = o.vt || o, dt = V.muzT != null && V.muzW === "railslug" ? time - V.muzT : 99;
   return { c: WEAPONS.railslug.color, k: dt < BUMPER_T ? (1 - dt / BUMPER_T) ** 1.5 : 0 };
@@ -4947,7 +4956,11 @@ function draw3dShipModel(S, o, ang, bank) {
     ctx.restore(); return ok;
   }
   if (S.id === "ballast") {   // BALLAST: its front bumper lights up in the slug's colour as each rail slug leaves (lib: bumper)
-    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { bumper: ballastBumper(o) }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    // (and its counterweight out on its cylinder with the tow, lib: towMine; the mine bay's doors flung open and the sled
+    // pushing as a sinker leaves — the sinker leaves at once, so the bay's own 840 ms is played round it: BAL_BAY)
+    const V = o.vt || o, sa = V.sinkT != null ? (time - V.sinkT) * 1000 : 1e9;
+    const mine = sa < BAL_BAY.snap ? 20 + (sa / BAL_BAY.snap) * 185 : sa < BAL_BAY.end ? 205 + (sa - BAL_BAY.snap) / (BAL_BAY.end - BAL_BAY.snap) * 635 : null;
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { bumper: ballastBumper(o), tow: { ext: o.tow ? o.tow.weight || 0 : 0, mine } }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.winch) {   // LARIAT: its cable drum rolls (lib: drum) — paying out fast as the claw flies, reeling in slowly on the cable
@@ -9128,11 +9141,13 @@ function startTow(M) {
   for (let i = 0; i < 3; i++) audio.tone(900 - i * 120, 0.18, "sawtooth", 0.03, 0.4, 0.72 + i * 0.1);   // three cables fire
 }
 // where the three cables leave the wing, in the world (ship `o`, its rig `R`)
+const TOW_WING3 = [[0.4, 0.07], [0.41, 0.1], [0.4, 0.13]];   // (the 3D model's tow wing: its end, where the three cables leave — ship-lengths right, back)
 function towLaunchers(o, R) {
   const size = shipSize() * (o === game ? shipScale() : enemyScale()) * towK(o.z3), u = size * BALLAST_UNIT, wa = -0.54 * (1 - R.wing), wx = 24 + 15 * R.wing + 35;
   const q3 = o === game && view3d.on && !BOT && game.q3 ? game.q3 : null;   // (in 3D: on the wing as the ship is tilted and rolled)
-  return [-13, 0, 13].map((y) => {
-    const l = { x: 37 + wx * Math.cos(wa) - y * Math.sin(wa), y: 2 + wx * Math.sin(wa) + y * Math.cos(wa) };
+  const m3 = view3d.on && !BOT && view3d.state === "ready" && view3d.lib.has("ballast");   // (the 3D model: from the end of its tow wing, TOW_WING3)
+  return [-13, 0, 13].map((y, i) => {
+    const l = m3 ? { x: TOW_WING3[i][0] / BALLAST_UNIT, y: TOW_WING3[i][1] / BALLAST_UNIT } : { x: 37 + wx * Math.cos(wa) - y * Math.sin(wa), y: 2 + wx * Math.sin(wa) + y * Math.cos(wa) };
     if (q3) { const v = Q3.rot(q3, [l.x * u, 0, l.y * u]); return { x: o.x + v[0], y: o.y + v[2] }; }
     const w = rotatePt(l.x * u, l.y * u, o.ang);
     return { x: o.x + w.x, y: o.y + w.y };
@@ -10520,7 +10535,7 @@ function enemyShoot(dt) {
       const m = rotatePt(gg[0] * size, gg[1] * size, enemy.ang);
       for (const a of pelletAngles(Wp)) {
         const dir = enemy.ang + a + hk + (Math.random() - 0.5) * 0.06 + (enemy.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;
-        enemy.muzT = time; enemy.muzW = w;
+        enemy.muzT = time; enemy.muzW = w; if (w === "sinker") enemy.sinkT = time;
         eshots.push({ w, x: enemy.x + m.x, y: enemy.y + m.y, vx: enemy.vx + Math.sin(dir) * v, vy: enemy.vy - Math.cos(dir) * v, life: 0,
           art: art ? { src: framePath(E.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(E.anim.dir, f)) } : null });
       }
@@ -11857,7 +11872,7 @@ function spawnShots(w, g, rot) {
     let dv = q3s ? Q3.rot(q3s, [Math.sin(dir - game.ang), 0, -Math.cos(dir - game.ang)]) : [Math.sin(dir), 0, -Math.cos(dir)];
     if (!Wp.rear && !Wp.broadside && !Wp.mines) dv = aimShot(dv, x, y, z0, sv, Wp);   // (bent onto a target just off the nose — AIM)
     const iv = Wp.carry ? [game.vx, q3s ? game.vz3 || 0 : 0, game.vy] : inherit(dv);   // (the ship's own drift: all of it along the shot, little of it sideways — AIM.side; carry: all of it, so it leaves straight out ahead as seen from the ship)
-    game.muzT = time; game.muzW = w;   // (the moment and the weapon: BALLAST's bumper lights up)
+    game.muzT = time; game.muzW = w; if (w === "sinker") game.sinkT = time;   // (the moment and the weapon: BALLAST's bumper lights up)
     shots.push({ w, x, y, vx: iv[0] + dv[0] * sv, vy: iv[2] + dv[2] * sv, z3: z0, vz3: iv[1] + dv[1] * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined });
     if (q3s && g && Math.abs(g[0]) > 0.05 && !Wp.splay && !Wp.aimAt) spread3(shots[shots.length - 1], x - game.x, y - game.y, z0 - (game.z3 || 0), dv);   // (side guns: the pair closes in with distance)
   }
@@ -18698,7 +18713,9 @@ function drawParts(pass) {
       continue;
     }
     if (p.ring) {   // a smoke ring: a soft round band that spreads out and thins away (and wobbles a little as it goes)
-      const t = p.life / p.max, r = p.s * k3 * (1 + t * p.grow), a = p.op * Math.min(1, t * 8) * (1 - t) * (1 - t) * fz;
+      // (as it spreads it thins: paler and paler, and in its last part it is quickly gone)
+      const t = p.life / p.max, r = p.s * k3 * (1 + t * (1 + t) * 0.5 * p.grow), a = p.op * Math.min(1, t * 8) * (t < 0.55 ? 1 - t * 0.5 : 0.725 * (1 - smoothStep((t - 0.55) / 0.3))) * fz;
+      const lt = Math.round(p.g + (215 - p.g) * Math.min(1, t * 1.6)); p.c = `rgb(${lt},${lt},${lt + 6})`;
       ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(p.tilt + t * 0.6); ctx.scale(1, p.sq + Math.sin(p.life * 5) * 0.04);
       ctx.strokeStyle = p.c; ctx.globalAlpha = a * 0.45; ctx.lineWidth = r * (0.55 + t * 0.3); ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.2832); ctx.stroke();   // (its soft outside)
       ctx.globalAlpha = a; ctx.lineWidth = r * (0.26 + t * 0.12); ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.2832); ctx.stroke();   // (the thick of the ring)
@@ -20413,7 +20430,7 @@ function duelLink(event, data) {
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
     const S = shipById(m.s), a0 = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
     const art = a0 && a0.files && m.ix != null ? { ...a0, file: a0.files[m.ix] } : a0;   // CANTOR: each bolt its groove's colour
-    enemy.muzT = time; enemy.muzW = m.w;
+    enemy.muzT = time; enemy.muzW = m.w; if (m.w === "sinker") enemy.sinkT = time;
     duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, sub: m.sb === 1, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c, z3: m.d3 || 0, vz3: (m.dv || 0) * U,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
     if (duel.shots.length < 60) audio.shot(m.w, enemy.ship, enemy);
