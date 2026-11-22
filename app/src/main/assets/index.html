@@ -11681,10 +11681,15 @@ function updateRing(dt) {
   R.t += dt; R.phase = ringPhase(Wp, R.t);
   if (was === "unlock" && R.phase !== "unlock") {   // let go, toward the nose
     const v = Wp.speed * U;
-    Object.assign(R, { x: game.x, y: game.y, vx: game.vx + Math.sin(game.ang) * v, vy: game.vy - Math.cos(game.ang) * v, ang: game.ang, z: game.z3 || 0 });
+    Object.assign(R, { x: game.x, y: game.y, vx: game.vx + Math.sin(game.ang) * v, vy: game.vy - Math.cos(game.ang) * v, ang: game.ang, z: game.z3 || 0, vz: 0 });
+    const q3 = view3d.on && !BOT && game.q3 ? game.q3 : null;
+    if (q3) {   // flying in 3D: thrown along the nose wherever it points (tilted up or down: into or out of the depth), with the ship's drift
+      const dv = Q3.rot(q3, [0, 0, -1]);
+      R.vx = game.vx + dv[0] * v; R.vy = game.vy + dv[2] * v; R.vz = (game.vz3 || 0) + dv[1] * v;
+    }
     audio.sfx(S.sfx, "ring_release");
   }
-  if (was === "out" && R.phase !== "out") R.from = { x: R.x, y: R.y, vx: R.vx, vy: R.vy, ang: R.ang };
+  if (was === "out" && R.phase !== "out") R.from = { x: R.x, y: R.y, vx: R.vx, vy: R.vy, ang: R.ang, z: R.z || 0 };
   if (was === "back" && R.phase !== "back") { audio.sfx(S.sfx, "ring_capture"); buzz(30); }
   if (!R.phase) { audio.sfx(S.sfx, "ring_lock"); game.ring = null; return; }
   if (R.phase === "out") {
@@ -11692,6 +11697,7 @@ function updateRing(dt) {
     R.vx += g.ax * dt; R.vy += g.ay * dt;
     R.x = (((R.x + R.vx * dt) % WW) + WW) % WW; R.y = (((R.y + R.vy * dt) % WH) + WH) % WH;
     R.ang += 6.4 * dt;
+    if (R.vz) { const T = TILT3; let z = R.z + R.vz / U * dt; if (z > T.near) z -= T.near + T.far; else if (z < -T.far) z += T.near + T.far; R.z = z; }   // (3D: on into the depth, wrapping like the ship)
     R.lift = smoothStep((R.t - Wp.unlock) / 0.245);
   } else if (R.phase === "back") {
     const p = (R.t - Wp.unlock - Wp.out) / Wp.back, q = smoothStep(p), lead = p * (1 - p) * (1 - p) * 0.57, F = R.from;
@@ -11701,13 +11707,13 @@ function updateRing(dt) {
     a += Math.atan2(Math.sin(game.ang - a), Math.cos(game.ang - a)) * smoothStep((p - 0.62) / 0.38);
     R.ang = a;
     R.lift = 1 - smoothStep((p - 0.65) / 0.35);
-    R.z = (R.z || 0) + ((game.z3 || 0) - (R.z || 0)) * q;   // (back to my ship's depth)
+    R.z = (F.z || 0) + ((game.z3 || 0) - (F.z || 0)) * q;   // (back to my ship's depth, from where it got to)
   } else R.lift = 0;
   if (R.phase === "out" || R.phase === "back") {
     R.trace.push({ x: R.x, y: R.y }); if (R.trace.length > 18) R.trace.shift();
     // passing over the enemy
     const leg = R.phase === "out" ? "hitOut" : "hitBack";
-    if (!R[leg] && enemy.on && enemy.warp < 0.5 &&
+    if (!R[leg] && enemy.on && enemy.warp < 0.5 && eggNearZ(R.z, enemy, Wp.r + 0.6) &&   // (3D: only at about their depth)
         Math.hypot(wrapDelta(enemy.x - R.x, WW), wrapDelta(enemy.y - R.y, WH)) < shipSize() * (Wp.r + 0.3)) {
       R[leg] = true;
       if (enemyDiver()) floodKillEnemy();   // their BOILER under water: the ring blows it up
@@ -11748,7 +11754,9 @@ function drawRing(R, S) {
   const gl = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, d * 0.45);
   gl.addColorStop(0, "rgba(237,219,255,0.22)"); gl.addColorStop(0.5, "rgba(159,130,255,0.14)"); gl.addColorStop(1, "rgba(104,104,255,0)");
   ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, p.y, d * 0.45, 0, TAU); ctx.fill();
-  ctx.translate(p.x, p.y); ctx.rotate(R.ang); ctx.drawImage(img, -d / 2, -d / 2, d, d);
+  ctx.translate(p.x, p.y);
+  if (view3d.on && !BOT && R.z) { const k3 = depthScale(R.z); ctx.scale(k3, k3); ctx.globalAlpha *= depthFade(R.z); }   // (3D without the model: as big as its depth)
+  ctx.rotate(R.ang); ctx.drawImage(img, -d / 2, -d / 2, d, d);
   // violet status lights
   ctx.strokeStyle = `rgba(186,153,255,${0.6 + 0.3 * Math.sin(time * 12)})`; ctx.lineWidth = Math.max(2, d * 0.01);
   ctx.beginPath(); ctx.arc(0, 0, d * 0.35, -1.75, -1.39); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, d * 0.35, 1.39, 1.75); ctx.stroke();
@@ -20166,7 +20174,7 @@ function updateRival(dt) {
     R.x = (((R.x + rvx * WW * dt + wrapDelta(gx - R.x, WW) * kk) % WW) + WW) % WW;
     R.y = (((R.y + rvy * WH * dt + wrapDelta(gy - R.y, WH) * kk) % WH) + WH) % WH;
     if (R.phase !== ph && (ph === "out")) { R.x = gx; R.y = gy; R.trace.length = 0; }
-    R.phase = ph; R.ang = ra; R.lift = rl;
+    R.phase = ph; R.ang = ra; R.lift = rl; R.z = n.rg[7] || 0;   // (its depth, flying in 3D)
     if (ph === "out" || ph === "back") { R.trace.push({ x: R.x, y: R.y }); if (R.trace.length > 18) R.trace.shift(); }
   } else duel.ring = null;
   // their TALUS: how big it is, its layers' colors, its light ring; rock chips fly in when it grows
@@ -20292,7 +20300,7 @@ function updateDuel(dt) {
       lh: game.hook ? [+(game.hook.x / WW).toFixed(5), +(game.hook.y / WH).toFixed(5), +game.hook.vx.toFixed(1), +game.hook.vy.toFixed(1)] : 0, lt: game.tether ? Math.max(0.01, +game.tether.t.toFixed(2)) : 0,
       gt: gateAlive(game.gate) ? [game.gate.id, +(game.gate.x / WW).toFixed(5), +(game.gate.y / WH).toFixed(5), game.gate.left, +game.gate.t.toFixed(2)] : 0,
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
-        +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2)] : 0,
+        +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2), +(game.ring.z || 0).toFixed(2)] : 0,
       ta: shipById(game.ship).grows && game.talus ? [game.talus.stage, +shipScale().toFixed(3), +game.talus.ring.toFixed(1), game.talus.colors.join(","), +Math.min(9, game.talus.t).toFixed(2)] : 0,
       kn: game.trap ? game.trap.stored : 0, kc: trapOpen() ? 1 : 0,
       fl: game.flail ? [+(game.flail.x / WW).toFixed(5), +(game.flail.y / WH).toFixed(5), game.flail.swing >= 0 ? 1 : 0] : 0, ik: game.inked > 0 ? +game.inked.toFixed(1) : 0,
