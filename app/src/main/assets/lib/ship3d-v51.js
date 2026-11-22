@@ -12,7 +12,7 @@ import { MeshoptDecoder } from "./three/meshopt_decoder.module.js";
 import { RoomEnvironment } from "./three/RoomEnvironment.js";
 // (BLOOM's rigged petals and pollen, the Bloom 3D Motion package: loaded only when BLOOM is, and on its own — if it ever
 // fails, only BLOOM goes without its motion; the rest of the 3D ships are not held up by it)
-let bloomLib = null, xelLib = null;   // (XELTAR's the same way: the Xeltar 3D Motion package)
+let bloomLib = null, xelLib = null, vexLib = null;   // (XELTAR's the same way: the Xeltar 3D Motion package)
 
 // per ship: its file; which way its nose points in the file (fwd: "+x" | "-x" | "+z" | "-z"); turn: an extra turn
 // round its up axis (rad) to line it up with the 2D drawing; len: its length on screen, in the 2D drawing's units
@@ -58,7 +58,9 @@ export const SHIP_MODELS = {
   zorian: { file: "models/zorian.glb", fwd: "-x", len: 0.9 },
   cantor: { file: "models/cantor.glb", fwd: "+z", len: 0.95 },
   frankenstein: { file: "models/frankenstein.glb", fwd: "-x", len: 1.0 },
-  vexar: { file: "models/vexar.glb", fwd: "-x", len: 0.95 },
+  vexar: { file: "models/vexar-rigged.glb", fwd: "-x", len: 0.95, vexRig: true, pad: 1.5 },   // (the rigged hull from the Vexar 3D Weapon 2 package: claws, rear covers and stern forks open, the egg grows in its chamber)
+  vegg_mixed: { file: "models/vexar-egg-mixed.glb", fwd: "-x", len: 1, fit: "max" }, vegg_ember: { file: "models/vexar-egg-ember.glb", fwd: "-x", len: 1, fit: "max" },   // (its laid eggs, one per brood)
+  vegg_azure: { file: "models/vexar-egg-azure.glb", fwd: "-x", len: 1, fit: "max" }, vegg_prism: { file: "models/vexar-egg-prism.glb", fwd: "-x", len: 1, fit: "max" },
   labyrinth: { file: "models/labyrinth.glb", fwd: "-x", len: 0.95 },
   kraal: { file: "models/kraal.glb", fwd: "+x", len: 0.75 },
   flipper: { file: "models/flipper.glb", fwd: "+x", len: 0.9, paddles: [   // (its two paddles: splitPaddles — hub to tip, in the file's units)
@@ -731,9 +733,16 @@ function want(id) {
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
+    if (M.vexRig && !vexLib) vexLib = import("./vexar-weapon2-three-v1.js").catch((err) => { console.warn("vexar rig", err); return null; });
     if (M.xelRig && !xelLib) xelLib = import("./xeltar-three-v1.js").catch((err) => { console.warn("xeltar rig", err); return null; });
     if (M.bloomRig && !bloomLib) bloomLib = import("./bloom-three-v1.js").catch((err) => { console.warn("bloom rig", err); return null; });
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.xelRig) { E.state = "rig"; xelLib.then(async (X) => {
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.vexRig) { E.state = "rig"; vexLib.then(async (V) => {
+      try {   // (its four brood eggs, for the one growing in its chamber)
+        if (V) { const ks = ["mixed", "ember", "azure", "prism"], eg = await Promise.all(ks.map((k) => new Promise((ok, no) => loader.load("models/vexar-egg-" + k + ".glb", ok, undefined, no))));
+          E.vex = V.createVexarWeapon2(THREE, g, Object.fromEntries(ks.map((k, i) => [k, eg[i]]))); }
+      } catch (err) { console.warn("vexar rig", err); }
+      E.state = "ready"; E.used = performance.now(); evict(); }); return; }
+    if (M.xelRig) { E.state = "rig"; xelLib.then(async (X) => {
       try { if (X) E.xel = X.createXeltarVisual(THREE, g); } catch (err) { console.warn("xeltar rig", err); }
       try {   // (the crystal growing between its arms: the package's rear crystal, on the rig's own socket)
         if (E.xel) { const [C, cg] = await Promise.all([import("./xeltar-rear-crystal-three-v1.js"), new Promise((ok, no) => loader.load("models/xeltar-crystal.glb", ok, undefined, no))]); E.xcr = C.createXeltarRearCrystal(THREE, E.xel, cg); }
@@ -864,7 +873,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 50,   // (index.html checks it; the file's name carries it too — lib/ship3d-v50.js — so the app never mixes a new
+  version: 51,   // (index.html checks it; the file's name carries it too — lib/ship3d-v51.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -886,7 +895,7 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    let pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.xel && opt && opt.xel ? "|X" + Math.round(opt.xel.finTime * 50) + "," + Math.round(opt.xel.sternTime * 50) + "," + Math.round(opt.xel.swimMix * 30) + "," + Math.round(opt.xel.rearCharge * 30) + "," + (opt.xel.crystalAge != null ? Math.round(opt.xel.crystalAge * 40) : "-") : "") + (E.bloom && opt && opt.bloom ? "|B" + Math.round(opt.bloom.flow * 50) + "," + Math.round(opt.bloom.side * 30) + "," + Math.round(opt.bloom.phase * 90) + "," + Math.round(opt.bloom.filamentTime * 40) : "") + (E.bumper && opt && opt.bumper ? "|b" + opt.bumper.c + Math.round(opt.bumper.k * 30) : "") + (E.drum && opt ? "|d" + Math.round((opt.drum || 0) * 40) + (opt.clawOut ? "c" : "") : "") + (E.paddles && opt && opt.paddles ? "|p" + opt.paddles.map((a) => Math.round(a * 100)).join(",") : "") + (E.wheel && opt ? "|w" + Math.round((opt.wheel || 0) * 60) + "," + Math.round((opt.glow || 0) * 20) + "," + Math.round((opt.flaps || 0) * 40) : "") + (E.slide && opt ? "|s" + Math.round((opt.slide || 0) * 20) : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) + (opt.cannon ? "," + ["ring", "kick", "open", "glow"].map((k) => Math.round((opt.cannon[k] || 0) * 40)).join(",") + (opt.cannon.ball === false ? "x" : "") : "") : "");   // (a new picture only when it has turned a quarter of a degree)
+    let pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.vex ? "|V" + (opt && opt.vex && opt.vex.age != null ? Math.round(opt.vex.age / 15) + opt.vex.brood : "-") : "") + (E.xel && opt && opt.xel ? "|X" + Math.round(opt.xel.finTime * 50) + "," + Math.round(opt.xel.sternTime * 50) + "," + Math.round(opt.xel.swimMix * 30) + "," + Math.round(opt.xel.rearCharge * 30) + "," + (opt.xel.crystalAge != null ? Math.round(opt.xel.crystalAge * 40) : "-") : "") + (E.bloom && opt && opt.bloom ? "|B" + Math.round(opt.bloom.flow * 50) + "," + Math.round(opt.bloom.side * 30) + "," + Math.round(opt.bloom.phase * 90) + "," + Math.round(opt.bloom.filamentTime * 40) : "") + (E.bumper && opt && opt.bumper ? "|b" + opt.bumper.c + Math.round(opt.bumper.k * 30) : "") + (E.drum && opt ? "|d" + Math.round((opt.drum || 0) * 40) + (opt.clawOut ? "c" : "") : "") + (E.paddles && opt && opt.paddles ? "|p" + opt.paddles.map((a) => Math.round(a * 100)).join(",") : "") + (E.wheel && opt ? "|w" + Math.round((opt.wheel || 0) * 60) + "," + Math.round((opt.glow || 0) * 20) + "," + Math.round((opt.flaps || 0) * 40) : "") + (E.slide && opt ? "|s" + Math.round((opt.slide || 0) * 20) : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) + (opt.cannon ? "," + ["ring", "kick", "open", "glow"].map((k) => Math.round((opt.cannon[k] || 0) * 40)).join(",") + (opt.cannon.ball === false ? "x" : "") : "") : "");   // (a new picture only when it has turned a quarter of a degree)
     // opt.lights: up to 3 coloured lights inside the ship ({ x, y, z } in the fitted model's units, before it is tilted;
     // color; i: how bright) — MIRAGE's light running up its prism
     if (!lamps) { lamps = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xffffff, 0, 1.2, 1.6); scene.add(L); return L; }); }
@@ -896,6 +905,7 @@ export const Ship3D = {
     if (E.halves) { const h = opt && opt.half; for (const X of E.halves.front) X.visible = !h || h === "front"; for (const X of E.halves.back) X.visible = !h || h !== "front"; }   // (any other half: the rear piece)
     if (E.ghost) { E.ghost.uG.value = (opt && opt.ghost) || 0; E.ghost.uT.value = (opt && opt.t) || 0; }
     if (E.fan) { const O = (opt && opt.open) || [], nw = M.fan.narrow || 1; E.fan.forEach((P, i) => { const k = O[i] || 0; P.pivot.quaternion.identity().slerp(P.shut, 1 - k); const sl = M.fan.shorten || 1; P.squash.scale.set(sl + (1 - sl) * k, nw + (1 - nw) * k, 1); }); }   // (opt.open: how open each panel is, 0 shut .. 1 as modelled)
+    if (E.vex) E.vex.tick(opt && opt.vex ? opt.vex.age : null, (opt && opt.vex && opt.vex.brood) || "mixed");   // (opt.vex: { age: ms since button 2, or null; brood } — the egg forming, by the package's clip)
     if (E.xel && opt && opt.xel) { const P = opt.xel; let rc = P.rearCharge; if (E.xcr) rc = E.xcr.tick(P.crystalAge != null ? P.crystalAge : null).brace || 0; Object.assign(E.xel.pose, P); E.xel.tick(0, { throttle01: P.throttleLevel, rearCharge01: rc }); }   // (opt.xel.crystalAge: s since button 2 — the crystal forming and the arms gathering, by the package's own curves)   // (opt.xel: its pose now — the fins' and arms' clocks, the swim blend and the rear charge — kept by the game for each ship)
     if (E.bloom) { Object.assign(E.bloom.state, (opt && opt.bloom) || {}); E.bloom.tick(0, {}); }   // (opt.bloom: the flower's airflow state, { phase, flow, side, filamentTime } — kept by the game for each ship: the pose of its petals and pollen now)
     if (E.bumper) { const Bp = (opt && opt.bumper) || { k: 0 }; E.bumper.mat.opacity = Bp.k; E.bumper.lamp.intensity = 2.5 * Bp.k; if (Bp.c) { E.bumper.mat.color.set(Bp.c); E.bumper.lamp.color.set(Bp.c); } }

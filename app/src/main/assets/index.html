@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v50.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v51.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4519,10 +4519,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v50.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v51.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 50, SHIP3D_FILE = "./lib/ship3d-v50.js";
+const SHIP3D_VER = 51, SHIP3D_FILE = "./lib/ship3d-v51.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4862,6 +4862,12 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
+  if (S.id === "vexar") {   // VEXAR: the rigged hull (lib: vexRig) — on button 2 the claws spread, the rear covers peel back, the forks
+    // splay, and the egg of the chosen brood grows in its chamber in three pulses, rises and is let go at 1,140 ms
+    const a = o.anim, kind = o.vt === enemy ? (enemy.remote && duel.net ? duel.net.ek : null) : game.eggKind;
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { vex: { age: a && a.seq === "secondary" ? a.t : null, brood: kind || "mixed" } }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.id === "xeltar") {   // XELTAR: the rigged squid (lib: xelRig) — fins always beating, the rear arms swimming with the gas
@@ -7991,7 +7997,7 @@ const monsterTalk = { on: false, next: 0, last: -1 };
 const THRUST_LOOPS = { corsair: ["audio/corsair/rowing-loop.ogg", 4.08], flipper: ["audio/flipper/playfield-loop.ogg", 2.4], boiler: ["audio/boiler/engine-loop.ogg", 4.0],
   vexar: ["audio/vexar/fly-loop.ogg", 3.0], borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4], brass: ["audio/thul/tracks-rec.ogg", 5.5],
   courier: ["audio/courier/loop.ogg", 2.0], zorian: ["audio/zorian/throttle.ogg", 9.45, 6.0],
-  ballast: ["audio/ballast/engine.ogg", 23.95, 1.5], cinder: ["audio/cinder/truck.ogg", 9.68, 1.2] };   // (CINDER: a truck's engine)   // (BALLAST: its own engine recording while the gas is held)   // (a third number: where the loop starts again; ZORIAN: the revs climb through the gears once, then hold the top one)
+  bloom: ["audio/bloom/wind-loop.ogg", 18.17], ballast: ["audio/ballast/engine.ogg", 23.95, 1.5], cinder: ["audio/cinder/truck.ogg", 9.68, 1.2] };   // (CINDER: a truck's engine)   // (BALLAST: its own engine recording while the gas is held)   // (a third number: where the loop starts again; ZORIAN: the revs climb through the gears once, then hold the top one)
 // THUL's boost: one press of the gas, two engines (its usual speed); tapped twice (the second press within `tap` s) all
 // four light: it accelerates `accel` times as hard and its top speed is `top` times higher. As it passes its usual top
 // speed — however it got going, even from standing still — it breaks the sound barrier: a boom, and a cone of white
@@ -8139,15 +8145,18 @@ function rowingSound(on) {
     const B = soundBuf(loop); if (!B) return;
     const s = c.createBufferSource(), g = c.createGain(), P = game.ship === "corsair" ? game.oarPose : null; R.path = loop;
     s.buffer = B; s.loop = true; s.loopStart = Math.min(from, B.duration * 0.9); s.loopEnd = Math.min(B.duration, len); R.rate = 1;
-    g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(0.9, c.currentTime + 0.06);
-    s.connect(g); g.connect(audio.out); s.start(c.currentTime, P ? P.phase * 0.68 : 0); R.src = s; R.g = g;
+    const soft = game.ship === "bloom";   // (BLOOM's wind swells in and dies away slowly, from a different place in the loop each time)
+    g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(soft ? 0.75 : 0.9, c.currentTime + (soft ? 0.7 : 0.06));
+    s.connect(g); g.connect(audio.out); s.start(c.currentTime, soft ? Math.random() * 16 : P ? P.phase * 0.68 : 0); R.src = s; R.g = g; R.soft = soft;
   }
   if (on && R.src) {   // THUL boosting (all four engines): its tracks played BOOST_RATE times as fast, eased in and out
-    const want = game.boost4 && BOOSTS[game.ship] ? BOOST_RATE : 1;
+    // (BLOOM's wind: a little deeper while it drifts, rising and brighter as it picks up speed — gusts that follow the flight)
+    const want = game.boost4 && BOOSTS[game.ship] ? BOOST_RATE : game.ship === "bloom" ? 0.9 + 0.22 * clamp(Math.hypot(game.vx, game.vy) / (shipStats(shipById("bloom")).top * U), 0, 1) : 1;
+    if (game.ship === "bloom") { R.src.playbackRate.setTargetAtTime(want, c.currentTime, 0.6); R.rate = want; } else
     if (R.rate !== want) { R.rate = want; R.src.playbackRate.setTargetAtTime(want, c.currentTime, 0.12); }
   } else if (!on && R.src) {
     const s = R.src, g = R.g, now = c.currentTime; R.src = null;
-    g.gain.cancelScheduledValues(now); g.gain.setValueAtTime(g.gain.value, now); g.gain.linearRampToValueAtTime(0, now + 0.12); try { s.stop(now + 0.14); } catch (e) {}
+    g.gain.cancelScheduledValues(now); g.gain.setValueAtTime(g.gain.value, now); g.gain.linearRampToValueAtTime(0, now + (R.soft ? 1.1 : 0.12)); try { s.stop(now + (R.soft ? 1.12 : 0.14)); } catch (e) {}
   }
 }
 // rowing (the gas held, or the oars not yet folded): only the bow's chain shot fires; the broadside and a picked-up weapon wait
@@ -12040,11 +12049,23 @@ function drawAttachedEgg(o, S, a, kind, x, y, size) {
   if (img && P.alpha > 0) { ctx.globalAlpha = P.alpha; ctx.drawImage(img, -P.d / 2, -P.d / 2, P.d, P.d); }
   ctx.restore();
 }
+// is VEXAR drawn by its 3D rig now (so the rig shows the forming egg, not the 2D drawing over it)?
+function vexar3d() { return view3d.on && !BOT && view3d.state === "ready" && view3d.lib.ready("vexar"); }
+const VEGG_3D = 0.78;   // (a laid egg in 3D: its model's length, against the 2D drawing's square)
 function drawEggs() {
   const size = shipSize();
   for (const e of eggs) {
     if (!e.B) continue;
     const F = vexarEggFlight(e.fl == null ? 999 : e.fl), A = shipById(e.ship).anim, p = toScreen(e.x, e.y), d = e.fl == null ? e.E.size * size : F.d * A.size / 512 * size;
+    const m3 = "vegg_" + (e.kind || "mixed");
+    if (e.ht < 0 && !e.bloom && view3d.on && !BOT && view3d.state === "ready" && view3d.lib.ready(m3)) {
+      // 3D: the brood's egg model, breathing as it incubates (faster near hatching), rocking a little; it cracks in its 2D frames
+      const k3 = e.z3 ? depthScale(e.z3) : 1, inc = clamp(e.t / Math.max(1, e.E.incubate), 0, 1), pul = 1 + (0.04 + 0.05 * inc) * Math.sin(e.t * (0.008 + 0.012 * inc));
+      ctx.save(); if (k3 !== 1) ctx.globalAlpha *= depthFade(e.z3); ctx.translate(p.x, p.y); ctx.scale(k3, k3); ctx.rotate(e.ang + F.tilt);
+      const L3 = d * VEGG_3D; ctx.scale(L3 * pul / Math.sqrt(F.stretch), L3 * pul * F.stretch);
+      try { view3d.lib.draw(ctx, m3, e.ang + F.tilt, 0.25 * Math.sin(e.t * 0.003), -0.35 + 0.08 * Math.sin(e.t * 0.0047)); } catch (err) {}
+      ctx.restore(); continue;
+    }
     const seq = e.ht < 0 ? e.B.pulse : e.B.hatch, t = e.ht < 0 ? e.t % seqLength(e.B.pulse) : e.ht, f = seqFrame(seq, t);
     const img = f >= 0 && ((e.ht < 0 && e.bloom && artImage(eggPulsePath(e.dir, seq[f][0], true))) || artImage(framePath(e.dir, seq[f][0])));
     if (!img) continue;
@@ -18663,7 +18684,7 @@ function draw() {
       if (shown === S) drawDash();
       if (shown === S) drawChordGuides();
       if (shown === S && game.forge) drawForge(game, game.forge.t * 1000, p.x + r.x, p.y + bob + r.y, forgeK());
-      if (shown === S) drawAttachedEgg(game, S, game.anim, game.eggKind, p.x + r.x, p.y + bob + r.y, shipSize() * sc);
+      if (shown === S && !vexar3d()) drawAttachedEgg(game, S, game.anim, game.eggKind, p.x + r.x, p.y + bob + r.y, shipSize() * sc);   // (in 3D the model grows its own)
       if (shown === S && game.bub) drawHeldBubble(game, game.bub.t * 1000);
       if (shown === S && trapOpen()) drawSuck(game, S);
       if (shown === S && S.clouds) drawNimbusClouds(game, game.anim, "me");
@@ -18979,7 +19000,7 @@ function drawEnemy() {
     drawBreaches(enemy.on ? breachList(enemy, theirBreachKey()) : null, p.x, p.y, size * esc, enemy.ang, E, theirHalf());   // the holes my drill left
     if (enemy.remote && duel.net && duel.net.bd) drawDrillAir(p.x, p.y, size * esc, enemy.ang, enemy.drillSpin || 0);
     if (enemy.remote && duel.net && duel.net.fg && E.grows) drawForge(enemy, duel.net.fg, p.x, p.y, E.anim.size / 512 * size * esc);   // their TALUS forging
-    if (enemy.remote && duel.net) drawAttachedEgg(enemy, E, enemy.anim, duel.net.ek, p.x, p.y, size * esc);   // their VEXAR's egg forming
+    if (enemy.remote && duel.net && !vexar3d()) drawAttachedEgg(enemy, E, enemy.anim, duel.net.ek, p.x, p.y, size * esc);   // their VEXAR's egg forming
     drawInkOn(p.x, p.y, size, (enemy.inked || 0) / MAGIC.ink.stun, 1.7);
     drawRewind(p.x, p.y, size, !!enemy.rw || enemy.rwShow > 0);
     if (E.clouds) drawNimbusClouds(enemy, enemy.remote ? enemy.anim : null, "enemy");
