@@ -11785,7 +11785,7 @@ function drawChordGuides() {
 // It hurts the enemy once on the way out and once on the way back, if it passes over it.
 // flying in 3D: how much faster LYTH's ring goes into or out of the depth than across (the depth is shallow next to the
 // arena's width: at 1, a ring thrown at a tilt hardly changes size; at 2.5 it clearly flies away or toward you)
-const RING_DEPTH = 2.5;
+const RING_DEPTH = 6;
 function startRing(w, S) {
   game.ring = { w, t: 0, phase: "unlock", x: game.x, y: game.y, vx: 0, vy: 0, ang: game.ang, lift: 0, trace: [], hitOut: false, hitBack: false };
   audio.sfx(S.sfx, "latches_unlock");
@@ -11816,7 +11816,7 @@ function updateRing(dt) {
     R.vx += g.ax * dt; R.vy += g.ay * dt;
     R.x = (((R.x + R.vx * dt) % WW) + WW) % WW; R.y = (((R.y + R.vy * dt) % WH) + WH) % WH;
     R.ang += 6.4 * dt;
-    if (R.vz) { const T = TILT3; let z = R.z + R.vz / U * dt; if (z > T.near) z -= T.near + T.far; else if (z < -T.far) z += T.near + T.far; R.z = z; }   // (3D: on into the depth, wrapping like the ship)
+    if (R.vz) { const T = TILT3; R.z = clamp(R.z + R.vz / U * dt, -T.far + 0.5, T.near - 0.5); }   // (3D: on into the depth, stopping short of its ends — no jump to the other side)
     R.lift = smoothStep((R.t - Wp.unlock) / 0.245);
   } else if (R.phase === "back") {
     const p = (R.t - Wp.unlock - Wp.out) / Wp.back, q = smoothStep(p), lead = p * (1 - p) * (1 - p) * 0.57, F = R.from;
