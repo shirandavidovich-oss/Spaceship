@@ -17,7 +17,13 @@ import { RoomEnvironment } from "./three/RoomEnvironment.js";
 export const SHIP_MODELS = {
   fresnel: { file: "models/fresnel.glb", fwd: "+x", len: 0.68 },
   boiler: { file: "models/boiler.glb", fwd: "+z", len: 0.8 },
-  brass: { file: "models/thul.glb", fwd: "-x", len: 0.85 },
+  brass: { file: "models/thul.glb", fwd: "-x", len: 0.85, gears: [   // (THUL's moving gears: makeGears — measured off the model's own gears, in the file's units)
+    { c: [0.012, 0.008], r: 0.212, z: [-0.122, -0.045], teeth: 36, dir: 1, spokes: 7 },    // the big wheel, right of the spine
+    { c: [-0.04, -0.085], r: 0.1, z: [0.128, 0.19], teeth: 16, dir: -1, spokes: 5 },     // left of the spine, the outer pair
+    { c: [0.088, 0.03], r: 0.085, z: [0.128, 0.19], teeth: 14, dir: 1, spokes: 5 },
+    { c: [0.15, 0.015], r: 0.1, z: [0.078, 0.128], teeth: 18, dir: -1, spokes: 6 },     // under them, toward the tail
+    { c: [-0.065, -0.056], r: 0.068, z: [-0.235, -0.13], teeth: 12, dir: -1, spokes: 4 }, // the small one by the right pod
+  ] },
   puff: { file: "models/puff.glb", fwd: "-x", len: 0.8 },
   xeltar: { file: "models/xeltar.glb", fwd: "-x", len: 0.95 },
   strata: { file: "models/strata.glb", fwd: "-x", len: 0.95 },
@@ -405,13 +411,60 @@ function moveCloud(E, C) {
     P.mat.color.copy(P.tone).lerp(hot, clampN(fl * (0.6 + 0.4 * Math.sin(P.ph * 7 + t * 40))));
   }
 }
+// a ship's own gears made to turn (THUL: `gears`, in the model file's units; each { c: [x, y] its middle, r: to the tips of its
+// teeth, z: [from, to] its thickness, teeth, dir: which way it turns, spokes }). The model is one piece, so at load its
+// gears are cut out of the picture where they stand (a mask in its shader: nothing of the hull drawn inside each gear's
+// round slab) and new brass gears put there, each on its own axle: E.gears. Turned by opt.gears (the drive's angle, rad:
+// each gear turns by it times 14 / its teeth, its own way) and pushed back a little by opt.recoil (0..1) as a shot goes
+function makeGears(E, M) {
+  const raw = E.raw, list = M.gears, N = list.length;
+  const brass = new THREE.MeshStandardMaterial({ color: 0xa47634, metalness: 0.8, roughness: 0.46, envMapIntensity: 0.9 });   // (the model's own worn brass)
+  const dark = new THREE.MeshStandardMaterial({ color: 0x4a3a28, metalness: 0.7, roughness: 0.5, envMapIntensity: 1 });
+  const rig = new THREE.Group(); raw.add(rig);   // (in the file's own units, as the gears were measured)
+  E.gears = { rig, list: [] };
+  for (const G of list) {
+    const r = G.r, root = r * 0.86, n = G.teeth, sh = new THREE.Shape();
+    for (let i = 0; i < n; i++) {   // the teeth: a flat top, sloping sides
+      const a = (i / n) * Math.PI * 2, w = (Math.PI * 2) / n;
+      const pts = [[root, a], [r, a + w * 0.18], [r, a + w * 0.42], [root, a + w * 0.6]];
+      pts.forEach(([rr, aa], k) => { const x = Math.cos(aa) * rr, y = Math.sin(aa) * rr; if (i === 0 && k === 0) sh.moveTo(x, y); else sh.lineTo(x, y); });
+    }
+    sh.closePath();
+    const ns = G.spokes || 5, rimIn = root * 0.78, hub = r * 0.26;
+    for (let k = 0; k < ns; k++) {   // the windows between the spokes
+      const a0 = (k / ns) * Math.PI * 2 + 0.16, a1 = ((k + 1) / ns) * Math.PI * 2 - 0.16, h = new THREE.Path();
+      h.absarc(0, 0, rimIn, a0, a1, false); h.absarc(0, 0, hub, a1, a0, true); h.closePath(); sh.holes.push(h);
+    }
+    const th = G.z[1] - G.z[0], bev = Math.min(th * 0.18, r * 0.04);
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: th - bev * 2, bevelEnabled: true, bevelThickness: bev, bevelSize: bev * 0.8, bevelSegments: 1, curveSegments: 6 });
+    geo.translate(0, 0, G.z[0] + bev);
+    const axle = new THREE.Group(); axle.position.set(G.c[0], G.c[1], 0); rig.add(axle);
+    const wheel = new THREE.Mesh(geo, brass); wheel.frustumCulled = false; axle.add(wheel);
+    const boss = new THREE.Mesh(new THREE.CylinderGeometry(hub * 0.75, hub * 0.75, th * 1.25, 6), dark);   // the hub: a hex nut on the axle
+    boss.rotation.x = Math.PI / 2; boss.position.z = (G.z[0] + G.z[1]) / 2; boss.frustumCulled = false; axle.add(boss);
+    E.gears.list.push({ axle, k: (14 / n) * (G.dir || 1) });
+  }
+  // the mask: the hull's own gears not drawn (each gear's round slab, a little inside its teeth' tips)
+  const uG = { value: list.map((G) => new THREE.Vector4(G.c[0], G.c[1], G.r * 0.97, 0)) }, uZ = { value: list.map((G) => new THREE.Vector2(G.z[0] - 0.004, G.z[1] + 0.004)) };
+  raw.traverse((o) => {
+    if (!o.isMesh || o.parent === rig || rig.getObjectById(o.id)) return;
+    const uM = { value: o.matrix.clone() };   // (its quantized units to the file's)
+    const mat = o.material = o.material.clone();
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uGearC = uG; sh.uniforms.uGearZ = uZ; sh.uniforms.uToFile = uM;
+      sh.vertexShader = "uniform mat4 uToFile;\nvarying vec3 vFile;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\nvFile = (uToFile * vec4(transformed, 1.0)).xyz;");
+      sh.fragmentShader = `uniform vec4 uGearC[${N}];\nuniform vec2 uGearZ[${N}];\nvarying vec3 vFile;\n` + sh.fragmentShader.replace("void main() {", `void main() {\n  for (int i = 0; i < ${N}; i++) { if (vFile.z > uGearZ[i].x && vFile.z < uGearZ[i].y && distance(vFile.xy, uGearC[i].xy) < uGearC[i].z) discard; }`);
+    };
+    mat.customProgramCacheKey = () => "gears" + N;
+  });
+}
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
   let E = models[id];
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); if (M.cloud) makeCloud(E); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); if (M.cloud) makeCloud(E); if (M.gears) makeGears(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -537,7 +590,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 36,   // (index.html checks it; the file's name carries it too — lib/ship3d-v36.js — so the app never mixes a new
+  version: 37,   // (index.html checks it; the file's name carries it too — lib/ship3d-v37.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -559,7 +612,7 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "");   // (a new picture only when it has turned a quarter of a degree)
+    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) : "");   // (a new picture only when it has turned a quarter of a degree)
     // opt.lights: up to 3 coloured lights inside the ship ({ x, y, z } in the fitted model's units, before it is tilted;
     // color; i: how bright) — MIRAGE's light running up its prism
     if (!lamps) { lamps = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xffffff, 0, 1.2, 1.6); scene.add(L); return L; }); }
@@ -569,6 +622,7 @@ export const Ship3D = {
     if (E.halves) { const h = opt && opt.half; for (const X of E.halves.front) X.visible = !h || h === "front"; for (const X of E.halves.back) X.visible = !h || h !== "front"; }   // (any other half: the rear piece)
     if (E.ghost) { E.ghost.uG.value = (opt && opt.ghost) || 0; E.ghost.uT.value = (opt && opt.t) || 0; }
     if (E.fan) { const O = (opt && opt.open) || [], nw = M.fan.narrow || 1; E.fan.forEach((P, i) => { const k = O[i] || 0; P.pivot.quaternion.identity().slerp(P.shut, 1 - k); const sl = M.fan.shorten || 1; P.squash.scale.set(sl + (1 - sl) * k, nw + (1 - nw) * k, 1); }); }   // (opt.open: how open each panel is, 0 shut .. 1 as modelled)
+    if (E.gears) { const a = (opt && opt.gears) || 0; for (const g of E.gears.list) g.axle.rotation.z = a * g.k; E.gears.rig.position.x = 0.015 * ((opt && opt.recoil) || 0); }   // (recoil: toward the tail, +x in THUL's file)
     if (E.turns) { const T = (opt && opt.turns) || []; E.turns.forEach((g, i) => g.rotation.set(0, -(T[i] || 0), 0)); }   // (opt.turns: the cage's and each ring's turn, screen-clockwise rad)
     if (E.bands) {   // (opt.bands: [{ lo, hi, c: "#rrggbb" }], the layers grown, from the middle out)
       const Bd = (opt && opt.bands) || []; E.bands.uN.value = Math.min(5, Bd.length);
