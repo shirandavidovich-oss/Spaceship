@@ -36,7 +36,7 @@ export const SHIP_MODELS = {
   lyth: { file: "models/lyth.glb", fwd: "-z", len: 1.03, fit: "max", split: 0.37 },
   lariat: { file: "models/lariat.glb", fwd: "+z", len: 1.03, upright: -1,
     drum: { c: [-0.205, -0.13], r: 0.128, x: [-0.13, 0.13], fl: 0.175, hide: 0.18 },   // (its cable drum, round the file's x: makeDrum)
-    claw: [[0.2, 0.745, -0.4], [0.42, 0.98, 0.4]] },   // (the claw at the boom's tip, hidden while it is out on the cable)
+    claw: [[0.08, 0.745, -0.4], [0.5, 1.0, 0.4]] },   // (the claw at the boom's tip, hidden while it is out on the cable)
   palisade: { file: "models/palisade.glb", fwd: "-z", len: 1.05, fit: "max", upright: 1 },
   courier: { file: "models/courier.glb", fwd: "-x", len: 0.855 },
   kiln: { file: "models/kiln.glb", fwd: "+x", len: 1.03, wheel: { c: [0.494, 0.127, 0], tilt: 0.26, r: 0.185, h: [-0.03, 0.06] },
@@ -176,6 +176,8 @@ function splitBlocks(E, M) {
   const n = M.blocks.length + 1, lists = meshes.map(() => Array.from({ length: n }, () => []));
   const boxes = Array.from({ length: n }, () => new THREE.Box3());
   const v = new THREE.Vector3(), w = new THREE.Vector3();
+  // each cut's two faces: what of each block lies right against the cut (in the file's units), to close it with a wall
+  const sides = M.blocks.map(() => [new THREE.Box3(), new THREE.Box3()]);   // ([the block on its high side, on its low side])
   meshes.forEach((m, mi) => {
     const g = m.geometry, P = g.attributes.position, idx = g.index ? g.index.array : null, cnt = idx ? idx.length : P.count;
     const toFile = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld), fx = new Float32Array(P.count);
@@ -184,11 +186,36 @@ function splitBlocks(E, M) {
       const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2, x = (fx[a] + fx[b] + fx[c]) / 3;
       let k = 0; while (k < M.blocks.length && x <= M.blocks[k]) k++;
       lists[mi][k].push(a, b, c);
+      for (const q of [a, b, c]) {   // (corners within reach of a cut: they show how big that cut face is)
+        w.fromBufferAttribute(P, q).applyMatrix4(toFile);
+        M.blocks.forEach((cx, j) => { if (Math.abs(w.x - cx) < 0.03) sides[j][w.x > cx ? 0 : 1].expandByPoint(w); });
+      }
       for (const q of [a, b, c]) boxes[k].expandByPoint(v.fromBufferAttribute(P, q).applyMatrix4(m.matrixWorld));
     }
   });
   E.parts = boxes.map((B) => { const c = B.getCenter(new THREE.Vector3()), z = B.getSize(new THREE.Vector3()); const pivot = new THREE.Group(); outer.add(pivot); pivot.position.set(c.x / s, 0, c.z / s); return { pivot, cx: c.x, cz: c.z, w: z.x, h: z.z }; });
   outer.updateMatrixWorld(true);
+  // the walls closing the cuts: a panel of the hull's dark metal, its own rows of lit windows, on each block's cut side
+  // (the model has nothing there: the buildings stood against each other)
+  const cv = document.createElement("canvas"); cv.width = cv.height = 128; const c2 = cv.getContext("2d");
+  c2.fillStyle = "#2e3038"; c2.fillRect(0, 0, 128, 128); c2.strokeStyle = "#1a1b21"; c2.lineWidth = 2;
+  for (let i = 0; i <= 4; i++) { c2.beginPath(); c2.moveTo(0, i * 32); c2.lineTo(128, i * 32); c2.stroke(); c2.beginPath(); c2.moveTo(i * 32, 0); c2.lineTo(i * 32, 128); c2.stroke(); }
+  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if ((x * 7 + y * 3) % 5 < 3) { c2.fillStyle = (x + y) % 3 ? "#c9a25a" : "#e9d79a"; c2.fillRect(x * 32 + 10, y * 32 + 12, 12, 8); }
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  const wallMat = new THREE.MeshStandardMaterial({ map: tex, metalness: 0.55, roughness: 0.6, emissive: 0x2a2010, emissiveMap: tex, emissiveIntensity: 0.5, side: THREE.DoubleSide });
+  M.blocks.forEach((cx, j) => [0, 1].forEach((side) => {
+    // (the face they shared: where both blocks reach the cut — the walls are as big as that, not more)
+    const A0 = sides[j][0], A1 = sides[j][1]; if (A0.isEmpty() || A1.isEmpty()) return;
+    const B = new THREE.Box3(new THREE.Vector3(cx, Math.max(A0.min.y, A1.min.y), Math.max(A0.min.z, A1.min.z)), new THREE.Vector3(cx, Math.min(A0.max.y, A1.max.y), Math.min(A0.max.z, A1.max.z)));   // (only up and across: they meet at the cut)
+    if (B.max.y <= B.min.y || B.max.z <= B.min.z) return;
+    const k = j + (side ? 1 : 0), sz = B.getSize(new THREE.Vector3()), mid = B.getCenter(new THREE.Vector3());
+    const t = tex.clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, sz.z / 0.3), Math.max(1, sz.y / 0.3));
+    const mat = wallMat.clone(); mat.map = t; mat.emissiveMap = t;
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(sz.z * 0.98, sz.y * 0.98), mat); wall.frustumCulled = false;
+    wall.rotation.y = side ? -Math.PI / 2 : Math.PI / 2;   // (facing out of its block, across the cut)
+    wall.position.set(cx + (side ? -0.003 : 0.003), mid.y, mid.z); raw.add(wall); wall.updateMatrixWorld(true);
+    E.parts[k].pivot.attach(wall);
+  }));
   meshes.forEach((m, mi) => {
     for (let k = 0; k < n; k++) {
       if (!lists[mi][k].length) continue;
@@ -808,7 +835,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 45,   // (index.html checks it; the file's name carries it too — lib/ship3d-v45.js — so the app never mixes a new
+  version: 46,   // (index.html checks it; the file's name carries it too — lib/ship3d-v46.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },

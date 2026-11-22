@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v45.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v46.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4511,10 +4511,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v45.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v46.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 45, SHIP3D_FILE = "./lib/ship3d-v45.js";
+const SHIP3D_VER = 46, SHIP3D_FILE = "./lib/ship3d-v46.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -12400,7 +12400,7 @@ function drawGimbal() {
 //  The cable only pulls my own ship; the other phone is told where my hook is (lh) and whether I am on a cable (lt).
 // ======================================================================
 const LAR = { reach: 306, slack: 64, reel: 28, spring: 4.7, damping: 2.2, maxPull: 470, life: 5.2, hookAt: 0.16, hookSpeed: 410,
-  hookLife: 1.05, boost: 120, cap: 335, fxMs: 32, fxFrames: 16, fxSize: 188, socket: [-17, -43] };
+  hookLife: 1.05, boost: 120, cap: 335, fxMs: 32, fxFrames: 16, fxSize: 188, socket: [-17, -43], socket3: [-0.2, -0.46], depth: 6 };   // (socket3: the 3D model's claw, in ship-lengths; depth: how much faster the claw goes into or out of the depth than across)
 const larFx = [];   // the release: { who, t, ang } (ang: the new way it flies)
 function larU() { return shipSize() * 1.2 / 106; }
 // flying in 3D: a ship's orientation (mine as it is; theirs from its heading, tilt and roll), else null
@@ -12408,7 +12408,11 @@ function lar3(o) { if (!view3d.on || BOT) return null; if (o === game) return ga
 // the boom's socket — in 3D turned with the ship (z: its depth, in U)
 function larSocket(o) {
   const u = larU(), q3 = lar3(o);
-  if (q3) { const v = Q3.rot(q3, [LAR.socket[0] * u, 0, LAR.socket[1] * u]); return { x: o.x + v[0], y: o.y + v[2], z: (o.z3 || 0) + v[1] / U }; }
+  if (q3) {   // (in 3D: the model's claw, as big as the ship is drawn at its depth)
+    const k = depthScale(o.z3 || 0) * shipSize(), v = Q3.rot(q3, [LAR.socket3[0] * k, 0, LAR.socket3[1] * k]);
+    return { x: o.x + v[0], y: o.y + v[2], z: (o.z3 || 0) + v[1] / U };
+  }
+  if (view3d.on && !BOT && view3d.state === "ready") { const k = depthScale(o.z3 || 0) * shipSize(), q = rotatePt(LAR.socket3[0] * k, LAR.socket3[1] * k, o.ang); return { x: o.x + q.x, y: o.y + q.y, z: o.z3 || 0 }; }   // (3D, level)
   const q = rotatePt(LAR.socket[0] * u, LAR.socket[1] * u, o.ang); return { x: o.x + q.x, y: o.y + q.y, z: o.z3 || 0 };
 }
 // the ship from the body's middle (in 3D its depth too: dz, and d the real distance through space)
@@ -12435,7 +12439,7 @@ function updateLariat(dt) {
     if (game.hookWait >= LAR.hookAt) {
       game.hookWait = null;
       const p = larSocket(game), v = LAR.hookSpeed * u, q3 = lar3(game), n = q3 ? Q3.rot(q3, [0, 0, -1]) : [Math.sin(game.ang), 0, -Math.cos(game.ang)];   // (in 3D: along the tilted nose, into or out of the depth)
-      game.hook = { x: p.x, y: p.y, z: p.z, vx: n[0] * v, vy: n[2] * v, vz: n[1] * v, t: 0, ox: p.x, oy: p.y };
+      game.hook = { x: p.x, y: p.y, z: p.z, vx: n[0] * v, vy: n[2] * v, vz: n[1] * v * LAR.depth, t: 0, ox: p.x, oy: p.y };   // (into the depth faster: it clearly shrinks or grows as it flies, as LYTH's ring)
       audio.tone(220, 0.25, "sawtooth", 0.03, 2.4); audio.noise(0.15, 0.08, 3000);
     }
   }
@@ -12456,7 +12460,7 @@ function updateLariat(dt) {
       audio.tone(140, 0.2, "square", 0.05, 0.5); audio.noise(0.1, 0.2, 2500); shake(0.25); buzz(60);
     } else if (H.t > LAR.hookLife || Math.hypot(wrapDelta(H.x - H.ox, WW), wrapDelta(H.y - H.oy, WH)) > LAR.reach * u * 1.4 || hit != null) {
       game.hook = null; audio.tone(500, 0.1, "triangle", 0.03, 0.5);   // missed (or the ship was too far from the body)
-    } else { H.x = (((H.x + dx) % WW) + WW) % WW; H.y = (((H.y + dy) % WH) + WH) % WH; H.z = (H.z || 0) + (H.vz || 0) / U * dt; }
+    } else { H.x = (((H.x + dx) % WW) + WW) % WW; H.y = (((H.y + dy) % WH) + WH) % WH; H.z = clamp((H.z || 0) + (H.vz || 0) / U * dt, -TILT3.far + 0.5, TILT3.near - 0.5); }
   }
   if (game.tether) { game.tether.t += dt; if (game.tether.t >= LAR.life) larEnd("time"); }
   if (game.clutch) {   // the magic: at its cue the cable lets go with a push along the swing (if it is still on)
