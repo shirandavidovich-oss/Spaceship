@@ -18107,9 +18107,9 @@ function drawVantaLiquid(o) {
     // wave and the shading below, so it stays smooth
     const M = ctx.getTransform(), px = Math.hypot(M.a, M.b) || 100, n = Math.round(clamp(px * (bot - top) / 3, 30, 260));
     const span = (bot - top) / (V.bot - V.top), pts = [];
-    for (let i = 0; i <= n; i++) {   // the ribbon's middle: the main wave, a small faster ripple on it
+    for (let i = 0; i <= n; i++) {   // the ribbon's middle: the same fast sine wave as always (only drawn finer)
       const u = i / n, ph = u * 9.2 * span + t * 0.004;
-      pts.push([amp * Math.sin(ph) + amp * 0.12 * Math.sin(ph * 2.7 - t * 0.0065), top + u * (bot - top), Math.cos(ph)]);   // (the 3rd: the wave's slope, for its light)
+      pts.push([amp * Math.sin(ph), top + u * (bot - top), Math.cos(ph)]);   // (the 3rd: the wave's slope, for its light)
     }
     const path = (dx = 0, dy = 0) => { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x + dx, y + dy) : ctx.moveTo(x + dx, y + dy))); };
     ctx.lineJoin = "round"; ctx.lineCap = "round";
