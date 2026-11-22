@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v49.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v50.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4519,10 +4519,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v49.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v50.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 49, SHIP3D_FILE = "./lib/ship3d-v49.js";
+const SHIP3D_VER = 50, SHIP3D_FILE = "./lib/ship3d-v50.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4781,6 +4781,7 @@ function bloomFlow(o, S) {
   B.phase = (B.phase + dt) % BLOOM_3D.period; B.filamentTime += dt;
   return B;
 }
+const XCRYSTAL_SIZE = 1;   // (XELTAR's flying crystal in 3D, against its 2D drawing's size)
 // XELTAR's pose in 3D (the Xeltar 3D Motion package's xeltar-motion.js, kept here for each ship): the fins on their own
 // 1.28 s clock, always; the five rear arms on a 0.64 s clock, blended from their idle drift to the swimming stroke as the
 // gas is pressed (150 ms in, 290 ms out); and, as the big crystal forms at its tail (button 2), the arms gathering round
@@ -4795,6 +4796,8 @@ function xelPose(o) {
   P.finTime = (P.finTime + dt) % XEL_3D.fin; P.sternTime = (P.sternTime + dt) % XEL_3D.stern;
   const a = o.anim, F = 1070;   // (the crystal: its frames' clock — gathering as it forms, launched at 1,070 ms)
   P.rearCharge = a && a.seq === "secondary" ? (a.t < F ? smoothStep(a.t / (F * 0.8)) : 1 - smoothStep((a.t - F) / 300)) : 0;
+  if (view3d.lib) view3d.lib.ready("xcrystal");   // (its flying crystal's model, loaded early)
+  P.crystalAge = a && a.seq === "secondary" ? a.t / 1000 : null;   // (the package's rear crystal: it grows between the arms from 260 ms, gone as it is launched)
   return P;
 }
 // BALLAST's bumper light: { c: the rail slug's colour, k: 0..1 } — full as a slug leaves, gone in BUMPER_T s
@@ -19273,6 +19276,14 @@ function drawShot1(s, size) {
       ctx.strokeStyle = s.w === "neon" ? "#ffd2f0" : "#ffffff"; ctx.lineWidth = wd * 0.8; ctx.stroke();
     } else if ((s.w === "phase" || s.w === "mark") && s.art && artImage(s.art.src)) {
       drawPhaseDrop(s, p, ux, uy, size);
+    } else if (s.w === "crystal" && view3d.on && !BOT && view3d.state === "ready" && view3d.lib.ready("xcrystal")) {
+      // XELTAR's rear crystal in 3D: the package's cut-ice model, tumbling on along its path; a cold glow round it
+      const d = 0.45 * size * XCRYSTAL_SIZE, ang = Math.atan2(ux, -uy);
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, d * 0.9); g.addColorStop(0, hexA(Wp.color, 0.35)); g.addColorStop(1, hexA(Wp.color, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, d * 0.9, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang); ctx.scale(d, d);
+      try { view3d.lib.draw(ctx, "xcrystal", ang, 0.24 + s.life * 2.1, 0.3 * Math.sin(s.life * 1.3)); } catch (e) {}
+      ctx.restore();
     } else if (s.art && artImage(shotSrc(s))) {
       // a shot with its own drawing: the cannonball rolls as it flies (spin); a thorn points where it flies.
       // A faint glow in the weapon's color behind it
