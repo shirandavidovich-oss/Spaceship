@@ -54,7 +54,10 @@ export const SHIP_MODELS = {
   vexar: { file: "models/vexar.glb", fwd: "-x", len: 0.95 },
   labyrinth: { file: "models/labyrinth.glb", fwd: "-x", len: 0.95 },
   kraal: { file: "models/kraal.glb", fwd: "+x", len: 0.75 },
-  flipper: { file: "models/flipper.glb", fwd: "+x", len: 0.9 },
+  flipper: { file: "models/flipper.glb", fwd: "+x", len: 0.9, paddles: [   // (its two paddles: splitPaddles — hub to tip, in the file's units)
+    { hub: [0.533, 0.21, 0.389], tip: [0.6, 0.38, 0.93], r: 0.13 },
+    { hub: [0.511, 0.21, -0.444], tip: [0.78, 0.09, -0.91], r: 0.12 },
+  ] },
   rivet: { file: "models/rivet.glb", fwd: "-x", len: 0.82 },
   nimbus: { file: "models/nimbus.glb", fwd: "-x", len: 0.95, cloud: true, pad: 2.2 },   // (the bare ship: its cloud is ours, makeCloud)
   husk: { file: "models/husk.glb", fwd: "-x", len: 1.05 },
@@ -555,13 +558,47 @@ function makeGrille(E, M) {
     m.customProgramCacheKey = () => "grille";
   });
 }
+// a ship's paddles cut off at load, each onto a hinge of its own at its hub (FLIPPER: `paddles`, in the model file's units:
+// hub, tip — the paddle's line; r — how far from that line its blade reaches). A triangle is the paddle's if its middle is
+// within r of the line from just behind the hub to past the tip, and not below the hub (the solenoids and springs under
+// it stay). Kept with their own look. E.paddles: [{ hinge, base, s }] — swung by opt.paddles ([rad, rad], + = the tip
+// toward the nose; s turns it the right way round for its side), round the upright through its hub
+function splitPaddles(E, M) {
+  const raw = E.raw; raw.updateMatrixWorld(true);
+  const list = M.paddles.map((Pd) => {
+    const H = new THREE.Vector3(...Pd.hub), D = new THREE.Vector3(...Pd.tip).sub(H), L = D.length(); D.normalize();
+    const hinge = new THREE.Group(); hinge.position.copy(H); raw.add(hinge); hinge.updateMatrixWorld(true);
+    return { Pd, H, D, L, hinge, s: Pd.tip[2] > 0 ? 1 : -1 };
+  });
+  const meshes = [], v = new THREE.Vector3(); raw.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  for (const m of meshes) {
+    const g = m.geometry, P = g.attributes.position, idx = g.index ? g.index.array : null, cnt = idx ? idx.length : P.count;
+    const F = new Float32Array(P.count * 3);
+    for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrix); F[i * 3] = v.x; F[i * 3 + 1] = v.y; F[i * 3 + 2] = v.z; }
+    const lists = list.map(() => []), keep = [];
+    for (let t = 0; t < cnt; t += 3) {
+      const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2;
+      // (a paddle's only if all three corners are on it: a sliver joining it to the hull stays put)
+      const on = (q, Q) => { v.set(F[q * 3], F[q * 3 + 1], F[q * 3 + 2]).sub(Q.H); const along = v.dot(Q.D), u = along / Q.L, y = F[q * 3 + 1];
+        if (u < -0.1 || u > 1.15 || (u < 0.3 && y < Q.H.y - 0.09)) return false;   // (by the hub, only what is level with it or above: the springs under it stay)
+        return v.addScaledVector(Q.D, -along).length() < Q.Pd.r * (u > 0.3 ? 1.3 : 1); };   // (out along the blade, its whole rim)
+      let k = -1;
+      list.forEach((Q, jj) => { if (k < 0 && on(a, Q) && on(b, Q) && on(c, Q)) k = jj; });
+      (k >= 0 ? lists[k] : keep).push(a, b, c);
+    }
+    if (!lists.some((L) => L.length)) continue;
+    const part = (L) => { const G = new THREE.BufferGeometry(); for (const key in g.attributes) G.setAttribute(key, g.attributes[key]); G.setIndex(L); const X = new THREE.Mesh(G, m.material); X.frustumCulled = false; m.parent.add(X); X.position.copy(m.position); X.quaternion.copy(m.quaternion); X.scale.copy(m.scale); X.updateMatrixWorld(true); return X; };
+    part(keep); lists.forEach((L, j) => { if (L.length) list[j].hinge.attach(part(L)); }); m.visible = false;
+  }
+  E.paddles = list.map((Q) => ({ hinge: Q.hinge, s: Q.s }));
+}
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
   let E = models[id];
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); if (M.cloud) makeCloud(E); if (M.gears) makeGears(E, M); if (M.grille) makeGrille(E, M); if (M.wheel) splitWheel(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); if (M.cloud) makeCloud(E); if (M.gears) makeGears(E, M); if (M.paddles) splitPaddles(E, M); if (M.grille) makeGrille(E, M); if (M.wheel) splitWheel(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -687,7 +724,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 40,   // (index.html checks it; the file's name carries it too — lib/ship3d-v40.js — so the app never mixes a new
+  version: 41,   // (index.html checks it; the file's name carries it too — lib/ship3d-v41.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -709,7 +746,7 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.wheel && opt ? "|w" + Math.round((opt.wheel || 0) * 60) + "," + Math.round((opt.glow || 0) * 20) + "," + Math.round((opt.flaps || 0) * 40) : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) + (opt.cannon ? "," + ["ring", "kick", "open", "glow"].map((k) => Math.round((opt.cannon[k] || 0) * 40)).join(",") + (opt.cannon.ball === false ? "x" : "") : "") : "");   // (a new picture only when it has turned a quarter of a degree)
+    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.paddles && opt && opt.paddles ? "|p" + opt.paddles.map((a) => Math.round(a * 100)).join(",") : "") + (E.wheel && opt ? "|w" + Math.round((opt.wheel || 0) * 60) + "," + Math.round((opt.glow || 0) * 20) + "," + Math.round((opt.flaps || 0) * 40) : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) + (opt.cannon ? "," + ["ring", "kick", "open", "glow"].map((k) => Math.round((opt.cannon[k] || 0) * 40)).join(",") + (opt.cannon.ball === false ? "x" : "") : "") : "");   // (a new picture only when it has turned a quarter of a degree)
     // opt.lights: up to 3 coloured lights inside the ship ({ x, y, z } in the fitted model's units, before it is tilted;
     // color; i: how bright) — MIRAGE's light running up its prism
     if (!lamps) { lamps = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xffffff, 0, 1.2, 1.6); scene.add(L); return L; }); }
@@ -719,6 +756,7 @@ export const Ship3D = {
     if (E.halves) { const h = opt && opt.half; for (const X of E.halves.front) X.visible = !h || h === "front"; for (const X of E.halves.back) X.visible = !h || h !== "front"; }   // (any other half: the rear piece)
     if (E.ghost) { E.ghost.uG.value = (opt && opt.ghost) || 0; E.ghost.uT.value = (opt && opt.t) || 0; }
     if (E.fan) { const O = (opt && opt.open) || [], nw = M.fan.narrow || 1; E.fan.forEach((P, i) => { const k = O[i] || 0; P.pivot.quaternion.identity().slerp(P.shut, 1 - k); const sl = M.fan.shorten || 1; P.squash.scale.set(sl + (1 - sl) * k, nw + (1 - nw) * k, 1); }); }   // (opt.open: how open each panel is, 0 shut .. 1 as modelled)
+    if (E.paddles) { const A = (opt && opt.paddles) || [0, 0]; E.paddles.forEach((P, i) => { P.hinge.rotation.y = P.s * (A[i] || 0); }); }   // (opt.paddles: each paddle's swing from the model's own pose, rad, + = toward the nose)
     if (E.grille) { const k = (opt && opt.flaps) || 0; for (const f of E.grille.flaps) f.rotation.y = 1.3 * k; E.grille.glowMat.emissiveIntensity = 0.5 + 1.6 * Math.max(k, (opt && opt.glow) || 0); }   // (opt.flaps: 0 shut .. 1 open)
     if (E.wheel) { const Wh = E.wheel; Wh.axle.quaternion.copy(Wh.base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -((opt && opt.wheel) || 0))); Wh.glow.intensity = 0.8 * ((opt && opt.glow) || 0); }
     if (E.gears) {   // (recoil: toward the tail, +x in THUL's file)

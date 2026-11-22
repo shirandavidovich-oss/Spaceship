@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v40.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v41.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4509,10 +4509,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v40.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v41.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 40, SHIP3D_FILE = "./lib/ship3d-v40.js";
+const SHIP3D_VER = 41, SHIP3D_FILE = "./lib/ship3d-v41.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4736,6 +4736,26 @@ function gimbalLight(np, tail, face, r, power, since, n, S) {
   }
   ctx.restore();
 }
+// FLIPPER's paddle in each of its 2D frames (degrees, the tip toward the nose; measured from its pictures: 21 at rest),
+// 24 frames a sequence; parmed: held cocked
+const FLIP_PADDLE = { rest: 21,
+  parm: [21, 20, 16, 11, 5, -2, -10, -17, -23, -29, -32, -34, -34, -34, -34, -34, -34, -34, -34, -34, -34, -34, -34, -34],
+  pstrike: [-34, -34, -31, -6, 32, 62, 68, 68, 65, 61, 55, 48, 40, 33, 27, 23, 21, 21, 21, 21, 21, 21, 21, 21],
+  prelease: [-34, -33, -31, -26, -21, -15, -8, -2, 5, 11, 16, 19, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21],
+  magic: [21, 19, 14, 9, 4, 2, 2, 2, 2, 2, 2, 2, 2, 26, 59, 59, 59, 59, 58, 52, 42, 32, 24, 21] };
+// the paddles' swing from the model's own pose (rad, both the same), at this moment of the ship's frames (eased between them)
+function flipPaddles(a) {
+  const T = FLIP_PADDLE; let deg = T.rest;
+  if (a && a.seq === "parmed") deg = -34;
+  else if (a && T[a.seq]) {
+    const seq = shipById("flipper").anim[a.seq], n = T[a.seq].length; let t = a.t, i = 0;
+    while (i < seq.length - 1 && t >= seq[i][1]) { t -= seq[i][1]; i++; }
+    const k = clamp(t / Math.max(1, seq[i][1]), 0, 1), A = T[a.seq][Math.min(i, n - 1)], B = T[a.seq][Math.min(i + 1, n - 1)];
+    deg = A + (B - A) * k;
+  }
+  const d = (deg - T.rest) * Math.PI / 180;
+  return [d, d];
+}
 const GEAR_RPM = 240;   // (THUL's gears in 3D: its drive gear's speed at full fire, turns a minute)
 function draw3dShipModel(S, o, ang, bank) {
   const L = view3d.lib;
@@ -4792,6 +4812,11 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
+  if (S.id === "flipper") {   // FLIPPER: its paddles (lib: paddles) swing as its 2D frames do — cocked back, held, the strike, the
+    // quiet release, the magic's flap — each angle measured off the frames (FLIP_PADDLE), the model's own pose at rest
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { paddles: flipPaddles(o.anim) }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.kiln) {   // KILN: in 3D its own valve wheel turns with the reverse gravity (lib: wheel) — spun by the same clock as the 2D
