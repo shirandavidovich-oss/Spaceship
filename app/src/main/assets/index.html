@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v41.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v42.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4509,10 +4509,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v41.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v42.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 41, SHIP3D_FILE = "./lib/ship3d-v41.js";
+const SHIP3D_VER = 42, SHIP3D_FILE = "./lib/ship3d-v42.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4812,6 +4812,13 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
+  if (S.winch) {   // LARIAT: its cable drum rolls (lib: drum) — paying out fast as the claw flies, reeling in slowly on the cable
+    // (the 2D winch's speeds); the claw at the boom's tip hidden while it is out on the cable
+    const V = o.vt || o, dt = frameDt || 0.016;
+    V.drumA = ((V.drumA || 0) + (o.winch === "out" ? 3.3 : o.winch === "in" ? -1.6 : 0) * dt) % (TAU * 100);
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { drum: V.drumA, clawOut: !!o.clawOut }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.id === "flipper") {   // FLIPPER: its paddles (lib: paddles) swing as its 2D frames do — cocked back, held, the strike, the
@@ -12521,12 +12528,45 @@ function drawWinch(S, mode) {
   ctx.fillStyle = mode === "out" ? "rgba(132,255,223,0.14)" : "rgba(255,200,140,0.16)"; ctx.fillRect(x, y, w, h);
   ctx.restore();
 }
+const LAR_CLAW = [146, 12, 58, 50];   // (the claw at the boom's tip in LARIAT's 512 px drawing: x, y, w, h — hidden while it is out)
+// is this LARIAT's claw away from its boom (flying, on the body, or on a ship)?
+function larClawOut(who) { return who === "me" ? !!(game.hook || game.tether || game.elasso) : !!(enemy.lhook || enemy.ltether || (game.lassoed && !game.dead)); }
 function larWinchMode(o, who) { return who === "me" ? (game.hook ? "out" : game.tether ? "in" : null) : (enemy.lhook ? "out" : enemy.ltether ? "in" : null); }
 let larLoaded = false;
 function larPreload() {
   if (larLoaded || BOT || (game.ship !== "lariat" && enemy.ship !== "lariat")) return;
-  larLoaded = true; artImage("art/ships/lariat/winch-drum.webp"); artImage("art/ships/lariat/harpoon.webp");
+  larLoaded = true; artImage("art/ships/lariat/winch-drum.webp");
   for (let i = 0; i < LAR.fxFrames; i++) artImage("art/ships/lariat/release_" + String(i).padStart(2, "0") + ".webp");
+}
+// LARIAT's claw at the cable's end (in place of the old arrow): the boom's own two-jaw grab, robot-hand style — a steel
+// wrist block with the cable's pulley, and two beige jaws, each in two jointed segments with bolts at the knuckles,
+// curling in at the tips. Drawn round (0, 0) pointing up (the way it flies), d across. open: 1 = jaws spread (flying),
+// 0 = shut (gripping). shade: the light's side, for a little roundness
+function drawLarClaw(d, open) {
+  const u = d / 20, sp = 0.12 + 0.5 * clamp(open, 0, 1);   // (u: one unit of the drawing; sp: how far each jaw swings out)
+  ctx.save(); ctx.lineJoin = "round"; ctx.lineCap = "round";
+  // the wrist: a dark steel block, the pulley on it, a teal light
+  ctx.fillStyle = "#2a2d31"; ctx.strokeStyle = "#0d0e10"; ctx.lineWidth = u * 0.6;
+  roundRect(-u * 3.2, u * 1.2, u * 6.4, u * 5, u * 1.2); ctx.fill(); ctx.stroke();
+  const gw = ctx.createLinearGradient(-u * 3, 0, u * 3, 0); gw.addColorStop(0, "rgba(255,255,255,0.18)"); gw.addColorStop(0.5, "rgba(255,255,255,0)"); gw.addColorStop(1, "rgba(0,0,0,0.25)");
+  ctx.fillStyle = gw; roundRect(-u * 3.2, u * 1.2, u * 6.4, u * 5, u * 1.2); ctx.fill();
+  ctx.fillStyle = "#4b4f55"; ctx.beginPath(); ctx.arc(0, u * 5.4, u * 1.9, 0, TAU); ctx.fill(); ctx.stroke();   // the pulley
+  ctx.fillStyle = "#7ce9dc"; ctx.beginPath(); ctx.arc(0, u * 2.6, u * 0.7, 0, TAU); ctx.fill();
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.translate(side * u * 1.7, u * 1.4); ctx.rotate(side * sp);   // (its knuckle on the wrist)
+    // the base segment, then the tip segment bent in toward the middle
+    const seg = (l, wd) => { ctx.beginPath(); ctx.moveTo(-wd / 2, 0); ctx.lineTo(-wd * 0.42, -l); ctx.lineTo(wd * 0.42, -l); ctx.lineTo(wd / 2, 0); ctx.closePath(); };
+    ctx.fillStyle = "#e3d3b0"; ctx.strokeStyle = "#2a2018"; ctx.lineWidth = u * 0.55;
+    seg(u * 5.2, u * 2.4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "rgba(90,70,50,0.35)"; ctx.fillRect(side > 0 ? 0 : -u * 1.1, -u * 5, u * 1.1, u * 4.8);   // (its shaded side)
+    ctx.fillStyle = "#8a8f96"; ctx.beginPath(); ctx.arc(0, -u * 0.2, u * 0.75, 0, TAU); ctx.fill(); ctx.stroke();   // the knuckle's bolt
+    ctx.translate(0, -u * 5.2); ctx.rotate(-side * (0.55 + 0.35 * (1 - open)));   // (the tips curl in, more as it shuts)
+    ctx.fillStyle = "#e9dcbc"; seg(u * 4.2, u * 2.0); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#2a2018"; ctx.beginPath(); ctx.moveTo(-u * 0.8, -u * 4.2); ctx.lineTo(side * -u * 0.9, -u * 5.2); ctx.lineTo(u * 0.8, -u * 4.2); ctx.closePath(); ctx.fill();   // the gripping tooth
+    ctx.fillStyle = "#8a8f96"; ctx.beginPath(); ctx.arc(0, -u * 0.1, u * 0.6, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
 }
 // the cable: from the boom's socket to the flying hook, or to the body's rim (sliding round it as the ship swings)
 function drawCable(o, hook, on) {
@@ -12539,8 +12579,8 @@ function drawCable(o, hook, on) {
   ctx.strokeStyle = "rgba(40,28,22,0.9)"; ctx.lineWidth = Math.max(3, shipSize() * 0.035); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
   ctx.strokeStyle = on ? "#eaa276" : "#c9a27a"; ctx.lineWidth = Math.max(1.5, shipSize() * 0.016); ctx.setLineDash([6, 4]); ctx.lineDashOffset = -time * (on ? 40 : 120);
   ctx.stroke(); ctx.setLineDash([]);
-  const img = artImage("art/ships/lariat/harpoon.webp"), d = 20 * larU() * 1.6;
-  if (img && hook) { const ang = hook ? Math.atan2(hook.vx, -hook.vy) : Math.atan2(p1.x - p0.x, -(p1.y - p0.y)), k3 = hook.z != null && view3d.on ? depthScale(hook.z) : 1; ctx.translate(p1.x, p1.y); ctx.rotate(ang); ctx.scale(k3, k3); ctx.drawImage(img, -d / 2, -d / 2, d, d); }
+  const d = 20 * larU() * 1.6;
+  if (hook) { const ang = Math.atan2(hook.vx, -hook.vy), k3 = hook.z != null && view3d.on ? depthScale(hook.z) : 1; ctx.translate(p1.x, p1.y); ctx.rotate(ang); ctx.scale(k3, k3); drawLarClaw(d, 1); }   // (the claw flying, jaws spread)
   ctx.restore();
 }
 // ---- the lasso: the hook does not stick in the body, the rope winds round it, 4 loops, and holds it tight ----
@@ -12595,8 +12635,8 @@ function drawLasso() {
   const i = Math.min(LASSO.loops - 1, Math.floor(wound)), part = Math.min(1, wound - i);
   const x = R * along * (0.02 + 0.12 * i), half = Math.sqrt(Math.max(0, R * R - (x / along) * (x / along))) * k, thin = R * (0.07 + 0.015 * i) * (1 - lasso.sq);
   const a = -Math.PI / 2 + TAU * part, hx = x + Math.cos(a) * thin, hy = Math.sin(a) * half;
-  const img = artImage("art/ships/lariat/harpoon.webp"), d = 20 * larU() * 1.6;
-  if (img && (part < 1 || Math.cos(a) >= 0)) { ctx.translate(hx, hy); ctx.rotate(a + Math.PI); ctx.drawImage(img, -d / 2, -d / 2, d, d); }
+  const d = 20 * larU() * 1.6;
+  if (part < 1 || Math.cos(a) >= 0) { ctx.translate(hx, hy); ctx.rotate(a + Math.PI); drawLarClaw(d, 1 - clamp(lasso.t / LASSO.wind, 0, 1)); }   // (the claw winding the rope on, shutting on it as it finishes)
   ctx.restore();
 }
 // the rope round a caught ship: four loops across the line from the LARIAT, wound on in turn, and the cable to its boom
@@ -12631,8 +12671,8 @@ function drawShipLasso(holder, held, t) {
   tie(-Wd * 0.8 * sq, -L * 0.62, Wd * 0.8 * sq, L * 0.62, 0, clamp(k * steps - n, 0, 1));   // and across it, corner to corner
   tie(Wd * 0.8 * sq, -L * 0.62, -Wd * 0.8 * sq, L * 0.62, 0, clamp(k * steps - n - 1, 0, 1));
   ctx.rotate(-held.ang);
-  ctx.fillStyle = "#3a2a20"; ctx.beginPath(); ctx.arc(kw.x - a.x, kw.y - a.y, w * 2.1, 0, TAU); ctx.fill();   // the knot
-  ctx.fillStyle = "#eaa276"; ctx.beginPath(); ctx.arc(kw.x - a.x, kw.y - a.y, w * 1.4, 0, TAU); ctx.fill();
+  ctx.translate(kw.x - a.x, kw.y - a.y); ctx.rotate(Math.atan2(a.x - kw.x, -(a.y - kw.y)));   // the claw gripping the hull where the rope is tied, facing in
+  drawLarClaw(20 * larU() * 1.6, 1 - k);
   ctx.restore();
 }
 // ---- breaking free: the caught ship's button, tapped fast (ELASSO.taps quick taps; it drains between them) ----
@@ -12954,6 +12994,10 @@ function drawShip(S, x, y, size, o = {}) {
     if (S.beacon) {   // FRESNEL: the blue beacon turning in its dome (the package's renderer, in the drawing's 512 px)
       ctx.save(); ctx.translate(-img.width * k / 2, -img.height * k / 2); ctx.scale(img.width * k / 512, img.height * k / 512);
       FresnelBeacon.draw(ctx, img, time * 1000); ctx.restore();
+    } else if (S.winch && o.clawOut) {   // LARIAT: its claw away on the cable — the boom's tip drawn without it
+      const x0 = -img.width * k / 2, y0 = -img.height * k / 2, q = img.width * k / 512;
+      ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, img.width * k, img.height * k); ctx.rect(x0 + LAR_CLAW[0] * q, y0 + LAR_CLAW[1] * q, LAR_CLAW[2] * q, LAR_CLAW[3] * q); ctx.clip("evenodd");
+      ctx.drawImage(img, x0, y0, img.width * k, img.height * k); ctx.restore();
     } else ctx.drawImage(img, -img.width * k / 2, -img.height * k / 2, img.width * k, img.height * k);
     if (o.jets > 0 && S.id === "lyth") drawLythJets(S, o.jets, "pumps");   // (and the pumps over it)
     if (S.vaultDoors && o.vt) drawVaultDoors(o.vt, S);
@@ -18479,7 +18523,7 @@ function draw() {
         { prep: shown === S && surgPrep() ? game.surg.t : null, kiln: shown === S && game.kiln ? kilnRig(game.kiln.t) : null, strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && (game.zombie || !!game.cough), power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null, vt: shown === S ? game : null, haunt: shown === S && hauntOn(),
           talus: shown === S && S.grows ? game.talus : null, stored: shown === S && game.trap ? game.trap.stored : 0, tint: shown === S ? game.vtint || 0 : 0, jets: shown === S ? game.jets || 0 : 0,
-          winch: shown === S && S.winch ? larWinchMode(game, "me") : null,
+          winch: shown === S && S.winch ? larWinchMode(game, "me") : null, clawOut: shown === S && S.winch ? larClawOut("me") : false,
           half: shown === S ? myHalf() : null, glow: shown === S && S.grows ? talusGlow(game.talus.ring) : null, frame: shown === S && game.puff ? puffFrame(game.puff.st, game.puff.t) : shown === S && S.anim && S.anim.thrust ? thrustFrame(game, S, game.thrust !== null && !game.locked && !game.dive && !game.dead) : null, drill: shown === S && game.dive ? borerDrill(game.dive.t * 1000 - MAGIC.starmine.legs) : shown === S && game.drillOn ? drillLook(game.drillSpin || 0) : null, rep: shown === S ? repView() : null, cin: shown === S ? { dash: game.dash2 ? [game.dash2.t * 1000, game.dash2.dir] : null, power: game.power } : null });
       if (dug) ctx.restore();
       if (shown === S) {   // the holes in my hull; BORER's drill: the air turning round it
@@ -18803,7 +18847,7 @@ function drawEnemy() {
     const dv = enemy.remote && duel.net && duel.net.dv;
     if (enemy.remote && duel.net && duel.net.bb) drawHeldBubble(enemy, duel.net.bb);
     if (dv) { clipOutStar(); drawBorerLegs(p.x, p.y, size * esc, enemy.ang, borerLegs(dv, MAGIC.starmine)); }
-    drawShip(E, p.x, p.y, size * esc, { prep: enemy.remote && duel.surg && duel.surg.phase === "prep" ? duel.surg.t : null, kiln: enemy.remote && duel.kiln ? kilnRig(duel.kiln.t) : null, strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : enemy.remote && duel.net && duel.net.bd ? drillLook(enemy.drillSpin || 0) : null, half: theirHalf(), cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
+    drawShip(E, p.x, p.y, size * esc, { prep: enemy.remote && duel.surg && duel.surg.phase === "prep" ? duel.surg.t : null, kiln: enemy.remote && duel.kiln ? kilnRig(duel.kiln.t) : null, strata: E.strata ? strataOpts(enemy, game, enemy.remote ? duel.strata : null, "them") : null, tow: enemy.remote && duel.tow ? towRig(duel.tow, MAGIC.tow) : null, zombie: enemyZombie(), winch: E.winch ? larWinchMode(enemy, "them") : null, clawOut: E.winch ? larClawOut("them") : false, glow: enemy.remote && enemy.talus ? talusGlow(enemy.talus.ring) : null, frame: enemy.remote && duel.net && duel.net.pf ? puffFrame(["up", "full", "down", "flat"][duel.net.pf[0]], duel.net.pf[1] / 1000) : E.anim && E.anim.thrust ? thrustFrame(enemy, E, enemy.power > 0.5 && !dv) : null, drill: dv ? borerDrill(dv - MAGIC.starmine.legs) : enemy.remote && duel.net && duel.net.bd ? drillLook(enemy.drillSpin || 0) : null, half: theirHalf(), cin: enemy.remote && duel.net && duel.net.cd ? { dash: duel.net.cd, power: enemy.power } : { power: enemy.power }, rep: enemy.remote && duel.net && duel.net.rp ? { form: duel.net.rp[0], age: duel.net.rp[1] } : null, tint: enemy.remote ? enemy.vtint || 0 : 0, talus: enemy.remote ? enemy.talus : null, stored: enemy.remote && duel.net ? duel.net.kn || 0 : 0, power: 0.12 + enemy.power * 0.88, bank: clamp(enemy.spin / st.turn, -1, 1) * 0.5, ang: enemy.ang + (enemy.remote ? (enemy.hullTurn || 0) - bakedTurn(E, enemy.anim) : 0),
       anim: enemy.remote ? enemy.anim : null, out: !!enemy.out, ring: enemy.remote && duel.ring ? duel.ring.phase : null,
       grind: enemy.remote ? duel.grind : null, jets: enemy.jets || 0, gear: enemy.remote && duel.net ? duel.net.gr : null, vt: enemy.remote ? enemy : null, haunt: enemy.remote && !!duel.net && duel.net.ht === 1 });
     if (dv) ctx.restore();
