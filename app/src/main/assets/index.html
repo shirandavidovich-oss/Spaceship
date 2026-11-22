@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v46.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v47.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -1997,7 +1997,8 @@ const GUN_MIRROR3 = { brass: true, courier: true };   // (COURIER: its capsule t
 // the ships whose 3D model has its guns in other places from the 2D drawing: [x, y, h] (ship units; h up off the hull)
 // CANTOR: the model's bell is narrower than the drawing — its five grooves open at x 0, ±0.123, ±0.235, a little back
 // BALLAST: the model's nose block is a little further forward and right than the drawing's, its weight on the right
-const GUNS3 = { ballast: { railslug: [[0.018, -0.49, 0]], sinker: [[0.3, 0.05, 0]] },
+// THUL: its machine gun's two barrels on the model, their muzzles (the 2D drawing's are further in, on the other side)
+const GUNS3 = { brass: { twin: [[0.248, -0.42, 0], [0.298, -0.40, 0]] }, ballast: { railslug: [[0.018, -0.49, 0]], sinker: [[0.3, 0.05, 0]] },
   cantor: { tone: [[0, -0.43, 0.03]],
   chord: [[-0.235, -0.43, 0.03], [-0.123, -0.43, 0.03], [0, -0.43, 0.03], [0.123, -0.43, 0.03], [0.235, -0.43, 0.03]] } };
 function gunsOf(S, w) {
@@ -4518,10 +4519,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v46.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v47.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 46, SHIP3D_FILE = "./lib/ship3d-v46.js";
+const SHIP3D_VER = 47, SHIP3D_FILE = "./lib/ship3d-v47.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4765,6 +4766,21 @@ function flipPaddles(a) {
   const d = (deg - T.rest) * Math.PI / 180;
   return [d, d];
 }
+// BLOOM's airflow in 3D (the Bloom 3D Motion package's bloom-motion.mjs, kept here for each ship): the speed along its nose
+// (and sideways) against its cruise speed, plus a start from the throttle — eased up quickly, down slowly — so the petals
+// flex back and the pollen trails while it flies and coasts, and settles as it slows. BLOOM_3D.assist: the throttle's
+// share at a standstill; ref: the share of its top speed that counts as full airflow (lower: more airflow sooner)
+const BLOOM_3D = { assist: 0.45, ref: 0.6, period: 0.88 };
+function bloomFlow(o, S) {
+  const V = o.vt || o, dt = Math.min(0.05, frameDt || 0.016), st = shipStats(S), ref = Math.max(1, st.top * U * BLOOM_3D.ref);
+  const B = V.bl || (V.bl = { phase: 0, flow: 0, side: 0, filamentTime: 0 });
+  const a = (V.ang != null ? V.ang : o.ang || 0), fs = (V.vx || 0) * Math.sin(a) - (V.vy || 0) * Math.cos(a), rs = (V.vx || 0) * Math.cos(a) + (V.vy || 0) * Math.sin(a);
+  const target = Math.max(clamp(fs / ref, 0, 1), clamp(o.power != null ? (o.power - 0.12) / 0.88 : 0, 0, 1) * BLOOM_3D.assist);
+  B.flow += (target - B.flow) * -Math.expm1(-dt / (target > B.flow ? 0.13 : 0.245));
+  B.side += (-clamp(rs / ref, -1, 1) - B.side) * -Math.expm1(-dt / 0.175);
+  B.phase = (B.phase + dt) % BLOOM_3D.period; B.filamentTime += dt;
+  return B;
+}
 // BALLAST's bumper light: { c: the rail slug's colour, k: 0..1 } — full as a slug leaves, gone in BUMPER_T s
 const BUMPER_T = 0.22;
 function ballastBumper(o) {
@@ -4829,6 +4845,10 @@ function draw3dShipModel(S, o, ang, bank) {
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
+  if (S.id === "bloom") {   // BLOOM: the rigged flower (lib: bloomRig) — its petals flex back and its pollen trails with the airflow
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { bloom: bloomFlow(o, S) }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
   if (S.id === "ballast") {   // BALLAST: its front bumper lights up in the slug's colour as each rail slug leaves (lib: bumper)
     try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { bumper: ballastBumper(o) }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
@@ -4872,7 +4892,8 @@ function draw3dShipModel(S, o, ang, bank) {
       cannon = { ring: V.cRing, open: t < F ? sm(t / (F * 0.75)) : 1 - sm((after - 250) / 400), glow: t < F ? sm(t / F) * 0.8 : Math.max(0, 1 - after / 300),
         kick: after > 0 ? Math.sin(clamp(after / 90, 0, 1) * Math.PI / 2) * (1 - sm((after - 90) / 260)) : 0, ball: after < 0 || after > 650 };
     } else if (V.cRing != null) V.cRing0 = V.cRing;   // (the ring stays where the last shot left it)
-    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { gears: V.gearP, recoil, cannon }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    const mg = V.muzT != null && V.muzW === "twin" ? time - V.muzT : 99, slide = mg < 0.025 ? mg / 0.025 : Math.max(0, 1 - (mg - 0.025) / 0.1);   // (the machine gun's barrels kick back with each shot)
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { gears: V.gearP, recoil, cannon, slide }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.id === "nimbus") {   // NIMBUS: its own 3D cloud round the bare ship (lib: cloud) — churning with the gas, dragged off by the boost, lit by its lightning
@@ -7953,6 +7974,7 @@ const THRUST_LOOPS = { corsair: ["audio/corsair/rowing-loop.ogg", 4.08], flipper
 // speed — however it got going, even from standing still — it breaks the sound barrier: a boom, and a cone of white
 // light opening behind it with a spear of light along its wake
 const THUL_BOOST = { tap: 0.32, accel: 2.8, top: 2, boom: 0.9 };
+const BOOST_RATE = 1.3;   // (boosting: the engine's loop played 30% faster)
 // the ships with a double-tap boost (THUL: four engines; NIMBUS: its fourth engine alone, a long yellow flame shedding embers)
 const BOOSTS = { brass: THUL_BOOST, nimbus: { tap: 0.32, accel: 2.8, top: 2, boom: 0.9 } };
 const sonics = [];   // { x, y, ang, t }
@@ -8093,9 +8115,13 @@ function rowingSound(on) {
   if (on && !R.src) {
     const B = soundBuf(loop); if (!B) return;
     const s = c.createBufferSource(), g = c.createGain(), P = game.ship === "corsair" ? game.oarPose : null; R.path = loop;
-    s.buffer = B; s.loop = true; s.loopStart = Math.min(from, B.duration * 0.9); s.loopEnd = Math.min(B.duration, len);
+    s.buffer = B; s.loop = true; s.loopStart = Math.min(from, B.duration * 0.9); s.loopEnd = Math.min(B.duration, len); R.rate = 1;
     g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(0.9, c.currentTime + 0.06);
     s.connect(g); g.connect(audio.out); s.start(c.currentTime, P ? P.phase * 0.68 : 0); R.src = s; R.g = g;
+  }
+  if (on && R.src) {   // THUL boosting (all four engines): its tracks played BOOST_RATE times as fast, eased in and out
+    const want = game.boost4 && BOOSTS[game.ship] ? BOOST_RATE : 1;
+    if (R.rate !== want) { R.rate = want; R.src.playbackRate.setTargetAtTime(want, c.currentTime, 0.12); }
   } else if (!on && R.src) {
     const s = R.src, g = R.g, now = c.currentTime; R.src = null;
     g.gain.cancelScheduledValues(now); g.gain.setValueAtTime(g.gain.value, now); g.gain.linearRampToValueAtTime(0, now + 0.12); try { s.stop(now + 0.14); } catch (e) {}

@@ -10,6 +10,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "./three/GLTFLoader.js";
 import { MeshoptDecoder } from "./three/meshopt_decoder.module.js";
 import { RoomEnvironment } from "./three/RoomEnvironment.js";
+import { createBloomVisual } from "./bloom-three-v1.mjs";   // (BLOOM's rigged petals and pollen: the Bloom 3D Motion package)
 
 // per ship: its file; which way its nose points in the file (fwd: "+x" | "-x" | "+z" | "-z"); turn: an extra turn
 // round its up axis (rad) to line it up with the 2D drawing; len: its length on screen, in the 2D drawing's units
@@ -24,7 +25,8 @@ export const SHIP_MODELS = {
     { c: [0.15, 0.015], r: 0.1, z: [0.078, 0.128], teeth: 18, dir: -1, spokes: 6 },     // under them, toward the tail
     { c: [-0.065, -0.056], r: 0.068, z: [-0.235, -0.13], teeth: 12, dir: -1, spokes: 4 }, // the small one by the right pod
     { axis: "x", c: [0.01, 0.58], r: 0.2, z: [-0.02, 0.08], teeth: 30, dir: 1, spokes: 6, drive: "cannon" },   // the heavy cannon's ring gear, round its barrel
-  ], iris: { c: [0.005, 0.607], x: -0.505, r: 0.117, back: -0.43, blades: 8 } },   // (the heavy cannon's iris, its face at x; back: as deep as the bore)
+  ], iris: { c: [0.005, 0.607], x: -0.505, r: 0.117, back: -0.43, blades: 8 },
+    slide: { box: [[-1.0, -0.5, -0.76], [-0.715, 0.5, -0.46]], dir: [1, 0, 0], dist: 0.05 } },   // (its machine gun's barrels: splitSlide — kicked back toward the tail as it fires)   // (the heavy cannon's iris, its face at x; back: as deep as the bore)
   puff: { file: "models/puff.glb", fwd: "-x", len: 0.8 },
   xeltar: { file: "models/xeltar.glb", fwd: "-x", len: 0.95 },
   strata: { file: "models/strata.glb", fwd: "-x", len: 0.95 },
@@ -63,7 +65,7 @@ export const SHIP_MODELS = {
   rivet: { file: "models/rivet.glb", fwd: "-x", len: 0.82 },
   nimbus: { file: "models/nimbus.glb", fwd: "-x", len: 0.95, cloud: true, pad: 2.2 },   // (the bare ship: its cloud is ours, makeCloud)
   husk: { file: "models/husk.glb", fwd: "-x", len: 1.05 },
-  bloom: { file: "models/bloom.glb", fwd: "-z", len: 0.8, fit: "max", upright: 1 },
+  bloom: { file: "models/bloom-rigged.glb", fwd: "-z", len: 0.8, fit: "max", upright: 1, bloomRig: true, pollen: 1.4, pad: 2.0 },   // (the rigged flower: its petals bend with the airflow, pollen filaments trail; pollen: their size, bigger than the package's for more motion)
 };
 
 const PX = 512, PAD = 1.3;   // the off-screen picture's size (px), and its room round the ship (for rolling and tilting)
@@ -703,13 +705,30 @@ function makeBumper(E, M) {
   const lamp = new THREE.PointLight(0xffffff, 0, 0.9, 1.6); lamp.position.set(B.x - 0.1, B.y + 0.06, (B.z[0] + B.z[1]) / 2); raw.add(lamp);
   E.bumper = { mat, lamp };
 }
+// a part cut off at load onto a slide of its own (THUL: `slide`, its machine gun — every triangle wholly inside `box`, in
+// the file's units), pushed along `dir` by `dist` times opt.slide (0..1): the barrels' recoil. Kept with its own look
+function splitSlide(E, M) {
+  const Sd = M.slide, raw = E.raw; raw.updateMatrixWorld(true);
+  const B = new THREE.Box3(new THREE.Vector3(...Sd.box[0]), new THREE.Vector3(...Sd.box[1])), g = new THREE.Group(); raw.add(g); g.updateMatrixWorld(true);
+  const meshes = [], v = new THREE.Vector3(); raw.traverse((o) => { if (o.isMesh && o.parent === raw) meshes.push(o); });
+  for (const m of meshes) {
+    const gm = m.geometry, P = gm.attributes.position, idx = gm.index ? gm.index.array : null, cnt = idx ? idx.length : P.count;
+    const inB = new Uint8Array(P.count); for (let i = 0; i < P.count; i++) inB[i] = B.containsPoint(v.fromBufferAttribute(P, i).applyMatrix4(m.matrix)) ? 1 : 0;
+    const keep = [], move = [];
+    for (let t = 0; t < cnt; t += 3) { const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2; (inB[a] && inB[b] && inB[c] ? move : keep).push(a, b, c); }
+    if (!move.length) continue;
+    const part = (L) => { const G = new THREE.BufferGeometry(); for (const k in gm.attributes) G.setAttribute(k, gm.attributes[k]); G.setIndex(L); const X = new THREE.Mesh(G, m.material); X.frustumCulled = false; m.parent.add(X); X.position.copy(m.position); X.quaternion.copy(m.quaternion); X.scale.copy(m.scale); X.updateMatrixWorld(true); return X; };
+    part(keep); g.attach(part(move)); m.visible = false;
+  }
+  E.slide = { g, dir: new THREE.Vector3(...Sd.dir).multiplyScalar(Sd.dist) };
+}
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
   let E = models[id];
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); if (M.cloud) makeCloud(E); if (M.gears) makeGears(E, M); if (M.bumper) makeBumper(E, M); if (M.drum) makeDrum(E, M); if (M.paddles) splitPaddles(E, M); if (M.grille) makeGrille(E, M); if (M.wheel) splitWheel(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.bloomRig) { try { E.bloom = createBloomVisual(THREE, g); E.bloom.effects.scale.setScalar(M.pollen || 1); } catch (err) { console.warn("bloom rig", err); } } if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); if (M.cloud) makeCloud(E); if (M.slide) splitSlide(E, M); if (M.gears) makeGears(E, M); if (M.bumper) makeBumper(E, M); if (M.drum) makeDrum(E, M); if (M.paddles) splitPaddles(E, M); if (M.grille) makeGrille(E, M); if (M.wheel) splitWheel(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -835,7 +854,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 46,   // (index.html checks it; the file's name carries it too — lib/ship3d-v46.js — so the app never mixes a new
+  version: 47,   // (index.html checks it; the file's name carries it too — lib/ship3d-v47.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -857,7 +876,7 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    let pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.bumper && opt && opt.bumper ? "|b" + opt.bumper.c + Math.round(opt.bumper.k * 30) : "") + (E.drum && opt ? "|d" + Math.round((opt.drum || 0) * 40) + (opt.clawOut ? "c" : "") : "") + (E.paddles && opt && opt.paddles ? "|p" + opt.paddles.map((a) => Math.round(a * 100)).join(",") : "") + (E.wheel && opt ? "|w" + Math.round((opt.wheel || 0) * 60) + "," + Math.round((opt.glow || 0) * 20) + "," + Math.round((opt.flaps || 0) * 40) : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) + (opt.cannon ? "," + ["ring", "kick", "open", "glow"].map((k) => Math.round((opt.cannon[k] || 0) * 40)).join(",") + (opt.cannon.ball === false ? "x" : "") : "") : "");   // (a new picture only when it has turned a quarter of a degree)
+    let pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.bloom && opt && opt.bloom ? "|B" + Math.round(opt.bloom.flow * 50) + "," + Math.round(opt.bloom.side * 30) + "," + Math.round(opt.bloom.phase * 90) + "," + Math.round(opt.bloom.filamentTime * 40) : "") + (E.bumper && opt && opt.bumper ? "|b" + opt.bumper.c + Math.round(opt.bumper.k * 30) : "") + (E.drum && opt ? "|d" + Math.round((opt.drum || 0) * 40) + (opt.clawOut ? "c" : "") : "") + (E.paddles && opt && opt.paddles ? "|p" + opt.paddles.map((a) => Math.round(a * 100)).join(",") : "") + (E.wheel && opt ? "|w" + Math.round((opt.wheel || 0) * 60) + "," + Math.round((opt.glow || 0) * 20) + "," + Math.round((opt.flaps || 0) * 40) : "") + (E.slide && opt ? "|s" + Math.round((opt.slide || 0) * 20) : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) + (opt.cannon ? "," + ["ring", "kick", "open", "glow"].map((k) => Math.round((opt.cannon[k] || 0) * 40)).join(",") + (opt.cannon.ball === false ? "x" : "") : "") : "");   // (a new picture only when it has turned a quarter of a degree)
     // opt.lights: up to 3 coloured lights inside the ship ({ x, y, z } in the fitted model's units, before it is tilted;
     // color; i: how bright) — MIRAGE's light running up its prism
     if (!lamps) { lamps = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xffffff, 0, 1.2, 1.6); scene.add(L); return L; }); }
@@ -867,11 +886,13 @@ export const Ship3D = {
     if (E.halves) { const h = opt && opt.half; for (const X of E.halves.front) X.visible = !h || h === "front"; for (const X of E.halves.back) X.visible = !h || h !== "front"; }   // (any other half: the rear piece)
     if (E.ghost) { E.ghost.uG.value = (opt && opt.ghost) || 0; E.ghost.uT.value = (opt && opt.t) || 0; }
     if (E.fan) { const O = (opt && opt.open) || [], nw = M.fan.narrow || 1; E.fan.forEach((P, i) => { const k = O[i] || 0; P.pivot.quaternion.identity().slerp(P.shut, 1 - k); const sl = M.fan.shorten || 1; P.squash.scale.set(sl + (1 - sl) * k, nw + (1 - nw) * k, 1); }); }   // (opt.open: how open each panel is, 0 shut .. 1 as modelled)
+    if (E.bloom) { Object.assign(E.bloom.state, (opt && opt.bloom) || {}); E.bloom.tick(0, {}); }   // (opt.bloom: the flower's airflow state, { phase, flow, side, filamentTime } — kept by the game for each ship: the pose of its petals and pollen now)
     if (E.bumper) { const Bp = (opt && opt.bumper) || { k: 0 }; E.bumper.mat.opacity = Bp.k; E.bumper.lamp.intensity = 2.5 * Bp.k; if (Bp.c) { E.bumper.mat.color.set(Bp.c); E.bumper.lamp.color.set(Bp.c); } }
     if (E.drum) { E.drum.spin.rotation.x = (opt && opt.drum) || 0; E.drum.uKon.value = opt && opt.clawOut ? 1 : 0; }   // (opt.drum: its turn, rad; opt.clawOut: the boom's claw away)
     if (E.paddles) { const A = (opt && opt.paddles) || [0, 0]; E.paddles.forEach((P, i) => { P.hinge.rotation.y = P.s * (A[i] || 0); }); }   // (opt.paddles: each paddle's swing from the model's own pose, rad, + = toward the nose)
     if (E.grille) { const k = (opt && opt.flaps) || 0; for (const f of E.grille.flaps) f.rotation.y = 1.3 * k; E.grille.glowMat.emissiveIntensity = 0.5 + 1.6 * Math.max(k, (opt && opt.glow) || 0); }   // (opt.flaps: 0 shut .. 1 open)
     if (E.wheel) { const Wh = E.wheel; Wh.axle.quaternion.copy(Wh.base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -((opt && opt.wheel) || 0))); Wh.glow.intensity = 0.8 * ((opt && opt.glow) || 0); }
+    if (E.slide) E.slide.g.position.copy(E.slide.dir).multiplyScalar((opt && opt.slide) || 0);
     if (E.gears) {   // (recoil: toward the tail, +x in THUL's file)
       const a = (opt && opt.gears) || 0, C = (opt && opt.cannon) || {};
       for (const g of E.gears.list) { g.axle.rotation.z = (g.drive === "cannon" ? C.ring || 0 : a) * g.k; g.boss.rotation.y = g.axle.rotation.z; }
