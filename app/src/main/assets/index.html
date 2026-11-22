@@ -12554,6 +12554,9 @@ function updateLariat(dt) {
       game.hook = { x: p.x, y: p.y, z: p.z, vx: n[0] * v, vy: n[2] * v, vz: n[1] * v * LAR.depth, t: 0, ox: p.x, oy: p.y };   // (into the depth faster: it clearly shrinks or grows as it flies, as LYTH's ring)
       const tg = hookTarget(p, n);   // an enemy roughly ahead and in reach: the claw is thrown straight at it, to its depth too
       if (tg) { const T = Math.max(0.05, tg.d / v); game.hook.vx = tg.dx / T; game.hook.vy = tg.dy / T; game.hook.vz = tg.dz * U / T; game.hook.aim = true; }
+      // (it leaves with the ship's own drift too: coasting, the claw goes straight out ahead of the ship as seen from it;
+      // only the ship's speeding up or turning after the throw changes where it is against the ship)
+      const H0 = game.hook; H0.bx = game.vx; H0.by = game.vy; H0.bz = view3d.on && !BOT ? game.vz3 || 0 : 0; H0.vx += H0.bx; H0.vy += H0.by; H0.vz += H0.bz;
     }
   }
   const H = game.hook;
@@ -12571,14 +12574,16 @@ function updateLariat(dt) {
       game.hook = null;
       game.tether = { rest: R + Math.max(LAR.slack * u, (q.d - R) * 0.84), t: 0 };
       audio.tone(140, 0.2, "square", 0.05, 0.5); audio.noise(0.1, 0.2, 2500); shake(0.25); buzz(60);
-    } else if (H.t > LAR.hookLife || Math.hypot(wrapDelta(H.x - H.ox, WW), wrapDelta(H.y - H.oy, WH)) > LAR.reach * u * 1.4 || hit != null) {
+    } else if (H.t > LAR.hookLife || Math.hypot(wrapDelta(H.x - game.x, WW), wrapDelta(H.y - game.y, WH)) > LAR.reach * u * 1.4 || hit != null) {   // (out of reach of the ship: its cable's length)
       game.hook = null; audio.tone(500, 0.1, "triangle", 0.03, 0.5);   // missed (or the ship was too far from the body)
     } else {
       H.x = (((H.x + dx) % WW) + WW) % WW; H.y = (((H.y + dy) % WH) + WH) % WH; H.z = clamp((H.z || 0) + (H.vz || 0) / U * dt, -TILT3.far + 0.5, TILT3.near - 0.5);
       if (H.aim && enemy.on && enemy.warp < 0.5 && !enemyAloft()) {   // (thrown at the enemy: it bends after it as it moves, across and in depth)
-        const tx = wrapDelta(enemy.x - H.x, WW), ty = wrapDelta(enemy.y - H.y, WH), sp = Math.hypot(H.vx, H.vy) || 1, a0 = Math.atan2(H.vx, -H.vy), a1 = Math.atan2(tx, -ty);
-        const da = clamp(wrapAngle(a1 - a0), -LAR_AIM.steer * dt, LAR_AIM.steer * dt), a = a0 + da; H.vx = Math.sin(a) * sp; H.vy = -Math.cos(a) * sp;
-        if (view3d.on && !BOT) { const T = Math.max(0.05, Math.hypot(tx, ty) / sp); H.vz += (((enemy.z3 || 0) - (H.z || 0)) * U / T - H.vz) * Math.min(1, dt * 6); }
+        // (bending its own throw — the part on top of the drift it left with)
+        const bx = H.bx || 0, by = H.by || 0, bz = H.bz || 0, rvx = H.vx - bx, rvy = H.vy - by;
+        const tx = wrapDelta(enemy.x - H.x, WW), ty = wrapDelta(enemy.y - H.y, WH), sp = Math.hypot(rvx, rvy) || 1, a0 = Math.atan2(rvx, -rvy), a1 = Math.atan2(tx, -ty);
+        const da = clamp(wrapAngle(a1 - a0), -LAR_AIM.steer * dt, LAR_AIM.steer * dt), a = a0 + da; H.vx = bx + Math.sin(a) * sp; H.vy = by - Math.cos(a) * sp;
+        if (view3d.on && !BOT) { const T = Math.max(0.05, Math.hypot(tx, ty) / sp), rvz = H.vz - bz; H.vz = bz + rvz + (((enemy.z3 || 0) - (H.z || 0)) * U / T - rvz) * Math.min(1, dt * 6); }
       }
     }
   }
