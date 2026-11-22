@@ -18103,12 +18103,49 @@ function drawVantaLiquid(o) {
   ctx.save(); ctx.clip();
   if (glow > 0) { const g = ctx.createRadialGradient(0, (top + bot) / 2, 0, 0, (top + bot) / 2, 0.2); g.addColorStop(0, hexA(T.ribbon[1], 0.35 * glow)); g.addColorStop(1, hexA(T.ribbon[0], 0)); ctx.fillStyle = g; ctx.fillRect(-0.2, -0.5, 0.4, 0.7); }
   if (bot - top > 0.005) {
-    ctx.beginPath();
-    for (let i = 0; i <= 30; i++) { const u = i / 30, x = amp * Math.sin(u * 9.2 * (bot - top) / (V.bot - V.top) + t * 0.004), y = top + u * (bot - top); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    // the detail follows how big it is on the screen (px per ship-length): close to the camera, many more points along the
+    // wave and the shading below, so it stays smooth
+    const M = ctx.getTransform(), px = Math.hypot(M.a, M.b) || 100, n = Math.round(clamp(px * (bot - top) / 3, 30, 260));
+    const span = (bot - top) / (V.bot - V.top), pts = [];
+    for (let i = 0; i <= n; i++) {   // the ribbon's middle: the main wave, a small faster ripple on it
+      const u = i / n, ph = u * 9.2 * span + t * 0.004;
+      pts.push([amp * Math.sin(ph) + amp * 0.12 * Math.sin(ph * 2.7 - t * 0.0065), top + u * (bot - top), Math.cos(ph)]);   // (the 3rd: the wave's slope, for its light)
+    }
+    const path = (dx = 0, dy = 0) => { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x + dx, y + dy) : ctx.moveTo(x + dx, y + dy))); };
     ctx.lineJoin = "round"; ctx.lineCap = "round";
-    if (T.white || glow > 0.5) { ctx.shadowColor = T.ribbon[1]; ctx.shadowBlur = 14; }   // (shadowBlur is in screen pixels)
-    for (const [w, c, al] of [[V.w[0] * fat, T.ribbon[0], 0.39], [V.w[1] * fat, T.ribbon[1], 0.84], [V.w[2] * fat, T.ribbon[2], 0.87]]) { ctx.strokeStyle = c; ctx.globalAlpha = al; ctx.lineWidth = w; ctx.stroke(); }
-    ctx.globalAlpha = 1;
+    // the chamber's liquid round it: a faint tinted glow, darker toward the walls (its depth)
+    const body = ctx.createLinearGradient(-V.half, 0, V.half, 0);
+    body.addColorStop(0, "rgba(0,0,0,0.45)"); body.addColorStop(0.3, hexA(T.ribbon[0], 0.1)); body.addColorStop(0.5, hexA(T.ribbon[1], 0.14)); body.addColorStop(0.7, hexA(T.ribbon[0], 0.1)); body.addColorStop(1, "rgba(0,0,0,0.45)");
+    ctx.fillStyle = body; ctx.fillRect(-V.half, top - 0.02, V.half * 2, bot - top + 0.04);
+    // its shadow on the chamber's back wall, a little down and to the side
+    path(0.012, 0.01); ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = V.w[0] * fat * 1.15; ctx.stroke();
+    if (T.white || glow > 0.5) { ctx.shadowColor = T.ribbon[1]; ctx.shadowBlur = 14 + (px > 600 ? 10 : 0); }   // (shadowBlur is in screen pixels)
+    // the tube itself: a dark rim, the colour, then its lit core
+    path(); ctx.strokeStyle = T.ribbon[0]; ctx.globalAlpha = 0.55; ctx.lineWidth = V.w[0] * fat; ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = T.ribbon[1]; ctx.globalAlpha = 0.88; ctx.lineWidth = V.w[1] * fat; ctx.stroke();
+    // the light on its curve: brighter where the wave turns toward the light (its slope), in short runs so it shimmers
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < n; i++) {
+      const lit = 0.5 + 0.5 * pts[i][2]; if (lit < 0.35) continue;
+      ctx.strokeStyle = hexA(T.ribbon[2], 0.55 * lit); ctx.lineWidth = V.w[2] * fat * (0.8 + 0.8 * lit);
+      ctx.beginPath(); ctx.moveTo(pts[i][0] - V.w[1] * 0.22 * fat, pts[i][1]); ctx.lineTo(pts[i + 1][0] - V.w[1] * 0.22 * fat, pts[i + 1][1]); ctx.stroke();
+    }
+    ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+    // bubbles rising through it (only when big enough on the screen to be seen)
+    if (px > 260) {
+      for (let b = 0; b < 7; b++) {
+        const sp = 0.05 + 0.03 * ((b * 37) % 5) / 5, ph = ((t * 0.001 * sp / (bot - top) + b * 0.137) % 1), y = bot - ph * (bot - top);
+        const x = amp * Math.sin((1 - ph) * 9.2 * span + t * 0.004) + Math.sin(b * 2.1 + t * 0.002) * V.w[1] * 0.6, r = 0.0035 + 0.003 * ((b * 13) % 3) / 2;
+        ctx.globalAlpha = Math.sin(ph * Math.PI) * 0.8;
+        ctx.fillStyle = hexA(T.ribbon[2], 0.5); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+        ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(x - r * 0.35, y - r * 0.35, r * 0.35, 0, TAU); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    // the glass over the chamber: a soft highlight down one side
+    const gl = ctx.createLinearGradient(-V.half, 0, -V.half * 0.3, 0); gl.addColorStop(0, "rgba(255,255,255,0.16)"); gl.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = gl; ctx.fillRect(-V.half, top - 0.02, V.half * 0.7, bot - top + 0.04);
   }
   ctx.restore();
   if (blob) {   // the drop on its way out
