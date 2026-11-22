@@ -1033,10 +1033,10 @@ ok("the game's script parses (a slip there would leave a black screen)", () => {
 ok("the body in the middle at the start is the first match's (chosen at the start, kept; the computer takes the player's)", () => assert(/setBody\(pickBody\(cosmos\.body\), false\); cosmos\.started = true; cosmos\.chosen = true;/.test(html) && /if \(cosmos\.chosen && !BOT\) cosmos\.chosen = false;/.test(html) && /BODIES\[m\.b\] && \(BOT \|\| \(duel\.side === 1 && !duel\.bot\)\)/.test(html)));
 ok("3D view (stage 1): three.js and the ship models in the app, loaded only when turned on, drawn in drawShip in place of the 2D drawing", () => {
   const A = require("path").join(__dirname, "../app/src/main/assets");
-  for (const f of ["lib/ship3d-v53.js", "lib/three/three.module.js", "lib/three/three.core.js", "lib/three/GLTFLoader.js", "lib/three/meshopt_decoder.module.js", "lib/three/RoomEnvironment.js", "lib/three/BufferGeometryUtils.js", "lib/three/SkeletonUtils.js"]) assert(fs.existsSync(require("path").join(A, f)), f);
-  const lib = fs.readFileSync(require("path").join(A, "lib/ship3d-v53.js"), "utf8");
+  for (const f of ["lib/ship3d-v54.js", "lib/three/three.module.js", "lib/three/three.core.js", "lib/three/GLTFLoader.js", "lib/three/meshopt_decoder.module.js", "lib/three/RoomEnvironment.js", "lib/three/BufferGeometryUtils.js", "lib/three/SkeletonUtils.js"]) assert(fs.existsSync(require("path").join(A, f)), f);
+  const lib = fs.readFileSync(require("path").join(A, "lib/ship3d-v54.js"), "utf8");
   for (const m of lib.matchAll(/file: "([^"]+)"/g)) assert(fs.existsSync(require("path").join(A, m[1])), m[1]);
-  assert(/"three": "\.\/lib\/three\/three\.module\.js"/.test(html) && /import\(SHIP3D_FILE\)/.test(html) && /SHIP3D_FILE = "\.\/lib\/ship3d-v53\.js"/.test(html) && /version: 53,/.test(fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/lib/ship3d-v53.js"), "utf8")) && /if \(draw3dShip\(S, o, ang, bank\)\) \{ ctx\.restore\(\); return; \}/.test(html));
+  assert(/"three": "\.\/lib\/three\/three\.module\.js"/.test(html) && /import\(SHIP3D_FILE\)/.test(html) && /SHIP3D_FILE = "\.\/lib\/ship3d-v54\.js"/.test(html) && /version: 54,/.test(fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/lib/ship3d-v54.js"), "utf8")) && /if \(draw3dShip\(S, o, ang, bank\)\) \{ ctx\.restore\(\); return; \}/.test(html));
 });
 ok("3D sticks: gentle near the middle, the usual rate at the button's edge, up to 2.5 times as fast dragged further out", () => {
   const src = html.slice(html.indexOf("const STEER3 = "), html.indexOf("// a drag on one of the sticks"));
@@ -1046,7 +1046,7 @@ ok("3D sticks: gentle near the middle, the usual rate at the button's edge, up t
 });
 ok("flying in 3D, like a simulator: the thrust button a stick (in place: engine; sideways: yaw; right out: yaw and engine), fire button 1 a stick (in place: fire; tilt and roll; right out: both); turns round the ship's own axes, kept when let go; no pointing; the push along the nose into a wrapping depth; over the body out of the plane; the other phone gets z3/p3/r3; buttons 1 cm in", () => assert(/const TILT3 = \{ rate: 2\.6, roll: 3\.2, yaw: 3\.0, dead: 0\.25, full: 1\.3, fireAt: 1\.45, far: 12, near: 12, small: 1 \/ 6, big: 6\.0, fade: 0\.5, layers: 6 \}/.test(html) && /game\.fire\[0\] = s3\.still \|\| s3\.out \? T\.id : null;/.test(html) && /Y\.yaw = Y\.axis === \"yaw\" \? dx \* s3\.k : 0; Y\.tilt = Y\.axis === \"tilt\" \? -dy \* s3\.k \* LEFT_TILT : 0;/.test(html) && /Y\.engine = s3\.still \|\| s3\.out;/.test(html) && /if \(yaw\) q = Q3\.mul\(q, Q3\.axis\(0, 1, 0, -yaw\)\);/.test(html) && /if \(pitch\) q = Q3\.mul\(q, Q3\.axis\(1, 0, 0, -pitch\)\);/.test(html) && /if \(roll\) q = Q3\.mul\(q, Q3\.axis\(0, 0, 1, -roll\)\);/.test(html) && /if \(view3d\.on && !BOT\) \{ target = null; turn = 0; \}/.test(html) && /thrust: thrusting\(\) \}/.test(html) && /updateSnake\(dt\); updateTilt3\(dt\);/.test(html) && /if \(z > T\.near\) z -= T\.near \+ T\.far; else if \(z < -T\.far\) z \+= T\.near \+ T\.far;/.test(html) && /Math\.abs\(game\.z3 \|\| 0\) \* U > R/.test(html) && /enemy\.z3 = n\.z3 \|\| 0; enemy\.p3 = n\.p3 \|\| 0; enemy\.r3 = n\.r3 \|\| 0;/.test(html) && /const in3 = view3d\.on && !BOT \? 10 \* MM : 0;/.test(html)));
 ok("3D view: a camera button (from above / behind the ship): the chase camera lays the game's picture of space as the floor of a 3D scene round my ship's model, the camera following behind", () => {
-  const lib = fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/lib/ship3d-v53.js"), "utf8");
+  const lib = fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/lib/ship3d-v54.js"), "utf8");
   assert(/function chase\(o\)/.test(lib) && /C\.q\.slerp\(_q, 1 - Math\.exp\(-o\.dt \* o\.follow\)\)/.test(lib));
   assert(/const CHASE = \{ zoom: 0\.45, follow: 3\.2, len: 1\.0 \}/.test(html) && /ctx\.restore\(\);\n    chaseCompose\(\);/.test(html) && /if \(hitCamButton\(e\.clientX, e\.clientY\)\) \{ camButtonTap\(\); return; \}/.test(html) && /if \(!chaseHidesShip\(shown\)\) drawShip\(shown/.test(html) && /drawRadar\(\); drawCamButton\(\);/.test(html));
 });
@@ -1087,7 +1087,7 @@ ok("flying in 3D: the level button (up-left of the thrust button) — an autopil
 ok("flying in 3D: the RESET button between the buttons with the orientation pyramid (models/orientation.glb) turning in its window as my ship does; Q3.rot turns a vector as three.js does", () => {
   assert(/function drawGauge3\(G\)/.test(html) && /function levelButton\(\) \{ return gaugeBox\(\); \}/.test(html) && /view3d\.lib\.gauge\(ctx, game\.q3, G\.x, G\.y, G\.r\)/.test(html) && /art\/ui\/btn-reset-gauge\.webp/.test(html));
   for (const f of ["art/ui/btn-reset-gauge.webp", "models/orientation.glb"]) assert(fs.existsSync(require("path").join(__dirname, "../app/src/main/assets", f)), f);
-  assert(/function gauge\(ctx, q, x, y, r\)/.test(fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/lib/ship3d-v53.js"), "utf8")));
+  assert(/function gauge\(ctx, q, x, y, r\)/.test(fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/lib/ship3d-v54.js"), "utf8")));
   const i = html.indexOf("const Q3 = {"), j = html.indexOf("// ---- the attitude gauge");
   const Q3 = new Function("clamp", "wrapAngle", html.slice(i, j) + "; return Q3;")((v, a, b) => Math.min(b, Math.max(a, v)), (a) => Math.atan2(Math.sin(a), Math.cos(a)));
   const n = Q3.rot(Q3.fromAngles(Math.PI / 2, 0, 0), [0, 0, -1]);   // (heading right: the nose to the screen's right)
@@ -1098,7 +1098,7 @@ ok("flying in 3D: the RESET button between the buttons with the orientation pyra
 ok("flying in 3D: shots leave from the gun point turned as the ship is (tilt, roll, depth) and along its nose; the engine flames turned with it, hidden round behind the hull; any ship with a model drawn before its rigs", () => assert(/if \(q3s\) \{ const k = game\.z3 \? depthScale\(game\.z3\) : 1, gp = Q3\.rot\(q3s/.test(html) && /let dv = q3s \? Q3\.rot\(q3s, \[Math\.sin\(dir - game\.ang\), 0, -Math\.cos\(dir - game\.ang\)\]\)/.test(html) && /const np = Q3\.rot\(q3f, \[ex, 0, ey\]\)/.test(html) && /if \(draw3dShip\(S, o, ang, bank\)\) \{ ctx\.restore\(\); return; \}   \/\/ \(the 3D view: its model, before any rig/.test(html)));
 ok("flying in 3D: the body in the middle of the depth; from above a ship behind it is hidden by it (and by the station); the chase camera shows the body as a ball you can pass in front of and behind", () => {
   assert(/function coverBehind\(\)/.test(html) && /coverBehind\(\);   \/\/ \(flying in 3D/.test(html) && /if \(chaseOn\(\)\) return;   \/\/ \(the chase camera: the body is a ball/.test(html) && /img = view3d\.lib\.chase\(\{ body: bodyP,/.test(html));
-  const lib = fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/lib/ship3d-v53.js"), "utf8");
+  const lib = fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/lib/ship3d-v54.js"), "utf8");
   assert(/const ball = new THREE\.Mesh\(new THREE\.SphereGeometry/.test(lib) && /floor\.renderOrder = -1; floor\.material\.depthWrite = false;/.test(lib));
 });
 ok("flying in 3D: the map's frame blue in front of the body, red behind it, and beside it a line for each layer of depth (6 each way)", () => {
@@ -1206,7 +1206,7 @@ ok("maneuver training: a card beside the shop, 10 levels, objects coloured and l
   const layerZ = (k) => { if (!k) return 0; const per = (k > 0 ? T.near : T.far) / T.layers; return Math.sign(k) * (Math.abs(k) - 0.5) * per; };
   const layerOf = (z) => { const front = z >= 0, per = (front ? T.near : T.far) / T.layers; return { front, n: Math.min(T.layers, Math.ceil(Math.abs(z) / per - 0.02)) }; };
   for (let k = -6; k <= 6; k++) { const L = layerOf(layerZ(k)); assert(L.n === Math.abs(k) && (k >= 0 ? L.front : !L.front)); }
-  assert(/strata: \{ file: "models\/strata\.glb", fwd: "-x"/.test(fs.readFileSync(require("path").join(A, "lib/ship3d-v53.js"), "utf8")));
+  assert(/strata: \{ file: "models\/strata\.glb", fwd: "-x"/.test(fs.readFileSync(require("path").join(A, "lib/ship3d-v54.js"), "utf8")));
 });
 ok("the feel: grip and drift, a kick, turns with weight, 3D spin coasting; shots keep little sideways drift, bend onto a target just off the nose, and hit what they pass through", () => {
   const html = fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/index.html"), "utf8");
