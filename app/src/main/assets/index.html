@@ -18610,7 +18610,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawSonics(); drawRaiders(); drawEnemy(); drawPractice(); drawTraining("behind"); drawParts("behind"); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawHuskCreature(); drawParasites(); drawLightFx(); drawGhosts(); drawCorsairAim();
+    drawSonics(); drawRaiders(); drawEnemy(); drawPractice(); drawTraining("behind"); drawParts("behind"); drawShots(shots, "behind"); drawShots(duel.shots, "behind"); drawShots(eshots, "behind"); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawHuskCreature(); drawParasites(); drawLightFx(); drawGhosts(); drawCorsairAim();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -18664,9 +18664,9 @@ function draw() {
       }
     }
     coverBehind();   // (flying in 3D: a ship behind the body or the station, hidden by it where they overlap)
-    drawShots(); drawRcs();
-    drawShots(duel.shots);
-    drawShots(eshots);
+    drawShots(shots, "front"); drawRcs();
+    drawShots(duel.shots, "front");
+    drawShots(eshots, "front");
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
     drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawCharm(); drawDecoys(); drawNullWorld(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawDrakFlares(); drawJetBubbles(); drawTow(game, game.tow, towRig(game.tow, MAGIC.tow)); if (game.surg) drawSurgery(game, game.surg); if (enemy.remote && duel.surg) drawSurgery(enemy, duel.surg); if (enemy.remote && duel.tow) drawTow(enemy, duel.tow, towRig(duel.tow, MAGIC.tow)); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
@@ -19395,10 +19395,13 @@ function drawShot1(s, size) {
       ctx.restore();
     }
   }
-function drawShots(list = shots) {
-  const size = shipSize();
+// pass (flying in 3D): "behind" — only the shots further away than my ship (drawn before the ships, so the hull covers them
+// where they pass behind it); "front" — the rest. No pass: all of them
+function drawShots(list = shots, pass) {
+  const size = shipSize(), d3 = view3d.on && !BOT, zs = game.z3 || 0;
   ctx.save(); ctx.lineCap = "round";
   for (const s of list) {
+    if (pass && d3) { const back = (s.z3 || 0) < zs - SHOT_BEHIND; if ((pass === "behind") !== back) continue; } else if (pass === "behind") continue;
     // flying in 3D: a shot off the plane, drawn smaller (far) or bigger (near) round where it is
     const k3 = s.z3 ? depthScale(s.z3) : 1;
     if (k3 !== 1) { const q = toScreen(s.x, s.y); ctx.save(); ctx.translate(q.x, q.y); ctx.scale(k3, k3); ctx.translate(-q.x, -q.y); ctx.globalAlpha *= depthFade(s.z3); drawShot1(s, size); ctx.restore(); }
@@ -19406,6 +19409,7 @@ function drawShots(list = shots) {
   }
   ctx.restore();
 }
+const SHOT_BEHIND = 0.03;   // (flying in 3D: how much further than my ship, in depth layers, a shot must be to go behind it)
 function drawRings() {
   for (const g of rings) {
     const k = g.t / g.max, p = toScreen(g.x, g.y);

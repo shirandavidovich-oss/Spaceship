@@ -1057,7 +1057,7 @@ ok("a control button with my ship behind it fades to 10%; the sound dials beside
   assert(/function padSee\(key, list, fn\)/.test(html) && /under \? 0\.1 : 1/.test(html) && /return walletBox\(\)\.dials;/.test(html) && /side = 1\.5 \* Math\.max/.test(html) && /if \(hit3dButton\(e\.clientX, e\.clientY\)\) \{ view3dTap\(\); return; \}/.test(html));
   for (const f of ["art/ui/btn-camera.webp", "art/ui/btn-2d3d.webp"]) assert(fs.existsSync(require("path").join(__dirname, "../app/src/main/assets", f)), f);
 });
-ok("flying in 3D: attitude jets — gas puffs from the ship's edges while it yaws, tilts or rolls, each with a psss", () => assert(/const RCS = \{ every: 0\.13/.test(html) && /function rcsHiss\(vol\)/.test(html) && /updateTilt3\(dt\); updateRcs\(dt\);/.test(html) && /drawShots\(\); drawRcs\(\);/.test(html)));
+ok("flying in 3D: attitude jets — gas puffs from the ship's edges while it yaws, tilts or rolls, each with a psss", () => assert(/const RCS = \{ every: 0\.13/.test(html) && /function rcsHiss\(vol\)/.test(html) && /updateTilt3\(dt\); updateRcs\(dt\);/.test(html) && /drawShots\(shots, "front"\); drawRcs\(\);/.test(html)));
 ok("flying in 3D: fire button 1 locks to one motion (tilt or roll) by the way the thumb first goes, until it is back in the middle", () => assert(/if \(s3\.still\) T\.axis = null; else if \(!T\.axis\) T\.axis = Math\.abs\(dx\) > Math\.abs\(dy\) \? "roll" : "tilt";/.test(html)));
 ok("flying in 3D: the turns are round the ship's own axes (a quaternion), and its angles come back out exactly as three.js turns the model", () => {
   const i = html.indexOf("const Q3 = {"), j = html.indexOf("function updateTilt3(dt) {");
