@@ -4927,9 +4927,14 @@ function tilt3Move(e) {
   game.fire[0] = s3.still || s3.out ? T.id : null;   // (in place, or dragged right out: firing)
 }
 function yaw3Move(e) {
-  const Y = game.yaw3, dx = e.clientX - Y.ox, s3 = stick3(dx, 0);
-  Y.yaw = dx * s3.k; Y.engine = s3.still || s3.out;   // (in place, or dragged right out: the engine)
+  // the left stick: sideways it yaws, up and down it tilts (as fire button 1 does) — one motion at a time, chosen by the
+  // way the thumb first goes out of the middle, kept until it comes back to the middle
+  const Y = game.yaw3, dx = e.clientX - Y.ox, dy = e.clientY - Y.oy, s3 = stick3(dx, dy);
+  if (s3.still) Y.axis = null; else if (!Y.axis) Y.axis = Math.abs(dx) >= Math.abs(dy) ? "yaw" : "tilt";
+  Y.yaw = Y.axis === "yaw" ? dx * s3.k : 0; Y.tilt = Y.axis === "tilt" ? -dy * s3.k * LEFT_TILT : 0;
+  Y.engine = s3.still || s3.out;   // (in place, or dragged right out: the engine)
 }
+const LEFT_TILT = 1;   // (how hard the left stick tilts, next to fire button 1's tilt: 1 the same)
 function thrusting() { return game.thrust !== null && (!game.yaw3 || game.yaw3.engine); }
 // The ship's turning is kept as a true 3D orientation (a quaternion, game.q3), and each thumb turns it round the ship's
 // OWN axes — yaw round its up, tilt round its right (wing to wing), roll round its length — whichever way it already
@@ -5061,8 +5066,8 @@ function updateTilt3(dt) {
   const E = game.q3e;
   if (!game.q3 || !E || Math.abs(wrapAngle(E[0] - game.ang)) > 1e-6 || Math.abs(E[1] - (game.p3 || 0)) > 1e-6 || Math.abs(E[2] - (game.r3 || 0)) > 1e-6) game.q3 = Q3.fromAngles(game.ang, game.p3 || 0, game.r3 || 0);
   const T = game.tilt3, Y = game.yaw3;
-  if (game.level3 && ((T && (T.want || T.roll)) || (Y && Y.yaw) || game.dead)) game.level3 = false;   // (a stick moved: the controls are the pilot's again)
-  if (game.lock3 && ((T && (T.want || T.roll)) || (Y && Y.yaw) || game.dead || !lockTarget())) game.lock3 = false;   // (the aim lock, the same; and when the enemy is gone)
+  if (game.level3 && ((T && (T.want || T.roll)) || (Y && (Y.yaw || Y.tilt)) || game.dead)) game.level3 = false;   // (a stick moved: the controls are the pilot's again)
+  if (game.lock3 && ((T && (T.want || T.roll)) || (Y && (Y.yaw || Y.tilt)) || game.dead || !lockTarget())) game.lock3 = false;   // (the aim lock, the same; and when the enemy is gone)
   if (game.lock3) {   // the aim lock: turning to the enemy and following it (it never finishes)
     const L = levelStep(game.q3, LOCK3.rate * dt, lockAim());
     game.q3 = L.q; const A = Q3.toAngles(game.q3); game.ang = A.ang; game.p3 = A.p; game.r3 = A.r;
@@ -5076,11 +5081,11 @@ function updateTilt3(dt) {
     game.q3e = [game.ang, game.p3 || 0, game.r3 || 0];
     return;
   }
-  const TK = TRUCK[game.ship], steer = (T && (Math.abs(T.want) > 0.02 || Math.abs(T.roll) > 0.02)) || (Y && Math.abs(Y.yaw) > 0.02);
+  const TK = TRUCK[game.ship], steer = (T && (Math.abs(T.want) > 0.02 || Math.abs(T.roll) > 0.02)) || (Y && (Math.abs(Y.yaw) > 0.02 || Math.abs(Y.tilt || 0) > 0.02));
   if (TK) game.tRamp3 = clamp((game.tRamp3 || 0) + (steer ? dt / TK.ramp : -dt / TK.settle), TK.min, 1);
   const tk = TK ? game.tRamp3 * 0.6 : 1;   // (a truck: slower to tilt, roll and yaw, and slow to get going)
   // (its own spin, eased: it builds up and coasts on a moment after you let go — FEEL.rot3)
-  const tw = [T && !game.dead ? T.want * TILT3.rate * tk : 0, Y && !game.dead ? Y.yaw * TILT3.yaw * tk : 0, T && !game.dead ? T.roll * TILT3.roll * tk : 0];
+  const tw = [!game.dead ? ((T ? T.want : 0) + (Y ? Y.tilt || 0 : 0)) * TILT3.rate * tk : 0, Y && !game.dead ? Y.yaw * TILT3.yaw * tk : 0, T && !game.dead ? T.roll * TILT3.roll * tk : 0];
   const w3 = game.w3 || (game.w3 = [0, 0, 0]), ek = 1 - Math.exp(-dt / FEEL.rot3); for (let i = 0; i < 3; i++) { w3[i] += (tw[i] - w3[i]) * ek; if (Math.abs(w3[i]) < 1e-3) w3[i] = 0; }
   const pitch = w3[0] * dt, yaw = w3[1] * dt, roll = w3[2] * dt;
   if (pitch || yaw || roll) {
@@ -5129,7 +5134,7 @@ function rcsPuff(fx, fy, dx, dy) {
 function updateRcs(dt) {
   for (let i = rcsPuffs.length - 1; i >= 0; i--) { const P = rcsPuffs[i]; P.t += dt; P.x = wrapX(P.x + P.vx * dt); P.y = wrapY(P.y + P.vy * dt); P.vx *= Math.exp(-dt * 3); P.vy *= Math.exp(-dt * 3); if (P.t > RCS.life) rcsPuffs.splice(i, 1); }
   if (!view3d.on || BOT || game.dead || game.stage !== "fly") { rcsHiss(0); return; }
-  const T = game.tilt3, Y = game.yaw3, q = T ? T.want || 0 : 0, rl = T ? T.roll || 0 : 0, w = Y ? Y.yaw || 0 : 0;
+  const T = game.tilt3, Y = game.yaw3, q = (T ? T.want || 0 : 0) + (Y ? Y.tilt || 0 : 0), rl = T ? T.roll || 0 : 0, w = Y ? Y.yaw || 0 : 0;
   const most = game.level3 ? 0.7 : Math.max(Math.abs(q), Math.abs(rl), Math.abs(w));   // (the autopilot levelling it: puffing too)
   rcsHiss(most < 0.08 ? 0 : RCS.vol * (0.6 + 0.4 * Math.min(1, most)));   // (pushed past the edge, up to 2.5x: no louder)   // (the hiss: steady while it turns, gone when it stops)
   if (most < 0.08) { rcsT = 0; return; }
