@@ -3395,6 +3395,7 @@ function update(dt) {
     if (p.w) { p.x += (p.dx || 0) * dt; p.y += (p.dy || 0) * dt; }
     if (p.life > p.max) { parts.splice(i, 1); continue; }
     p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.exp(-dt * 2.5); p.vy *= Math.exp(-dt * 2.5);
+    if (p.vz) { p.z = clamp(p.z + p.vz * dt, -TILT3.far, TILT3.near); p.vz *= Math.exp(-dt * 2.5); }   // (in 3D: drifting in depth too)
   }
 }
 
@@ -3609,7 +3610,7 @@ function steamEngine(o, S, running, dt) {
     } else if (o.sputter <= 0 && R() < STEAM.backfire * dt) backfire(o, S, me);
     if (me && R() < STEAM.creak * dt) audio.creak();
     // out: thick puffs of smoke; burning: a little steam now and then
-    if (R() < (o.sputter > 0 ? 14 : 3) * dt) for (const e of exhausts(o, S)) smokeAt(e.x, e.y, o, S, o.sputter > 0 ? 1 : 0.5);
+    if (R() < (o.sputter > 0 ? 14 : 3) * dt) for (const e of exhausts(o, S)) smokeAt(e.x, e.y, o, S, o.sputter > 0 ? 1 : 0.5, 1.6, false, e.z);
   }
   // hard turns make the old frame groan
   if (me && Math.abs(o.spin) > 2.5 && R() < 0.5 * dt) audio.creak();
@@ -3626,23 +3627,28 @@ function backfire(o, S, me) {
 // where the engines are, in space, right now
 function exhausts(o, S) {
   const size = shipSize();
+  // flying in 3D: at the ship's depth, as big as it is drawn there, turned with its tilt and roll (z: depth layers)
+  const q3 = view3d.on && !BOT ? (o === game ? game.q3 : (o.p3 || o.r3) ? Q3.fromAngles(o.ang, o.p3 || 0, o.r3 || 0) : null) : null, k3 = view3d.on && !BOT ? depthScale(o.z3 || 0) : 1;
   return S.nozzles.map((ex, n) => {
-    const p = rotatePt(ex * size, ((S.engineYs ? S.engineYs[n] : S.engineY) + 0.05) * size, o.ang);
-    return { x: o.x + p.x, y: o.y + p.y };
+    const ey = ((S.engineYs ? S.engineYs[n] : S.engineY) + 0.05) * size * k3;
+    if (q3) { const v = Q3.rot(q3, [ex * size * k3, 0, ey]); return { x: o.x + v[0], y: o.y + v[2], z: (o.z3 || 0) + v[1] / U }; }
+    const p = rotatePt(ex * size * k3, ey, o.ang);
+    return { x: o.x + p.x, y: o.y + p.y, z: view3d.on && !BOT ? o.z3 || 0 : null };
   });
 }
 // one puff of smoke behind a ship. big: 1 = a normal puff; the smoke screen uses bigger, darker, longer ones
-function smokeAt(x, y, o, S, big = 1, life = 1.6, chem = false) {
+function smokeAt(x, y, o, S, big = 1, life = 1.6, chem = false, z = null) {
   const back = U * 0.25 * (0.5 + Math.random()), a = o.ang + (Math.random() - 0.5) * 0.9;
   const g = 70 + Math.round(Math.random() * 50);
   // chemical (THUL's screen): sickly greens, from dark olive to a poisonous yellow-green
   const c = chem ? `hsl(${72 + Math.random() * 38},${38 + Math.random() * 28}%,${18 + Math.random() * 17}%)` : `rgb(${g},${g},${g + 8})`;
   parts.push({ w: true, smoke: true, x, y, vx: o.vx * 0.4 - Math.sin(a) * back, vy: o.vy * 0.4 + Math.cos(a) * back,
     life: 0, max: life * (0.7 + Math.random() * 0.6), s: shipSize() * 0.07 * big, grow: 1.6 + Math.random(),
-    c, op: big > 3.6 ? 0.97 : big > 1.5 ? 0.85 : 0.55, chem, mine: o === game });   // (THUL's screen: nearly solid)
+    c, op: big > 3.6 ? 0.97 : big > 1.5 ? 0.85 : 0.55, chem, mine: o === game,   // (THUL's screen: nearly solid)
+    z, vz: z != null ? ((o.vz3 || 0) / U) * 0.4 + (o === game && game.q3 ? -Q3.rot(game.q3, [0, 0, -1])[1] * 0.25 * (0.5 + Math.random()) : 0) : 0 });   // (in 3D: at the exhaust's depth, drifting with the ship's own and pushed back out of its tail)
   if (chem && Math.random() < 0.35)   // bubbles and specks of the chemical glowing in it
     parts.push({ w: true, x: x + (Math.random() - 0.5) * U * 0.1, y: y + (Math.random() - 0.5) * U * 0.1, vx: o.vx * 0.3 - Math.sin(a) * back * 1.2, vy: o.vy * 0.3 + Math.cos(a) * back * 1.2,
-      life: 0, max: life * 0.6, s: shipSize() * (0.015 + Math.random() * 0.025), c: Math.random() < 0.5 ? "#c8ff4a" : "#7dff9a", glow: true });
+      life: 0, max: life * 0.6, s: shipSize() * (0.015 + Math.random() * 0.025), c: Math.random() < 0.5 ? "#c8ff4a" : "#7dff9a", glow: true, z, vz: z != null ? (o.vz3 || 0) / U * 0.3 : 0 });
 }
 // my chemical smoke: an enemy inside it is eaten away (my phone counts it, in a duel too)
 function chemSmoke(dt) {
@@ -3653,6 +3659,7 @@ function chemSmoke(dt) {
     if (!p.chem || !p.mine) continue;
     const t = p.life / p.max, r = p.s * (1 + t * p.grow * 2);
     if (t > 0.85) continue;
+    if (p.z != null && view3d.on && !BOT && Math.abs(p.z - (enemy.z3 || 0)) * U > r + shipSize() * 0.2) continue;   // (in 3D: only the smoke at about their depth)
     if (Math.abs(wrapDelta(enemy.x - p.x, WW)) < r && Math.hypot(wrapDelta(enemy.x - p.x, WW), wrapDelta(enemy.y - p.y, WH)) < r + shipSize() * 0.2) { inside = true; break; }
   }
   if (!inside) { game.chemAcc = 0; return; }
@@ -8964,7 +8971,7 @@ function updateMagic(dt) {
   game.magicPour -= dt;
   // thick smoke pours from the engines and hangs in space
   game.smokeAcc = (game.smokeAcc || 0) + (M.rate || 30) * dt;
-  for (; game.smokeAcc >= 1; game.smokeAcc--) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, (2.6 + Math.random() * 1.5) * (M.big || 1), M.hide - 0.5, !!M.chem);
+  for (; game.smokeAcc >= 1; game.smokeAcc--) for (const e of exhausts(game, S)) smokeAt(e.x, e.y, game, S, (2.6 + Math.random() * 1.5) * (M.big || 1), M.hide - 0.5, !!M.chem, e.z);
 }
 
 // ---------- BALLAST's magic: the asteroid tow (MAGIC.tow) ----------
@@ -18494,19 +18501,24 @@ function drawCard(S, alpha) {
   ctx.restore();
 }
 
-function drawParts() {
+// pass: "behind" — (flying in 3D) the smoke further away than my ship, drawn before the ships; "front" (or none) — the rest
+function drawParts(pass) {
+  const d3 = view3d.on && !BOT, zs = game.z3 || 0;
   for (const p of parts) {
-    const k = 1 - p.life / p.max;
+    const deep = d3 && p.z != null;
+    if (pass === "behind" && !(deep && p.z < zs - 0.05)) continue;
+    if (pass === "front" && deep && p.z < zs - 0.05) continue;
+    const k = 1 - p.life / p.max, k3 = deep ? depthScale(p.z) : 1, fz = deep ? depthFade(p.z) : 1;
     ctx.globalAlpha = k; ctx.fillStyle = p.c;
     const q = p.w ? toScreen(p.x, p.y) : p;
-    if (p.smoke) {   // smoke: grows and thins out
+    if (p.smoke) {   // smoke: grows and thins out (in 3D as big and as faded as its depth)
       const t = p.life / p.max;
-      ctx.globalAlpha = p.op * Math.min(1, t * 6) * (1 - t);
-      ctx.beginPath(); ctx.arc(q.x, q.y, p.s * (1 + t * p.grow * 2), 0, 6.2832); ctx.fill();
+      ctx.globalAlpha = p.op * Math.min(1, t * 6) * (1 - t) * fz;
+      ctx.beginPath(); ctx.arc(q.x, q.y, p.s * k3 * (1 + t * p.grow * 2), 0, 6.2832); ctx.fill();
       continue;
     }
     if (p.glow) {   // a glowing speck of the chemical
-      ctx.globalAlpha = k * 0.9; ctx.globalCompositeOperation = "lighter"; ctx.beginPath(); ctx.arc(q.x, q.y, p.s * (0.6 + 0.4 * Math.sin(p.life * 20)), 0, 6.2832); ctx.fill(); ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = k * 0.9 * fz; ctx.globalCompositeOperation = "lighter"; ctx.beginPath(); ctx.arc(q.x, q.y, p.s * k3 * (0.6 + 0.4 * Math.sin(p.life * 20)), 0, 6.2832); ctx.fill(); ctx.globalCompositeOperation = "source-over";
       continue;
     }
     if (p.star)starShape(q.x, q.y, p.s * 1.3);
@@ -18572,7 +18584,7 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawSonics(); drawRaiders(); drawEnemy(); drawPractice(); drawTraining("behind"); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawHuskCreature(); drawParasites(); drawLightFx(); drawGhosts(); drawCorsairAim();
+    drawSonics(); drawRaiders(); drawEnemy(); drawPractice(); drawTraining("behind"); drawParts("behind"); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawHuskCreature(); drawParasites(); drawLightFx(); drawGhosts(); drawCorsairAim();
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -18643,7 +18655,7 @@ function draw() {
     drawFloodFront(); drawSplashes();
     if (!game.dead && (game.actOn > 0 || game.shieldFx > 0)) { const q = shipScreen(); drawShieldBubble(q.x, q.y, shipSize() * shipScale(), game.actOn > 0 ? 1 : 2, game.shieldFx); }   // my shields
     if (enemyShown() && duel.net && duel.net.sh) { const q = toScreen(enemy.x, enemy.y); drawShieldBubble(q.x, q.y, shipSize() * enemyScale(), duel.net.sh, 0.3); }   // theirs
-    drawParts();
+    drawParts("front");
     drawTraining("front");   // (the training's objects nearer than my ship)
     drawRings();
     drawNullFlash();   // (NULL's inversion flashes, over everything out in space)
@@ -20365,7 +20377,7 @@ function updateRival(dt) {
   } else if (!n.d && !enemy.on) { enemy.on = true; enemy.warp = 1; enemy.x = tx; enemy.y = ty; duel.roundStart = game.t; }
   if (!enemy.on) return;
   // THUL's smoke pouring out of their engines
-  if (n.mp) { duel.smokeAcc = (duel.smokeAcc || 0) + ((magicOf(E) || {}).rate || 30) * dt; for (; duel.smokeAcc >= 1; duel.smokeAcc--) for (const e of exhausts(enemy, E)) smokeAt(e.x, e.y, enemy, E, (2.6 + Math.random() * 1.5) * ((magicOf(E) || {}).big || 1), 5.5, !!(magicOf(E) || {}).chem); }
+  if (n.mp) { duel.smokeAcc = (duel.smokeAcc || 0) + ((magicOf(E) || {}).rate || 30) * dt; for (; duel.smokeAcc >= 1; duel.smokeAcc--) for (const e of exhausts(enemy, E)) smokeAt(e.x, e.y, enemy, E, (2.6 + Math.random() * 1.5) * ((magicOf(E) || {}).big || 1), 5.5, !!(magicOf(E) || {}).chem, e.z); }
   if (n.stm && Math.random() < 40 * dt) for (const e of exhausts(enemy, E)) steamPuff(enemy, e, true);   // their THUL's steam (only shown)
   // VEXAR's tail: it moves with their ship here (their phone decides what it touches)
   const M = magicOf(E);
