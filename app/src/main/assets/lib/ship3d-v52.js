@@ -43,7 +43,7 @@ export const SHIP_MODELS = {
     drum: { c: [-0.205, -0.13], r: 0.128, x: [-0.13, 0.13], fl: 0.175, hide: 0.18 },   // (its cable drum, round the file's x: makeDrum)
     claw: [[0.08, 0.745, -0.4], [0.5, 1.0, 0.4]] },   // (the claw at the boom's tip, hidden while it is out on the cable)
   palisade: { file: "models/palisade.glb", fwd: "-z", len: 1.05, fit: "max", upright: 1 },
-  courier: { file: "models/courier.glb", fwd: "-x", len: 0.855 },
+  courier: { file: "models/courier.glb", fwd: "-x", len: 0.855, gears: [], iris: { c: [0.052, 0.447], x: -0.83, r: 0.124, back: -0.7, blades: 8, bore: false } },   // (the iris at the mouth of its package tube: THUL's, made to fit — makeGears with no gears)
   kiln: { file: "models/kiln.glb", fwd: "+x", len: 1.03, wheel: { c: [0.494, 0.127, 0], tilt: 0.26, r: 0.185, h: [-0.03, 0.06] },
     grille: { x: [0.695, 0.8], y: [-0.105, 0.055], z: [-0.265, 0.265], n: 12 } },   // (its furnace grille at the nose: makeGrille)   // (the valve wheel on its sloping deck: splitWheel)
   drakon: { file: "models/drakon.glb", fwd: "+x", len: 0.95, seam: [-0.018, 2.6] },   // (the gap between its two pieces in the model: steeper than the 2D drawing's seam)
@@ -873,7 +873,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 51,   // (index.html checks it; the file's name carries it too — lib/ship3d-v51.js — so the app never mixes a new
+  version: 52,   // (index.html checks it; the file's name carries it too — lib/ship3d-v52.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },

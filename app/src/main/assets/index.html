@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v51.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v52.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -1998,7 +1998,8 @@ const GUN_MIRROR3 = { brass: true, courier: true };   // (COURIER: its capsule t
 // CANTOR: the model's bell is narrower than the drawing — its five grooves open at x 0, ±0.123, ±0.235, a little back
 // BALLAST: the model's nose block is a little further forward and right than the drawing's, its weight on the right
 // THUL: its machine gun's two barrels on the model, their muzzles (the 2D drawing's are further in, on the other side)
-const GUNS3 = { brass: { twin: [[0.248, -0.42, 0], [0.298, -0.40, 0]] }, ballast: { railslug: [[0.018, -0.49, 0]], sinker: [[0.3, 0.05, 0]] },
+// COURIER: its package leaves from the mouth of the tube on the model (the left, where the 2D drawing has it on the right)
+const GUNS3 = { courier: { mailcap: [[-0.202, -0.395, 0.02]] }, brass: { twin: [[0.248, -0.42, 0], [0.298, -0.40, 0]] }, ballast: { railslug: [[0.018, -0.49, 0]], sinker: [[0.3, 0.05, 0]] },
   cantor: { tone: [[0, -0.43, 0.03]],
   chord: [[-0.235, -0.43, 0.03], [-0.123, -0.43, 0.03], [0, -0.43, 0.03], [0.123, -0.43, 0.03], [0.235, -0.43, 0.03]] } };
 function gunsOf(S, w) {
@@ -4533,10 +4534,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v51.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v52.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 51, SHIP3D_FILE = "./lib/ship3d-v51.js";
+const SHIP3D_VER = 52, SHIP3D_FILE = "./lib/ship3d-v52.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4876,6 +4877,14 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
+  if (S.id === "courier") {   // COURIER: the iris at its package tube's mouth (lib: iris) winds open for the package — open as it
+    // climbs in its bay, held as the piston pushes it out (520 ms), wound shut after; the tube kicks back as it leaves
+    const a = o.anim, sec = a && a.seq === "secondary", t = sec ? a.t : 0, sm = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+    const F = 520, cannon = sec ? { open: t < F ? sm(t / 380) : 1 - sm((t - F - 120) / 330), glow: 0, ball: false, ring: 0,
+      kick: t > F ? Math.sin(clamp((t - F) / 70, 0, 1) * Math.PI / 2) * (1 - sm((t - F - 70) / 220)) * 0.5 : 0 } : { open: 0, ball: false };
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { cannon }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.id === "vexar") {   // VEXAR: the rigged hull (lib: vexRig) — on button 2 the claws spread, the rear covers peel back, the forks
