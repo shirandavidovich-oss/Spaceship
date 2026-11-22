@@ -3318,6 +3318,14 @@ function shopPaused() { return !BOT && !!game.docked && !!duel.bot && game.stage
 function update(dt) {
   musicTick();   // (the loop for this screen)
   shipSounds();
+  {   // MIRAGE: a new press of the gas is a new blast (and the blasts' heat: up with each, cooling away)
+    const thr = !game.dead && game.thrust !== null && game.stage === "fly";
+    if (game.ship === "mirage") {
+      if (thr && !game.mThr && (game.mBurst == null || time - game.mBurst > MIRAGE_BURST.gap)) { game.mBurst = time; game.mHeat = Math.min(1, (game.mHeat || 0) + MIRAGE_BURST.heat); buzz(18); }
+      game.mHeat = Math.max(0, (game.mHeat || 0) - dt / MIRAGE_BURST.cool);
+    }
+    game.mThr = thr;
+  }
   rowingSound(!BOT && !!THRUST_LOOPS[game.ship] && !game.dead && game.stage === "fly" && !game.docked && game.thrust !== null && !result.mode && !shopPaused());   // (CORSAIR's rowing loop)
   zorianBackfire(dt);   // (ZORIAN's exhaust popping: bpa-bpa-bpa)
   titleShowTick(dt);   // (the menu's films; off the menu, their pictures let go: before anything below returns)
@@ -3486,6 +3494,12 @@ function moveShip(o, S, c, dt) {
   const st = shipStats(S), size = shipSize();
   if (o === game && game.soak && game.soak.boost) { const M = magicOf(S); st.push *= M.boost; st.top *= M.boost; }   // ORIAN charged: twice as fast
   if (o === game && game.lassoed) { st.turn *= ELASSO.turn; c = { ...c, thrust: false }; }   // on LARIAT's rope: no turning, no engine: towed
+  if (o === game && game.ship === "mirage" && !BOT) {   // MIRAGE: each press of the gas a laser blast — a sharp kick, settling to a gentler push
+    const B = MIRAGE_BURST, since = game.mBurst != null ? time - game.mBurst : 99, k = Math.exp(-since / B.fall);
+    game.mHeat = game.mHeat || 0;
+    st.push *= B.after + (B.kick - B.after) * k;
+    st.top *= 1 + B.top * game.mHeat;   // (pressed again and again, the blasts build: its top speed rises with them)
+  }
   if (o === game && game.paraT > 0) st.push *= 1 - MAGIC.breach.paraCut;   // HUSK's parasite on my engine
   if (S.id === "lyth") {   // LYTH in water (its jets): 70% of its top speed; crossing in, it loses 30% of its speed at once
     const wet = inWater(o); if (wet && !o.lythWet) { o.vx *= LYTH_JETS.slow; o.vy *= LYTH_JETS.slow; } o.lythWet = wet;
@@ -7997,13 +8011,18 @@ const monsterTalk = { on: false, next: 0, last: -1 };
 const THRUST_LOOPS = { corsair: ["audio/corsair/rowing-loop.ogg", 4.08], flipper: ["audio/flipper/playfield-loop.ogg", 2.4], boiler: ["audio/boiler/engine-loop.ogg", 4.0],
   vexar: ["audio/vexar/fly-loop.ogg", 3.0], borer: ["audio/borer/loop.ogg", 2.0], gimbal: ["audio/gimbal/loop.ogg", 2.4], brass: ["audio/thul/tracks-rec.ogg", 5.5],
   courier: ["audio/courier/loop.ogg", 2.0], zorian: ["audio/zorian/throttle.ogg", 9.45, 6.0],
-  bloom: ["audio/bloom/wind-loop.ogg", 18.17], ballast: ["audio/ballast/engine.ogg", 23.95, 1.5], cinder: ["audio/cinder/truck.ogg", 9.68, 1.2] };   // (CINDER: a truck's engine)   // (BALLAST: its own engine recording while the gas is held)   // (a third number: where the loop starts again; ZORIAN: the revs climb through the gears once, then hold the top one)
+  bloom: ["audio/bloom/wind-loop.ogg", 18.17], mirage: ["audio/mirage/throttle.ogg", 3.32, 1.6], ballast: ["audio/ballast/engine.ogg", 23.95, 1.5], cinder: ["audio/cinder/truck.ogg", 9.68, 1.2] };   // (CINDER: a truck's engine)   // (BALLAST: its own engine recording while the gas is held)   // (a third number: where the loop starts again; ZORIAN: the revs climb through the gears once, then hold the top one)
 // THUL's boost: one press of the gas, two engines (its usual speed); tapped twice (the second press within `tap` s) all
 // four light: it accelerates `accel` times as hard and its top speed is `top` times higher. As it passes its usual top
 // speed — however it got going, even from standing still — it breaks the sound barrier: a boom, and a cone of white
 // light opening behind it with a spear of light along its wake
 const THUL_BOOST = { tap: 0.32, accel: 2.8, top: 2, boom: 0.9 };
-const BOOST_RATE = 1.3;   // (boosting: the engine's loop played 30% faster)
+const BOOST_RATE = 1.3;
+// MIRAGE's gas: each press a blast — the push `kick` times as hard, falling over `fall` s to `after` (gentler than usual
+// while held). Every blast adds `heat` (to 1), cooling over `cool` s, and heat raises its top speed by up to `top`: tapping
+// the gas again and again is the fastest way. gap: s between presses that count; vol: its sound's loudness (the shots are light)
+// (MIRAGE's gas sound, THRUST_LOOPS.mirage: its laser blast as the gas goes on, then its humming tail looped from 1.6 s)
+const MIRAGE_BURST = { kick: 3.2, fall: 0.35, after: 0.7, heat: 0.34, cool: 2.4, top: 0.35, gap: 0.12, vol: 0.5 };   // (boosting: the engine's loop played 30% faster)
 // the ships with a double-tap boost (THUL: four engines; NIMBUS: its fourth engine alone, a long yellow flame shedding embers)
 const BOOSTS = { brass: THUL_BOOST, nimbus: { tap: 0.32, accel: 2.8, top: 2, boom: 0.9 } };
 const sonics = [];   // { x, y, ang, t }
@@ -8136,6 +8155,7 @@ function rowingSound(on) {
   if (game.ship === "courier") for (const f of ["loop", "burst", "capsule", "mine"]) soundBuf("audio/courier/" + f + ".ogg");
   if (game.ship === "vexar") for (const f of ["fly-loop", "lay", "hatch", "swarm-loop", "whip", "thorn"]) soundBuf("audio/vexar/" + f + ".ogg");   // (loaded early)
   if (game.ship === "frankenstein") soundBuf("audio/frankenstein/workshop-loop.ogg");
+  if (game.ship === "mirage") for (const f of ["throttle", "lens", "lens-charge"]) soundBuf("audio/mirage/" + f + ".ogg");   // (loaded early)
   if (game.ship === "boiler") for (const f of ["engine-loop", "splash", "splash-small", "torp-launch", "missile"]) soundBuf("audio/boiler/" + f + ".ogg");   // (loaded early)
   if (game.ship === "flipper") for (const f of ["playfield-loop", "launch", "paddles", "bumper", "bumper2", "multiball", "win"]) soundBuf("audio/flipper/" + f + ".ogg");   // (loaded early)
   if (game.ship === "corsair") { soundBuf("audio/corsair/rowing-loop.ogg"); for (const f of ["cannon-1", "cannon-2", "cannon-3", "chainshot"]) soundBuf("audio/corsair/" + f + ".ogg"); }   // (loaded early)
@@ -8146,7 +8166,7 @@ function rowingSound(on) {
     const s = c.createBufferSource(), g = c.createGain(), P = game.ship === "corsair" ? game.oarPose : null; R.path = loop;
     s.buffer = B; s.loop = true; s.loopStart = Math.min(from, B.duration * 0.9); s.loopEnd = Math.min(B.duration, len); R.rate = 1;
     const soft = game.ship === "bloom";   // (BLOOM's wind swells in and dies away slowly, from a different place in the loop each time)
-    g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(soft ? 0.75 : 0.9, c.currentTime + (soft ? 0.7 : 0.06));
+    g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(soft ? 0.75 : game.ship === "mirage" ? MIRAGE_BURST.vol : 0.9, c.currentTime + (soft ? 0.7 : game.ship === "mirage" ? 0.01 : 0.06));
     s.connect(g); g.connect(audio.out); s.start(c.currentTime, soft ? Math.random() * 16 : P ? P.phase * 0.68 : 0); R.src = s; R.g = g; R.soft = soft;
   }
   if (on && R.src) {   // THUL boosting (all four engines): its tracks played BOOST_RATE times as fast, eased in and out
@@ -8814,7 +8834,8 @@ function useMagicNow(which = 0) {
   if (M.look === "lens") {   // MIRAGE: the prism charges, and the false star opens at its "fire" frame (updateAnim)
     if (game.anim) return;
     game.magicCool = M.cool; game.anim = { seq: "lens", t: 0, lens: true };
-    audio.tone(220, 0.5, "sine", 0.05, 3); audio.tone(660, 0.45, "triangle", 0.03, 2, 0.05); buzz(30);
+    if (!playClip("audio/mirage/lens-charge.ogg", false, 0.75)) { audio.tone(220, 0.5, "sine", 0.05, 3); audio.tone(660, 0.45, "triangle", 0.03, 2, 0.05); }   // (the laser drawn in, rising into the false star)
+    buzz(30);
     return;
   }
   if (M.look === "split") {   // DRAKON: come apart (the bomb stays), then blow the bomb up. Once a life
@@ -15726,7 +15747,7 @@ function openLens() {
   duelSend({ t: "fs", x: +(L.x / WW).toFixed(5), y: +(L.y / WH).toFixed(5) });
   lensSound(); buzz(60);
 }
-function lensSound() { audio.tone(180, 1.2, "sine", 0.06, 0.5); audio.tone(1240, 0.6, "sine", 0.025, 0.8, 0.05); audio.noise(0.5, 0.05, 1200); }
+function lensSound() { if (playClip("audio/mirage/lens.ogg", false, 0.8)) { audio.tone(180, 1.2, "sine", 0.035, 0.5); return; } audio.tone(180, 1.2, "sine", 0.06, 0.5); audio.tone(1240, 0.6, "sine", 0.025, 0.8, 0.05); audio.noise(0.5, 0.05, 1200); }   // (the false star opening: its laser burst, a low hum under it)
 function updateLenses(dt) {
   for (let i = lenses.length - 1; i >= 0; i--) if ((lenses[i].t += dt) > MAGIC.lens.life) lenses.splice(i, 1);
   // my web: an enemy on one of its beams is burnt (my phone counts it, in a duel too)
