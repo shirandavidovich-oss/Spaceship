@@ -578,14 +578,26 @@ function splitPaddles(E, M) {
     const F = new Float32Array(P.count * 3);
     for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrix); F[i * 3] = v.x; F[i * 3 + 1] = v.y; F[i * 3 + 2] = v.z; }
     const lists = list.map(() => []), keep = [];
+    // the pieces of the mesh (triangles joined by shared corners): a piece lying mostly on a paddle goes with it whole, so no
+    // edge or underside of a blade is left behind; a piece shared with the hull is split corner by corner
+    const up = new Int32Array(P.count); for (let i = 0; i < P.count; i++) up[i] = i;
+    const root = (i) => { while (up[i] !== i) { up[i] = up[up[i]]; i = up[i]; } return i; };
+    for (let t = 0; t < cnt; t += 3) { const a = root(idx ? idx[t] : t), b = root(idx ? idx[t + 1] : t + 1), c = root(idx ? idx[t + 2] : t + 2); up[b] = a; up[root(c)] = a; }
+    const on = (q, Q, wide) => { v.set(F[q * 3], F[q * 3 + 1], F[q * 3 + 2]).sub(Q.H); const along = v.dot(Q.D), u = along / Q.L, y = F[q * 3 + 1];
+      if (u < -0.12 || u > 1.15 + (wide ? 0.1 : 0) || (u < 0.22 && y < Q.H.y - 0.12)) return false;   // (by the hub, only what is level with it or above: the springs under it stay)
+      return v.addScaledVector(Q.D, -along).length() < Q.Pd.r * 1.3 * (wide ? 1.35 : 1); };   // (out along the blade, its whole rim)
+    const tri = []; const vote = new Map();   // (per piece: how many of its triangles are on each paddle, and how many in all)
     for (let t = 0; t < cnt; t += 3) {
-      const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2;
-      // (a paddle's only if all three corners are on it: a sliver joining it to the hull stays put)
-      const on = (q, Q) => { v.set(F[q * 3], F[q * 3 + 1], F[q * 3 + 2]).sub(Q.H); const along = v.dot(Q.D), u = along / Q.L, y = F[q * 3 + 1];
-        if (u < -0.1 || u > 1.15 || (u < 0.3 && y < Q.H.y - 0.09)) return false;   // (by the hub, only what is level with it or above: the springs under it stay)
-        return v.addScaledVector(Q.D, -along).length() < Q.Pd.r * (u > 0.3 ? 1.3 : 1); };   // (out along the blade, its whole rim)
-      let k = -1;
-      list.forEach((Q, jj) => { if (k < 0 && on(a, Q) && on(b, Q) && on(c, Q)) k = jj; });
+      const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2, R0 = root(a);
+      let k = -1; list.forEach((Q, jj) => { if (k < 0 && on(a, Q, true) && on(b, Q, true) && on(c, Q, true)) k = jj; });
+      let V = vote.get(R0); if (!V) { V = { n: 0, k: list.map(() => 0) }; vote.set(R0, V); }
+      V.n++; if (k >= 0) V.k[k]++;
+      tri.push(a, b, c, R0);
+    }
+    for (let t = 0; t < tri.length; t += 4) {
+      const a = tri[t], b = tri[t + 1], c = tri[t + 2], V = vote.get(tri[t + 3]);
+      let k = V.k.findIndex((n) => n >= V.n * 0.75);   // (a piece three-quarters on a paddle: all of it)
+      if (k < 0) list.forEach((Q, jj) => { if (k < 0 && on(a, Q) && on(b, Q) && on(c, Q)) k = jj; });   // (else corner by corner)
       (k >= 0 ? lists[k] : keep).push(a, b, c);
     }
     if (!lists.some((L) => L.length)) continue;
@@ -770,7 +782,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 42,   // (index.html checks it; the file's name carries it too — lib/ship3d-v42.js — so the app never mixes a new
+  version: 43,   // (index.html checks it; the file's name carries it too — lib/ship3d-v43.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
