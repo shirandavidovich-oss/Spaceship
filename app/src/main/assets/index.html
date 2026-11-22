@@ -2785,6 +2785,11 @@ function updateSimTilt(dt) {
 // ---------- sound (made on the fly, no files yet) ----------
 // the two volumes (0..1), kept on the phone. Effects: the pink dial; music: the mint one
 const VOL_KEY = "orbit-break.audio.v1";
+// MUTE: a dial pressed off (the effects dial: a tap; either dial: a long press), kept on the phone. Its volume is kept
+// for when it is pressed on again; turning the dial up turns it back on
+const MUTE_KEY = "orbit-break.mute.v1";
+const MUTE = (() => { try { const m = JSON.parse(LS.getItem(MUTE_KEY)) || {}; return { effects: !!m.effects, music: !!m.music }; } catch (e) { return { effects: false, music: false }; } })();
+function volOf(ch) { return MUTE[ch] ? 0 : VOL[ch]; }   // (the volume heard)
 const VOL = (() => { try { const v = JSON.parse(LS.getItem(VOL_KEY)) || {}; return { effects: Number.isFinite(v.effects) ? v.effects : 0.75, music: Number.isFinite(v.music) ? v.music : 0.55 }; } catch (e) { return { effects: 0.75, music: 0.55 }; } })();
 const audio = {
   ctx: null, hum: null, humGain: null, humFilter: null,
@@ -2792,8 +2797,8 @@ const audio = {
     try {
       if (!this.ctx) {
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        this.out = this.ctx.createGain(); this.out.gain.value = 0.8 * VOL.effects ** 2; this.out.connect(this.ctx.destination);   // effects (the pink dial)
-        this.mus = this.ctx.createGain(); this.mus.gain.value = VOL.music ** 2; this.mus.connect(this.ctx.destination);   // music (the mint dial)
+        this.out = this.ctx.createGain(); this.out.gain.value = 0.8 * volOf("effects") ** 2; this.out.connect(this.ctx.destination);   // effects (the pink dial)
+        this.mus = this.ctx.createGain(); this.mus.gain.value = volOf("music") ** 2; this.mus.connect(this.ctx.destination);   // music (the mint dial)
         for (const S of SHIPS) if (S.sfx) for (const n of S.sfxNames || SFX) this.load(S.sfx, n);   // recorded sounds, loaded once
       }
       if (this.ctx.state === "suspended") this.ctx.resume();
@@ -6154,7 +6159,7 @@ function voiceLine(text, who, web) {
     const sy = window.speechSynthesis; if (!sy || native) return;
     const u = new SpeechSynthesisUtterance(text), vs = sy.getVoices().filter((v) => /^en/i.test(v.lang));
     u.voice = vs.find((v) => web.like.test(v.name) && !(web.not && web.not.test(v.name))) || vs.find((v) => /en-US|en_US/i.test(v.lang)) || vs[0] || null;
-    u.lang = "en-US"; u.pitch = web.pitch; u.rate = web.rate; u.volume = Math.min(1, 0.4 + VOL.effects);
+    u.lang = "en-US"; u.pitch = web.pitch; u.rate = web.rate; u.volume = MUTE.effects ? 0 : Math.min(1, 0.4 + VOL.effects);
     sy.cancel(); setTimeout(() => { try { sy.speak(u); } catch (e) {} }, 80);   // (Chrome drops a line spoken right after cancel)
   } catch (e) {}
 }
@@ -12954,8 +12959,16 @@ function setVolume(ch, v) {
   VOL[ch] = clamp(v, 0, 1);
   try { LS.setItem(VOL_KEY, JSON.stringify(VOL)); } catch (e) {}
   const c = audio.ctx; if (!c) return;
-  if (ch === "effects" && audio.out) audio.out.gain.setTargetAtTime(0.8 * VOL.effects ** 2, c.currentTime, 0.022);
-  if (ch === "music" && audio.mus) audio.mus.gain.setTargetAtTime(VOL.music ** 2, c.currentTime, 0.022);
+  if (ch === "effects" && audio.out) audio.out.gain.setTargetAtTime(0.8 * volOf("effects") ** 2, c.currentTime, 0.022);
+  if (ch === "music" && audio.mus) audio.mus.gain.setTargetAtTime(volOf("music") ** 2, c.currentTime, 0.022);
+}
+// a dial pressed off or on again (a click to hear it go on; a buzz either way)
+function toggleMute(ch) {
+  MUTE[ch] = !MUTE[ch];
+  try { LS.setItem(MUTE_KEY, JSON.stringify(MUTE)); } catch (e) {}
+  setVolume(ch, VOL[ch]);
+  if (!MUTE[ch] && ch === "effects") audio.pop();
+  buzz(MUTE[ch] ? 30 : 15);
 }
 const music = { want: null, on: null, bufs: {}, loading: {}, failT: {} };
 // a tap on the music dial (the Orbit Break Music Switch package) goes round: the game's own music (each screen its
@@ -13047,7 +13060,7 @@ function hitDial(x, y) {
 function dialDown(e) {
   const D = hitDial(e.clientX, e.clientY);
   if (!D) return false;
-  dial.drag = { id: e.pointerId, ch: D.ch, x0: e.clientX, v0: VOL[D.ch], moved: false };   // (this finger is the dial's: no firing with it)
+  dial.drag = { id: e.pointerId, ch: D.ch, x0: e.clientX, v0: VOL[D.ch], moved: false, t0: performance.now(), long: false };   // (this finger is the dial's: no firing with it)
   dial.press = { ch: D.ch, t: performance.now() };   // (pressed in, for a moment)
   try { cv.setPointerCapture(e.pointerId); } catch (err) {}
   return true;
@@ -13055,17 +13068,24 @@ function dialDown(e) {
 function dialMove(e) {
   if (!dial.drag || e.pointerId !== dial.drag.id) return false;
   if (!dial.drag.moved && Math.abs(e.clientX - dial.drag.x0) < 7) return true;   // (not yet a drag: maybe a tap)
-  if (!dial.drag.moved) { dial.drag.moved = true; dial.drag.x0 = e.clientX; }
+  if (dial.drag.long) return true;   // (a long press already muted it: no turning with the same press)
+  if (!dial.drag.moved) { dial.drag.moved = true; dial.drag.x0 = e.clientX; if (MUTE[dial.drag.ch]) toggleMute(dial.drag.ch); }   // (turned while off: on again)
   setVolume(dial.drag.ch, dial.drag.v0 + (e.clientX - dial.drag.x0) / 160);   // right = louder, also in Hebrew; 160 px = the whole way
   return true;
 }
 function dialUp(e) {
   if (!dial.drag || e.pointerId !== dial.drag.id) return false;
-  if (!dial.drag.moved && dial.drag.ch === "music" && e.type !== "pointercancel") musicNext();   // a tap on the music dial: the next music
+  if (!dial.drag.moved && !dial.drag.long && e.type !== "pointercancel") {   // a tap
+    if (dial.drag.ch === "music") { if (MUTE.music) toggleMute("music"); else musicNext(); }   // the music dial: the next music (pressed off: on again)
+    else toggleMute("effects");   // the effects dial: off / on
+  }
   dial.drag = null; return true;
 }
+const DIAL_LONG = 0.55;   // (s held still on a dial: a long press, off / on)
 function drawDials() {
   if (!dialsShown()) return;
+  const G = dial.drag;
+  if (G && !G.moved && !G.long && performance.now() - G.t0 > DIAL_LONG * 1000) { G.long = true; toggleMute(G.ch); }
   for (const D of dialBoxes()) {
     const base = artImage("art/ui/" + D.art + "-base.svg"), rotor = artImage("art/ui/" + D.art + "-rotor.svg"), v = VOL[D.ch];
     const cx = D.x + D.d / 2, cy = D.y + D.d / 2;
@@ -13081,7 +13101,7 @@ function drawDials() {
       g.addColorStop(0, `rgba(0,0,0,${0.05 * k})`); g.addColorStop(1, `rgba(0,0,0,${0.45 * k})`);
       ctx.save(); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, D.d * 0.36, 0, TAU); ctx.fill(); ctx.restore();
     }
-    if (D.ch === "music" && music.pick === 3) {   // no music: a line across it
+    if (MUTE[D.ch] || (D.ch === "music" && music.pick === 3)) {   // pressed off (or no music): a line across it
       ctx.save(); ctx.strokeStyle = "rgba(255,90,110,0.9)"; ctx.lineWidth = Math.max(2, D.d * 0.07); ctx.lineCap = "round";
       ctx.beginPath(); ctx.moveTo(cx - D.d * 0.3, cy + D.d * 0.3); ctx.lineTo(cx + D.d * 0.3, cy - D.d * 0.3); ctx.stroke(); ctx.restore();
     }
@@ -13096,7 +13116,7 @@ function drawDials() {
     ctx.save(); ctx.font = `800 ${Math.round(Math.max(11, D.d * 0.24))}px Rubik, Arial, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.direction = "ltr";
     ctx.fillStyle = "rgba(10,12,32,0.75)"; roundRect(cx - D.d * 0.75, D.y + D.d + 1, D.d * 1.5, Math.max(14, D.d * 0.34), 6); ctx.fill();
     ctx.fillStyle = D.ch === "effects" ? "#ff9ad8" : "#8ff5d8";
-    ctx.fillText((D.ch === "effects" ? "FX " : "♪ ") + Math.round(v * 100) + "%", cx, D.y + D.d + 2);
+    ctx.fillText((D.ch === "effects" ? "FX " : "♪ ") + (MUTE[D.ch] ? "OFF" : Math.round(v * 100) + "%"), cx, D.y + D.d + 2);
     ctx.restore();
   }
 }
@@ -13135,7 +13155,7 @@ function playShipFilm(id) {
     const v = document.createElement("video");
     v.src = cine.urls[id]; v.playsInline = true; v.setAttribute("playsinline", ""); v.preload = "auto";
     v.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;object-fit:contain;background:#000;z-index:50";
-    v.volume = clamp(Math.max(VOL.effects, 0.15), 0, 1);
+    v.volume = MUTE.effects ? 0 : clamp(Math.max(VOL.effects, 0.15), 0, 1);
     const done = () => { if (!cine.on) return; cine.on = false; try { v.pause(); } catch (e) {} v.remove(); cine.el = null; last = performance.now();
       try { URL.revokeObjectURL(cine.urls[id]); } catch (e) {} delete cine.urls[id]; };   // (its memory back)
     v.addEventListener("ended", done); v.addEventListener("error", done);
@@ -13391,7 +13411,10 @@ function drawTitleShow() {
     // (stopped where its barrel, pointing down to the left, points at the game's picture: the canister flies over it, drawn
     // in front of it)
     const TL = titleLayout(), al0 = Math.hypot(S.axis[0], S.axis[1]), iy0 = L.cy - h * 0.62 + S.iris[1] * sc, k0 = Math.max(0, (TL.cy - iy0) / (S.axis[1] / al0));
-    const xStop = Math.min(TL.cx - S.axis[0] / al0 * k0 - S.iris[0] * sc, W - w * 0.97);   // (but all of it on the screen)
+    const xAim = TL.cx - S.axis[0] / al0 * k0 - S.iris[0] * sc, xStop = Math.min(xAim, W - w * 0.97);   // (but all of it on the screen)
+    // (a narrow screen, the closed Fold: it cannot stop where the barrel points at the picture, so the canister flies on
+    // along the barrel's own line and passes behind the picture instead of over it)
+    const behind = xAim > W - w * 0.97 + 1;
     let x = t < tin ? W + (xStop - W) * (1 - (1 - t / tin) ** 3) : t < tgo ? xStop : xStop - (W + w) * ((t - tgo) / (S.len - tgo)) ** 2;
     const kick = t > tfire && t < tfire + 0.5 ? Math.sin(((t - tfire) / 0.5) * Math.PI) * w * 0.02 : 0;
     const al = Math.hypot(S.axis[0], S.axis[1]), ax = S.axis[0] / al, ay = S.axis[1] / al;
@@ -13411,11 +13434,11 @@ function drawTitleShow() {
     const hot = t < tfire ? clamp((t - (tfire - 0.4)) / 0.4, 0, 1) : Math.max(0, 1 - (t - tfire) / 0.5);   // (an amber glow as it leaves)
     if (hot > 0) { ctx.globalCompositeOperation = "lighter"; glow(ix, iy, irx * 1.1, "rgba(255,160,60,A)", 0.4 * hot); ctx.globalCompositeOperation = "source-over"; }
     if (t >= tfire && !tshow.can) {   // (fired: toward the middle of the game's picture, and on past it)
-      const TL = titleLayout(), dx = TL.cx - ix, dy = TL.cy - iy, dl = Math.hypot(dx, dy) || 1;
-      tshow.can = { x: ix, y: iy, t: 0, ax: dx / dl, ay: dy / dl };
+      const TL = titleLayout(), dx = behind ? S.axis[0] : TL.cx - ix, dy = behind ? S.axis[1] : TL.cy - iy, dl = Math.hypot(dx, dy) || 1;
+      tshow.can = { x: ix, y: iy, t: 0, ax: dx / dl, ay: dy / dl, behind };
     }
     const C = tshow.can, cimg = artImage(S.can);
-    if (C) tshow.canDraw = () => {   // the canister (drawn after the game's picture, over it): out of the barrel, rolling, a trail behind it
+    const canDraw = () => {   // the canister (drawn after the game's picture, over it): out of the barrel, rolling, a trail behind it
       const ax = C.ax, ay = C.ay;
       ctx.save();
       C.t = t - tfire; const sp = W * 0.8, d = sp * C.t, cx = C.x + ax * d - ax * kick, cy = C.y + ay * d, cw = h * 0.36, ch = cw * 79 / 170, roll = Math.cos(C.t * 18);
@@ -13428,6 +13451,8 @@ function drawTitleShow() {
       if (cimg) { ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.atan2(ay, ax) + Math.PI); ctx.scale(1, 0.8 + 0.2 * roll); ctx.drawImage(cimg, -cw / 2, -ch / 2, cw, ch); ctx.restore(); }
       ctx.restore();
     };
+    if (C && C.behind) canDraw();   // (behind the picture: drawn now, before it)
+    else if (C) tshow.canDraw = canDraw;   // (over it: drawn after it, drawTitle)
   } else if (K === "boiler") {
     // in from the right as before, slow and bobbing (bubbles in both windows, the blue jet, steam puffing away), slowing
     // to a stop. Then the water rises round it and it sinks a little: the steam and the jet stop, and its propeller
