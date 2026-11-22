@@ -3113,7 +3113,11 @@ cv.addEventListener("pointerdown", (e) => {
   if (game.stage === "fly" && !game.dead && hitShieldBtn(e.clientX, e.clientY)) { useShield(); return; }   // the active shield
   if (hitCamButton(e.clientX, e.clientY)) { camButtonTap(); return; }   // the 3D view's camera
   if (hit3dButton(e.clientX, e.clientY)) { view3dTap(); return; }   // 2D ⇄ 3D
-  if (hitLevelButton(e.clientX, e.clientY)) { levelTap(); return; }   // the 3D autopilot: level
+  if (hitLevelButton(e.clientX, e.clientY)) {   // the 3D autopilot: a tap levels the ship; held (LOCK3.hold s) it locks onto the enemy
+    if (levelPress) clearTimeout(levelPress.timer);
+    const P = levelPress = { id: e.pointerId, fired: false, timer: setTimeout(() => { P.fired = true; lockTap(); }, LOCK3.hold * 1000) };
+    return;
+  }
   // the left thumb on the thrust button (another finger can still swipe at the same time)
   if (game.stage === "fly" && !game.locked && hitThrust(e.clientX, e.clientY)) {
     game.thrust = e.pointerId; buzz(12);
@@ -3170,6 +3174,7 @@ function fingerUp(e) {
   if (hangar.press && e.pointerId === hangar.press.id) { const P = hangar.press; hangar.press = null; clearTimeout(P.timer); if (!P.moved && !P.fired) hangarTap(P.x, P.y); return; }
   if (pickPress && e.pointerId === pickPress.id) { clearTimeout(pickPress.timer); const P = pickPress; pickPress = null; if (!P.fired) pickerTap(P.x, P.y); return; }
   if (rowPress && e.pointerId === rowPress.id) { clearTimeout(rowPress.timer); const held = rowPress.fired; rowPress = null; if (!held) fleetRowTap(); return; }
+  if (levelPress && e.pointerId === levelPress.id) { clearTimeout(levelPress.timer); const held = levelPress.fired; levelPress = null; if (!held && e.type !== "pointercancel") levelTap(); return; }   // (a short tap: level)
   if (dialUp(e)) return;
   if (fleet.open && fleet.press) { fleetUp(e); return; }
   if (e.pointerId === game.magicFinger) { game.magicFinger = null; return; }
@@ -4928,13 +4933,33 @@ const LEVEL3 = { rate: 1.8 };   // (rad a second at most)
 function levelButton() { return gaugeBox(); }   // (the RESET button, with the attitude gauge in its window: between the thrust and the fire buttons)
 function levelShown() { return view3d.on && !BOT && game.stage === "fly" && !game.dead && !result.mode && !game.docked && !hangar.open; }
 function hitLevelButton(x, y) { if (!levelShown()) return false; const b = levelButton(); return Math.hypot(x - b.x, y - b.y) < b.r; }   // (just the button: the magic buttons are close above it)
-function levelTap() { game.level3 = true; audio.pop(); buzz(15); }
+function levelTap() { game.level3 = true; game.lock3 = false; audio.pop(); buzz(15); }
+// ---- the aim lock (flying in 3D; the RESET button held): the nose keeps turning, smoothly, round the shortest way, to point
+// straight at the enemy — through the depth too — and keeps following it as it moves, so the gas flies the ship to it by the
+// shortest way. Only where it points: the gas stays the pilot's. Off with a tap on RESET (which levels it), or when a stick
+// steers, the enemy is gone or my ship is lost. rate: rad a second at most; hold: s held for it ----
+const LOCK3 = { rate: 2.4, hold: 0.5 };
+let levelPress = null;
+function lockTarget() { return enemy.on && enemy.warp < 0.5 && !enemyDocked() ? enemy : null; }
+function lockTap() {
+  if (!levelShown() || !lockTarget()) { audio.nope(); buzz(25); return; }
+  game.lock3 = true; game.level3 = false;
+  audio.tone(660, 0.08, "square", 0.04, 0.5); audio.tone(990, 0.12, "square", 0.04, 0.5, 0.09); buzz(40);   // (a double beep: locked)
+}
+// the orientation pointing my nose at the enemy (level: no roll), in its 3D place — wrapped the shortest way, depth too
+function lockAim() {
+  const tg = lockTarget(); if (!tg) return null;
+  const dx = wrapDelta(tg.x - game.x, WW), dy = wrapDelta(tg.y - game.y, WH), D = TILT3.near + TILT3.far;
+  let dz = (tg.z3 || 0) - (game.z3 || 0); if (dz > D / 2) dz -= D; else if (dz < -D / 2) dz += D;
+  return Q3.fromAngles(Math.atan2(dx, -dy), -Math.atan2(dz * U, Math.hypot(dx, dy)), 0);   // (tilted up, p > 0: the nose out of the depth)
+}
 const RESET_WIN = { x: 0.497, y: 0.47, r: 0.33 };   // (the grey window in art/ui/btn-reset-gauge.webp: its middle and radius, of the picture's width; a little above the RESET label)
 function drawLevelButton() {
   if (!levelShown()) return;
   const b = levelButton(), on = !!game.level3, img = artImage("art/ui/btn-reset-gauge.webp");
   ctx.save();
   if (on) { ctx.shadowColor = "#30f0ff"; ctx.shadowBlur = b.r * 0.6; }
+  if (game.lock3) { ctx.shadowColor = "#ff3b5c"; ctx.shadowBlur = b.r * (0.6 + 0.25 * Math.sin(time * 8)); }   // (the aim lock: a pulsing red glow)
   if (img) ctx.drawImage(img, b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
   else { ctx.fillStyle = "rgba(200,204,208,0.9)"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); }
   ctx.restore();
@@ -4945,8 +4970,8 @@ function drawLevelButton() {
   if (!done) drawGauge3({ x: G.x, y: G.y, r: G.r * 0.62 });
 }
 // one step of the autopilot: the orientation turned toward level by at most `step` (rad), round the shortest way
-function levelStep(q, step) {
-  const T = Q3.fromAngles(0, 0, 0);
+function levelStep(q, step, target) {
+  const T = target || Q3.fromAngles(0, 0, 0);
   let d = q[0] * T[0] + q[1] * T[1] + q[2] * T[2] + q[3] * T[3];
   const t2 = d < 0 ? T.map((v) => -v) : T; d = Math.abs(d);
   const ang = 2 * Math.acos(Math.min(1, d));
@@ -4962,6 +4987,13 @@ function updateTilt3(dt) {
   if (!game.q3 || !E || Math.abs(wrapAngle(E[0] - game.ang)) > 1e-6 || Math.abs(E[1] - (game.p3 || 0)) > 1e-6 || Math.abs(E[2] - (game.r3 || 0)) > 1e-6) game.q3 = Q3.fromAngles(game.ang, game.p3 || 0, game.r3 || 0);
   const T = game.tilt3, Y = game.yaw3;
   if (game.level3 && ((T && (T.want || T.roll)) || (Y && Y.yaw) || game.dead)) game.level3 = false;   // (a stick moved: the controls are the pilot's again)
+  if (game.lock3 && ((T && (T.want || T.roll)) || (Y && Y.yaw) || game.dead || !lockTarget())) game.lock3 = false;   // (the aim lock, the same; and when the enemy is gone)
+  if (game.lock3) {   // the aim lock: turning to the enemy and following it (it never finishes)
+    const L = levelStep(game.q3, LOCK3.rate * dt, lockAim());
+    game.q3 = L.q; const A = Q3.toAngles(game.q3); game.ang = A.ang; game.p3 = A.p; game.r3 = A.r;
+    game.q3e = [game.ang, game.p3 || 0, game.r3 || 0];
+    return;
+  }
   if (game.level3) {   // the autopilot levelling it
     const L = levelStep(game.q3, LEVEL3.rate * dt);
     game.q3 = L.q; const A = Q3.toAngles(game.q3); game.ang = A.ang; game.p3 = A.p; game.r3 = A.r;
