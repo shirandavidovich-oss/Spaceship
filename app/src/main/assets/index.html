@@ -12734,7 +12734,13 @@ function drawCable(o, hook, on) {
   ctx.strokeStyle = on ? "#eaa276" : "#c9a27a"; ctx.lineWidth = Math.max(1.5, shipSize() * 0.016); ctx.setLineDash([6, 4]); ctx.lineDashOffset = -time * (on ? 40 : 120);
   ctx.stroke(); ctx.setLineDash([]);
   const d = 20 * larU() * 1.6;
-  if (hook) { const ang = Math.atan2(hook.vx, -hook.vy), k3 = hook.z != null && view3d.on ? depthScale(hook.z) : 1; ctx.translate(p1.x, p1.y); ctx.rotate(ang); ctx.scale(k3, k3); drawLarClaw(d, 1); }   // (the claw flying, jaws spread)
+  if (hook) {   // the claw flying, jaws spread — pointing along the rope; in 3D as big as its depth, and seen end-on as much as
+    // the rope runs into or out of the depth (so it keeps the rope's angle instead of always facing the camera)
+    const rx = p1.x - p0.x, ry = p1.y - p0.y, rl = Math.hypot(rx, ry), ang = rl > 4 ? Math.atan2(rx, -ry) : Math.atan2(hook.vx, -hook.vy);
+    const d3 = hook.z != null && view3d.on && !BOT, k3 = d3 ? depthScale(hook.z) : 1;
+    const dz = d3 ? ((hook.z || 0) - (s0.z || 0)) * U : 0, fs = d3 && rl > 4 ? Math.max(0.3, rl / Math.hypot(rl, dz)) : 1;
+    ctx.translate(p1.x, p1.y); ctx.rotate(ang); ctx.scale(k3, k3 * fs); if (d3) ctx.globalAlpha *= depthFade(hook.z); drawLarClaw(d, 1);
+  }
   ctx.restore();
 }
 // ---- the lasso: the hook does not stick in the body, the rope winds round it, 4 loops, and holds it tight ----
