@@ -11724,6 +11724,9 @@ function drawChordGuides() {
 // unlock: the three latches open (amber). out: the ring is let go toward the nose, spinning, and the planet pulls it.
 // back: it comes home to wherever the ship is now, lining up with its heading. lock: the latches close again.
 // It hurts the enemy once on the way out and once on the way back, if it passes over it.
+// flying in 3D: how much faster LYTH's ring goes into or out of the depth than across (the depth is shallow next to the
+// arena's width: at 1, a ring thrown at a tilt hardly changes size; at 2.5 it clearly flies away or toward you)
+const RING_DEPTH = 2.5;
 function startRing(w, S) {
   game.ring = { w, t: 0, phase: "unlock", x: game.x, y: game.y, vx: 0, vy: 0, ang: game.ang, lift: 0, trace: [], hitOut: false, hitBack: false };
   audio.sfx(S.sfx, "latches_unlock");
@@ -11742,7 +11745,7 @@ function updateRing(dt) {
     const q3 = view3d.on && !BOT && game.q3 ? game.q3 : null;
     if (q3) {   // flying in 3D: thrown along the nose wherever it points (tilted up or down: into or out of the depth), with the ship's drift
       const dv = Q3.rot(q3, [0, 0, -1]);
-      R.vx = game.vx + dv[0] * v; R.vy = game.vy + dv[2] * v; R.vz = (game.vz3 || 0) + dv[1] * v;
+      R.vx = game.vx + dv[0] * v; R.vy = game.vy + dv[2] * v; R.vz = (game.vz3 || 0) + dv[1] * v * RING_DEPTH;   // (into the depth faster: it visibly shrinks or grows as it goes)
     }
     audio.sfx(S.sfx, "ring_release");
   }
