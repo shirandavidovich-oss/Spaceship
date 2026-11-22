@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v57.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v58.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4574,10 +4574,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v57.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v58.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 57, SHIP3D_FILE = "./lib/ship3d-v57.js";
+const SHIP3D_VER = 58, SHIP3D_FILE = "./lib/ship3d-v58.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4919,6 +4919,11 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
+  if (S.id === "frankenstein") {   // FRANKENSTEIN: its workshop tools through the 5 s of surgery (lib: frankRig) — the forceps arms
+    // swing out and pinch, the roof flaps lift, the saw rises, spins and sweeps, the hammers strike, and all goes back in
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, o.prep != null ? { prep: o.prep } : undefined); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.id === "borer") {   // BORER: its spiral drill turns on its own bearing (lib: drill) — boring into the star, or held drilling
@@ -8081,7 +8086,7 @@ function shipSounds() {
   // BALLAST reeling its asteroid in: a reversing beeper, beep-beep-beep, until it is home
   const reeling = game.ship === "ballast" && game.tow && game.tow.phase === "tow" && towRig(game.tow, MAGIC.tow).reel < 0.999;
   loopClip("reel", "audio/ballast/reel-beep.ogg", fly && !!reeling, 3.456, 0.7);
-  if (game.ship === "ballast") { soundBuf("audio/ballast/reel-beep.ogg"); soundBuf("audio/ballast/engine.ogg"); }
+  if (game.ship === "ballast") { soundBuf("audio/ballast/reel-beep.ogg"); soundBuf("audio/ballast/engine.ogg"); soundBuf("audio/ballast/piston.ogg"); }
 }
 const monsterTalk = { on: false, next: 0, last: -1 };
 // the ships whose gas has its own sound instead of the engine hum: the loop and its length (s)
@@ -9145,7 +9150,10 @@ function startTow(M) {
   const D = Math.hypot(W, H) / 2 / (game.zoom || 1) + R * 1.15, off = rotatePt(D, -D * 0.12, game.ang);
   game.tow = { phase: "reach", t: 0, rel: null, miss: false, x: wrapX(game.x + off.x), y: wrapY(game.y + off.y), vx: 0, vy: 0, ang: -0.17, spin: 0, z: game.z3 || 0 };
   audio.tone(140, 0.5, "square", 0.04, 1.8); audio.tone(520, 0.12, "triangle", 0.04, 0.5, 0.42); buzz(30);   // the wing unlocks
-  for (let i = 0; i < 3; i++) audio.tone(900 - i * 120, 0.18, "sawtooth", 0.03, 0.4, 0.72 + i * 0.1);   // three cables fire
+  for (let i = 0; i < 3; i++) {   // three cables fire: each whistles away as it streaks out (a high whine falling off with the distance)
+    const d = 0.72 + i * 0.1, f = 2600 - i * 180;
+    audio.tone(f, 0.55, "sine", 0.035, 0.42, d); audio.tone(f * 1.5, 0.4, "sine", 0.012, 0.45, d + 0.02); audio.tone(f * 0.5, 0.3, "triangle", 0.01, 0.5, d);
+  }
 }
 // where the three cables leave the wing, in the world (ship `o`, its rig `R`)
 const TOW_WING3 = [[0.4, 0.07], [0.41, 0.1], [0.4, 0.13]];   // (the 3D model's tow wing: its end, where the three cables leave — ship-lengths right, back)
@@ -9169,8 +9177,12 @@ function updateTow(dt) {
   const T = game.tow, M = MAGIC.tow;
   if (!T) return;
   const size = shipSize(), R = M.rock * size;
-  T.t += dt; if (T.rel != null) T.rel += dt;
+  const t0 = T.t, r0 = T.rel; T.t += dt; if (T.rel != null) T.rel += dt;
   const held = game.magicFinger !== null && !game.dead && !game.zombie && game.ship === "ballast";
+  // the weight's hydraulic piston (audio/ballast/piston.ogg): pressing it out on its cylinder (0.71 s, to the stop),
+  // and a shorter push as it draws back in once let go
+  if (held && t0 < 0.71 && T.t >= 0.71) clipFor("audio/ballast/piston.ogg", 0.75, 0.85, 0.18);
+  if (r0 != null && r0 < 0.15 && T.rel >= 0.15 && T.t >= 0.75) clipFor("audio/ballast/piston.ogg", 0.5, 0.55, 0.18);
   if (T.phase === "reach" || T.phase === "tow") T.z = game.z3 || 0;   // (held: at the ship's depth; let go, it keeps it)
   if (T.phase === "reach") {
     T.ang += dt * 0.05;
@@ -9813,10 +9825,18 @@ function drawCreature(wx, wy, heading, progress, marker, fromO, ghosts, zoneOut)
     ctx.strokeStyle = red ? "rgba(255,77,109,0.35)" : "rgba(115,138,166,0.3)"; ctx.setLineDash([4, 7]); ctx.beginPath(); ctx.arc(x, y, R * 0.92, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
     ctx.restore();
   }
+  // the 3D view: the package's creature model, its parts flying in to their places (lib: frankcreature); the parts being
+  // made still flicker in as 2D ghosts over it
+  const m3 = view3d.on && !BOT && view3d.state === "ready" && view3d.lib.ready("frankcreature");
+  if (m3) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(heading); ctx.scale(shipSize(), shipSize());
+    try { view3d.lib.draw(ctx, "frankcreature", heading, 0, 0, { parts: progress.map((v) => Math.max(0, Math.min(1, v || 0))) }); } catch (e) { noteIssue("3D creature: " + (e && e.message || e)); }
+    ctx.restore();
+  }
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.rotate(heading);
   const count = progress.filter((v) => v >= 0.98).length, sm = (v) => v * v * (3 - 2 * v);
   const lines = [[[-31, 23], [-69, 10], [-83, -22]], [[33, 29], [65, 9], [82, -12]], [[-18, 26], [-37, 50], [-22, 80]]];
-  for (let i = 0; i < Math.max(0, count - 1); i++) {   // the improvised joints between the parts
+  for (let i = 0; i < (m3 ? 0 : Math.max(0, count - 1)); i++) {   // the improvised joints between the parts (3D: the model's own brackets)
     const L = lines[i]; ctx.beginPath(); ctx.moveTo(...L[0]); ctx.lineTo(...L[1]); ctx.lineTo(...L[2]);
     ctx.strokeStyle = "#151925"; ctx.lineWidth = 12; ctx.lineJoin = "round"; ctx.stroke();
     ctx.strokeStyle = i === 1 ? "#725866" : "#865b42"; ctx.lineWidth = 6; ctx.stroke(); ctx.strokeStyle = "#d5a76e"; ctx.lineWidth = 1.8; ctx.stroke();
@@ -9828,12 +9848,12 @@ function drawCreature(wx, wy, heading, progress, marker, fromO, ghosts, zoneOut)
       const w = q.width * (0.85 + 0.1 * gh); ctx.drawImage(img, -w / 2, -w * img.height / img.width / 2, w, w * img.height / img.width); ctx.restore();
       continue;
     }
-    if (p <= 0) continue;
+    if (p <= 0 || m3) continue;
     const b = sm(p), sign = i === 1 ? -1 : 1;
     ctx.save(); ctx.translate(q.x + (1 - b) * sign * 49, q.y - (1 - b) * (i === 3 ? -55 : 46)); ctx.rotate(q.angle + (1 - b) * sign * 0.43);
     ctx.globalAlpha *= 0.21 + 0.79 * b; const w = q.width * (0.73 + 0.27 * b); ctx.drawImage(img, -w / 2, -w * img.height / img.width / 2, w, w * img.height / img.width); ctx.restore();
   }
-  if (count === 4 && !marker) {   // flying: the engines pulse
+  if (count === 4 && !marker && !m3) {   // flying: the engines pulse
     const pulse = 0.55 + 0.33 * Math.sin(time * 18); ctx.fillStyle = `rgba(219,167,255,${pulse})`;
     for (const ex of [-28, 15]) { ctx.beginPath(); ctx.ellipse(ex, 136, 8, 13 + 6 * pulse, 0, 0, TAU); ctx.fill(); }
   }
