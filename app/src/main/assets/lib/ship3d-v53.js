@@ -43,7 +43,7 @@ export const SHIP_MODELS = {
     drum: { c: [-0.205, -0.13], r: 0.128, x: [-0.13, 0.13], fl: 0.175, hide: 0.18 },   // (its cable drum, round the file's x: makeDrum)
     claw: [[0.08, 0.745, -0.4], [0.5, 1.0, 0.4]] },   // (the claw at the boom's tip, hidden while it is out on the cable)
   palisade: { file: "models/palisade.glb", fwd: "-z", len: 1.05, fit: "max", upright: 1 },
-  courier: { file: "models/courier.glb", fwd: "-x", len: 0.855, gears: [], iris: { c: [0.052, 0.447], x: -0.83, r: 0.124, back: -0.7, blades: 8, bore: false } },   // (the iris at the mouth of its package tube: THUL's, made to fit — makeGears with no gears)
+  courier: { file: "models/courier.glb", fwd: "-x", len: 0.855, gears: [], iris: { c: [0.052, 0.447], x: -0.83, r: 0.11, back: -0.7, blades: 8, bore: false, maskBack: -0.797, hole: 0.95, boreR: 0.8 } },   // (the iris at the mouth of its package tube: THUL's, made to fit — makeGears with no gears)
   kiln: { file: "models/kiln.glb", fwd: "+x", len: 1.03, wheel: { c: [0.494, 0.127, 0], tilt: 0.26, r: 0.185, h: [-0.03, 0.06] },
     grille: { x: [0.695, 0.8], y: [-0.105, 0.055], z: [-0.265, 0.265], n: 12 } },   // (its furnace grille at the nose: makeGrille)   // (the valve wheel on its sloping deck: splitWheel)
   drakon: { file: "models/drakon.glb", fwd: "+x", len: 0.95, seam: [-0.018, 2.6] },   // (the gap between its two pieces in the model: steeper than the 2D drawing's seam)
@@ -500,7 +500,7 @@ function makeGears(E, M) {
   if (M.iris) makeIris(E, M.iris, brass, dark);
   // the mask: the hull's own gears not drawn (each gear's round slab, a little inside its teeth' tips)
   const holes = list.map((G) => ({ c: G.c, r: G.r * 0.97, z: [G.z[0] - 0.004, G.z[1] + 0.004], ax: G.axis === "x" ? 1 : 0 }));
-  if (M.iris) holes.push({ c: M.iris.c, r: M.iris.r, z: [M.iris.x - 0.02, M.iris.back], ax: 1 });   // (the iris's own blades and what is behind them)
+  if (M.iris) holes.push({ c: M.iris.c, r: M.iris.r * (M.iris.hole || 1), z: [M.iris.x - 0.02, M.iris.maskBack != null ? M.iris.maskBack : M.iris.back], ax: 1 });   // (maskBack, hole: only so deep and so wide — just the model's own blades, the tube round them kept)   // (the iris's own blades and what is behind them)
   const N2 = holes.length, uG = { value: holes.map((H) => new THREE.Vector4(H.c[0], H.c[1], H.r, H.ax)) }, uZ = { value: holes.map((H) => new THREE.Vector2(H.z[0], H.z[1])) };
   raw.traverse((o) => {
     if (!o.isMesh || o.parent === rig || rig.getObjectById(o.id)) return;
@@ -534,9 +534,9 @@ function makeIris(E, I, brass, dark) {
     const m = new THREE.Mesh(geo, k % 2 ? bladeMat2 : bladeMat); m.position.x = R; m.rotation.x = 0.1; m.frustumCulled = false; turn.add(m); blades.push({ turn, m, a0: k * w });   // (tipped a little, every other one darker: the vanes read as overlapping)
   }
   const boreMat = new THREE.MeshStandardMaterial({ color: 0x120c08, metalness: 0.3, roughness: 0.8, emissive: 0xff4a00, emissiveIntensity: 0 });
-  const bore = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.02, R * 1.02, I.back - I.x - 0.03, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x1a120c, metalness: 0.5, roughness: 0.7, side: THREE.BackSide }));
+  const bore = new THREE.Mesh(new THREE.CylinderGeometry(R * (I.boreR || 1.02), R * (I.boreR || 1.02), I.back - I.x - 0.03, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x1a120c, metalness: 0.5, roughness: 0.7, side: THREE.BackSide }));
   bore.rotation.x = Math.PI / 2; bore.position.z = (I.back - I.x + 0.03) / 2; bore.frustumCulled = false; g.add(bore);
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(R * 1.02, 24), boreMat); floor.position.z = I.back - I.x; floor.rotation.y = Math.PI; floor.frustumCulled = false; g.add(floor);   // (facing out of the bore)
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(R * (I.boreR || 1.02), 24), boreMat); floor.position.z = I.back - I.x; floor.rotation.y = Math.PI; floor.frustumCulled = false; g.add(floor);   // (facing out of the bore)
   const ballMat = new THREE.MeshStandardMaterial({ color: 0x7a4a22, metalness: 0.75, roughness: 0.35, emissive: 0xff6a10, emissiveIntensity: 0 });
   const ball = new THREE.Mesh(new THREE.SphereGeometry(R * 0.42, 20, 14), ballMat); ball.position.z = 0.07; ball.frustumCulled = false; g.add(ball);
   E.iris = { blades, boreMat, ballMat, ball, open: 0 };
@@ -873,7 +873,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 52,   // (index.html checks it; the file's name carries it too — lib/ship3d-v52.js — so the app never mixes a new
+  version: 53,   // (index.html checks it; the file's name carries it too — lib/ship3d-v53.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
