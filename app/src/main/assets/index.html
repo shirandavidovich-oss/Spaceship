@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v43.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v44.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -1996,7 +1996,9 @@ function weaponsOf(S, mode = 0) { return mode && S.flip ? S.flip.weapons : S.wea
 const GUN_MIRROR3 = { brass: true, courier: true };   // (COURIER: its capsule tube on the model's left)
 // the ships whose 3D model has its guns in other places from the 2D drawing: [x, y, h] (ship units; h up off the hull)
 // CANTOR: the model's bell is narrower than the drawing — its five grooves open at x 0, ±0.123, ±0.235, a little back
-const GUNS3 = { cantor: { tone: [[0, -0.43, 0.03]],
+// BALLAST: the model's nose block is a little further forward and right than the drawing's, its weight on the right
+const GUNS3 = { ballast: { railslug: [[0.018, -0.49, 0]], sinker: [[0.3, 0.05, 0]] },
+  cantor: { tone: [[0, -0.43, 0.03]],
   chord: [[-0.235, -0.43, 0.03], [-0.123, -0.43, 0.03], [0, -0.43, 0.03], [0.123, -0.43, 0.03], [0.235, -0.43, 0.03]] } };
 function gunsOf(S, w) {
   const G = (S.guns && S.guns[w]) || (w === "twin" ? [[-0.06, -0.5], [0.06, -0.5]] : [[0, -0.5]]);
@@ -4509,10 +4511,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v43.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v44.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 43, SHIP3D_FILE = "./lib/ship3d-v43.js";
+const SHIP3D_VER = 44, SHIP3D_FILE = "./lib/ship3d-v44.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4756,6 +4758,12 @@ function flipPaddles(a) {
   const d = (deg - T.rest) * Math.PI / 180;
   return [d, d];
 }
+// BALLAST's bumper light: { c: the rail slug's colour, k: 0..1 } — full as a slug leaves, gone in BUMPER_T s
+const BUMPER_T = 0.22;
+function ballastBumper(o) {
+  const V = o.vt || o, dt = V.muzT != null && V.muzW === "railslug" ? time - V.muzT : 99;
+  return { c: WEAPONS.railslug.color, k: dt < BUMPER_T ? (1 - dt / BUMPER_T) ** 1.5 : 0 };
+}
 const GEAR_RPM = 240;   // (THUL's gears in 3D: its drive gear's speed at full fire, turns a minute)
 function draw3dShipModel(S, o, ang, bank) {
   const L = view3d.lib;
@@ -4812,6 +4820,10 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
+  if (S.id === "ballast") {   // BALLAST: its front bumper lights up in the slug's colour as each rail slug leaves (lib: bumper)
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { bumper: ballastBumper(o) }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.winch) {   // LARIAT: its cable drum rolls (lib: drum) — paying out fast as the claw flies, reeling in slowly on the cable
@@ -10358,6 +10370,7 @@ function enemyShoot(dt) {
       const m = rotatePt(gg[0] * size, gg[1] * size, enemy.ang);
       for (const a of pelletAngles(Wp)) {
         const dir = enemy.ang + a + hk + (Math.random() - 0.5) * 0.06 + (enemy.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;
+        enemy.muzT = time; enemy.muzW = w;
         eshots.push({ w, x: enemy.x + m.x, y: enemy.y + m.y, vx: enemy.vx + Math.sin(dir) * v, vy: enemy.vy - Math.cos(dir) * v, life: 0,
           art: art ? { src: framePath(E.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(E.anim.dir, f)) } : null });
       }
@@ -11694,6 +11707,7 @@ function spawnShots(w, g, rot) {
     let dv = q3s ? Q3.rot(q3s, [Math.sin(dir - game.ang), 0, -Math.cos(dir - game.ang)]) : [Math.sin(dir), 0, -Math.cos(dir)];
     if (!Wp.rear && !Wp.broadside && !Wp.mines) dv = aimShot(dv, x, y, z0, sv, Wp);   // (bent onto a target just off the nose — AIM)
     const iv = inherit(dv);   // (the ship's own drift: all of it along the shot, little of it sideways — AIM.side)
+    game.muzT = time; game.muzW = w;   // (the moment and the weapon: BALLAST's bumper lights up)
     shots.push({ w, x, y, vx: iv[0] + dv[0] * sv, vy: iv[2] + dv[2] * sv, z3: z0, vz3: iv[1] + dv[1] * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined });
     if (q3s && g && Math.abs(g[0]) > 0.05 && !Wp.splay && !Wp.aimAt) spread3(shots[shots.length - 1], x - game.x, y - game.y, z0 - (game.z3 || 0), dv);   // (side guns: the pair closes in with distance)
   }
@@ -12950,7 +12964,11 @@ function drawShip(S, x, y, size, o = {}) {
   if (o.zombie && drawZombieShip(S, o)) { ctx.restore(); return; }
   if (draw3dShip(S, o, ang, bank)) { ctx.restore(); return; }   // (the 3D view: its model, before any rig of moving parts — BLOOM, FRANKENSTEIN, KILN...)
   if (S.bloom && drawBloomMoving(S, power)) { ctx.restore(); return; }
-  if (S.ballast && drawBallastRig(o.tow)) { ctx.restore(); return; }
+  if (S.ballast && drawBallastRig(o.tow)) {
+    const Bp = ballastBumper(o);   // its nose bumper lit in the slug's colour as it fires
+    if (Bp.k > 0) { ctx.save(); ctx.globalCompositeOperation = "lighter"; const g = ctx.createRadialGradient(0, -0.4, 0, 0, -0.4, 0.2); g.addColorStop(0, hexA(Bp.c, 0.85 * Bp.k)); g.addColorStop(1, hexA(Bp.c, 0)); ctx.fillStyle = g; ctx.fillRect(-0.2, -0.6, 0.4, 0.4); ctx.fillStyle = hexA("#ffffff", 0.7 * Bp.k); ctx.fillRect(-0.13, -0.425, 0.26, 0.018); ctx.restore(); }
+    ctx.restore(); return;
+  }
   if (S.kiln && drawKilnRig(o.kiln)) { ctx.restore(); return; }
   if (S.frank && drawSurgeonShip(o.prep != null ? o.prep : null)) { ctx.restore(); return; }   // FRANKENSTEIN: its arms and saw   // KILN: its parts, the gear spinning
   if (S.strata) {   // STRATA: drawn by its package's renderer in screen pixels, so undo the turn and scale first
@@ -20174,6 +20192,7 @@ function duelLink(event, data) {
   } else if (m.t === "f" && WEAPONS[m.w]) {   // they fired: show the shot
     const S = shipById(m.s), a0 = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
     const art = a0 && a0.files && m.ix != null ? { ...a0, file: a0.files[m.ix] } : a0;   // CANTOR: each bolt its groove's colour
+    enemy.muzT = time; enemy.muzW = m.w;
     duel.shots.push({ w: m.w, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, sub: m.sb === 1, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c, z3: m.d3 || 0, vz3: (m.dv || 0) * U,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
     if (duel.shots.length < 60) audio.shot(m.w, enemy.ship, enemy);
