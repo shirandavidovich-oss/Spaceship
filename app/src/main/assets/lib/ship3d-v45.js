@@ -67,6 +67,14 @@ export const SHIP_MODELS = {
 };
 
 const PX = 512, PAD = 1.3;   // the off-screen picture's size (px), and its room round the ship (for rolling and tilting)
+// a ship big on the screen (close to the camera) is drawn at twice that, so it stays sharp: PX_BIG once its picture would
+// be more than BIG_AT px across on the screen (most of the time ships are far smaller: the usual PX, no extra work)
+const PX_BIG = 1024, BIG_AT = 560;
+// render `sc` through `cm` into the top-left `res` x `res` of the off-screen canvas (the rest untouched)
+function renderAt(sc, cm, res) {
+  R.setViewport(0, PX_BIG - res, res, res); R.setScissor(0, PX_BIG - res, res, res); R.setScissorTest(true);
+  R.render(sc, cm); R.setScissorTest(false);
+}
 let R = null, scene, cam, key, rim, root, lamps = null;
 const models = {};
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -74,10 +82,10 @@ const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 function init() {
   if (R) return true;
   try {
-    const cv = document.createElement("canvas"); cv.width = cv.height = PX;
+    const cv = document.createElement("canvas"); cv.width = cv.height = PX_BIG;
     R = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
   } catch (e) { R = null; return false; }
-  R.setPixelRatio(1); R.setSize(PX, PX, false); R.setClearColor(0x000000, 0);
+  R.setPixelRatio(1); R.setSize(PX_BIG, PX_BIG, false); R.setClearColor(0x000000, 0);
   R.outputColorSpace = THREE.SRGBColorSpace; R.toneMapping = THREE.NeutralToneMapping; R.toneMappingExposure = 1.0;
   scene = new THREE.Scene();
   const pm = new THREE.PMREMGenerator(R); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose();
@@ -99,11 +107,12 @@ function cached(id, key) {
   const A = poseCache[id] || (poseCache[id] = []);
   return A.find((c) => c.key === key) || null;
 }
-function store(id, key) {
+function store(id, key, res = PX) {
   const A = poseCache[id] || (poseCache[id] = []);
   let c = A.length < 2 ? null : A.sort((a, b) => a.t - b.t)[0];   // (two per ship: the same ship on both sides)
-  if (!c) { const cv = document.createElement("canvas"); cv.width = cv.height = PX; c = { cv, cx: cv.getContext("2d") }; A.push(c); }
-  c.key = key; c.cx.clearRect(0, 0, PX, PX); c.cx.drawImage(R.domElement, 0, 0); return c;
+  if (!c) { const cv = document.createElement("canvas"); c = { cv, cx: cv.getContext("2d") }; A.push(c); }
+  if (c.cv.width !== res) { c.cv.width = c.cv.height = res; }   // (a picture of the size this one was drawn at)
+  c.key = key; c.cx.clearRect(0, 0, res, res); c.cx.drawImage(R.domElement, 0, 0, res, res, 0, 0, res, res); return c;
 }
 // fit a loaded model: centred, nose to -z (the screen's up), top to +y, 1 long
 function fit(obj, M) {
@@ -789,9 +798,9 @@ function gauge(ctx, q, x, y, r) {
   if (G3.key !== key) {
     G3.turn.quaternion.set(q[0], q[1], q[2], q[3]);
     R.toneMapping = THREE.NeutralToneMapping;
-    R.render(G3.sc, G3.cam);
+    renderAt(G3.sc, G3.cam, PX);
     if (!G3.cv) { G3.cv = document.createElement("canvas"); G3.cv.width = G3.cv.height = 256; G3.cx = G3.cv.getContext("2d"); }
-    G3.cx.clearRect(0, 0, 256, 256); G3.cx.drawImage(R.domElement, 0, 0, 256, 256); G3.key = key;
+    G3.cx.clearRect(0, 0, 256, 256); G3.cx.drawImage(R.domElement, 0, 0, PX, PX, 0, 0, 256, 256); G3.key = key;
   }
   ctx.drawImage(G3.cv, x - r, y - r, r * 2, r * 2);
   return true;
@@ -799,7 +808,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 44,   // (index.html checks it; the file's name carries it too — lib/ship3d-v44.js — so the app never mixes a new
+  version: 45,   // (index.html checks it; the file's name carries it too — lib/ship3d-v45.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -821,7 +830,7 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.bumper && opt && opt.bumper ? "|b" + opt.bumper.c + Math.round(opt.bumper.k * 30) : "") + (E.drum && opt ? "|d" + Math.round((opt.drum || 0) * 40) + (opt.clawOut ? "c" : "") : "") + (E.paddles && opt && opt.paddles ? "|p" + opt.paddles.map((a) => Math.round(a * 100)).join(",") : "") + (E.wheel && opt ? "|w" + Math.round((opt.wheel || 0) * 60) + "," + Math.round((opt.glow || 0) * 20) + "," + Math.round((opt.flaps || 0) * 40) : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) + (opt.cannon ? "," + ["ring", "kick", "open", "glow"].map((k) => Math.round((opt.cannon[k] || 0) * 40)).join(",") + (opt.cannon.ball === false ? "x" : "") : "") : "");   // (a new picture only when it has turned a quarter of a degree)
+    let pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.bumper && opt && opt.bumper ? "|b" + opt.bumper.c + Math.round(opt.bumper.k * 30) : "") + (E.drum && opt ? "|d" + Math.round((opt.drum || 0) * 40) + (opt.clawOut ? "c" : "") : "") + (E.paddles && opt && opt.paddles ? "|p" + opt.paddles.map((a) => Math.round(a * 100)).join(",") : "") + (E.wheel && opt ? "|w" + Math.round((opt.wheel || 0) * 60) + "," + Math.round((opt.glow || 0) * 20) + "," + Math.round((opt.flaps || 0) * 40) : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) + (opt.cannon ? "," + ["ring", "kick", "open", "glow"].map((k) => Math.round((opt.cannon[k] || 0) * 40)).join(",") + (opt.cannon.ball === false ? "x" : "") : "") : "");   // (a new picture only when it has turned a quarter of a degree)
     // opt.lights: up to 3 coloured lights inside the ship ({ x, y, z } in the fitted model's units, before it is tilted;
     // color; i: how bright) — MIRAGE's light running up its prism
     if (!lamps) { lamps = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xffffff, 0, 1.2, 1.6); scene.add(L); return L; }); }
@@ -855,6 +864,8 @@ export const Ship3D = {
       E.parts.forEach((B, i) => { const q = Q && Q[i]; B.pivot.position.set((q ? q.x : B.cx) / s, 0, (q ? q.z : B.cz) / s); B.pivot.rotation.set(0, q ? -q.a : 0, 0); });
     }
     if (E.spin) { E.spin.visible = part !== "hull"; E.spin.rotation.y = -sp; for (const H of E.hull) H.visible = part !== "ring"; }
+    const T2 = ctx.getTransform(), res = Math.hypot(T2.a, T2.b) * L > BIG_AT ? PX_BIG : PX;   // (how big it is on the screen: close up, the sharper picture)
+    pk += "|r" + res;
     let c = cached(id, pk);
     if (c) { c.t = performance.now(); ctx.drawImage(c.cv, -L / 2, -L / 2, L, L); return true; }
     root.clear(); root.add(E.obj);
@@ -864,8 +875,8 @@ export const Ship3D = {
     key.position.set(lx * ca - lz * sa, 1.1, lx * sa + lz * ca);
     rim.position.set(-(lx * ca - lz * sa), 0.4, -(lx * sa + lz * ca));
     if (cam.right !== pad / 2) { cam.left = cam.bottom = -pad / 2; cam.right = cam.top = pad / 2; cam.updateProjectionMatrix(); }
-    R.render(scene, cam);
-    c = store(id, pk); c.t = performance.now();
+    renderAt(scene, cam, res);
+    c = store(id, pk, res); c.t = performance.now();
     ctx.drawImage(c.cv, -L / 2, -L / 2, L, L);
     return true;
   },
