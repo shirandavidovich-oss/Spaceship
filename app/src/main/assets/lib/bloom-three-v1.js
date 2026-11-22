@@ -1,7 +1,7 @@
 import {
   CLIP_NAMES, STRAND_COUNT, STRAND_COLORS, createBloomState, updateBloom,
   createFilament, sampleFilament, sampleCurve,
-} from './bloom-motion-v1.mjs';
+} from './bloom-motion-v1.js';
 
 const SPANS = 16;
 const SIDES = 5;

@@ -263,7 +263,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (p.endsWith(".ogg")) return "audio/ogg";
         if (p.endsWith(".wav")) return "audio/wav";
         if (p.endsWith(".json")) return "application/json";
-        if (p.endsWith(".js")) return "text/javascript";
+        if (p.endsWith(".js") || p.endsWith(".mjs")) return "text/javascript";
         if (p.endsWith(".css")) return "text/css";
         if (p.endsWith(".svg")) return "image/svg+xml";
         return "application/octet-stream";

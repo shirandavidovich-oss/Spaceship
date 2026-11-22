@@ -10,7 +10,9 @@ import * as THREE from "three";
 import { GLTFLoader } from "./three/GLTFLoader.js";
 import { MeshoptDecoder } from "./three/meshopt_decoder.module.js";
 import { RoomEnvironment } from "./three/RoomEnvironment.js";
-import { createBloomVisual } from "./bloom-three-v1.mjs";   // (BLOOM's rigged petals and pollen: the Bloom 3D Motion package)
+// (BLOOM's rigged petals and pollen, the Bloom 3D Motion package: loaded only when BLOOM is, and on its own — if it ever
+// fails, only BLOOM goes without its motion; the rest of the 3D ships are not held up by it)
+let bloomLib = null;
 
 // per ship: its file; which way its nose points in the file (fwd: "+x" | "-x" | "+z" | "-z"); turn: an extra turn
 // round its up axis (rad) to line it up with the 2D drawing; len: its length on screen, in the 2D drawing's units
@@ -728,7 +730,8 @@ function want(id) {
   if (E) E.used = performance.now();
   if (!E) {
     E = models[id] = { state: "loading", obj: null };
-    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.bloomRig) { try { E.bloom = createBloomVisual(THREE, g); E.bloom.effects.scale.setScalar(M.pollen || 1); } catch (err) { console.warn("bloom rig", err); } } if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); if (M.cloud) makeCloud(E); if (M.slide) splitSlide(E, M); if (M.gears) makeGears(E, M); if (M.bumper) makeBumper(E, M); if (M.drum) makeDrum(E, M); if (M.paddles) splitPaddles(E, M); if (M.grille) makeGrille(E, M); if (M.wheel) splitWheel(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+    if (M.bloomRig && !bloomLib) bloomLib = import("./bloom-three-v1.js").catch((err) => { console.warn("bloom rig", err); return null; });
+    loader.load(M.file, (g) => { E.raw = g.scene; E.obj = fit(g.scene, M); if (M.bloomRig) { E.state = "rig"; bloomLib.then((B) => { try { if (B) { E.bloom = B.createBloomVisual(THREE, g); E.bloom.effects.scale.setScalar(M.pollen || 1); } } catch (err) { console.warn("bloom rig", err); } E.state = "ready"; E.used = performance.now(); evict(); }); return; } if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); if (M.cloud) makeCloud(E); if (M.slide) splitSlide(E, M); if (M.gears) makeGears(E, M); if (M.bumper) makeBumper(E, M); if (M.drum) makeDrum(E, M); if (M.paddles) splitPaddles(E, M); if (M.grille) makeGrille(E, M); if (M.wheel) splitWheel(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -854,7 +857,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 47,   // (index.html checks it; the file's name carries it too — lib/ship3d-v47.js — so the app never mixes a new
+  version: 48,   // (index.html checks it; the file's name carries it too — lib/ship3d-v48.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
