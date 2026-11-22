@@ -1425,7 +1425,7 @@ const WEAPONS = {
   // COURIER. brassburst: two rounds at once from the nose ports. mailcap: a capsule the star pulls round (gravity), one
   //   at a time (`one`)
   brassburst: { name: "צרור פליז", dmg: 5, speed: 2.3, life: 1.0, cool: 0.28, ammo: 16, refill: 7, r: 0.02, color: "#ffc46b", both: true },
-  mailcap:    { name: "קפסולת דואר", dmg: 18, speed: 1.2, life: 6.0, cool: 1.6, ammo: 3, refill: 9, r: 0.05, color: "#ff9a2e", gravity: true, one: true, seekWater: true },   // (seekWater: into BOILER's water it goes, and hunts BOILER down there)
+  mailcap:    { name: "קפסולת דואר", dmg: 18, speed: 1.2, life: 6.0, cool: 1.6, ammo: 3, refill: 9, r: 0.05, color: "#ff9a2e", gravity: true, straight: 0.35, one: true, seekWater: true },   // (seekWater: into BOILER's water it goes, and hunts BOILER down there)
   // FRESNEL. lensflash: a narrow golden pulse. lightshard: two shards aimed to cross `aimAt` ship-lengths ahead, then on
   lensflash:  { name: "הבזק ממוקד", dmg: 8, speed: 3.0, life: 0.7, cool: 0.35, ammo: 12, refill: 6, r: 0.02, color: "#ffd86b" },
   lightshard: { name: "רסיסי אור", dmg: 7, speed: 2.4, life: 0.9, cool: 0.7, ammo: 8, refill: 7, r: 0.025, color: "#ff5ea8", colors: ["#ff5ea8", "#5ee7ff"], both: true, aimAt: 2.0 },
@@ -7361,7 +7361,10 @@ function drawOrbitMines() {
 }
 // COURIER's mail capsule: it falls round the star (gravity), blinking orange, a fading trail behind it
 function drawCapsule(s) {
-  const p = toScreen(s.x, s.y), img = artImage(framePath("courier", "capsule.webp")), L = shipSize() * 0.3, a = Math.atan2(s.vx, -s.vy);
+  const p = toScreen(s.x, s.y), img = artImage(framePath("courier", "capsule.webp")), a = Math.atan2(s.vx, -s.vy);
+  // (in 3D: as big as its depth, and seen end-on as much as it flies into or out of the depth — it follows the tube's angle)
+  const d3 = view3d.on && !BOT, k3 = d3 && s.z3 ? depthScale(s.z3) : 1, h = Math.hypot(s.vx, s.vy), fs = d3 && s.vz3 ? Math.max(0.3, h / Math.hypot(h, s.vz3)) : 1;
+  const L = shipSize() * 0.3 * k3;
   s.trail = s.trail || []; s.trail.push([s.x, s.y]); if (s.trail.length > 26) s.trail.shift();
   ctx.save(); ctx.lineWidth = 2;
   for (let i = 1; i < s.trail.length; i++) {
@@ -7370,7 +7373,8 @@ function drawCapsule(s) {
     ctx.strokeStyle = `rgba(255,154,46,${i / s.trail.length * 0.5})`; ctx.beginPath(); ctx.moveTo(q0.x, q0.y); ctx.lineTo(q1.x, q1.y); ctx.stroke();
   }
   ctx.translate(p.x, p.y); ctx.rotate(a);
-  if (img) ctx.drawImage(img, -L * 0.2, -L / 2, L * 0.4, L);
+  if (d3 && s.z3) ctx.globalAlpha *= depthFade(s.z3);
+  if (img) ctx.drawImage(img, -L * 0.2, -L * fs / 2, L * 0.4, L * fs);
   if (Math.sin(time * 14) > 0) { ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = "rgba(255,154,46,0.6)"; ctx.beginPath(); ctx.arc(0, 0, L * 0.3, 0, TAU); ctx.fill(); }
   ctx.restore();
 }
@@ -10486,7 +10490,7 @@ function updateEnemyShots(dt) {
     s.life += dt;
     if (Wp.magnet) magnetPull(s, Wp, dt);
     if (Wp.homing && !game.dead && s.life > 0.12 && !(Wp.dry && inWater(s))) { const t = steerShot(s.vx, s.vy, wrapDelta(game.x - s.x, WW), wrapDelta(game.y - s.y, WH), Wp.homing * 0.6 * dt); s.vx = t.vx; s.vy = t.vy; }
-    if (Wp.gravity) { const g = inWater(s) ? { ax: 0, ay: 0 } : starPull(s.x, s.y, null); s.vx += g.ax * dt; s.vy += g.ay * dt; }
+    if (Wp.gravity && s.life > (Wp.straight || 0)) { const g = inWater(s) ? { ax: 0, ay: 0 } : starPull(s.x, s.y, null); s.vx += g.ax * dt; s.vy += g.ay * dt; }   // (straight: s it flies straight out first)
     if (s.rw && enemy.rw) { s.life -= dt; if (!rewindShot(s, dt, enemy.rw.slow)) eshots.splice(k, 1); continue; }   // going back with it (harmless)
     s.rw = false;
     if (shotFx(eshots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
@@ -11608,7 +11612,7 @@ function updateWeapons(dt) {
       const ht = qBlur(enemy, enemy.ship), t = steerShot(s.vx, s.vy, wrapDelta(ht.x - s.x, WW), wrapDelta(ht.y - s.y, WH), Wp.homing * dt);   // (a NULL: it cannot be pinned down)
       s.vx = t.vx; s.vy = t.vy;
     }
-    if (Wp.gravity) { const g = inWater(s) ? { ax: 0, ay: 0 } : starPull(s.x, s.y, null); s.vx += g.ax * dt; s.vy += g.ay * dt; }
+    if (Wp.gravity && s.life > (Wp.straight || 0)) { const g = inWater(s) ? { ax: 0, ay: 0 } : starPull(s.x, s.y, null); s.vx += g.ax * dt; s.vy += g.ay * dt; }   // (straight: s it flies straight out first)
     if (s.seek && inWater(s) && enemy.on) { const t = steerShot(s.vx, s.vy, wrapDelta(enemy.x - s.x, WW), wrapDelta(enemy.y - s.y, WH), 3 * dt); s.vx = t.vx; s.vy = t.vy; }   // COURIER's capsule in the water: after BOILER
     if (shotFx(shots, k, s, Wp, dt)) continue;   // MIRAGE: false stars bend it; a seed splits
     s.x = (((s.x + s.vx * dt) % WW) + WW) % WW; s.y = (((s.y + s.vy * dt) % WH) + WH) % WH;
