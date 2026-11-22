@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v54.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v55.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4126,14 +4126,16 @@ function boilerProp(vt, S) {
   const t = time - vt.propAt, A = S.anim, out = A.propOut.length * 0.1;
   return t < out ? A.propOut[Math.min(A.propOut.length - 1, Math.floor(t * 10))][0] : A.propSwim[Math.floor((t - out) * 20) % A.propSwim.length][0];
 }
+// the 3D propulsor's timing (draw3dShipModel): seconds to come out and to go back in; the rotor's turns a minute idle and full
+const BOILER_PROP = { deploy: 3.0, stow: 2.15, idle: 32, full: 200, wake: 0.51 };   // (wake: in 3D its propeller's end, ship-lengths behind the middle)
 // its wake: bubbles out of the propeller (more when it pushes), once the propeller is out
 function boilerWake(dt) {
   for (const o of [game, enemy]) {
     const id = o === game ? game.ship : enemy.ship;
-    if (id !== "boiler" || o.dead || (o === enemy && !enemy.on) || o.propAt == null || time - o.propAt < 1.6 || !inWater(o)) continue;
+    if (id !== "boiler" || o.dead || (o === enemy && !enemy.on) || o.propAt == null || time - o.propAt < (use3d(shipById("boiler"), o) ? 2.7 : 1.6) || !inWater(o)) continue;   // (in 3D: once its blades have unfolded)
     const S = shipById("boiler"), push = Math.hypot(o.vx || 0, o.vy || 0) > U * 0.15 ? 1 : 0.25;   // (moving: a thick wake)
     if (Math.random() < dt * 26 * push) {
-      const m = rotatePt((Math.random() - 0.5) * 0.12 * shipSize(), 0.566 * shipSize(), o.ang);   // (the package's propeller outlet: 0.566 ship-lengths behind the middle)
+      const m = rotatePt((Math.random() - 0.5) * 0.12 * shipSize(), (use3d(S, o) ? BOILER_PROP.wake : 0.566) * shipSize(), o.ang);   // (the package's propeller outlet: 0.566 ship-lengths behind the middle)
       burstAt(o.x + m.x, o.y + m.y, 1 + (Math.random() < push * 0.5 ? 1 : 0), ["#ffffff", "#e6fbff", "#bff6ff"], 0.18, 0.9, o.vx * 0.2 - Math.sin(o.ang) * U * 0.25, o.vy * 0.2 + Math.cos(o.ang) * U * 0.25 - U * 0.06);
     }
   }
@@ -4566,10 +4568,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v54.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v55.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 54, SHIP3D_FILE = "./lib/ship3d-v54.js";
+const SHIP3D_VER = 55, SHIP3D_FILE = "./lib/ship3d-v55.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4909,6 +4911,17 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
+  if (S.id === "boiler") {   // BOILER: its underwater propulsor (lib: prop, the BOILER package) — in the water its stern locks slide
+    // back, the doors swing open, the piston pushes the folded propeller out and its blades unfold (3 s), then it turns, faster
+    // with the gas; out of the water it all goes back in (2.15 s), from wherever it had got to
+    const V = o.vt || o, wet = !!flood && !V.dead && !!o.vt && inWater(V), dt = Math.min(0.1, frameDt || 0.016);
+    V.propP = clamp((V.propP || 0) + (wet ? dt / BOILER_PROP.deploy : -dt / BOILER_PROP.stow), 0, 1);
+    const ready = clamp((V.propP * BOILER_PROP.deploy - 2.68) / 0.32, 0, 1), want = wet ? ready * (BOILER_PROP.idle + (BOILER_PROP.full - BOILER_PROP.idle) * clamp(o.power || 0, 0, 1)) : 0;
+    V.propRpm = V.propP * BOILER_PROP.deploy < 2.64 ? 0 : (V.propRpm || 0) + (want - (V.propRpm || 0)) * (1 - Math.exp(-dt / (want > (V.propRpm || 0) ? 0.19 : 0.075)));
+    V.propRot = ((V.propRot || 0) + dt * V.propRpm * Math.PI / 30) % (Math.PI * 2);
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { prop: { p: V.propP, rot: V.propRot } }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.id === "courier") {   // COURIER: the iris at its package tube's mouth (lib: iris) winds open for the package — open as it
