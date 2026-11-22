@@ -23,7 +23,8 @@ export const SHIP_MODELS = {
     { c: [0.088, 0.03], r: 0.085, z: [0.128, 0.19], teeth: 14, dir: 1, spokes: 5 },
     { c: [0.15, 0.015], r: 0.1, z: [0.078, 0.128], teeth: 18, dir: -1, spokes: 6 },     // under them, toward the tail
     { c: [-0.065, -0.056], r: 0.068, z: [-0.235, -0.13], teeth: 12, dir: -1, spokes: 4 }, // the small one by the right pod
-  ] },
+    { axis: "x", c: [0.01, 0.58], r: 0.2, z: [-0.02, 0.08], teeth: 30, dir: 1, spokes: 6, drive: "cannon" },   // the heavy cannon's ring gear, round its barrel
+  ], iris: { c: [0.005, 0.607], x: -0.505, r: 0.117, back: -0.43, blades: 8 } },   // (the heavy cannon's iris, its face at x; back: as deep as the bore)
   puff: { file: "models/puff.glb", fwd: "-x", len: 0.8 },
   xeltar: { file: "models/xeltar.glb", fwd: "-x", len: 0.95 },
   strata: { file: "models/strata.glb", fwd: "-x", len: 0.95 },
@@ -421,7 +422,8 @@ function makeGears(E, M) {
   const brass = new THREE.MeshStandardMaterial({ color: 0xa47634, metalness: 0.8, roughness: 0.46, envMapIntensity: 0.9 });   // (the model's own worn brass)
   const dark = new THREE.MeshStandardMaterial({ color: 0x4a3a28, metalness: 0.7, roughness: 0.5, envMapIntensity: 1 });
   const rig = new THREE.Group(); raw.add(rig);   // (in the file's own units, as the gears were measured)
-  E.gears = { rig, list: [] };
+  const cannon = new THREE.Group(); rig.add(cannon);   // (the heavy cannon's parts: its ring gear and its iris, kicked back together)
+  E.gears = { rig, cannon, list: [] };
   for (const G of list) {
     const r = G.r, root = r * 0.86, n = G.teeth, sh = new THREE.Shape();
     for (let i = 0; i < n; i++) {   // the teeth: a flat top, sloping sides
@@ -438,14 +440,19 @@ function makeGears(E, M) {
     const th = G.z[1] - G.z[0], bev = Math.min(th * 0.18, r * 0.04);
     const geo = new THREE.ExtrudeGeometry(sh, { depth: th - bev * 2, bevelEnabled: true, bevelThickness: bev, bevelSize: bev * 0.8, bevelSegments: 1, curveSegments: 6 });
     geo.translate(0, 0, G.z[0] + bev);
-    const axle = new THREE.Group(); axle.position.set(G.c[0], G.c[1], 0); rig.add(axle);
+    const ax = G.axis === "x", axle = new THREE.Group(); rig.add(axle);
+    if (ax) { axle.position.set(0, G.c[0], G.c[1]); axle.rotation.y = Math.PI / 2; } else axle.position.set(G.c[0], G.c[1], 0);   // (round x: its z along the file's x)
+    if (G.drive === "cannon") { rig.remove(axle); E.gears.cannon.add(axle); }   // (on the cannon: kicked back with it)
     const wheel = new THREE.Mesh(geo, brass); wheel.frustumCulled = false; axle.add(wheel);
     const boss = new THREE.Mesh(new THREE.CylinderGeometry(hub * 0.75, hub * 0.75, th * 1.25, 6), dark);   // the hub: a hex nut on the axle
     boss.rotation.x = Math.PI / 2; boss.position.z = (G.z[0] + G.z[1]) / 2; boss.frustumCulled = false; axle.add(boss);
-    E.gears.list.push({ axle, k: (14 / n) * (G.dir || 1) });
+    E.gears.list.push({ axle: wheel, boss, k: (14 / n) * (G.dir || 1), drive: G.drive || "" });
   }
+  if (M.iris) makeIris(E, M.iris, brass, dark);
   // the mask: the hull's own gears not drawn (each gear's round slab, a little inside its teeth' tips)
-  const uG = { value: list.map((G) => new THREE.Vector4(G.c[0], G.c[1], G.r * 0.97, 0)) }, uZ = { value: list.map((G) => new THREE.Vector2(G.z[0] - 0.004, G.z[1] + 0.004)) };
+  const holes = list.map((G) => ({ c: G.c, r: G.r * 0.97, z: [G.z[0] - 0.004, G.z[1] + 0.004], ax: G.axis === "x" ? 1 : 0 }));
+  if (M.iris) holes.push({ c: M.iris.c, r: M.iris.r, z: [M.iris.x - 0.02, M.iris.back], ax: 1 });   // (the iris's own blades and what is behind them)
+  const N2 = holes.length, uG = { value: holes.map((H) => new THREE.Vector4(H.c[0], H.c[1], H.r, H.ax)) }, uZ = { value: holes.map((H) => new THREE.Vector2(H.z[0], H.z[1])) };
   raw.traverse((o) => {
     if (!o.isMesh || o.parent === rig || rig.getObjectById(o.id)) return;
     const uM = { value: o.matrix.clone() };   // (its quantized units to the file's)
@@ -453,10 +460,37 @@ function makeGears(E, M) {
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.uGearC = uG; sh.uniforms.uGearZ = uZ; sh.uniforms.uToFile = uM;
       sh.vertexShader = "uniform mat4 uToFile;\nvarying vec3 vFile;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\nvFile = (uToFile * vec4(transformed, 1.0)).xyz;");
-      sh.fragmentShader = `uniform vec4 uGearC[${N}];\nuniform vec2 uGearZ[${N}];\nvarying vec3 vFile;\n` + sh.fragmentShader.replace("void main() {", `void main() {\n  for (int i = 0; i < ${N}; i++) { if (vFile.z > uGearZ[i].x && vFile.z < uGearZ[i].y && distance(vFile.xy, uGearC[i].xy) < uGearC[i].z) discard; }`);
+      sh.fragmentShader = `uniform vec4 uGearC[${N2}];\nuniform vec2 uGearZ[${N2}];\nvarying vec3 vFile;\n` + sh.fragmentShader.replace("void main() {", `void main() {\n  for (int i = 0; i < ${N2}; i++) { bool ax = uGearC[i].w > 0.5; float w = ax ? vFile.x : vFile.z; vec2 q = ax ? vFile.yz : vFile.xy; if (w > uGearZ[i].x && w < uGearZ[i].y && distance(q, uGearC[i].xy) < uGearC[i].z) discard; }`);
     };
-    mat.customProgramCacheKey = () => "gears" + N;
+    mat.customProgramCacheKey = () => "gears" + N2;
   });
+}
+// the heavy cannon's iris (THUL: `iris`; c: [y, z] its middle, x: its face, r: the blades' reach, back: the bore's depth,
+// blades): its blades each on a pivot at the rim, swung out to open it (E.iris.open 0..1); behind them the dark bore with
+// the cannonball, glowing as it charges (E.iris.glow)
+function makeIris(E, I, brass, dark) {
+  const g = new THREE.Group(); g.position.set(I.x, I.c[0], I.c[1]); g.rotation.y = Math.PI / 2; E.gears.cannon.add(g);   // (its z along the file's x: into the ship)
+  const n = I.blades, R = I.r, w = (Math.PI * 2) / n, blades = [];
+  const bladeMat = new THREE.MeshStandardMaterial({ color: 0x9a6c2e, metalness: 0.85, roughness: 0.42, envMapIntensity: 0.9, side: THREE.DoubleSide });
+  const bladeMat2 = new THREE.MeshStandardMaterial({ color: 0x7a5424, metalness: 0.85, roughness: 0.5, envMapIntensity: 0.9, side: THREE.DoubleSide });
+  for (let k = 0; k < n; k++) {
+    // a blade: a curved wedge from the rim to the middle (built at the rim, pointing in along -x); opened, it draws back
+    // toward the rim (squashed along its length from its rim end) as all of them twist round together — never past the rim
+    const half = w * 0.62, sh = new THREE.Shape(), rim = (a) => [Math.cos(a) * R - R, Math.sin(a) * R];
+    const p0 = rim(-half), p1 = rim(half); sh.moveTo(p0[0], p0[1]);
+    for (let i = 1; i <= 6; i++) { const q = rim(-half + (2 * half * i) / 6); sh.lineTo(q[0], q[1]); }
+    sh.quadraticCurveTo(-R * 0.45, R * 0.42, -R, 0.0); sh.quadraticCurveTo(-R * 0.55, -R * 0.05, p0[0], p0[1]);   // (curved like a swirl)
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.005, bevelEnabled: false, curveSegments: 6 });
+    const turn = new THREE.Group(); turn.rotation.z = k * w; turn.position.z = k * 0.0016; g.add(turn);
+    const m = new THREE.Mesh(geo, k % 2 ? bladeMat2 : bladeMat); m.position.x = R; m.rotation.x = 0.1; m.frustumCulled = false; turn.add(m); blades.push({ turn, m, a0: k * w });   // (tipped a little, every other one darker: the vanes read as overlapping)
+  }
+  const boreMat = new THREE.MeshStandardMaterial({ color: 0x120c08, metalness: 0.3, roughness: 0.8, emissive: 0xff4a00, emissiveIntensity: 0 });
+  const bore = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.02, R * 1.02, I.back - I.x - 0.03, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x1a120c, metalness: 0.5, roughness: 0.7, side: THREE.BackSide }));
+  bore.rotation.x = Math.PI / 2; bore.position.z = (I.back - I.x + 0.03) / 2; bore.frustumCulled = false; g.add(bore);
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(R * 1.02, 24), boreMat); floor.position.z = I.back - I.x; floor.rotation.y = Math.PI; floor.frustumCulled = false; g.add(floor);   // (facing out of the bore)
+  const ballMat = new THREE.MeshStandardMaterial({ color: 0x7a4a22, metalness: 0.75, roughness: 0.35, emissive: 0xff6a10, emissiveIntensity: 0 });
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(R * 0.42, 20, 14), ballMat); ball.position.z = 0.07; ball.frustumCulled = false; g.add(ball);
+  E.iris = { blades, boreMat, ballMat, ball, open: 0 };
 }
 function want(id) {
   const M = SHIP_MODELS[id]; if (!M) return null;
@@ -590,7 +624,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 37,   // (index.html checks it; the file's name carries it too — lib/ship3d-v37.js — so the app never mixes a new
+  version: 38,   // (index.html checks it; the file's name carries it too — lib/ship3d-v38.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -612,7 +646,7 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) : "");   // (a new picture only when it has turned a quarter of a degree)
+    const pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) + (opt.cannon ? "," + ["ring", "kick", "open", "glow"].map((k) => Math.round((opt.cannon[k] || 0) * 40)).join(",") + (opt.cannon.ball === false ? "x" : "") : "") : "");   // (a new picture only when it has turned a quarter of a degree)
     // opt.lights: up to 3 coloured lights inside the ship ({ x, y, z } in the fitted model's units, before it is tilted;
     // color; i: how bright) — MIRAGE's light running up its prism
     if (!lamps) { lamps = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xffffff, 0, 1.2, 1.6); scene.add(L); return L; }); }
@@ -622,7 +656,15 @@ export const Ship3D = {
     if (E.halves) { const h = opt && opt.half; for (const X of E.halves.front) X.visible = !h || h === "front"; for (const X of E.halves.back) X.visible = !h || h !== "front"; }   // (any other half: the rear piece)
     if (E.ghost) { E.ghost.uG.value = (opt && opt.ghost) || 0; E.ghost.uT.value = (opt && opt.t) || 0; }
     if (E.fan) { const O = (opt && opt.open) || [], nw = M.fan.narrow || 1; E.fan.forEach((P, i) => { const k = O[i] || 0; P.pivot.quaternion.identity().slerp(P.shut, 1 - k); const sl = M.fan.shorten || 1; P.squash.scale.set(sl + (1 - sl) * k, nw + (1 - nw) * k, 1); }); }   // (opt.open: how open each panel is, 0 shut .. 1 as modelled)
-    if (E.gears) { const a = (opt && opt.gears) || 0; for (const g of E.gears.list) g.axle.rotation.z = a * g.k; E.gears.rig.position.x = 0.015 * ((opt && opt.recoil) || 0); }   // (recoil: toward the tail, +x in THUL's file)
+    if (E.gears) {   // (recoil: toward the tail, +x in THUL's file)
+      const a = (opt && opt.gears) || 0, C = (opt && opt.cannon) || {};
+      for (const g of E.gears.list) { g.axle.rotation.z = (g.drive === "cannon" ? C.ring || 0 : a) * g.k; g.boss.rotation.y = g.axle.rotation.z; }
+      E.gears.rig.position.x = 0.015 * ((opt && opt.recoil) || 0); E.gears.cannon.position.x = 0.035 * (C.kick || 0);
+      if (E.iris) {   // (opt.cannon: open 0..1 — the blades swung out; glow 0..1 — the charge; ball — it is in the bore)
+        const I = E.iris, op = C.open || 0; for (const b of I.blades) { b.turn.rotation.z = b.a0 + 0.9 * op; b.m.scale.x = 1 - 0.78 * op; }   // (twisting open, each blade drawn back to the rim)
+        I.boreMat.emissiveIntensity = 0.9 * (C.glow || 0); I.ballMat.emissiveIntensity = 0.8 * (C.glow || 0); I.ball.visible = C.ball !== false;
+      }
+    }
     if (E.turns) { const T = (opt && opt.turns) || []; E.turns.forEach((g, i) => g.rotation.set(0, -(T[i] || 0), 0)); }   // (opt.turns: the cage's and each ring's turn, screen-clockwise rad)
     if (E.bands) {   // (opt.bands: [{ lo, hi, c: "#rrggbb" }], the layers grown, from the middle out)
       const Bd = (opt && opt.bands) || []; E.bands.uN.value = Math.min(5, Bd.length);

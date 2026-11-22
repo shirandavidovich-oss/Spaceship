@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v37.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v38.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4509,10 +4509,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v37.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v38.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 37, SHIP3D_FILE = "./lib/ship3d-v37.js";
+const SHIP3D_VER = 38, SHIP3D_FILE = "./lib/ship3d-v38.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4801,7 +4801,19 @@ function draw3dShipModel(S, o, ang, bank) {
     V.gearW = clamp((V.gearW || 0) + (firing ? dt / 0.2 : -dt / 0.4), 0, 1);
     V.gearP = ((V.gearP || 0) + V.gearW * GEAR_RPM / 60 * TAU * dt) % (TAU * 1260);   // (1260: every gear's teeth go into it whole, no jump)
     const recoil = firing && a.t < 100 ? 1 - a.t / 100 : 0;
-    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { gears: V.gearP, recoil }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    // the heavy cannon (button 2, its frames' clock): the iris winds open and the bore glows as the ring gear winds the
+    // charge in (2 turns), then the shot — the cannon kicks back, the ring gear snaps back a little, the ball is gone and
+    // the glow flares and dies — and the iris winds shut again
+    let cannon = { ring: V.cRing || 0 };
+    if (a && a.seq === "secondary") {
+      const F = cueTime(S.anim.secondary, "fire"), t = a.t, sm = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+      const ring = t < F ? 2 * TAU * sm(t / F) : 2 * TAU - 0.5 * Math.sin(clamp((t - F) / 250, 0, 1) * Math.PI) * (1 - clamp((t - F) / 400, 0, 1)) * 1.2;
+      V.cRing = (V.cRing0 || 0) + ring;
+      const after = t - F;
+      cannon = { ring: V.cRing, open: t < F ? sm(t / (F * 0.75)) : 1 - sm((after - 250) / 400), glow: t < F ? sm(t / F) * 0.8 : Math.max(0, 1 - after / 300),
+        kick: after > 0 ? Math.sin(clamp(after / 90, 0, 1) * Math.PI / 2) * (1 - sm((after - 90) / 260)) : 0, ball: after < 0 || after > 650 };
+    } else if (V.cRing != null) V.cRing0 = V.cRing;   // (the ring stays where the last shot left it)
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { gears: V.gearP, recoil, cannon }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.id === "nimbus") {   // NIMBUS: its own 3D cloud round the bare ship (lib: cloud) — churning with the gas, dragged off by the boost, lit by its lightning
