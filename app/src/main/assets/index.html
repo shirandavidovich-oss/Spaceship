@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v60.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v61.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4574,10 +4574,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v60.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v61.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 60, SHIP3D_FILE = "./lib/ship3d-v60.js";
+const SHIP3D_VER = 61, SHIP3D_FILE = "./lib/ship3d-v61.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4919,6 +4919,11 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
+  if (S.id === "husk") {   // HUSK: its fitted tank, long arm and barrels (lib: huskRig), from the same state as its 2D frames
+    const V = o.vt === game || o.vt === enemy ? o.vt : null;
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { husk: huskPose(V ? huskOf(V) : null, V && V.huskFlash) }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.id === "skarn") {   // SKARN: its fitted jaws, armour ribs, locks, charge lights and flashes (lib: skarnRig), posed from the
@@ -8656,6 +8661,27 @@ function huskFrame(H) {
   if (H.bite >= 0 && H.bite < 0.84) return "bite_" + pad2(1 + Math.floor(H.bite / 0.035)) + ".webp";
   if (H.thr >= 0 && H.thr < 1.4) return "thrust_" + pad2(1 + Math.floor(H.thr / 0.05)) + ".webp";
   return "sway_" + pad2(1 + Math.floor(time / 0.08) % 32) + ".webp";
+}
+// HUSK's 3D clips for its state (huskFrame's timing): opening — the locks and lids (610 ms), then the arm out (the game's
+// 1.16 s played as the clip's 1.38 s); out — swaying, bending back under the throttle, or biting; closing — the arm
+// back in (1.12 s), the lids shut (610 ms). F: the last cannon shot ({ at, side }: 0 the left barrel), its recoil 280 ms
+function huskPose(H, F) {
+  const P = {}, ms = (s) => s * 1000;
+  if (H) {
+    const open = { clip: "TankOpen", elapsedMs: 610 };
+    if (H.ph === "open") {
+      if (H.t < 0.61) P.tank = { clip: "TankOpen", elapsedMs: ms(H.t) };
+      else { P.tank = open; P.arm = { clip: "ArmExtend", elapsedMs: Math.min(1380, ms(H.t - 0.61) * 1380 / 1160) }; }
+    } else if (H.ph === "close") {
+      if (H.t < 1.12) { P.tank = open; P.arm = { clip: "ArmRetract", elapsedMs: ms(H.t) }; }
+      else P.tank = { clip: "TankClose", elapsedMs: ms(H.t - 1.12) };
+    } else {
+      P.tank = open;
+      P.arm = H.bite >= 0 && H.bite < 0.84 ? { clip: "ArmBite", elapsedMs: ms(H.bite) } : H.thr >= 0 && H.thr < 1.4 ? { clip: "ArmThrust", elapsedMs: ms(H.thr) } : { clip: "ArmSway", elapsedMs: ms(time) };
+    }
+  }
+  if (F && time - F.at < 0.28) P[F.side ? "right" : "left"] = { clip: F.side ? "GunRight" : "GunLeft", elapsedMs: ms(time - F.at) };
+  return P;
 }
 const HUSK_PH = ["open", "out", "close"];
 function huskNet() { const H = game.husk; return H ? [HUSK_PH.indexOf(H.ph), +H.t.toFixed(2), +H.bite.toFixed(2), +H.thr.toFixed(2)] : 0; }
