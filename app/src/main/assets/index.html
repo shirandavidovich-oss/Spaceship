@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v59.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v60.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -1999,7 +1999,7 @@ const GUN_MIRROR3 = { brass: true, courier: true };   // (COURIER: its capsule t
 // BALLAST: the model's nose block is a little further forward and right than the drawing's, its weight on the right
 // THUL: its machine gun's two barrels on the model, their muzzles (the 2D drawing's are further in, on the other side)
 // COURIER: its package leaves from the mouth of the tube on the model (the left, where the 2D drawing has it on the right)
-const GUNS3 = { courier: { mailcap: [[-0.202, -0.395, 0.02]] }, brass: { twin: [[0.248, -0.42, 0], [0.298, -0.40, 0]], iris: [[-0.27, -0.225, 0]] }, ballast: { railslug: [[-0.018, -0.49, 0]] },   // (BALLAST's model is turned to match its drawing: its sinker leaves from the bay in the weight, BAL_MINE3)   // (THUL's cannonball: from its fitted iris, the muzzle socket's place)
+const GUNS3 = { courier: { mailcap: [[-0.202, -0.395, 0.02]] }, brass: { twin: [[0.248, -0.42, 0], [0.298, -0.40, 0]], iris: [[-0.27, -0.225, 0]] }, ballast: { railslug: [[-0.018, -0.49, 0]] }, skarn: { spike: [[-0.266, -0.41, -0.03], [0.266, -0.41, -0.03]] },   // (BALLAST's model is turned to match its drawing: its sinker leaves from the bay in the weight, BAL_MINE3)   // (THUL's cannonball: from its fitted iris, the muzzle socket's place)
   cantor: { tone: [[0, -0.43, 0.03]],
   chord: [[-0.235, -0.43, 0.03], [-0.123, -0.43, 0.03], [0, -0.43, 0.03], [0.123, -0.43, 0.03], [0.235, -0.43, 0.03]] } };
 // BALLAST's sinker in 3D: from the mine bay's mouth in its black weight, as far out as the weight is on its cylinder
@@ -4574,10 +4574,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v59.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v60.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 59, SHIP3D_FILE = "./lib/ship3d-v59.js";
+const SHIP3D_VER = 60, SHIP3D_FILE = "./lib/ship3d-v60.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4919,6 +4919,11 @@ function draw3dShipModel(S, o, ang, bank) {
   }
   if (S.id === "lyth") {   // LYTH: the hull and its ring apart (lib: split) — the ring away, spinning up, grinding
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    ctx.restore(); return ok;
+  }
+  if (S.id === "skarn") {   // SKARN: its fitted jaws, armour ribs, locks, charge lights and flashes (lib: skarnRig), posed from the
+    // frames its 2D controller is playing (skarnPose) and the shots it holds
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { skarn: skarnPose(o.anim, o.stored || 0) }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.id === "rivet") {   // RIVET: its fitted mechanisms (lib: rivetRig) — the pin piston kicks, the rail cover lifts and slides, the
@@ -10698,6 +10703,27 @@ function drawRiftBursts() {
 // each shot it catches also powers up its shards (button 1): +35% damage a level, up to 5 levels, for POWER_TIME
 // seconds after the last catch. The shards grow and glow redder with it
 const POWER_TIME = 15, POWER_STEP = 0.35;
+// SKARN's 3D pose from the frames playing (a: { seq, t ms }) and the shots held — the SKARN package's controller, step():
+// primary (the ribs close nose to tail, lock at 76 ms, the side muzzles flash, it kicks), open (the jaws part, 235 ms;
+// held at the end while catching), slam (shut in 102 ms, a shudder), spit (the ribs close tail to nose and lock at 135
+// ms as the salvo leaves, the mouth opening for it)
+function skarnPose(a, stored) {
+  const ease = (x) => { const p = clamp(x, 0, 1); return p * p * (3 - 2 * p); };
+  const P = { armor: [0, 0, 0], siege: false, open: 0, kick: 0, flash: 0, primaryFlash: 0, stored };
+  const t = a ? a.t : 0, q = a && a.seq;
+  if (q === "open") P.open = ease(t / 235);
+  else if (q === "slam") { P.open = 1 - ease(t / 102); P.kick = Math.sin(t * 0.085) * Math.exp(-t / 75) * 8; P.flash = 0.7 * (1 - ease((t - 65) / 145)); }
+  else if (q === "spit") {
+    P.siege = true;
+    P.armor = P.armor.map((_, r) => ease((t - (2 - r) * 24) / (135 - (2 - r) * 24)) * (1 - ease((t - 205 - r * 12) / 107)));
+    P.open = ease(t / 110) * (1 - ease((t - 195) / 145));
+    if (t >= 135) { P.flash = 1 - ease((t - 135) / 135); P.kick = 17 * Math.exp(-(t - 135) / 73); }
+  } else if (q === "primary") {
+    P.armor = P.armor.map((_, r) => ease((t - r * 9) / (76 - r * 9)) * (1 - ease((t - 105 - r * 11) / 140)));
+    if (t >= 76) { const k = t - 76; P.kick = 10 * ease(k / 13) * (1 - ease((k - 13) / 111)); P.primaryFlash = 1 - ease(k / 130); }
+  }
+  return P;
+}
 // game.trap: { mode: idle | opening | catch | slam | loaded | spit, t: seconds in this mode, stored: shots held,
 //   caught: the weapon of each shot held, in order (spat back as just those) }
 function trapOf() { const S = shipById(game.ship); return S.anim && S.anim.trap ? (game.trap || (game.trap = { mode: "idle", t: 0, stored: 0, caught: [] })) : null; }
