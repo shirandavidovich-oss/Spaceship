@@ -40,7 +40,7 @@ export const SHIP_MODELS = {
   xcrystal: { file: "models/xeltar-crystal.glb", fwd: "+z", len: 1, fit: "max" },   // (XELTAR's rear crystal flying: the same cut ice, its own model)   // (the rigged squid from the Xeltar 3D Motion package: fins always beating, its five rear arms swimming with the gas and gathering for the crystal)
   strata: { file: "models/strata.glb", fwd: "-x", len: 0.95 },
   skarn: { file: "models/skarn-anim.glb", fwd: "-x", len: 0.95, fit: "max", skarnRig: true },   // (the SKARN package: its jaws, six armour ribs, locks, stored-charge lights and muzzle flashes — opt.skarn, the 2D controller's pose)
-  glitch: { file: "models/glitch-rebuilt.glb", fwd: "-x", len: 1.0, unit: 0.5026, origin: true, pad: 1.7, glitchRig: true },   // (the GLITCH package, rebuilt from its sprites: the shutter plates and links move — opt.glitch; unit: 0.0068 a sprite px, as the 2D drawing's 1.75 ship-lengths a 512 px canvas)
+  glitch: { file: "models/glitch-detailed.glb", fwd: "-x", len: 1.0, unit: 0.5026, origin: true, pad: 1.7, glitchRig: true },   // (the GLITCH package, rebuilt from its sprites: the shutter plates and links move — opt.glitch; unit: 0.0068 a sprite px, as the 2D drawing's 1.75 ship-lengths a 512 px canvas)
   borer: { file: "models/borer-drill.glb", fwd: "-x", len: 1.0, drill: true },   // (its spiral drill on its own bearing, the BORER package: turned by opt.drill, radians)
   corsair: { file: "models/corsair.glb", fwd: "-x", len: 0.85, ghost: true },
   cinder: { file: "models/cinder.glb", fwd: "-z", len: 0.98, upright: 1 },
@@ -52,7 +52,9 @@ export const SHIP_MODELS = {
   courier: { file: "models/courier-iris.glb", fwd: "-x", len: 0.855, fitIris: "Courier" },   // (the eight-blade iris in its package tube: the Courier fitted iris package — fitIris)
   kiln: { file: "models/kiln.glb", fwd: "+x", len: 1.03, wheel: { c: [0.494, 0.127, 0], tilt: 0.26, r: 0.185, h: [-0.03, 0.06] },
     grille: { x: [0.695, 0.8], y: [-0.105, 0.055], z: [-0.265, 0.265], n: 12 } },   // (its furnace grille at the nose: makeGrille)   // (the valve wheel on its sloping deck: splitWheel)
-  drakon: { file: "models/drakon.glb", fwd: "+x", len: 0.95, seam: [-0.018, 2.6] },   // (the gap between its two pieces in the model: steeper than the 2D drawing's seam)
+  // DRAKON (the Drakon pipe split package): its two pieces modelled apart along the channel between its pipes, the cut
+  // faces closed and the pipe ends capped — the front piece the big canopy, the back one the twin exhausts
+  drakon: { file: "models/drakon-split.glb", fwd: "+x", len: 0.95, pieces: { front: "Drakon_Cockpit", back: "Drakon_TwinExhaust" } },
   vault: { file: "models/vault.glb", fwd: "+z", len: 1.0 },   // (lying down, its long way along its flight, a mouth at the front)
   orian: { file: "models/orian.glb", fwd: "-x", len: 0.9, fan: { back: -0.055, hinge: [0, -0.085, -0.07], normal: [0, 0.94, -0.34], cuts: [-46, -15, 15, 46], round: [144, 72, 0, -72, -144], cone: 9, narrow: 0.45, shorten: 0.72 } },   // (shut: narrower across, and shorter — the sheath of the 2D drawing)
   vanta: { file: "models/vanta.glb", fwd: "-x", len: 0.98, erase: true },   // (its painted ribbon wiped: the game's own liquid goes in the chamber)
@@ -781,7 +783,7 @@ function want(id) {
       try {   // (the crystal growing between its arms: the package's rear crystal, on the rig's own socket)
         if (E.xel) { const [C, cg] = await Promise.all([import("./xeltar-rear-crystal-three-v1.js"), new Promise((ok, no) => loader.load("models/xeltar-crystal.glb", ok, undefined, no))]); E.xcr = C.createXeltarRearCrystal(THREE, E.xel, cg); }
       } catch (err) { console.warn("xeltar crystal", err); }
-      E.state = "ready"; E.used = performance.now(); evict(); }); return; } if (M.bloomRig) { E.state = "rig"; bloomLib.then((B) => { try { if (B) { E.bloom = B.createBloomVisual(THREE, g); E.bloom.effects.scale.setScalar(M.pollen || 1); } } catch (err) { console.warn("bloom rig", err); } E.state = "ready"; E.used = performance.now(); evict(); }); return; } if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); if (M.cloud) makeCloud(E); if (M.slide) splitSlide(E, M); if (M.gears) makeGears(E, M); if (M.bumper) makeBumper(E, M); if (M.drum) makeDrum(E, M); if (M.paddles) splitPaddles(E, M); if (M.grille) makeGrille(E, M); if (M.wheel) splitWheel(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
+      E.state = "ready"; E.used = performance.now(); evict(); }); return; } if (M.bloomRig) { E.state = "rig"; bloomLib.then((B) => { try { if (B) { E.bloom = B.createBloomVisual(THREE, g); E.bloom.effects.scale.setScalar(M.pollen || 1); } } catch (err) { console.warn("bloom rig", err); } E.state = "ready"; E.used = performance.now(); evict(); }); return; } if (M.split) splitRing(E, M); if (M.blocks) splitBlocks(E, M); if (M.bands) bandShader(E); if (M.gyro) splitGyro(E, M); if (M.fan) splitFan(E, M); if (M.erase) eraseGreen(E); if (M.ghost) ghostShader(E); if (M.seam) splitSeam(E, M); if (M.pieces) E.halves = { front: [E.obj.getObjectByName(M.pieces.front)].filter(Boolean), back: [E.obj.getObjectByName(M.pieces.back)].filter(Boolean) }; if (M.cloud) makeCloud(E); if (M.slide) splitSlide(E, M); if (M.gears) makeGears(E, M); if (M.bumper) makeBumper(E, M); if (M.drum) makeDrum(E, M); if (M.paddles) splitPaddles(E, M); if (M.grille) makeGrille(E, M); if (M.wheel) splitWheel(E, M); E.state = "ready"; E.used = performance.now(); evict(); }, undefined, (e) => { E.state = "fail"; console.warn("ship3d", id, e); });
   }
   return E;
 }
@@ -907,7 +909,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 63,   // (index.html checks it; the file's name carries it too — lib/ship3d-v63.js — so the app never mixes a new
+  version: 64,   // (index.html checks it; the file's name carries it too — lib/ship3d-v64.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
