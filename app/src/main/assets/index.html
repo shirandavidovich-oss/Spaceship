@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v66.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v67.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4574,10 +4574,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v66.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v67.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 66, SHIP3D_FILE = "./lib/ship3d-v66.js";
+const SHIP3D_VER = 67, SHIP3D_FILE = "./lib/ship3d-v67.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -5065,10 +5065,10 @@ function draw3dShipModel(S, o, ang, bank) {
     if (ok && V.cldBolt) cloudBolt(V.cldBolt);
     ctx.restore(); return ok;
   }
-  try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, o.half ? { half: o.half } : undefined); }   // (rolling into the turn; its nose up a little under power; tilted. DRAKON split: one piece, cut along its seam)
+  try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, o.half ? { half: o.half, beacon: S.id === "drakon" && o.half !== "front" ? drakonBeacon(o) : undefined } : S.vaultDoors && o.vt ? { vault: vaultPose(o.vt, o.anim) } : undefined); }   // (rolling into the turn; its nose up a little under power; tilted. DRAKON split: one piece, cut along its seam)
   catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }   // (anything wrong in the 3D drawing: back to 2D, never a blank game)
-  if (ok && S.vaultDoors && o.vt) {   // VAULT: its doors sliding open over the model's mouth, and the star held inside (its 2D drawing's, on top)
-    ctx.save(); ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll3))), Math.max(0.05, Math.abs(Math.cos(pitch3)))); try { drawVaultDoors(o.vt, S); } catch (e) {} ctx.restore();
+  if (ok && S.vaultDoors && o.vt) {   // VAULT: the star held in its open chamber, the light leaking from its seams when shut
+    ctx.save(); ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll3))), Math.max(0.05, Math.abs(Math.cos(pitch3)))); try { drawVaultStar3d(o.vt); } catch (e) {} ctx.restore();
   }
   ctx.restore(); return ok;
 }
@@ -7709,6 +7709,7 @@ function vaultNet() { const V = game.vault; return V ? [VAULT_PH.indexOf(V.ph), 
 function vaultScale(o) { return o === game ? shipScale() : enemyScale(); }
 // the vault's mouth (the middle of the doors' window), in the world
 function vaultMouth(o) {
+  if (view3d.on && !BOT && view3d.state === "ready" && view3d.lib.has("vault")) return { x: o.x, y: o.y };   // (the 3D model: its chamber in the middle of the lock face)
   const S = shipById(o === game ? game.ship : enemy.ship), k = S.anim.size / 512, sz = shipSize() * vaultScale(o);
   const m = rotatePt(((VAULT_WIN.x0 + VAULT_WIN.x1) / 2 - 256) * k * sz, ((VAULT_WIN.y0 + VAULT_WIN.y1) / 2 - 256) * k * sz, o.ang);
   return { x: o.x + m.x, y: o.y + m.y };
@@ -7835,6 +7836,35 @@ function drawVaultDoors(o, S) {
     const h = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.7); h.addColorStop(0, `rgba(255,170,60,${a * 0.35})`); h.addColorStop(1, "rgba(255,170,60,0)");
     ctx.fillStyle = h; ctx.beginPath(); ctx.arc(cx, cy, w * 0.7, 0, TAU); ctx.fill();
     ctx.restore();
+  }
+}
+// VAULT's 3D lock (lib: vaultRig): both faces' bolts, wheels and flaps through its Open clip (900 ms) as far as its doors
+// are open (vaultOpen: the magic, and the solar fire); the three brass pins cycling with the burst (240 ms); the spring
+// piston kicking with button 2 (its 340 ms of frames as the clip's 310)
+function vaultPose(o, a) {
+  const P = {}, k = vaultOpen(o, vaultOf(o));
+  if (k > 0.001) P.door = { clip: "Open", elapsedMs: ease(k) * 900 };
+  if (a && a.seq === "secondary") P.weapon = { clip: "SecondaryPiston", elapsedMs: a.t * 310 / 340 };
+  else if (o.muzW === "brassburst" && o.muzT != null && time - o.muzT < 0.24) P.weapon = { clip: "PrimaryFire", elapsedMs: (time - o.muzT) * 1000 };
+  return P;
+}
+// the held star in the 3D VAULT's chamber (its middle; the ship's own frame, ship-lengths): seen as the doors open; when
+// they are shut on it, amber light leaking out round them
+function drawVaultStar3d(o) {
+  const V = vaultOf(o), open = vaultOpen(o, V), held = V && (V.ph === "hold" || vaultStarK(V) >= 0.97);
+  if (!held) return;
+  if (open > 0.02) {
+    const r = 0.07 * ease(open), pul = 1 + 0.06 * Math.sin(time * 9);
+    const h = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 3.2); h.addColorStop(0, "rgba(255,200,90,0.75)"); h.addColorStop(1, "rgba(255,140,40,0)");
+    ctx.fillStyle = h; ctx.beginPath(); ctx.arc(0, 0, r * 3.2, 0, TAU); ctx.fill();
+    const g = ctx.createRadialGradient(-r * 0.2, -r * 0.2, 0, 0, 0, r * pul); g.addColorStop(0, "#ffffff"); g.addColorStop(0.35, "#fff1a8"); g.addColorStop(0.75, "#ffb02e"); g.addColorStop(1, "#ff6a1a");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * pul, 0, TAU); ctx.fill();
+  }
+  if (open < 0.6) {
+    const a = (0.45 + 0.3 * Math.sin(time * 6)) * (1 - open / 0.6);
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    const h = ctx.createRadialGradient(0, 0, 0, 0, 0, 0.32); h.addColorStop(0, `rgba(255,170,60,${a * 0.4})`); h.addColorStop(1, "rgba(255,170,60,0)");
+    ctx.fillStyle = h; ctx.beginPath(); ctx.arc(0, 0, 0.32, 0, TAU); ctx.fill(); ctx.restore();
   }
 }
 // in the world, over the ships: the star flying between the middle and the vault; the held star's pull (light drawn
@@ -8987,7 +9017,7 @@ function useMagicNow(which = 0) {
   if (M.look === "split") {   // DRAKON: come apart (the bomb stays), then blow the bomb up. Once a life
     if (game.bomb) { blowBomb(); return; }
     if (game.splitUsed) { audio.nope(); buzz(20); return; }
-    game.splitUsed = true; game.splitKeep = Math.random() < 0.5 ? "front" : "rear";   // which piece flies on (and fires) is a surprise; the other is the bomb
+    game.splitUsed = true; game.splitAt = time; game.splitKeep = Math.random() < 0.5 ? "front" : "rear";   // which piece flies on (and fires) is a surprise; the other is the bomb
     game.bomb = { x: game.x, y: game.y, ang: game.ang, vx: game.vx * 0.3, vy: game.vy * 0.3, t: 0, half: otherHalf(game.splitKeep) };
     duelSend({ t: "sp", x: +(game.x / WW).toFixed(5), y: +(game.y / WH).toFixed(5), a: +game.ang.toFixed(3), k: game.splitKeep === "front" ? 2 : 1 });
     const n = game.splitKeep === "front" ? rotatePt(0.6, -0.75, game.ang) : rotatePt(-0.6, -0.75, game.ang); game.vx += n.x * U * 0.5; game.vy += n.y * U * 0.5;   // the piece that flies on pushes off
@@ -14760,7 +14790,14 @@ function bombCenter(B) { const r = B.half === "rear", m = rotatePt((r ? -0.09 : 
 function otherHalf(h) { return h === "front" ? "rear" : "front"; }
 // which piece of DRAKON flies on after its split: mine, theirs (null: whole)
 function myHalf() { return game.splitUsed ? game.splitKeep || "rear" : null; }
-function theirHalf() { const h = enemy.remote && duel.net && duel.net.hf; return h === 2 ? "front" : h ? "rear" : null; }
+function theirHalf() { const h = enemy.remote && duel.net && duel.net.hf; if (!h) enemy.splitSeen = null; return h === 2 ? "front" : h ? "rear" : null; }
+// DRAKON's twin-exhaust piece, cut loose: its broken pipe ends flash as an emergency beacon from the moment it came apart —
+// blue 110 ms, dark 240 ms, red 110 ms, dark 240 ms, over and over (lib: beacon; gone with the piece)
+function drakonBeacon(o) {
+  const t = o.splitT != null ? o.splitT : o.vt === game ? time - (game.splitAt != null ? game.splitAt : time) : o.vt === enemy ? time - (enemy.splitSeen != null ? enemy.splitSeen : (enemy.splitSeen = time)) : time;
+  const p = ((t % 0.7) + 0.7) % 0.7;
+  return p < 0.11 ? "blue" : p < 0.35 ? "dark" : p < 0.46 ? "red" : "dark";
+}
 function blowBomb() {
   const B = game.bomb, M = MAGIC.split;
   if (!B) return;
@@ -14795,7 +14832,7 @@ function drawBomb(B) {
   ctx.setLineDash([size * 0.06, size * 0.06]); ctx.lineDashOffset = -time * 30; ctx.strokeStyle = `rgba(255,63,176,${0.3 + 0.3 * blink})`; ctx.lineWidth = Math.max(1.5, size * 0.02);
   ctx.beginPath(); ctx.arc(c.x, c.y, size * 0.75, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
   ctx.restore();
-  drawShip(S, p.x, p.y, size, { ang: B.ang, power: 0, bank: 0, half: B.half || "front", zombie: B === game.bomb ? game.zombie : enemyZombie() });
+  drawShip(S, p.x, p.y, size, { ang: B.ang, power: 0, bank: 0, half: B.half || "front", splitT: B.t, zombie: B === game.bomb ? game.zombie : enemyZombie() });
 }
 // DRAKON's magic button: whole: the ship with a crack down it. Split: a bomb to press. Used: dark
 function drawSplitButton(b, M) {
