@@ -11956,7 +11956,7 @@ function shoot(i) {
   if (Wp.ring) { startRing(w, S); return; }
   if (Wp.palWall) { startWall(S); return; }   // PALISADE: the arms carry a wall out
   if (Wp.gate) { gateStart(); return; }   // GIMBAL: the quarter gate (set 0.31 s later)
-  if (Wp.harpoon) { game.hookWait = 0; if (!playClip("audio/lariat/chain-release.ogg", false, 0.8)) audio.tone(180, 0.16, "square", 0.03, 1.6); return; }   // (the ratchet's clicks, then the chain running out as the claw leaves)   // LARIAT: the hook leaves 0.16 s later
+  if (Wp.harpoon) { game.hookWait = 0; soundBuf("audio/lariat/winch-rewind.ogg"); if (!playClip("audio/lariat/chain-release.ogg", false, 0.8)) audio.tone(180, 0.16, "square", 0.03, 1.6); return; }   // (the ratchet's clicks, then the chain running out as the claw leaves)   // LARIAT: the hook leaves 0.16 s later
   if (Wp.forge && S.grows) { game.forge = { t: 0, w, thumps: 0 }; audio.tone(70, 1.4, "sawtooth", 0.05, 1.6); audio.noise(1.2, 0.08, 500); buzz(30); return; }   // TALUS forges it first
   if (Wp.modules) { game.repPending = { w, t: 0, next: 0 }; return; }   // REPRISE: its buildings fire in turn
   if (Wp.cued && A && A.primary && i === 0) { game.anim = { seq: "primary", t: 0, bolts: w }; if (w === "lightning") audio.sfx(S.sfx, "lightning-charge"); if (w === "mpulse") audio.tone(440, 0.28, "sine", 0.03, 2.5); return; }   // DRAKON: the frames fire the bolts
@@ -12799,7 +12799,8 @@ function updateLariat(dt) {
     }
   }
   const H = game.hook;
-  if (H) {
+  if (H && H.back != null) larReelStep(H, dt);   // (an empty claw on its way home: nothing more to catch)
+  else if (H) {
     H.t += dt;
     const dx = H.vx * dt, dy = H.vy * dt, R = planetR(), px = wrapDelta(H.x - WW / 2, WW), py = wrapDelta(H.y - WH / 2, WH);
     // in 3D the body is a ball: at the hook's depth it is a smaller circle (none past its top or bottom); a ship is
@@ -12814,7 +12815,7 @@ function updateLariat(dt) {
       game.tether = { rest: R + Math.max(LAR.slack * u, (q.d - R) * 0.84), t: 0 };
       audio.tone(140, 0.2, "square", 0.05, 0.5); audio.noise(0.1, 0.2, 2500); shake(0.25); buzz(60);
     } else if (H.t > LAR.hookLife || Math.hypot(wrapDelta(H.x - game.x, WW), wrapDelta(H.y - game.y, WH)) > LAR.reach * u * 1.4 || hit != null) {   // (out of reach of the ship: its cable's length)
-      game.hook = null; audio.tone(500, 0.1, "triangle", 0.03, 0.5);   // missed (or the ship was too far from the body)
+      larReelBack(H);   // missed (or the ship was too far from the body): the winch reels the empty claw home
     } else {
       H.x = (((H.x + dx) % WW) + WW) % WW; H.y = (((H.y + dy) % WH) + WH) % WH; H.z = clamp((H.z || 0) + (H.vz || 0) / U * dt, -TILT3.far + 0.5, TILT3.near - 0.5);
       if (H.aim && enemy.on && enemy.warp < 0.5 && !enemyAloft()) {   // (thrown at the enemy: it bends after it as it moves, across and in depth)
@@ -12842,6 +12843,41 @@ function updateLariat(dt) {
     }
   }
   for (let i = larFx.length - 1; i >= 0; i--) { larFx[i].t += dt; if (larFx[i].t * 1000 >= LAR.fxMs * LAR.fxFrames) larFx.splice(i, 1); }
+}
+// The empty claw reeled home (LAR_BACK.time s): the rope goes on slack a moment (the claw coasting on, slowing), snaps
+// taut with a jerk, then the winch hauls it in — slow to start, faster, easing as it nears the boom — the claw swinging
+// side to side on the rope like a weight (the swing shrinking with the rope), the rope bowing with its slack; it seats
+// in its socket with a little bounce. All from the boom's socket, wherever the ship goes meanwhile.
+const LAR_BACK = { time: 3, slack: 0.35, coast: 5, swing: 0.16, swings: 3.5, bow: 0.22, seat: 0.18 };
+function larReelBack(H) {
+  const s0 = larSocket(game);
+  H.back = 0; H.rx = wrapDelta(H.x - s0.x, WW); H.ry = wrapDelta(H.y - s0.y, WH); H.rz = (H.z || 0) - (s0.z || 0);
+  H.cvx = H.vx - game.vx; H.cvy = H.vy - game.vy; H.cvz = ((H.vz || 0) - (H.bz || 0)) / U;   // (its own throw, on top of the ship's drift)
+  H.aim = false;
+  if (!playClip("audio/lariat/winch-rewind.ogg", false, 0.8)) audio.tone(120, 2.6, "sawtooth", 0.03, 1.6);   // (the winch rolling back, ratcheting)
+}
+// where the reeled claw is, LAR_BACK.time s in: { x, y, z (from the socket), bow (the rope's sag, -1..1) }
+function larReelPose(H, t) {
+  const B = LAR_BACK, k = B.coast, sl = Math.min(t, B.slack), cf = (1 - Math.exp(-sl * k)) / k;   // (the coast: slowing on its own)
+  const sx = H.rx + H.cvx * cf, sy = H.ry + H.cvy * cf, sz = H.rz + H.cvz * cf;
+  if (t <= B.slack) return { x: sx, y: sy, z: sz, bow: B.bow * Math.sin(Math.PI * t / B.slack), swing: 0 };
+  const u = clamp((t - B.slack) / (B.time - B.slack), 0, 1);
+  let p = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;   // (slow to start, fast, easing in)
+  p -= 0.04 * Math.exp(-((t - B.slack) / 0.06)) * Math.sin((t - B.slack) * 40);   // (the jerk as it goes taut: a kick back)
+  const left = 1 - p, L = Math.hypot(sx, sy) || 1, sw = B.swing * Math.sin(u * Math.PI * 2 * B.swings) * left;   // (the swing: across the rope)
+  const seat = u > 1 - B.seat ? Math.sin((u - (1 - B.seat)) / B.seat * Math.PI) * 0.06 : 0;   // (a little bounce as it seats)
+  const r = Math.max(0, left) + seat * 0.15;
+  return { x: sx * r - sy / L * sw * L * r, y: sy * r + sx / L * sw * L * r, z: sz * r, bow: B.bow * 0.35 * Math.sin(u * Math.PI * 2) * left, swing: sw };
+}
+function larReelStep(H, dt) {
+  H.back += dt; H.t += dt;
+  if (game.dead || H.back >= LAR_BACK.time) {   // home: it seats in the boom with a clunk
+    game.hook = null; if (!game.dead) { audio.tone(160, 0.12, "square", 0.05, 0.6); audio.noise(0.06, 0.12, 1800); buzz(30); }
+    return;
+  }
+  const s0 = larSocket(game), P = larReelPose(H, H.back), ox = H.x, oy = H.y;
+  H.x = (((s0.x + P.x) % WW) + WW) % WW; H.y = (((s0.y + P.y) % WH) + WH) % WH; H.z = (s0.z || 0) + P.z; H.bow = P.bow; H.swing = P.swing;
+  if (dt > 0) { H.vx = wrapDelta(H.x - ox, WW) / dt; H.vy = wrapDelta(H.y - oy, WH) / dt; }
 }
 function larClutch(M) {
   if (game.ldash) return;
@@ -12929,7 +12965,7 @@ function drawWinch(S, mode) {
 const LAR_CLAW = [146, 12, 58, 50];   // (the claw at the boom's tip in LARIAT's 512 px drawing: x, y, w, h — hidden while it is out)
 // is this LARIAT's claw away from its boom (flying, on the body, or on a ship)?
 function larClawOut(who) { return who === "me" ? !!(game.hook || game.tether || game.elasso) : !!(enemy.lhook || enemy.ltether || (game.lassoed && !game.dead)); }
-function larWinchMode(o, who) { return who === "me" ? (game.hook ? "out" : game.tether ? "in" : null) : (enemy.lhook ? "out" : enemy.ltether ? "in" : null); }
+function larWinchMode(o, who) { return who === "me" ? (game.hook ? (game.hook.back != null ? "in" : "out") : game.tether ? "in" : null) : (enemy.lhook ? (enemy.lhook.back ? "in" : "out") : enemy.ltether ? "in" : null); }
 let larLoaded = false;
 function larPreload() {
   if (BOT || (game.ship !== "lariat" && enemy.ship !== "lariat")) return;
@@ -12976,18 +13012,19 @@ function drawCable(o, hook, on) {
   if (hook) p1 = toScreen(hook.x, hook.y);
   else { const q = larFromStar(o), R = planetR() * (1 + lasso.sq * 0.5); p1 = toScreen(WW / 2 + q.dx / q.d * R, WH / 2 + q.dy / q.d * R); }
   ctx.save(); ctx.lineCap = "round";
-  ctx.strokeStyle = "rgba(40,28,22,0.9)"; ctx.lineWidth = Math.max(3, shipSize() * 0.035); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+  const bw = hook && hook.bow ? hook.bow : 0, mx = (p0.x + p1.x) / 2 - (p1.y - p0.y) * bw, my = (p0.y + p1.y) / 2 + (p1.x - p0.x) * bw;   // (reeling an empty claw home: the rope sags and bows with its slack)
+  ctx.strokeStyle = "rgba(40,28,22,0.9)"; ctx.lineWidth = Math.max(3, shipSize() * 0.035); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.quadraticCurveTo(mx, my, p1.x, p1.y); ctx.stroke();
   ctx.strokeStyle = on ? "#eaa276" : "#c9a27a"; ctx.lineWidth = Math.max(1.5, shipSize() * 0.016); ctx.setLineDash([6, 4]); ctx.lineDashOffset = -time * (on ? 40 : 120);
   ctx.stroke(); ctx.setLineDash([]);
   const d = 20 * larU() * 1.6;
   if (hook) {   // the claw flying, jaws spread — pointing along the rope; in 3D as big as its depth, and seen end-on as much as
     // the rope runs into or out of the depth (so it keeps the rope's angle instead of always facing the camera)
-    const rx = p1.x - p0.x, ry = p1.y - p0.y, rl = Math.hypot(rx, ry), ang = rl > 4 ? Math.atan2(rx, -ry) : Math.atan2(hook.vx, -hook.vy);
+    const rx = p1.x - mx, ry = p1.y - my, rl = Math.hypot(rx, ry), ang = (rl > 4 ? Math.atan2(rx, -ry) : hook.back != null ? o.ang : Math.atan2(hook.vx, -hook.vy)) - (hook.swing || 0) * 2.2;   // (reeled home: it dangles, swinging on the rope)
     const d3 = hook.z != null && view3d.on && !BOT, k3 = d3 ? depthScale(hook.z) : 1;
     const dz = d3 ? ((hook.z || 0) - (s0.z || 0)) * U : 0, fs = d3 && rl > 4 ? Math.max(0.3, rl / Math.hypot(rl, dz)) : 1;
     if (d3 && view3d.state === "ready" && view3d.lib.ready("lariatclaw")) {   // the 3D view: the hull's own claw, its jaws swinging open
       // as it leaves (180 ms), pointing along the rope, tipped into or out of the depth as the rope runs
-      const pitch = rl > 4 ? clamp(Math.atan2(dz, rl), -1.3, 1.3) : 0, jaw = 46 * smoothStep(clamp((hook.t || 1) / 0.18, 0, 1));
+      const pitch = rl > 4 ? clamp(Math.atan2(dz, rl), -1.3, 1.3) : 0, jaw = 46 * smoothStep(clamp((hook.t || 1) / 0.18, 0, 1)) * (hook.back != null ? 1 - smoothStep(clamp(hook.back / 0.6, 0, 1)) : 1);   // (reeled home: its jaws fold shut)
       ctx.translate(p1.x, p1.y); ctx.rotate(ang); ctx.scale(shipSize() * k3, shipSize() * k3); ctx.globalAlpha *= depthFade(hook.z);
       try { view3d.lib.draw(ctx, "lariatclaw", ang, 0, pitch, { jaw }); } catch (e) { noteIssue("3D claw: " + (e && e.message || e)); }
     } else { ctx.translate(p1.x, p1.y); ctx.rotate(ang); ctx.scale(k3, k3 * fs); if (d3) ctx.globalAlpha *= depthFade(hook.z); drawLarClaw(d, 1); }
@@ -20987,7 +21024,7 @@ function updateRival(dt) {
   } else enemy.talus = null;
   enemy.inked = n.ik || 0;   // their ship covered in my ink (to draw it)
   enemy.pushAng = n.ga;   // their GIMBAL's push direction (for its plume)
-  enemy.lhook = n.lh ? { x: n.lh[0] * WW, y: n.lh[1] * WH, vx: n.lh[2], vy: n.lh[3] } : null; enemy.ltether = !!n.lt; enemy.ltetherT = n.lt ? n.lt + age : 0;   // their LARIAT's hook and cable (and how long it has held)
+  enemy.lhook = n.lh ? { x: n.lh[0] * WW, y: n.lh[1] * WH, vx: n.lh[2], vy: n.lh[3], back: n.lh[4] ? 1 : null } : null; enemy.ltether = !!n.lt; enemy.ltetherT = n.lt ? n.lt + age : 0;   // their LARIAT's hook and cable (and how long it has held)
   duel.gate = n.gt ? { id: n.gt[0], x: n.gt[1] * WW, y: n.gt[2] * WH, left: n.gt[3], t: n.gt[4] + age } : null;   // their GIMBAL's gate
   enemy.vtint = n.vt || 0;   // their VANTA's liquid colour
   enemy.z3 = n.z3 || 0; enemy.p3 = n.p3 || 0; enemy.r3 = n.r3 || 0;   // flying in 3D: their depth, tilt and roll
@@ -21099,7 +21136,7 @@ function updateDuel(dt) {
       hd: game.hidden > 0 ? 1 : 0, vt: game.vtint || 0, z3: game.z3 ? +game.z3.toFixed(2) : 0, p3: game.p3 ? +game.p3.toFixed(2) : 0, r3: game.r3 ? +game.r3.toFixed(2) : 0, sc: game.scramble > 0 ? 1 : 0, zb: game.zombie || game.cough ? 1 : 0, ch: game.charm ? 1 : 0, pn: game.pollen ? +game.pollen.t.toFixed(2) : -1, hf: game.splitUsed ? (game.splitKeep === "front" ? 2 : 1) : 0, pd: game.palDeploy ? Math.round(game.palDeploy.t * 1000) || 1 : 0, fg: game.forge ? Math.round(game.forge.t * 1000) || 1 : 0, ek: game.eggKind || 0, bb: game.bub ? Math.round(game.bub.t * 1000) : 0, pf: game.puff ? [["up", "full", "down", "flat"].indexOf(game.puff.st), Math.round(game.puff.t * 1000)] : 0, dv: game.dive ? Math.max(1, Math.round(game.dive.t * 1000)) : 0, cd: game.dash2 ? [Math.round(game.dash2.t * 1000), game.dash2.dir] : 0, hk: game.hacked > 0 ? 1 : 0, stm: game.steamT > 0 ? 1 : 0, vs: vShieldUp(game) ? 1 : 0, rp: repState(), rw: game.rw ? 1 : 0,
       gh: game.rep && game.rep.echo && game.rep.echo.ghost ? [+(game.rep.echo.ghost.x / WW).toFixed(5), +(game.rep.echo.ghost.y / WH).toFixed(5), +game.rep.echo.ghost.ang.toFixed(3), game.rep.echo.ghost.form, +game.rep.echo.ghost.age.toFixed(2)] : 0, fm: +hullTurn().toFixed(3), tl: game.tail ? +game.tail.t.toFixed(2) : -1, h: +(duel.outDmg * (BOT ? botLevel().dmg : 1)).toFixed(1),
       ga: game.pushAng != null ? +game.pushAng.toFixed(3) : 0,
-      lh: game.hook ? [+(game.hook.x / WW).toFixed(5), +(game.hook.y / WH).toFixed(5), +game.hook.vx.toFixed(1), +game.hook.vy.toFixed(1)] : 0, lt: game.tether ? Math.max(0.01, +game.tether.t.toFixed(2)) : 0,
+      lh: game.hook ? [+(game.hook.x / WW).toFixed(5), +(game.hook.y / WH).toFixed(5), +game.hook.vx.toFixed(1), +game.hook.vy.toFixed(1), game.hook.back != null ? 1 : 0] : 0, lt: game.tether ? Math.max(0.01, +game.tether.t.toFixed(2)) : 0,
       gt: gateAlive(game.gate) ? [game.gate.id, +(game.gate.x / WW).toFixed(5), +(game.gate.y / WH).toFixed(5), game.gate.left, +game.gate.t.toFixed(2)] : 0,
       rg: game.ring ? [game.ring.phase, +(game.ring.x / WW).toFixed(5), +(game.ring.y / WH).toFixed(5), game.ring.vx / WW, game.ring.vy / WH,
         +game.ring.ang.toFixed(3), +game.ring.lift.toFixed(2), +(game.ring.z || 0).toFixed(2), +(game.ring.h || 0).toFixed(3), +(game.ring.p || 0).toFixed(3), +(game.ring.r || 0).toFixed(3)] : 0,
