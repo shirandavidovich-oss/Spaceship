@@ -1677,7 +1677,11 @@ const MAGIC = {
   //   laid round it at `ring` ship-lengths: a ring of light that enemy shots cannot pass (any thread stops shots)
   //   In 3D it spins round its own up axis, as it is tilted; a weapon held while it spins tumbles it too (`tumble`: as a
   //   share of the spin), its nose sweeping all round: the shots go out as a sphere, and a sphere of light forms round it
-  anchor: { name: "עוגן", look: "anchor", hold: 3.5, spin: 6, ring: 0.85, cool: 6, color: "#92f8ff", brake: 18, tumble: 0.37 },
+  //   Throttle while it spins revs it up (`rev`: 0..1 in `revUp` s, back down in `revDown` s): it spins up to 1 + `revSpin`
+  //   times as fast and its guns fire up to 1 + `rapid` times as fast, each shot flung off its line by up to `wild`
+  //   radians (and, in 3D, up or down by up to `wild`): a machine gun gone haywire, spraying all round
+  anchor: { name: "עוגן", look: "anchor", hold: 3.5, spin: 6, ring: 0.85, cool: 6, color: "#92f8ff", brake: 18, tumble: 0.37,
+    revUp: 0.8, revDown: 1.2, revSpin: 2.5, rapid: 2, wild: 0.9 },
   // VEXAR's tail, held: while the magic button is held the tail grows out (over `out` s) and stays out, and the ship
   //   keeps flying; let go and it pulls back in over `back` s.
   //   At its tip a spiked iron ball (`ball`: radius in ship-lengths): touching the enemy it hits for `hit`
@@ -3455,8 +3459,11 @@ function flyShip(dt) {
   const hit = moveShip(game, S, anchored || operating ? { target: game.ang, turn: 0, thrust: false } : { target, turn, thrust: thrusting() }, dt);
   if (operating) { const k = Math.exp(-dt * 12); game.vx *= k; game.vy *= k; game.ang = game.surg.ang; }
   if (anchored) {   // ZORIAN's anchor: it stops, holds and spins; after `hold` seconds it lets go
-    const M = magicOf(S), k = Math.exp(-dt * M.brake);
+    const M0 = magicOf(S), k = Math.exp(-dt * M0.brake);
     game.vx *= k; game.vy *= k;
+    // (the throttle revs it: faster round, and its guns run wild — anchorRev)
+    game.anchor.rev = clamp((game.anchor.rev || 0) + (game.thrust !== null ? dt / M0.revUp : -dt / M0.revDown), 0, 1);
+    const M = { ...M0, spin: M0.spin * (1 + M0.revSpin * game.anchor.rev) };
     if (view3d.on && game.q3 && !BOT) {   // flying in 3D: it spins round its own up axis (keeping its tilt), and while a weapon is held it
       // also tumbles nose over tail, more slowly, so its nose sweeps every way round it: its shots go out as a sphere (anchorSphere)
       let q = Q3.mul(game.q3, Q3.axis(0, 1, 0, -M.spin * dt));
@@ -10229,6 +10236,9 @@ function drawCrosses() {
 }
 
 // ---------- ZORIAN: the anchor (magic) and the spiked ball ----------
+// ZORIAN revved up on its anchor (0..1), and how far off its line a shot is flung by it now (radians)
+function anchorRev() { return anchoring() && game.anchor ? game.anchor.rev || 0 : 0; }
+function anchorWild() { const r = anchorRev(); return r > 0 ? (Math.random() * 2 - 1) * MAGIC.anchor.wild * r : 0; }
 function anchoring() {
   const M = magicOf(shipById(game.ship));
   if (!M || game.dead || game.stage !== "fly") return false;
@@ -11780,7 +11790,7 @@ function updateWeapons(dt) {
   updateThread(dt); updateFlail(dt);
   enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt); updateTow(dt); updateShift(dt); updateReverse(dt); updateSurgery(dt);
   for (let i = 0; i < 4; i++) {
-    game.cool[i] = Math.max(0, (game.cool[i] || 0) - dt * (game.lassoed ? ELASSO.fire : 1) * (game.zombie ? ZOMBIE.rate : 1));   // held by LARIAT's rope: half the fire rate; a zombie: ZOMBIE.rate (60%)
+    game.cool[i] = Math.max(0, (game.cool[i] || 0) - dt * (game.lassoed ? ELASSO.fire : 1) * (game.zombie ? ZOMBIE.rate : 1) * (1 + anchorRev() * MAGIC.anchor.rapid));   // (ZORIAN revved up on its anchor: faster)   // held by LARIAT's rope: half the fire rate; a zombie: ZOMBIE.rate (60%)
     if (game.charm) { if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && !game.dead) charmShoot(i); continue; }   // charmed (NIMBUS): every button throws toys, whatever its weapon, ammo or not
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].converge) { crossHold(dt); continue; }
     if (i === 1 && slotWeapon(1) && WEAPONS[slotWeapon(1)].blow) { bubbleHold(dt); continue; }   // PUFF: hold to blow, let go to fire
@@ -12008,11 +12018,12 @@ function spawnShots(w, g, rot) {
   const pow = w === "spike" && game.trap ? game.trap.power || 0 : 0;   // SKARN's powered-up shards
   if (Wp.beam) { game.beam = { w, t: 0, ang: game.ang, hit: false }; duelSend({ t: "bm", a: +game.ang.toFixed(3) }); shake(0.3); buzz(90); return; }
   for (const a of pelletAngles(Wp)) {
-    const dir = game.ang + a + hk + (Wp.rear ? Math.PI : 0) + (Wp.splay && g ? Math.sign(g[0]) * Wp.splay : 0) + (Wp.aimAt && g ? Math.atan2(-g[0], Wp.aimAt + g[1]) : 0) + (Wp.broadside ? wrapAngle(game.broadAng - game.ang) : 0) + (game.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;   // (XELTAR's crystal: out of the stern; scrambled: the wrong way)
+    const wild = anchorWild(), wildUp = wild ? anchorWild() : 0;   // (ZORIAN revved on its anchor: flung off its line, every which way)
+    const dir = game.ang + a + hk + wild + (Wp.rear ? Math.PI : 0) + (Wp.splay && g ? Math.sign(g[0]) * Wp.splay : 0) + (Wp.aimAt && g ? Math.atan2(-g[0], Wp.aimAt + g[1]) : 0) + (Wp.broadside ? wrapAngle(game.broadAng - game.ang) : 0) + (game.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;   // (XELTAR's crystal: out of the stern; scrambled: the wrong way)
     const sv = Wp.magnet ? v * (0.55 + Math.random() * 0.9) : v;   // RIVET's magnets scatter unevenly
     // (flying in 3D: along the nose, wherever it points — the shot's own spread turned with the ship's tilt and roll too)
-    let dv = q3s ? Q3.rot(q3s, [Math.sin(dir - game.ang), 0, -Math.cos(dir - game.ang)]) : [Math.sin(dir), 0, -Math.cos(dir)];
-    if (!Wp.rear && !Wp.broadside && !Wp.mines) dv = aimShot(dv, x, y, z0, sv, Wp);   // (bent onto a target just off the nose — AIM)
+    let dv = q3s ? Q3.rot(q3s, [Math.sin(dir - game.ang) * Math.cos(wildUp), Math.sin(wildUp), -Math.cos(dir - game.ang) * Math.cos(wildUp)]) : [Math.sin(dir), 0, -Math.cos(dir)];
+    if (!Wp.rear && !Wp.broadside && !Wp.mines && !wild) dv = aimShot(dv, x, y, z0, sv, Wp);   // (bent onto a target just off the nose — AIM)
     const iv = Wp.carry ? [game.vx, q3s ? game.vz3 || 0 : 0, game.vy] : inherit(dv);   // (the ship's own drift: all of it along the shot, little of it sideways — AIM.side; carry: all of it, so it leaves straight out ahead as seen from the ship)
     game.muzT = time; game.muzW = w; if (w === "sinker") game.sinkT = time;   // (the moment and the weapon: BALLAST's bumper lights up)
     shots.push({ w, x, y, vx: iv[0] + dv[0] * sv, vy: iv[2] + dv[2] * sv, z3: z0, vz3: iv[1] + dv[1] * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined });
