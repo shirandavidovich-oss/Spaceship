@@ -66,7 +66,7 @@ export const SHIP_MODELS = {
   // file (upright); the hull's own file units, 0.5418 ship-lengths each
   lariatclaw: { file: "models/lariat-claw.glb", fwd: "-z", upright: 1, len: 0.3, unit: 0.5418, origin: true, lariatClaw: true },
   palisade: { file: "models/palisade.glb", fwd: "-z", len: 1.05, fit: "max", upright: 1 },
-  courier: { file: "models/courier-wings.glb", fwd: "-x", len: 0.855, fitIris: "Courier" },   // (the eight-blade iris in its package tube: the Courier fitted iris package — fitIris)
+  courier: { file: "models/courier-clean.glb", fwd: "-x", len: 0.855, fitIris: "Courier" },   // (the eight-blade iris in its package tube: the Courier fitted iris package — fitIris)
   kiln: { file: "models/kiln.glb", fwd: "+x", len: 1.03, wheel: { c: [0.494, 0.127, 0], tilt: 0.26, r: 0.185, h: [-0.03, 0.06] },
     grille: { x: [0.695, 0.8], y: [-0.105, 0.055], z: [-0.265, 0.265], n: 12 } },   // (its furnace grille at the nose: makeGrille)   // (the valve wheel on its sloping deck: splitWheel)
   // DRAKON (the Drakon pipe split package): its two pieces modelled apart along the channel between its pipes, the cut
