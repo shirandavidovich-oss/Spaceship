@@ -9372,12 +9372,30 @@ function drawTow(o, T, R) {
     }
     ctx.restore();
   }
-  // the cables: from the wing's three launchers to their points on the rock (sagging until pulled taut)
-  if (!R.leads.some((v) => v > 0)) return;
-  const from = towLaunchers(o, R).map(sc), to = towAnchors(T).map(sc), u = size * BALLAST_UNIT * (o === game ? shipScale() : enemyScale()) * towK(o.z3);
+  towCables(o, T, R, "over");
+}
+// the cables: from the launch bay between the wing's panels to their points on the rock (sagging until pulled taut).
+// Flying in 3D the hull hides them where they run behind it: a cable pulled across to the far side of the ship (the rock
+// round past its nose, tail or other flank), or down to a rock deeper than the ship, runs under the hull — drawn before
+// the ship, so the model covers it where they cross; out from the wing's own side, or up to a rock nearer than the ship,
+// over it. layer: "under" or "over" (flat: all over)
+function towCableUnder(o, T, A) {
+  if (!(view3d.on && !BOT && view3d.state === "ready" && view3d.lib.has("ballast"))) return false;
+  const dz = (T.z || 0) - (o.z3 || 0);
+  if (dz > 0.25) return false;   // (the rock nearer than the ship: over it)
+  if (dz < -0.25) return true;   // (deeper: under it)
+  const rx = Math.cos(o.ang), ry = Math.sin(o.ang), side = (q) => wrapDelta(q.x - o.x, WW) * rx + wrapDelta(q.y - o.y, WH) * ry;
+  return side(A) < side({ x: o.x + rx * shipSize() * 0.12, y: o.y + ry * shipSize() * 0.12 });   // (pulled across past the wing's side of the hull)
+}
+function towCables(o, T, R, layer) {
+  if (!T || !R || !R.leads.some((v) => v > 0)) return;
+  const size = shipSize(), a = toScreen(o.x, o.y), sc = (p) => ({ x: a.x + wrapDelta(p.x - o.x, WW), y: a.y + wrapDelta(p.y - o.y, WH) });
+  const anchors = towAnchors(T), from = towLaunchers(o, R).map(sc), to = anchors.map(sc), u = size * BALLAST_UNIT * (o === game ? shipScale() : enemyScale()) * towK(o.z3);
   ctx.save(); ctx.lineCap = "round";
   for (let i = 0; i < 3; i++) {
     const p = R.leads[i]; if (p <= 0) continue;
+    const A0 = towLaunchers(o, R)[i], tip = { x: A0.x + wrapDelta(anchors[i].x - A0.x, WW) * p, y: A0.y + wrapDelta(anchors[i].y - A0.y, WH) * p };
+    if (towCableUnder(o, T, tip) !== (layer === "under")) continue;
     const A = from[i], B = { x: A.x + (to[i].x - A.x) * p, y: A.y + (to[i].y - A.y) * p }, sag = (17 - 13 * R.taut + 5 * i) * u;
     const sg = rotatePt(0, sag, o.ang);
     ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo((A.x + B.x) / 2 + sg.x, (A.y + B.y) / 2 + sg.y, B.x, B.y);
@@ -19032,6 +19050,7 @@ function draw() {
         for (const e of exhausts(game, S)) burstAt(e.x, e.y, 2, ["#fff8ce", "#ffcc63"], 0.12, 0.5, game.vx * 0.3, game.vy * 0.3);
       const dug = shown === S && game.dive;
       if (dug) { drawDiveHole(game.dive); clipOutStar(); drawBorerLegs(p.x + r.x, p.y + bob + r.y, shipSize() * sc, game.ang, borerLegs(game.dive.t * 1000, MAGIC.starmine)); }
+      if (game.tow) towCables(game, game.tow, towRig(game.tow, MAGIC.tow), "under");   // (BALLAST's cables that run under its hull)
       if (!chaseHidesShip(shown)) drawShip(shown, p.x + r.x, p.y + bob + r.y + tradeOffsetY(p.y), shipSize() * sc,
         { prep: shown === S && surgPrep() ? game.surg.t : null, kiln: shown === S && game.kiln ? kilnRig(game.kiln.t) : null, strata: shown === S && S.strata ? strataOpts(game, enemy, game.strata, "me") : null, tow: shown === S && game.tow ? towRig(game.tow, MAGIC.tow) : null, zombie: shown === S && (game.zombie || !!game.cough), power: swapping ? 1 : 0.12 + game.power * 0.88, bank, ang: (swapping ? 0 : game.ang) + r.a + (shown === S ? hullTurn() - bakedTurn(S, game.anim) : 0), out: game.sputter > 0 && !swapping, anim: shown === S ? game.anim : null,
           ring: shown === S && game.ring ? game.ring.phase : null, grind: shown === S ? game.grind : null, gear: shown === S ? myGearLook() : null, vt: shown === S ? game : null, haunt: shown === S && hauntOn(),
