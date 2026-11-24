@@ -72,7 +72,7 @@ export const SHIP_MODELS = {
   // DRAKON (the Drakon pipe split package): its two pieces modelled apart along the channel between its pipes, the cut
   // faces closed and the pipe ends capped — the front piece the big canopy, the back one the twin exhausts
   drakon: { file: "models/drakon-split.glb", fwd: "+x", len: 0.95, pieces: { front: "Drakon_Cockpit", back: "Drakon_TwinExhaust" },
-    beacon: { material: "Rift coupling indicators", at: "Drakon_TwinExhaust_SeamFX", out: [0.08, 0.04, 0.06], reach: 0.6, power: 0.5 } },   // (its broken pipes' warning light: makeBeacon; out: just outside the pipe cluster, file units)
+    beacon: { material: "Rift coupling indicators", at: { back: "Drakon_TwinExhaust_SeamFX", front: "Drakon_Cockpit_SeamFX" }, out: { back: [0.08, 0.04, 0.06], front: [-0.08, 0.04, 0.06] }, reach: 0.6, power: 0.5 } },   // (both halves' broken couplings: warning lights — makeBeacon; out: just outside each half's cut face, file units)
   vault: { file: "models/vault-lock.glb", fwd: "-z", upright: 1, len: 0.94, pad: 2.0, scale3: [1, 1.08, 0.752], vaultRig: true, strip: ["Vault_PreviewStar"] },   // (the VAULT dual-lock package: its lock face up, as the 2D drawing's — each face's six bolts, wheel and two flaps, its firing pins and piston, opt.vault; the cube 0.94 ship-lengths across)
   orian: { file: "models/orian.glb", fwd: "-x", len: 0.9, fan: { back: -0.055, hinge: [0, -0.085, -0.07], normal: [0, 0.94, -0.34], cuts: [-46, -15, 15, 46], round: [144, 72, 0, -72, -144], cone: 9, narrow: 0.45, shorten: 0.72 } },   // (shut: narrower across, and shorter — the sheath of the 2D drawing)
   vanta: { file: "models/vanta.glb", fwd: "-x", len: 0.98, erase: true },   // (its painted ribbon wiped: the game's own liquid goes in the chamber)
@@ -450,13 +450,16 @@ function splitSeam(E, M) {
 // change colour) and a small, short-reach light just outside its pipe cluster (at its seam mark), for the blue and red
 // to sweep over the black metal round the pipes. opt.beacon: "blue", "red", "dark" (between flashes), or none: as made
 function makeBeacon(E, M) {
-  const piece = E.obj.getObjectByName(M.pieces.back), mark = E.obj.getObjectByName(M.beacon.at);
-  if (!piece) return;
-  const mats = [];
-  piece.traverse((o) => { if (o.isMesh && o.material && o.material.name === M.beacon.material) { o.material = o.material.clone(); mats.push(o.material); } });
-  const light = new THREE.PointLight(0xffffff, 0, M.beacon.reach, 2);
-  if (mark) { mark.add(light); light.position.set(...M.beacon.out); } else piece.add(light);
-  E.beacon = { mats, base: mats.map((m) => ({ e: m.emissive.clone(), i: m.emissiveIntensity, c: m.color.clone() })), light };
+  const mats = [], lights = [];
+  for (const side of ["back", "front"]) {   // (each half its own material copies and its own light, on its cut face)
+    const piece = E.obj.getObjectByName(M.pieces[side]), mark = E.obj.getObjectByName(M.beacon.at[side]);
+    if (!piece) continue;
+    piece.traverse((o) => { if (o.isMesh && o.material && o.material.name === M.beacon.material) { o.material = o.material.clone(); mats.push(o.material); } });
+    const light = new THREE.PointLight(0xffffff, 0, M.beacon.reach, 2);
+    if (mark) { mark.add(light); light.position.set(...M.beacon.out[side]); } else piece.add(light);
+    lights.push(light);
+  }
+  E.beacon = { mats, base: mats.map((m) => ({ e: m.emissive.clone(), i: m.emissiveIntensity, c: m.color.clone() })), lights };
 }
 const BEACON = { blue: [0.15, 0.45, 1], red: [1, 0.08, 0.06] };
 function setBeacon(E, c) {
@@ -465,7 +468,7 @@ function setBeacon(E, c) {
     if (!c) { m.emissive.copy(B.base[i].e); m.emissiveIntensity = B.base[i].i; m.color.copy(B.base[i].c); return; }
     const k = BEACON[c]; if (k) { m.emissive.setRGB(...k); m.emissiveIntensity = 4; m.color.setRGB(...k); } else { m.emissive.setRGB(0, 0, 0); m.color.setRGB(0.05, 0.05, 0.06); }
   });
-  const k = c && BEACON[c]; B.light.intensity = k ? E.M.beacon.power : 0; if (k) B.light.color.setRGB(...k);
+  const k = c && BEACON[c]; for (const L of B.lights) { L.intensity = k ? E.M.beacon.power : 0; if (k) L.color.setRGB(...k); }
 }
 // CINDER's combat rig (`cinderRig`): its clips ready to be sampled (each slip's clip, each hatch's), and a fitted
 // missile seated at each bay's stow socket
@@ -985,7 +988,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 75,   // (index.html checks it; the file's name carries it too — lib/ship3d-vNN.js — so the app never mixes a new
+  version: 76,   // (index.html checks it; the file's name carries it too — lib/ship3d-vNN.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
