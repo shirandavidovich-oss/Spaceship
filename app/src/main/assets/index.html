@@ -1659,9 +1659,9 @@ const MAGIC = {
   //   then a beam straight ahead for `beam` s (as long as its sound), `reach` U long, aimed by itself — STRATA turns
   //   after the enemy at `track` rad/s (and the beam tips into the depth after it, `trackZ`): flying across faster than
   //   that, or out of reach, gets away. Touching the enemy it burns `dps` a second (the enemy's own shields/armour
-  //   take it as any other damage). Then the evil "ti ti tiiiiii" (`tail` s) as it levels off. A purple haze creeps
+  //   take it as any other damage). Then the deep, evil "tu tu tuuuu" (`tail` s) as it levels off. A purple haze creeps
   //   in round the edges of both players' screens from the press until that sound ends. `cool`: from the press
-  plaser:  { name: "קרן סגולה", look: "plaser", charge: 0.79, beam: 7.98, tail: 2.7, reach: 2.6, w: 0.07, dps: 16, track: 0.85, trackZ: 0.9, cool: 24, color: "#c86bff" },
+  plaser:  { name: "קרן סגולה", look: "plaser", charge: 0.79, beam: 7.98, tail: 3.0, reach: 2.6, w: 0.07, dps: 16, track: 0.85, trackZ: 0.9, cool: 24, color: "#c86bff" },
   vshift:  { name: "מעבר לממד הגובה", look: "vshift", rise: [0.49, 1.66], stay: 7.55, fall: 1.11, lock: 0.6, hold: 0.25, tank: true, dmg: 60,
              cool: 18, color: "#c86bff" },
   tow:     { name: "גרירת אסטרואיד", look: "tow", stop: 1.43, reel: [1.46, 4.15], rock: 0.6, rest: [2.3, -0.25], kick: 0.35,
@@ -9656,7 +9656,7 @@ function plaserStart(M) {
 }
 // its sound: the laser crackling with radio static (silent its first 0.75 s: the charge), then, at the end, the evil cue
 function plaserSound(P) {
-  soundBuf("audio/strata/ti-ti-tiiii.ogg");
+  soundBuf("audio/strata/tu-tu-tuuu.ogg");
   P.src = playClip("audio/strata/laser-radio.ogg", false, 0.9);
   if (!P.src) { audio.tone(140, MAGIC.plaser.beam, "sawtooth", 0.04, 1.4, MAGIC.plaser.charge); audio.noise(MAGIC.plaser.beam, 0.05, 4000); }
 }
@@ -9665,7 +9665,7 @@ function plaserTick(P) {
   const M = MAGIC.plaser;
   if (!P.off && P.t >= M.charge + M.beam) {
     P.off = true;
-    if (!playClip("audio/strata/ti-ti-tiiii.ogg", false, 0.95)) { audio.tone(1300, 0.15, "square", 0.04, 1); audio.tone(1300, 0.15, "square", 0.04, 1, 0.3); audio.tone(1450, 1.6, "square", 0.04, 0.5, 0.6); }
+    if (!playClip("audio/strata/tu-tu-tuuu.ogg", false, 0.95)) { audio.tone(1300, 0.15, "square", 0.04, 1); audio.tone(1300, 0.15, "square", 0.04, 1, 0.3); audio.tone(1450, 1.6, "square", 0.04, 0.5, 0.6); }
   }
 }
 function plaserStop() { const P = game.plaser; if (P && P.src) try { P.src.stop(); } catch (e) {} game.plaser = null; }
