@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v71.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v72.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -1751,6 +1751,8 @@ function towRig(T, M) {
   const out = T ? 1 : 0;
   return {
     wing: out * between(t, 0.40, 0.92) * (rel < 0 ? 1 : 1 - between(rel, 0.3, 0.8)),
+    // (the 3D wing: open in 0.42 s, full 45 ms before the cables leave at 0.72 s; shut in 0.34 s as the cables come in)
+    wing3: out * between(t, 0.255, 0.675) * (rel < 0 ? 1 : 1 - between(rel, 0.3, 0.64)),
     weight: out * Math.pow(range(t, 0.71, M.stop), 1.45) * back,
     impact: rel >= 0 ? 0 : between(t, 1.39, M.stop) * (1 - between(t, M.stop, 1.68)),
     leads: [0, 1, 2].map((i) => rel >= 0 ? (T.miss ? between(t - rel, 0.72 + i * 0.1, 1.15 + i * 0.1) * (1 - range(rel, 0, 0.3)) : 0)
@@ -4574,10 +4576,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v71.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v72.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 71, SHIP3D_FILE = "./lib/ship3d-v71.js";
+const SHIP3D_VER = 72, SHIP3D_FILE = "./lib/ship3d-v72.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -5009,7 +5011,7 @@ function draw3dShipModel(S, o, ang, bank) {
     // pushing as a sinker leaves — the sinker leaves at once, so the bay's own 840 ms is played round it: BAL_BAY)
     const V = o.vt || o, sa = V.sinkT != null ? (time - V.sinkT) * 1000 : 1e9;
     const mine = sa < BAL_BAY.snap ? 20 + (sa / BAL_BAY.snap) * 185 : sa < BAL_BAY.end ? 205 + (sa - BAL_BAY.snap) / (BAL_BAY.end - BAL_BAY.snap) * 635 : null;
-    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { bumper: ballastBumper(o), tow: { ext: o.tow ? o.tow.weight || 0 : 0, mine } }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
+    try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, { bumper: ballastBumper(o), tow: { ext: o.tow ? o.tow.weight || 0 : 0, wing3: o.tow ? o.tow.wing3 || 0 : 0, mine } }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
   if (S.winch) {   // LARIAT: its cable drum rolls (lib: drum) — paying out fast as the claw flies, reeling in slowly on the cable
@@ -9248,7 +9250,7 @@ function startTow(M) {
   }
 }
 // where the three cables leave the wing, in the world (ship `o`, its rig `R`)
-const TOW_WING3 = [[0.4, 0.07], [0.41, 0.1], [0.4, 0.13]];   // (the 3D model's tow wing: its end, where the three cables leave — ship-lengths right, back)
+const TOW_WING3 = [[0.279, 0.129], [0.273, 0.178], [0.267, 0.227]];   // (the 3D model's launch bay between its opened wing panels: its two rope ports and between them, where the three cables leave — ship-lengths right, back)
 function towLaunchers(o, R) {
   const size = shipSize() * (o === game ? shipScale() : enemyScale()) * towK(o.z3), u = size * BALLAST_UNIT, wa = -0.54 * (1 - R.wing), wx = 24 + 15 * R.wing + 35;
   const q3 = o === game && view3d.on && !BOT && game.q3 ? game.q3 : null;   // (in 3D: on the wing as the ship is tilted and rolled)
@@ -16513,14 +16515,32 @@ function bubbleHold(dt) {
 }
 // where the held bubble is: on the nozzle, past the nose; R: its radius (px of the 560 canvas)
 function bubbleAt(o, P) {
-  const k = 2.0 / 560 * shipSize(), nose = (131 + 12 * P.pump) * k, r = P.radius * k, d = nose + r * P.stretch;
-  return { x: o.x + Math.sin(o.ang) * d, y: o.y - Math.cos(o.ang) * d, r, mx: o.x + Math.sin(o.ang) * nose, my: o.y - Math.cos(o.ang) * nose, nose };
+  const m3 = view3d.on && !BOT && view3d.state === "ready" && view3d.lib.has("puff");   // (the 3D model's nose: 0.40 ship-lengths ahead)
+  const k = 2.0 / 560 * shipSize(), nose = (m3 ? 0.4 * shipSize() : 131 * k) + 12 * P.pump * k, r = P.radius * k, d = nose + r * P.stretch;
+  const c = noseAt(o, d), m = noseAt(o, nose);   // (in 3D: ahead of its nose as the ship is tilted and rolled, at its depth)
+  return { x: c.x, y: c.y, z: c.z, r, rk: r * c.k, mx: m.x, my: m.y, nose, ang: c.ang };
+}
+// a point d px straight ahead of a ship's nose: flat, along its heading; flying in 3D, along its nose as it is tilted and
+// rolled (mine: game.q3; theirs: from their state), shortened as much as it points into or out of the depth, and as near
+// or far as the ship is (z: its depth; k: how big things are there; ang: which way it points on the screen)
+function noseAt(o, d) {
+  if (typeof view3d !== "undefined" && view3d.on && !BOT) {
+    const q = o === game ? game.q3 : o === enemy ? Q3.fromAngles(o.ang, o.p3 || 0, o.r3 || 0) : null;
+    if (q) {
+      const k = o.z3 ? depthScale(o.z3) : 1, v = Q3.rot(q, [0, 0, -d * k]);
+      return { x: o.x + v[0], y: o.y + v[2], z: (o.z3 || 0) + v[1] / U, k, ang: Math.hypot(v[0], v[2]) > d * k * 0.05 ? Math.atan2(v[0], -v[2]) : o.ang };
+    }
+  }
+  return { x: o.x + Math.sin(o.ang) * d, y: o.y - Math.cos(o.ang) * d, z: null, k: 1, ang: o.ang };
 }
 function releaseBubble() {
   const B = game.bub; game.bub = null;
   if (!B || game.dead) return;
   const Wp = WEAPONS.bubble, P = bubbleCharge(B.t * 1000), A = bubbleAt(game, P), ch = (P.radius - 18) / (176 - 18), v = (Wp.speed - Wp.slow * ch) * U;
-  const q = { w: "bubble", x: A.x, y: A.y, vx: game.vx + Math.sin(game.ang) * v, vy: game.vy - Math.cos(game.ang) * v, life: 0, sz: A.r / (Wp.r * shipSize()), ch, st: P.stretch };
+  // (flying in 3D: from where it hung ahead of the tilted nose, at that depth, off along the nose)
+  const in3 = view3d.on && !BOT && game.q3, dv = in3 ? Q3.rot(game.q3, [0, 0, -1]) : [Math.sin(game.ang), 0, -Math.cos(game.ang)], iv = in3 ? inherit(dv) : [game.vx, 0, game.vy];
+  const q = { w: "bubble", x: A.x, y: A.y, vx: iv[0] + dv[0] * v, vy: iv[2] + dv[2] * v, life: 0, sz: A.r / (Wp.r * shipSize()), ch, st: P.stretch };
+  if (in3 && A.z != null) { q.z3 = A.z; q.vz3 = iv[1] + dv[1] * v; }
   shots.push(q);
   if (duel.stage === "on") { q.id = ++shotSeq; duelSend({ t: "f", w: "bubble", ...netPos(q), s: game.ship, id: q.id, z: +q.sz.toFixed(3), c: +ch.toFixed(3) }); }
   audio.tone(520 - ch * 260, 0.14, "triangle", 0.05, 0.5); audio.noise(0.06, 0.08, 3500); buzz(30);   // the nozzle snaps back
@@ -16597,13 +16617,13 @@ function drawBubbleBall(x, y, r, st, ang, wx, wy) {
 }
 // the held bubble on PUFF's nozzle (the nozzle a copper cone, wider with each push of air)
 function drawHeldBubble(o, ms) {
-  const P = bubbleCharge(ms), A = bubbleAt(o, P), m = toScreen(A.mx, A.my), c = toScreen(A.x, A.y), k = 2.0 / 560 * shipSize();
-  ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(o.ang);
+  const P = bubbleCharge(ms), A = bubbleAt(o, P), m = toScreen(A.mx, A.my), c = toScreen(A.x, A.y), k = 2.0 / 560 * shipSize() * (A.rk / (A.r || 1));
+  ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(A.ang);   // (its nozzle at the nose, pointing the way the nose does on the screen)
   const w = (9 + 5 * P.pump) * k;
   ctx.fillStyle = "#b8743a"; ctx.strokeStyle = "#5a3a10"; ctx.lineWidth = Math.max(1, k * 2);
   ctx.beginPath(); ctx.moveTo(-w * 0.6, 14 * k); ctx.lineTo(w * 0.6, 14 * k); ctx.lineTo(w, -2 * k); ctx.lineTo(-w, -2 * k); ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.restore();
-  drawBubbleBall(c.x, c.y, A.r, P.stretch, o.ang, A.x, A.y);
+  drawBubbleBall(c.x, c.y, A.rk, P.stretch, A.ang, A.x, A.y);
 }
 // PUFF's magic button: a round puffer with its spines out
 function drawPuffButton(b, M, ready, k) {
