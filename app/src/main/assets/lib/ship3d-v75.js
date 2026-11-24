@@ -985,7 +985,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 74,   // (index.html checks it; the file's name carries it too — lib/ship3d-vNN.js — so the app never mixes a new
+  version: 75,   // (index.html checks it; the file's name carries it too — lib/ship3d-vNN.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
