@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v76.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v77.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -1018,7 +1018,7 @@ const SHIPS = [
   // a body and two fork wings on one shared canvas; drawn in code by drawStrata (the wings slide forward with the thrust).
   // 0.62 ship-lengths wide (STRATA_W), nose up. Button 1: fork bolts, one from each fork tip at once. Button 2: a rift
   // seeker, a slow orb that turns after the enemy. Magic: vertical shift (MAGIC.vshift, updateShift)
-  { id: "strata", name: "STRATA", rarity: "legendary", mass: 1.0, fuel: 30, refill: 15, sfx: null, magic: "vshift", strata: true,
+  { id: "strata", name: "STRATA", rarity: "legendary", mass: 1.0, fuel: 30, refill: 15, sfx: null, magic: "plaser", strata: true,
     hull: "#4a3a8a", wingC: "#1c1438", trim: "#c86bff", flame: "#c86bff", noFlame: true,
     body: [], wing: [], nozzles: [-0.075, 0.075], engineY: 0.54, cockpit: [0, 0, 0.05, 0.1],
     weapons: ["forkbolt", "riftseeker"],
@@ -1654,6 +1654,14 @@ const MAGIC = {
   //   it comes down anyway (`fall` s): up there for about 5.9 s (it was 2.9). Slipping out of the lock does not start it
   //   again at once: it unwinds twice as fast as it winds. Caught on a LARIAT's rope, the shift slips the rope off.
   //   `cool` s to recharge, counted from the press
+  // STRATA's purple beam (the Strata forward-lens-strike package; it replaced the vertical shift, kept below unused):
+  //   the wings spread and the nose pitches up, the lens under it charging (`charge` s, the package's beam-on cue);
+  //   then a beam straight ahead for `beam` s (as long as its sound), `reach` U long, aimed by itself — STRATA turns
+  //   after the enemy at `track` rad/s (and the beam tips into the depth after it, `trackZ`): flying across faster than
+  //   that, or out of reach, gets away. Touching the enemy it burns `dps` a second (the enemy's own shields/armour
+  //   take it as any other damage). Then the evil "ti ti tiiiiii" (`tail` s) as it levels off. A purple haze creeps
+  //   in round the edges of both players' screens from the press until that sound ends. `cool`: from the press
+  plaser:  { name: "קרן סגולה", look: "plaser", charge: 0.79, beam: 7.98, tail: 2.7, reach: 2.6, w: 0.07, dps: 16, track: 0.85, trackZ: 0.9, cool: 24, color: "#c86bff" },
   vshift:  { name: "מעבר לממד הגובה", look: "vshift", rise: [0.49, 1.66], stay: 7.55, fall: 1.11, lock: 0.6, hold: 0.25, tank: true, dmg: 60,
              cool: 18, color: "#c86bff" },
   tow:     { name: "גרירת אסטרואיד", look: "tow", stop: 1.43, reel: [1.46, 4.15], rock: 0.6, rest: [2.3, -0.25], kick: 0.35,
@@ -2535,7 +2543,7 @@ const STR = {
 const MAGIC_EN = { clutch: "Tug ram", momentum: "Momentum flip", smoke: "Smoke screen", steam: "Steam burst", grind: "Grinding ring", shatter: "Burst apart", soak: "Light harvest", devour: "Jaws on chains",
   hammer: "Hammer blow", resonance: "Resonance blast", flip: "Quarter turn", vshield: "V shield", slip: "Glitch slip", dashL: "Slip left", dashR: "Slip right",
   inflate: "Puff up", reassemble: "Rebuild and rewind", starmine: "Star mine", lens: "False star", ceramic: "Ceramic shatter", split: "Split apart",
-  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake", vault: "Star in the vault", haunt: "Ghost ship", breach: "Breach and deliver", collapse: "Wave Collapse" };
+  rainbow: "Rainbow", tint: "Liquid colour", ink: "Ink cloud", anchor: "Anchor", tail: "Spiked tail", pollen: "Pollen cloud", tow: "Asteroid tow", vshift: "Vertical shift", plaser: "Purple beam", reverse: "Reverse gravity", surgery: "Surgery", starforge: "Starforge", flood: "Flood Hunt", pinballs: "Pinballs", orbitmine: "Orbit mine", snake: "Light snake", vault: "Star in the vault", haunt: "Ghost ship", breach: "Breach and deliver", collapse: "Wave Collapse" };
 const BODY_EN = ["Gas giant", "Black hole", "Neutron star", "Pulsar", "White dwarf", "Red giant", "Yellow sun", "Blue giant", "Ice planet", "Lava planet", "Moon", "Jupiter", "Neptune", "Earth"];
 const RARITY_EN = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 function tr(key, ...a) { const v = (STR[LANG] && STR[LANG][key]) != null ? STR[LANG][key] : STR.he[key]; return typeof v === "function" ? v(...a) : v == null ? key : v; }
@@ -4583,10 +4591,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v76.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v77.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 76, SHIP3D_FILE = "./lib/ship3d-v76.js";
+const SHIP3D_VER = 77, SHIP3D_FILE = "./lib/ship3d-v77.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -5074,7 +5082,7 @@ function draw3dShipModel(S, o, ang, bank) {
     if (ok && V.cldBolt) cloudBolt(V.cldBolt);
     ctx.restore(); return ok;
   }
-  try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, o.half ? { half: o.half, beacon: S.id === "drakon" ? drakonBeacon(o) : undefined } : S.vaultDoors && o.vt ? { vault: vaultPose(o.vt, o.anim) } : S.id === "cinder" && o.vt ? { launch: cinderLaunch(o.vt), dash: o.cin && o.cin.dash ? { side: o.cin.dash[1] < 0 ? "L" : "R", ms: o.cin.dash[0] } : undefined } : undefined); }   // (rolling into the turn; its nose up a little under power; tilted. DRAKON split: one piece, cut along its seam)
+  try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, o.half ? { half: o.half, beacon: S.id === "drakon" ? drakonBeacon(o) : undefined } : S.vaultDoors && o.vt ? { vault: vaultPose(o.vt, o.anim) } : S.id === "strata" ? { strata3: strataPose3(o) } : S.id === "cinder" && o.vt ? { launch: cinderLaunch(o.vt), dash: o.cin && o.cin.dash ? { side: o.cin.dash[1] < 0 ? "L" : "R", ms: o.cin.dash[0] } : undefined } : undefined); }   // (rolling into the turn; its nose up a little under power; tilted. DRAKON split: one piece, cut along its seam)
   catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }   // (anything wrong in the 3D drawing: back to 2D, never a blank game)
   if (ok && S.vaultDoors && o.vt) {   // VAULT: the star held in its open chamber, the light leaking from its seams when shut
     ctx.save(); ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll3))), Math.max(0.05, Math.abs(Math.cos(pitch3)))); try { drawVaultStar3d(o.vt); } catch (e) {} ctx.restore();
@@ -6706,7 +6714,7 @@ const SHIP_INFO = {
              m: ["מחזיקים: כבלים נתפסים באסטרואיד גדול ומושכים אותו לצד החללית (סובבו את הצד הימני אל היריב). משחררים: האסטרואיד נזרק ומתפוצץ ליד היריב או אחרי כמה שניות.", "Hold: cables latch onto a big asteroid and reel it to your side (turn your right side to the enemy). Let go: it is flung and blows up near the enemy or after a few seconds."] },
   strata: { w: [["שני חצים משני קצות המזלג.", "Two bolts from both fork tips."],
                 ["כדור איטי שרודף אחרי היריב.", "A slow orb that turns after the enemy."]],
-            m: ["עולה לממד הגובה: אף אחד לא פוגע בה והיא לא יורה, ורק הצל שלה נשאר על הלוח. מחזיקים את הצל על היריב לרגע, ולייזר יורה עליו מלמעלה.", "Rises into the upper dimension: nothing can touch it and it cannot fire; only its shadow stays on the arena. Hold the shadow on the enemy for a moment and a laser fires down on it."] },
+            m: ["הכנפיים נפתחות, האף מתרומם, והעדשה שמתחתיו יורה קרן סגולה קדימה לשמונה שניות. היא מכוונת את עצמה אחרי היריב ושורפת אותו כל עוד היא נוגעת בו — אפשר לברוח רק בטיסה מהירה הצידה או הרחק ממנה. ערפל סגול מכסה את קצוות המסך של שני השחקנים.", "The wings spread, the nose lifts, and the lens under it fires a purple beam ahead for eight seconds. It aims itself after the enemy and burns it as long as it touches — only flying fast across it or out of its reach gets away. A purple haze creeps over the edges of both players' screens."] },
   kiln: { w: [["גוש סיגים לוהט.", "A glowing lump of slag."],
               ["שלושה מוקשים במניפה, שנעצרים, נדרכים ומתפוצצים כשהיריב מתקרב.", "Three mines in a fan that stop, arm, and blow up when the enemy comes near."]],
           m: ["לכמה שניות הכוכב דוחף את היריב במקום למשוך אותו, ומעיף אותו במעגל הולך וגדל, אל המוקשים.", "For a few seconds the star pushes the enemy away instead of pulling, flinging it round in a widening circle, into the mines."] },
@@ -9105,6 +9113,7 @@ function useMagicNow(which = 0) {
   }
   if (M.look === "tow") { startTow(M); return; }   
   if (M.look === "vshift") { startShift(M); return; }
+  if (M.look === "plaser") { plaserStart(M); return; }
   if (M.look === "reverse") { startReverse(M); return; }
   if (M.look === "starforge") { startForge(M); return; }
   if (M.look === "collapse") { startCollapse(M); return; }   // NULL: Wave Collapse (updateCollapse)
@@ -9632,6 +9641,162 @@ function drawShiftButton(b, M, ready, k) {
   ctx.fillStyle = "#c86bff";
   for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * b.r * 0.12, b.r * 0.25); ctx.lineTo(sx * b.r * 0.36, -b.r * 0.62); ctx.lineTo(sx * b.r * 0.3, b.r * 0.2); ctx.closePath(); ctx.fill(); }
   ctx.fillStyle = "#e3c5ff"; ctx.beginPath(); ctx.moveTo(0, -b.r * 0.35); ctx.lineTo(b.r * 0.16, b.r * 0.28); ctx.lineTo(-b.r * 0.16, b.r * 0.28); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1; ctx.strokeStyle = M.color; ctx.lineWidth = Math.max(3, b.r * 0.1);
+  ctx.beginPath(); ctx.arc(0, 0, b.r * 0.95, -Math.PI / 2, -Math.PI / 2 + TAU * (ready ? 1 : k)); ctx.stroke();
+  ctx.restore();
+}
+// ---------- STRATA's magic: the purple beam (MAGIC.plaser) ----------
+// game.plaser: { t (s since the press), ang (its auto-aimed heading), slope (the beam's tip into the depth: layers a px),
+//   acc (damage owed, < 1), off (its end sound played), src (its sound) }. duel.plaser: their STRATA's { t, slope }
+function plaserStart(M) {
+  if (game.plaser) return;
+  game.plaser = { t: 0, ang: game.ang, slope: 0, acc: 0, off: false };
+  game.magicCool = M.cool; duelSend({ t: "pl" });
+  plaserSound(game.plaser); buzz(40);
+}
+// its sound: the laser crackling with radio static (silent its first 0.75 s: the charge), then, at the end, the evil cue
+function plaserSound(P) {
+  soundBuf("audio/strata/ti-ti-tiiii.ogg");
+  P.src = playClip("audio/strata/laser-radio.ogg", false, 0.9);
+  if (!P.src) { audio.tone(140, MAGIC.plaser.beam, "sawtooth", 0.04, 1.4, MAGIC.plaser.charge); audio.noise(MAGIC.plaser.beam, 0.05, 4000); }
+}
+// a beam's moment, mine or theirs: its end sound once, as the beam goes off
+function plaserTick(P) {
+  const M = MAGIC.plaser;
+  if (!P.off && P.t >= M.charge + M.beam) {
+    P.off = true;
+    if (!playClip("audio/strata/ti-ti-tiiii.ogg", false, 0.95)) { audio.tone(1300, 0.15, "square", 0.04, 1); audio.tone(1300, 0.15, "square", 0.04, 1, 0.3); audio.tone(1450, 1.6, "square", 0.04, 0.5, 0.6); }
+  }
+}
+function plaserStop() { const P = game.plaser; if (P && P.src) try { P.src.stop(); } catch (e) {} game.plaser = null; }
+function plaserPhase(P) { const M = MAGIC.plaser; return !P ? null : P.t < M.charge ? "charge" : P.t < M.charge + M.beam ? "beam" : P.t < M.charge + M.beam + M.tail ? "tail" : null; }
+// where the beam leaves: the lens under its nose (3D: the package's muzzle at the strike's pose, in ship-lengths; flat:
+// the nose), and how deep (layers)
+const PLASER_MUZZLE3 = [0, -0.0215, -0.1125];
+function plaserMuzzle(o) {
+  const size = shipSize(), q3 = lar3(o);
+  if (q3) { const k = depthScale(o.z3 || 0) * size, g = PLASER_MUZZLE3, v = Q3.rot(q3, [g[0] * k, g[2] * k, g[1] * k]); return { x: o.x + v[0], y: o.y + v[2], z: (o.z3 || 0) + v[1] / U }; }
+  const m = rotatePt(0, -0.42 * size, o.ang); return { x: o.x + m.x, y: o.y + m.y, z: o.z3 || 0 };
+}
+// the beam from ship o, its heading and slope: start, end (stopped where it touches `t`, a ship it can burn), hit
+function plaserTrace(o, P, t) {
+  const M = MAGIC.plaser, a = o === game ? P.ang : o.ang, m = plaserMuzzle(o), L = M.reach * U, d3 = view3d.on && !BOT;
+  const dx = Math.sin(a), dy = -Math.cos(a), dz = d3 ? (P.slope || 0) * U : 0, n = Math.hypot(1, dz), ux = dx / n, uy = dy / n, uz = dz / n;
+  let len = L, hit = false;
+  if (t) {
+    const tx = wrapDelta(t.x - m.x, WW), ty = wrapDelta(t.y - m.y, WH), tz = d3 ? ((t.z3 || 0) - m.z) * U : 0;
+    const along = clamp(tx * ux + ty * uy + tz * uz, 0, L), cx = tx - ux * along, cy = ty - uy * along, cz = tz - uz * along;
+    const r = shipSize() * (0.42 * (t === enemy ? Math.max(1, enemyScale()) : 1) + M.w);
+    if (Math.hypot(cx, cy, cz) < r && along > 0) { hit = true; len = along; }
+  }
+  return { x0: m.x, y0: m.y, z0: m.z, x1: m.x + ux * len, y1: m.y + uy * len, z1: m.z + uz * len / U, hit };
+}
+function updatePlaser(dt) {
+  const P = game.plaser, M = MAGIC.plaser;
+  if (!P) return;
+  if (game.dead || game.ship !== "strata") { plaserStop(); return; }
+  P.t += dt;
+  const ph = plaserPhase(P);
+  if (!ph) { game.plaser = null; return; }
+  if (ph !== "tail") {   // it aims itself: turning after the enemy, no faster than `track` (the pilot's own steering set aside)
+    if (P.ang == null) P.ang = game.ang;
+    if (enemyShown() && enemy.warp < 0.5) {
+      const m = plaserMuzzle(game), tx = wrapDelta(enemy.x - m.x, WW), ty = wrapDelta(enemy.y - m.y, WH), d = Math.hypot(tx, ty) || 1;
+      P.ang = wrapAngle(P.ang + clamp(wrapAngle(Math.atan2(tx, -ty) - P.ang), -M.track * dt, M.track * dt));
+      if (view3d.on && !BOT) {   // (and tips into the depth after it, by the beam's angle)
+        const want = Math.atan2(((enemy.z3 || 0) - m.z) * U, d), now = Math.atan(P.slope * U);
+        P.slope = Math.tan(now + clamp(want - now, -M.trackZ * dt, M.trackZ * dt)) / U;
+      }
+    }
+    game.ang = P.ang;
+  }
+  if (ph === "beam") {
+    const can = enemy.on && enemy.warp < 0.5 && !enemyAloft(), B = plaserTrace(game, P, can ? enemy : null);
+    if (B.hit) {   // touching it: it burns, a little at a time
+      P.acc += M.dps * dt; if (P.acc >= 1) { const n = Math.floor(P.acc); P.acc -= n; harmEnemy(n); }
+      enemy.hurt = Math.max(enemy.hurt || 0, 0.2);
+      if (Math.random() < dt * 30) burstAt(B.x1, B.y1, 3, ["#ffffff", "#f0d5ff", "#a45aff", "#6115ff"], 0.25, 0.6);
+    }
+  }
+  plaserTick(P);
+}
+// STRATA's 3D pose for the lib: the strike clip (charging 0-790 ms, held round its firing pose with a tremble while the
+// beam lasts, then on from 1130 ms back to level flight), else its wings sweeping while it thrusts
+function strataPose3(o) {
+  const V = o.vt || o, P = V === game ? game.plaser : V === enemy ? duel.plaser : null, ph = plaserPhase(P), M = MAGIC.plaser;
+  let magic = null;
+  if (ph === "charge") magic = P.t * 1000;
+  else if (ph === "beam") magic = 900 + 70 * Math.sin(time * 23);
+  else if (ph === "tail") { const a = (P.t - M.charge - M.beam) * 1000; if (a < 860) magic = 1130 + a; }
+  return { magic, thrust: magic == null && (o.power || 0) > 0.15 ? time * 1000 : null };
+}
+// the beams on screen: the lens charging, the beam (a white-lavender core in a thick violet glow, rings running out
+// along it, flickering), its tip where it burns, and sparks dying at the lens after it
+function drawPlasers() {
+  for (const [o, P, t] of [[game, game.plaser, enemy.on ? enemy : null], [enemy, enemy.on && enemy.ship === "strata" ? duel.plaser : null, !game.dead ? game : null]]) {
+    const ph = plaserPhase(P); if (!ph) continue;
+    const M = MAGIC.plaser, size = shipSize(), B = plaserTrace(o, P, ph === "beam" ? t : null), p0 = toScreen(B.x0, B.y0), k0 = view3d.on && !BOT ? depthScale(B.z0) : 1;
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    if (ph === "charge" || ph === "tail") {   // the lens: charging up, or its sparks dying away
+      const q = ph === "charge" ? P.t / M.charge : 1 - (P.t - M.charge - M.beam) / 0.76;
+      if (q > 0) {
+        const r = size * (0.08 + 0.12 * q) * k0, g = ctx.createRadialGradient(p0.x, p0.y, 0, p0.x, p0.y, r * 2);
+        g.addColorStop(0, `rgba(240,213,255,${0.9 * q})`); g.addColorStop(0.35, `rgba(164,90,255,${0.6 * q})`); g.addColorStop(1, "rgba(97,21,255,0)");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p0.x, p0.y, r * 2, 0, TAU); ctx.fill();
+        for (let i = 0; i < 6; i++) { const a = time * 7 + i * 1.7, rr = r * (1.2 + 0.8 * Math.sin(time * 13 + i)); ctx.fillStyle = `rgba(208,145,255,${0.7 * q})`; ctx.fillRect(p0.x + Math.cos(a) * rr, p0.y + Math.sin(a) * rr, 2, 2); }
+      }
+    } else {
+      const p1 = { x: p0.x + wrapDelta(B.x1 - B.x0, WW), y: p0.y + wrapDelta(B.y1 - B.y0, WH) }, k1 = view3d.on && !BOT ? depthScale(B.z1) : 1;
+      const L = Math.hypot(p1.x - p0.x, p1.y - p0.y) || 1, nx = -(p1.y - p0.y) / L, ny = (p1.x - p0.x) / L, fl = 0.85 + 0.15 * Math.sin(time * 61) * Math.sin(time * 17);
+      const rise = clamp((P.t - M.charge) / 0.12, 0, 1), w = size * M.w * rise;
+      for (const [wk, a, c] of [[2.8, 0.26, "97,21,255"], [1.28, 0.62, "164,90,255"], [0.48, 0.96, "240,213,255"]]) {
+        const w0 = w * wk * k0, w1 = w * wk * k1; ctx.fillStyle = `rgba(${c},${a * fl})`;
+        ctx.beginPath(); ctx.moveTo(p0.x + nx * w0, p0.y + ny * w0); ctx.lineTo(p1.x + nx * w1, p1.y + ny * w1); ctx.lineTo(p1.x - nx * w1, p1.y - ny * w1); ctx.lineTo(p0.x - nx * w0, p0.y - ny * w0); ctx.closePath(); ctx.fill();
+      }
+      ctx.strokeStyle = `rgba(201,132,255,${0.57 * fl})`; ctx.lineWidth = Math.max(1.2, size * 0.012);
+      for (let i = 0; i < 7; i++) {   // the energy rings, running out along it
+        const f = ((time * 1.6 + i / 7) % 1), x = p0.x + (p1.x - p0.x) * f, y = p0.y + (p1.y - p0.y) * f, rk = w * 1.9 * (k0 + (k1 - k0) * f);
+        ctx.beginPath(); ctx.ellipse(x, y, Math.max(0.5, rk * 0.35), Math.max(0.5, rk), Math.atan2(ny, nx) + Math.PI / 2, 0, TAU); ctx.stroke();
+      }
+      const g = ctx.createRadialGradient(p0.x, p0.y, 0, p0.x, p0.y, size * 0.3 * k0);   // the lens, blazing
+      g.addColorStop(0, `rgba(255,240,255,${0.9 * fl})`); g.addColorStop(1, "rgba(97,21,255,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p0.x, p0.y, size * 0.3 * k0, 0, TAU); ctx.fill();
+      if (B.hit) { const h = ctx.createRadialGradient(p1.x, p1.y, 0, p1.x, p1.y, size * 0.45 * k1); h.addColorStop(0, `rgba(255,255,255,${0.85 * fl})`); h.addColorStop(0.4, "rgba(186,122,253,0.6)"); h.addColorStop(1, "rgba(97,21,255,0)"); ctx.fillStyle = h; ctx.beginPath(); ctx.arc(p1.x, p1.y, size * 0.45 * k1, 0, TAU); ctx.fill(); }
+    }
+    ctx.restore();
+  }
+}
+// the purple haze: from the press until the evil cue ends, on both phones — soft violet clouds drifting along all four
+// edges of the screen, swelling and thinning, the corners deepest
+function drawPurpleHaze() {
+  const M = MAGIC.plaser, end = M.charge + M.beam + M.tail;
+  let k = 0;
+  for (const P of [game.plaser, enemy.on && enemy.ship === "strata" ? duel.plaser : null]) if (P && P.t < end) k = Math.max(k, Math.min(1, P.t / 0.6) * Math.min(1, (end - P.t) / 0.7));
+  if (k <= 0.01) return;
+  ctx.save(); ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  const e = Math.min(W, H) * 0.2;
+  for (const [x0, y0, x1, y1] of [[0, 0, 0, e], [0, H, 0, H - e], [0, 0, e, 0], [W, 0, W - e, 0]]) {   // the edges: a deep violet fading inward
+    const g = ctx.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, `rgba(120,40,220,${0.42 * k})`); g.addColorStop(1, "rgba(120,40,220,0)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 16; i++) {   // the floating clouds: four an edge, each wandering along it and breathing
+    const side = i % 4, f = ((i * 0.618 + time * (0.03 + 0.012 * (i % 3))) % 1), b = 0.5 + 0.5 * Math.sin(time * (0.7 + i * 0.13) + i);
+    const along = side < 2 ? f * W : f * H, out = e * (0.15 + 0.35 * Math.sin(time * 0.5 + i * 2.1) ** 2);
+    const x = side < 2 ? along : side === 2 ? out : W - out, y = side === 0 ? out : side === 1 ? H - out : along;
+    const r = e * (0.8 + 0.7 * b), g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(170,80,255,${0.16 * k * (0.5 + b)})`); g.addColorStop(1, "rgba(120,40,220,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+// STRATA's magic button: its lens with a beam out of it
+function drawPlaserButton(b, M, ready, k) {
+  const on = !!game.plaser;
+  ctx.save(); ctx.translate(b.x, b.y);
+  ctx.fillStyle = on ? "rgba(200,107,255,0.35)" : "rgba(10,14,30,0.75)"; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+  ctx.globalAlpha = ready || on ? 1 : 0.45;
+  ctx.fillStyle = "#6115ff"; ctx.fillRect(-b.r * 0.12, -b.r * 0.8, b.r * 0.24, b.r * 0.8);
+  ctx.fillStyle = "#f0d5ff"; ctx.fillRect(-b.r * 0.05, -b.r * 0.8, b.r * 0.1, b.r * 0.8);
+  const g = ctx.createRadialGradient(0, b.r * 0.15, 0, 0, b.r * 0.15, b.r * 0.42); g.addColorStop(0, "#ffffff"); g.addColorStop(0.4, "#c86bff"); g.addColorStop(1, "rgba(97,21,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, b.r * 0.15, b.r * 0.42, 0, TAU); ctx.fill();
   ctx.globalAlpha = 1; ctx.strokeStyle = M.color; ctx.lineWidth = Math.max(3, b.r * 0.1);
   ctx.beginPath(); ctx.arc(0, 0, b.r * 0.95, -Math.PI / 2, -Math.PI / 2 + TAU * (ready ? 1 : k)); ctx.stroke();
   ctx.restore();
@@ -11751,7 +11916,7 @@ function blowUpShip() {
   game.zombie = false; game.pollen = null;   // (a zombie is cured only by blowing up)
   if (S.quantum) { nullDeath(game.x, game.y); duelSend({ t: "qx", x: +(game.x / WW).toFixed(5), y: +(game.y / WH).toFixed(5) }); }   // NULL: the world goes negative
   game.qc = null; game.qe = null;
-  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; game.kiln = null; if (game.surg && game.surg.c) creatureFalls(game.surg.c); game.surg = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
+  game.dead = 3; game.deaths++; game.streak = 0; game.thrust = null; game.anim = null; if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; plaserStop(); game.kiln = null; if (game.surg && game.surg.c) creatureFalls(game.surg.c); game.surg = null; game.magicWait = false; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
   if (game.soak) { game.soak.held = 0; game.soak.boost = false; }   // ORIAN loses its charge
   if (game.talus) { game.talus.stage = 0; game.talus.from = 0; game.talus.t = 99; game.talus.colors = []; game.talus.ring = 0; }   // TALUS loses what it built
   burstAt(game.x, game.y, 100, ["#ffffff", "#ffd166", S.flame, S.hull, S.trim, "#ff6b35"], 1.5, 1.5, game.vx * 0.5, game.vy * 0.5);
@@ -11811,7 +11976,7 @@ function updateWeapons(dt) {
   updateRift(dt); updateRiftBursts(dt); updateCrosses(dt);
   if (!game.dead) updateDash(dt);
   updateThread(dt); updateFlail(dt);
-  enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt); updateTow(dt); updateShift(dt); updateReverse(dt); updateSurgery(dt);
+  enemyShoot(dt); updateEnemyShots(dt); updateDevour(dt); updateTow(dt); updateShift(dt); updatePlaser(dt); updateReverse(dt); updateSurgery(dt);
   for (let i = 0; i < 4; i++) {
     game.cool[i] = Math.max(0, (game.cool[i] || 0) - dt * (game.lassoed ? ELASSO.fire : 1) * (game.zombie ? ZOMBIE.rate : 1) * (1 + anchorRev() * MAGIC.anchor.rapid));   // (ZORIAN revved up on its anchor: faster)   // held by LARIAT's rope: half the fire rate; a zombie: ZOMBIE.rate (60%)
     if (game.charm) { if (game.fire[i] !== null && game.cool[i] <= 0 && slotWeapon(i) && !game.dead) charmShoot(i); continue; }   // charmed (NIMBUS): every button throws toys, whatever its weapon, ammo or not
@@ -19240,6 +19405,7 @@ function draw() {
     drawShots(shots, "front"); drawRcs();
     drawShots(duel.shots, "front");
     drawShots(eshots, "front");
+    drawPlasers();
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
     drawRail(); drawWaves(); drawMines(); drawSteam(); drawRainbows(); drawCharm(); drawDecoys(); drawNullWorld(); drawRepriseGhosts(); drawBomb(game.bomb); bombs.forEach(drawBomb); drawDrakFlares(); drawJetBubbles(); drawTow(game, game.tow, towRig(game.tow, MAGIC.tow)); if (game.surg) drawSurgery(game, game.surg); if (enemy.remote && duel.surg) drawSurgery(enemy, duel.surg); if (enemy.remote && duel.tow) drawTow(enemy, duel.tow, towRig(duel.tow, MAGIC.tow)); drawStarMine(); drawMineReach(); drawLenses(); drawPalisade(); drawGimbal(); drawLariat(); drawReso(game.reso); drawReso(duel.reso);
@@ -19270,6 +19436,7 @@ function draw() {
     trainArrows();
     for (const c of comets) edgeArrow(c.x, c.y, c.kind === "gold" ? "#ffd166" : mineralById(c.mineral).color);   // the comets, off screen
     drawCard(shown, Math.min(1, game.card * 2));
+    drawPurpleHaze();   // STRATA's beam: the purple haze round the screen's edges (both players)
     const hudL = hudLeftRect(), hudR = hudRightRect();   // (the top of the screen: see-through over my ship, like the buttons)
     hudSee("hudR", hudR, () => { drawRadar(); drawCamButton(); });
     hudSee("hudL", hudL, drawHealth);
@@ -20308,6 +20475,7 @@ function drawMagicButton(b, M, ready, k) {
   if (M.look === "tail") drawTailButton(b, M, ready, k);
   if (M.look === "tow") drawTowButton(b, M, ready, k);
   if (M.look === "vshift") drawShiftButton(b, M, ready, k);
+  if (M.look === "plaser") drawPlaserButton(b, M, ready, k);
   if (M.look === "reverse") drawReverseButton(b, M, ready, k);
   if (M.look === "surgery") drawSurgeryButton(b, M, ready, k);
   if (M.look === "grinder") drawGrinderButton(b, M, ready, k);
@@ -20772,7 +20940,7 @@ function endDuel(tellThem) {
   game.scramble = 0; game.scrambleSafe = 0; enemy.scramble = 0; game.reso = null; duel.reso = null;   // (CANTOR's scrambling ends with the match)
   mazeEnd(true); flood = null; game.pinball = null; game.snake = null; game.vault = null; flyMines.length = 0; game.haunt = null; game.broad = null; ghosts.length = 0; game.paddle = null; huskRelease(); game.husk = null; game.hcap = false; huskCreature = null; game.paraT = 0; for (const S of stations) S.inf = null;   // the match is over: no maze, the star back, no water, no pinballs
   if (game.docked) undock();
-  duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
+  duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.plaser = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.ring = null; duel.gate = null; game.elasso = null; game.lassoed = null; duel.grind = null; duel.held = false; enemy.talus = null;
   for (let k = pieces.length - 1; k >= 0; k--) if (pieces[k].remote) pieces.splice(k, 1);
   for (let k = eggs.length - 1; k >= 0; k--) if (eggs[k].remote) eggs.splice(k, 1);
   for (let k = hunters.length - 1; k >= 0; k--) if (hunters[k].remote) hunters.splice(k, 1);
@@ -20811,7 +20979,7 @@ function duelLink(event, data) {
       setTimeout(() => { if (realDuel()) openPicker("start"); }, 0);
     }
     duel.stage = "count"; duel.t = 0; duel.won = duel.lost = 0; duel.raidDone = false; duel.outDmg = 0; eshots.length = 0; duel.roundStart = game.t + 3;
-    duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.gate = null;
+    duel.shots.length = 0; duel.tail = null; duel.tow = null; duel.strata = null; duel.plaser = null; duel.kiln = null; duel.surg = null; duel.net = null; duel.gate = null;
     for (let k = eggs.length - 1; k >= 0; k--) eggs.splice(k, 1);
     hunters.length = 0; shots.length = 0; crate.on = false;
     game.hp = SHIP_HP; game.tanks = TANKS; game.dead = 0; game.tail = null; game.anim = null; fillAmmo(); duelPlace();
@@ -20871,6 +21039,8 @@ function duelLink(event, data) {
     duel.starMine = m.on ? true : null;
   } else if (m.t === "smx") {   // my bomb got them (their phone saw the touch)
     game.starMine = null; game.magicCool = MAGIC.starmine.cool; shatterAt(m.x * WW, m.y * WH, shipById(enemy.ship));
+  } else if (m.t === "pl") {   // their STRATA's purple beam: it starts (heard now; then followed in their state)
+    if (!duel.plaser) { duel.plaser = { t: 0, slope: 0 }; plaserSound(duel.plaser); }
   } else if (m.t === "sp") {   // their DRAKON came apart: its bomb is here
     bombs.length = 0; bombs.push({ x: m.x * WW, y: m.y * WH, ang: m.a, vx: 0, vy: 0, t: 0, half: m.k === 2 ? "rear" : "front" }); audio.sfx("drakon", "rift_charge", 0, 0.6);
   } else if (m.t === "chit") {   // my creature was hit (their phone saw it)
@@ -21058,6 +21228,13 @@ function updateRival(dt) {
     if (sx >= 0 && Q.fire == null) { audio.tone(2200, 0.5, "sawtooth", 0.08, 0.1); audio.noise(0.5, 0.2, 5000); shake(0.6); buzz(200); }   // its laser on me
     Q.fire = sx >= 0 ? sx : null;
   } else duel.strata = null;
+  // their STRATA's purple beam (their phone aims it and sends the damage; here it is seen and heard)
+  if (n.pl) {
+    const [pt, ps] = n.pl; let D = duel.plaser;
+    if (!D) { D = duel.plaser = { t: pt + age, slope: 0 }; if (pt + age < 0.5) plaserSound(D); }
+    D.t += dt; if (Math.abs(D.t - (pt + age)) > 0.25) D.t = pt + age; D.slope = ps;
+    plaserTick(D);
+  } else duel.plaser = null;
   // their BALLAST's asteroid and cables (their phone decides what the blast does)
   if (n.bt) {
     const [ph, bx, by, ba, bt, br] = n.bt, P = ["reach", "tow", "fly", "miss", "gone"][ph], D = duel.tow;
@@ -21147,6 +21324,7 @@ function updateDuel(dt) {
       fk: game.surg ? [["prep", "build", "alive"].indexOf(game.surg.phase), +game.surg.t.toFixed(2), +(game.surg.px / WW).toFixed(5), +(game.surg.py / WH).toFixed(5), +game.surg.ang.toFixed(2),
         ...game.surg.parts.map((v) => +v.toFixed(3)), game.surg.cur, +Math.min(9, game.surg.t - game.surg.done).toFixed(2), game.surg.out > 0 ? 1 : 0, ...(game.surg.c ? [+(game.surg.c.x / WW).toFixed(5), +(game.surg.c.y / WH).toFixed(5), +game.surg.c.ang.toFixed(2), creatureLeft(game.surg.c), +(game.surg.c.hp / MAGIC.surgery.hp).toFixed(3)] : [])] : 0,
       kl: game.kiln ? +game.kiln.t.toFixed(2) : -1, mz: mazeNet(), dk: game.docked ? 1 : 0, gr: myGearLook(), pb: pinballNet(), sn: snakeNet(), vt: vaultNet(), ht: hauntOn() ? 1 : 0, ca: corsairNet(), hk: huskNet(), sh: game.actOn > 0 ? 1 : game.shieldFx > 0 ? 2 : 0, fd: flood && flood.owner === "me" ? +flood.t.toFixed(2) : -1,
+      pl: game.plaser ? [+game.plaser.t.toFixed(2), +(game.plaser.slope || 0).toFixed(5)] : 0,
       sv: game.strata ? [+game.strata.t.toFixed(2), game.strata.fall != null ? +game.strata.fall.toFixed(2) : -1, game.strata.fire != null ? +game.strata.fire.toFixed(2) : -1, +game.strata.lockT.toFixed(2), +(game.strata.ax / WW).toFixed(5), +(game.strata.ay / WH).toFixed(5)] : 0,
       bt: game.tow ? [["reach", "tow", "fly", "miss", "gone"].indexOf(game.tow.phase), +(game.tow.x / WW).toFixed(5), +(game.tow.y / WH).toFixed(5), +game.tow.ang.toFixed(3), +game.tow.t.toFixed(2), game.tow.rel != null ? +game.tow.rel.toFixed(2) : -1] : 0,
       bd: game.drillOn ? 1 : 0, rd: raiderNet(), qn: nullNet(),
@@ -21840,7 +22018,7 @@ function hitHangar(x, y) { if (!HANGAR) return false; const b = hangarBtn(); ret
 // fly another ship now: a fresh start with it (full tank, ammo, health), everything of the old ship gone
 function tryShip(id) {
   game.ship = id; game.zombie = false; game.pollen = null; game.qc = null; game.qe = null;
-  if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; game.kiln = null; if (game.surg && game.surg.c) creatureFalls(game.surg.c); game.surg = null;   // (BALLAST's asteroid already flying goes on)
+  if (game.tow && game.tow.phase !== "fly") game.tow = null; game.strata = null; plaserStop(); game.kiln = null; if (game.surg && game.surg.c) creatureFalls(game.surg.c); game.surg = null;   // (BALLAST's asteroid already flying goes on)
   if (game.starMine) { game.starMine = null; duelSend({ t: "sm", on: 0 }); }
   game.harpoonCut = false;   // (a new ship: a new rope)
   game.anim = null; game.tail = null; game.ring = null; game.grind = null; game.beam = null; game.trap = null; game.rift = null; game.devour = null; game.inked = 0; game.dash = null; game.crossHold = null; game.thread = null; game.flail = null; game.anchor = null; game.vtint = 0; game.scramble = 0; game.reso = null; game.flipT = -1; game.flipMode = 0; game.wbank = {}; game.rail = null; game.hacked = 0; game.burstQ = null; game.steamT = 0; game.magicCool2 = 0; game.slip = null; game.rep = null; game.repPending = null; game.rw = null; game.rwHist = []; game.dash2 = null; game.bomb = null; game.splitUsed = false; game.dive = null; game.puff = null; game.puffJet = null; game.bub = null; game.eggKind = null; game.forge = null; game.gate = null; game.gateWait = null; game.gflip = null; game.hook = null; game.tether = null; game.hookWait = null; game.clutch = null; game.elasso = null; game.lassoed = null; game.ldash = null; game.palDeploy = null; game.palMagic = null; if (game.palWall) { game.palWall = null; duelSend({ t: "pw", on: 0 }); }
