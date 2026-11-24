@@ -40,7 +40,7 @@ export const SHIP_MODELS = {
   xcrystal: { file: "models/xeltar-crystal.glb", fwd: "+z", len: 1, fit: "max" },   // (XELTAR's rear crystal flying: the same cut ice, its own model)   // (the rigged squid from the Xeltar 3D Motion package: fins always beating, its five rear arms swimming with the gas and gathering for the crystal)
   strata: { file: "models/strata.glb", fwd: "-x", len: 0.95 },
   skarn: { file: "models/skarn-anim.glb", fwd: "-x", len: 0.95, fit: "max", skarnRig: true },   // (the SKARN package: its jaws, six armour ribs, locks, stored-charge lights and muzzle flashes — opt.skarn, the 2D controller's pose)
-  glitch: { file: "models/glitch-detailed.glb", fwd: "-x", len: 1.0, unit: 0.5026, origin: true, pad: 1.7, glitchRig: true },   // (the GLITCH package, rebuilt from its sprites: the shutter plates and links move — opt.glitch; unit: 0.0068 a sprite px, as the 2D drawing's 1.75 ship-lengths a 512 px canvas)
+  glitch: { file: "models/glitch-angular.glb", fwd: "-x", len: 1.0, unit: 0.5026, origin: true, pad: 1.7, glitchRig: true },   // (the GLITCH package, rebuilt from its sprites: the shutter plates and links move — opt.glitch; unit: 0.0068 a sprite px, as the 2D drawing's 1.75 ship-lengths a 512 px canvas)
   borer: { file: "models/borer-drill.glb", fwd: "-x", len: 1.0, drill: true },   // (its spiral drill on its own bearing, the BORER package: turned by opt.drill, radians)
   corsair: { file: "models/corsair.glb", fwd: "-x", len: 0.85, ghost: true },
   cinder: { file: "models/cinder.glb", fwd: "-z", len: 0.98, upright: 1 },
@@ -914,7 +914,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 65,   // (index.html checks it; the file's name carries it too — lib/ship3d-v65.js — so the app never mixes a new
+  version: 66,   // (index.html checks it; the file's name carries it too — lib/ship3d-v66.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
