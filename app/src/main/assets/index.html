@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v70.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v71.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -4574,10 +4574,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v70.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v71.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 70, SHIP3D_FILE = "./lib/ship3d-v70.js";
+const SHIP3D_VER = 71, SHIP3D_FILE = "./lib/ship3d-v71.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4594,7 +4594,7 @@ if (view3d.on && !BOT) view3dSet(true);
 // the 3D model is drawn for this ship now (no 2D frames instead)
 function use3d(S, o) {
   if (!view3d.on || BOT || view3d.state !== "ready" || o.icon || o.zombie || (o.half && S.id !== "drakon") || (o.haunt && S.id !== "corsair")) return false;   // (CORSAIR's ghost ship: the same model, haunted: drawCorsairGhost)
-  if (S.magic === "inflate" && o.vt && puffStOf(o.vt) && puffStOf(o.vt).st !== "flat" && !view3d.lib.ready("puffbig")) return false;   // (PUFF puffed up or crumpled: its 3D shell, once loaded)
+  if (S.magic === "inflate" && o.vt && puffStOf(o.vt) && (puffStOf(o.vt).st !== "flat" || puffStOf(o.vt).t < 0.72) && !view3d.lib.ready("puffbig")) return false;   // (PUFF puffed up or crumpled: its 3D shell, once loaded)
   if (S.id === "palisade" && o.anim && o.anim.seq === "roof") return false;
   // (PALISADE setting its wall: the roof plates slide and the arms rise — its 2D frames)   // (BORER's drill turning — boring into the star, or held drilling: its 2D drawing; the model is one piece, its drill cannot turn)   // (GLITCH's shutters moving — the hack pulse, the V shield, the slip: its 2D drawing; the model's panels cannot move)   // (PUFF puffed up: its 2D drawing; the model is the slim one)
   const L = view3d.lib; return L.has(S.id) && L.ready(S.id);
@@ -4920,18 +4920,24 @@ function draw3dShipModel(S, o, ang, bank) {
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
-  if (S.id === "puff") {   // PUFF: compact, its own model; puffing up, puffed up and bursting, the package's shell (lib: puffbig),
-    // from the same state as its 2D frames — the compact model fades out as the first lobes swell (406–524 ms in)
+  if (S.id === "puff") {   // PUFF (lib: puffbig, the smooth-deflation package): compact, its own model; puffing up (1.5 s), held, burst
+    // and collapsing (0.9 s), then its folds pulling back in to its compact self (0.72 s) — the compact model fading out as
+    // the first lobes swell (406–524 ms) and back in as the folds draw in (292–642 ms of that). Puffing up again before the
+    // folds are in starts from them (Reinflate), the compact model fading out at once
     const V = o.vt === game || o.vt === enemy ? o.vt : null, P = V ? puffStOf(V) : null, big = L.ready("puffbig");   // (asked for: loaded early)
-    // (let down, it is the ship it was before: the crumpled shell gives way to it in the last of the burst, and the next
-    // puffing up starts from it again)
-    if (P && big && P.st !== "flat") {
-      const age = P.t * 1000, pose = P.st === "up" ? { state: "inflating", age } : P.st === "full" ? { state: "inflated" } : { state: "deflating", age };
-      const w = P.st === "up" ? 1 - smoothStep(clamp((age - 406) / 118, 0, 1)) : P.st === "down" ? smoothStep(clamp((age - 560) / 300, 0, 1)) : 0;
-      if (w < 0.99) { ctx.save(); ctx.globalAlpha *= 1 - (P.st === "down" ? w : 0); try { ok = L.draw(ctx, "puffbig", ang, roll3, pitch3, { puff: pose }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); } ctx.restore(); }
+    const rec = P && P.st === "flat" && P.t < 0.72;
+    if (P && P.st === "up" && V.pfPrev !== "up") { V.pfRe = V.pfPrev === "flat" && V.pfRec; V.pfW0 = V.pfW || 0; }
+    if (V) { V.pfPrev = P ? P.st : null; V.pfRec = rec; }
+    if (P && big && (P.st !== "flat" || rec)) {
+      const ms = P.t * 1000;
+      const pose = P.st === "up" ? { clip: V.pfRe ? "Reinflate" : "Inflate", ms } : P.st === "full" ? { clip: "Inflate", ms: 1500 } : P.st === "down" ? { clip: "BurstCollapse", ms } : { clip: "CompactRecovery", ms };
+      const w = P.st === "up" ? (V.pfRe ? V.pfW0 * (1 - smoothStep(clamp(ms / 160, 0, 1))) : 1 - smoothStep(clamp((ms - 406) / 118, 0, 1))) : P.st === "flat" ? smoothStep(clamp((ms - 292) / 350, 0, 1)) : 0;
+      V.pfW = w;
+      if (w < 0.99) { try { ok = L.draw(ctx, "puffbig", ang, roll3, pitch3, { puff: pose }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); } }
       if (w > 0.01) { ctx.save(); ctx.globalAlpha *= w; try { ok = L.draw(ctx, S.id, ang, roll3, pitch3) || ok; } catch (e) {} ctx.restore(); }
       ctx.restore(); return ok;
     }
+    if (V) V.pfW = 1;
   }
   if (S.id === "glitch") {   // GLITCH: the rebuilt model's shutters (lib: glitchRig), on the 2D reference clock as glitchPicture plays it:
     // the hack pulse's shutters twice as fast, the V shield at its own speed, the slip's counter-slide twice as fast
@@ -18440,6 +18446,18 @@ function drawRibbon(S, lvl = 0) {
 // fold back along the hull when it stops rowing. Turned with the ship: the oars on the side toward you drawn over the
 // hull, the far side's under it. Ship-lengths, the ship's own frame (x right, up, back)
 const OARS3 = { ports: [-0.03, 0.068, 0.166, 0.258], x: 0.092, h: -0.1, len: 0.27, dip: 0.62 };
+// the textured oar (lib: corsairoar / corsairoarh), drawn once into a picture pointing up from its pivot in the middle,
+// OAR_PX px a unit (its pivot to its blade tip); null until it is loaded
+const OAR_PX = 150, oarPics = {};
+function oarPicture(variant) {
+  const id = variant === "haunted" ? "corsairoarh" : "corsairoar";
+  if (oarPics[id]) return oarPics[id];
+  if (!(view3d.on && view3d.state === "ready" && view3d.lib.ready(id))) return null;
+  const c = document.createElement("canvas"); c.width = c.height = OAR_PX * 2.8; const g = c.getContext("2d");
+  g.translate(c.width / 2, c.height / 2); g.scale(OAR_PX, OAR_PX);
+  let ok = false; try { ok = view3d.lib.draw(g, id, 0, 0, 0); } catch (e) {}
+  return ok ? (oarPics[id] = c) : null;
+}
 function corsairOars3d(o, q, variant, layer) {
   if (o.vt === enemy) { if (!enemy.oars) enemy.oars = CorsairOars.create(); if (layer === "under") enemy.oarPose = enemy.oars.update((frameDt || 0.016) * 1000, (o.power || 0) > 0.2); }
   const P = o.vt ? o.vt.oarPose : null; if (!P || P.deployment <= 0) return;
@@ -18453,7 +18471,12 @@ function corsairOars3d(o, q, variant, layer) {
       const a = 1.25 * (1 - d) + d * (0.17 + 0.42 * sweep), dip = OARS3.dip * d * (1 - 0.65 * back), L = OARS3.len * (0.25 + 0.75 * d);
       const dir = [side * Math.cos(a) * Math.cos(dip), -Math.sin(dip), Math.sin(a) * Math.cos(dip)];
       const R = [side * OARS3.x, OARS3.h, z], T = [R[0] + dir[0] * L, R[1] + dir[1] * L, R[2] + dir[2] * L], B = [R[0] + dir[0] * L * 0.72, R[1] + dir[1] * L * 0.72, R[2] + dir[2] * L * 0.72];
-      const r = Q3.rot(q, R), t = Q3.rot(q, T), b = Q3.rot(q, B);
+      const r = Q3.rot(q, R), t = Q3.rot(q, T), b = Q3.rot(q, B), pic = oarPicture(variant);
+      if (pic) {   // the textured oar: laid from its oarlock to its blade tip, as long as it looks (into the depth: shorter)
+        const dx = t[0] - r[0], dy = t[2] - r[2], pl = Math.hypot(dx, dy);
+        ctx.save(); ctx.translate(r[0], r[2]); ctx.rotate(Math.atan2(dx, -dy)); ctx.scale(L / OAR_PX, Math.max(pl, 0.002) / OAR_PX);
+        ctx.drawImage(pic, -pic.width / 2, -pic.height / 2); ctx.restore(); return;
+      }
       ctx.beginPath(); ctx.moveTo(r[0], r[2]); ctx.lineTo(b[0], b[2]);
       ctx.strokeStyle = C[0]; ctx.lineWidth = 0.016; ctx.stroke(); ctx.strokeStyle = C[1]; ctx.lineWidth = 0.01; ctx.stroke();
       // the blade: a flat paddle along the oar's end, seen at a slant
