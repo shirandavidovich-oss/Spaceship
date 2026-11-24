@@ -1036,7 +1036,7 @@ ok("3D view (stage 1): three.js and the ship models in the app, loaded only when
   for (const f of ["lib/ship3d-v73.js", "lib/three/three.module.js", "lib/three/three.core.js", "lib/three/GLTFLoader.js", "lib/three/meshopt_decoder.module.js", "lib/three/RoomEnvironment.js", "lib/three/BufferGeometryUtils.js", "lib/three/SkeletonUtils.js"]) assert(fs.existsSync(require("path").join(A, f)), f);
   const lib = fs.readFileSync(require("path").join(A, "lib/ship3d-v73.js"), "utf8");
   for (const m of lib.matchAll(/file: "([^"]+)"/g)) assert(fs.existsSync(require("path").join(A, m[1])), m[1]);
-  assert(/"three": "\.\/lib\/three\/three\.module\.js"/.test(html) && /import\(SHIP3D_FILE\)/.test(html) && /SHIP3D_FILE = "\.\/lib\/ship3d-v73\.js"/.test(html) && /version: 72,/.test(fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/lib/ship3d-v73.js"), "utf8")) && /if \(draw3dShip\(S, o, ang, bank\)\) \{ ctx\.restore\(\); return; \}/.test(html));
+  assert(/"three": "\.\/lib\/three\/three\.module\.js"/.test(html) && /import\(SHIP3D_FILE\)/.test(html) && /SHIP3D_FILE = "\.\/lib\/ship3d-v73\.js"/.test(html) && new RegExp("version: " + html.match(/SHIP3D_VER = (\d+)/)[1] + ",").test(fs.readFileSync(require("path").join(__dirname, "../app/src/main/assets/lib/ship3d-v" + html.match(/SHIP3D_VER = (\d+)/)[1] + ".js"), "utf8")) && /if \(draw3dShip\(S, o, ang, bank\)\) \{ ctx\.restore\(\); return; \}/.test(html));
 });
 ok("3D sticks: gentle near the middle, the usual rate at the button's edge, up to 2.5 times as fast dragged further out", () => {
   const src = html.slice(html.indexOf("const STEER3 = "), html.indexOf("// a drag on one of the sticks"));

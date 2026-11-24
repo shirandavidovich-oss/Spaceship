@@ -2005,7 +2005,7 @@ const GUN_MIRROR3 = { brass: true, courier: true };   // (COURIER: its capsule t
 // BALLAST: the model's nose block is a little further forward and right than the drawing's, its weight on the right
 // THUL: its machine gun's two barrels on the model, their muzzles (the 2D drawing's are further in, on the other side)
 // COURIER: its package leaves from the mouth of the tube on the model (the left, where the 2D drawing has it on the right)
-const GUNS3 = { cinder: { torpedo: [[-0.072, -0.485, -0.088], [0.072, -0.485, -0.088]] }, courier: { mailcap: [[-0.202, -0.395, 0.02]] }, brass: { twin: [[0.248, -0.42, 0], [0.298, -0.40, 0]], iris: [[-0.27, -0.225, 0]] }, ballast: { railslug: [[-0.018, -0.49, 0]] }, skarn: { spike: [[-0.266, -0.41, -0.03], [0.266, -0.41, -0.03]] },   // (BALLAST's model is turned to match its drawing: its sinker leaves from the bay in the weight, BAL_MINE3)   // (THUL's cannonball: from its fitted iris, the muzzle socket's place)
+const GUNS3 = { cinder: { torpedo: [[-0.0743, -0.572, -0.085], [0.0743, -0.572, -0.085]] }, courier: { mailcap: [[-0.202, -0.395, 0.02]] }, brass: { twin: [[0.248, -0.42, 0], [0.298, -0.40, 0]], iris: [[-0.27, -0.225, 0]] }, ballast: { railslug: [[-0.018, -0.49, 0]] }, skarn: { spike: [[-0.266, -0.41, -0.03], [0.266, -0.41, -0.03]] },   // (BALLAST's model is turned to match its drawing: its sinker leaves from the bay in the weight, BAL_MINE3)   // (THUL's cannonball: from its fitted iris, the muzzle socket's place)
   cantor: { tone: [[0, -0.43, 0.03]],
   chord: [[-0.235, -0.43, 0.03], [-0.123, -0.43, 0.03], [0, -0.43, 0.03], [0.123, -0.43, 0.03], [0.235, -0.43, 0.03]] } };
 // BALLAST's sinker in 3D: from the mine bay's mouth in its black weight, as far out as the weight is on its cylinder
@@ -5074,7 +5074,7 @@ function draw3dShipModel(S, o, ang, bank) {
     if (ok && V.cldBolt) cloudBolt(V.cldBolt);
     ctx.restore(); return ok;
   }
-  try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, o.half ? { half: o.half, beacon: S.id === "drakon" && o.half !== "front" ? drakonBeacon(o) : undefined } : S.vaultDoors && o.vt ? { vault: vaultPose(o.vt, o.anim) } : S.id === "cinder" && o.vt ? { launch: cinderLaunch(o.vt) } : undefined); }   // (rolling into the turn; its nose up a little under power; tilted. DRAKON split: one piece, cut along its seam)
+  try { ok = L.draw(ctx, S.id, ang, roll3, pitch3, o.half ? { half: o.half, beacon: S.id === "drakon" && o.half !== "front" ? drakonBeacon(o) : undefined } : S.vaultDoors && o.vt ? { vault: vaultPose(o.vt, o.anim) } : S.id === "cinder" && o.vt ? { launch: cinderLaunch(o.vt), dash: o.cin && o.cin.dash ? { side: o.cin.dash[1] < 0 ? "L" : "R", ms: o.cin.dash[0] } : undefined } : undefined); }   // (rolling into the turn; its nose up a little under power; tilted. DRAKON split: one piece, cut along its seam)
   catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }   // (anything wrong in the 3D drawing: back to 2D, never a blank game)
   if (ok && S.vaultDoors && o.vt) {   // VAULT: the star held in its open chamber, the light leaking from its seams when shut
     ctx.save(); ctx.scale(Math.max(0.05, Math.abs(Math.cos(roll3))), Math.max(0.05, Math.abs(Math.cos(pitch3)))); try { drawVaultStar3d(o.vt); } catch (e) {} ctx.restore();
@@ -10685,7 +10685,7 @@ function enemyShoot(dt) {
       for (const a of pelletAngles(Wp)) {
         const dir = enemy.ang + a + hk + (Math.random() - 0.5) * 0.06 + (enemy.scramble > 0 ? wrongWay() : 0), v = Wp.speed * U;
         enemy.muzT = time; enemy.muzW = w; if (w === "sinker") enemy.sinkT = time;
-        if (w === "torpedo") cinderFired(enemy, gg[0] > 0 ? "R" : "L");
+        if (w === "torpedo") cinderFired(enemy, gg[0] > 0 ? "R" : "L", cinderGo());
         eshots.push({ w, bay: w === "torpedo" ? enemy.cinBay : undefined, x: enemy.x + m.x, y: enemy.y + m.y, vx: enemy.vx + Math.sin(dir) * v, vy: enemy.vy - Math.cos(dir) * v, life: 0,
           art: art ? { src: framePath(E.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(E.anim.dir, f)) } : null });
       }
@@ -11790,6 +11790,10 @@ function slotAmmo(i) { return i < 2 ? game.ammo[i] : i === 3 ? game.xammo || 0 :
 
 function updateWeapons(dt) {
   const S = shipById(game.ship);
+  if (game.cinPend && game.cinPend.length) {   // CINDER: a missile out of its bay — let go
+    if (game.dead || game.ship !== "cinder") game.cinPend = null;
+    else while (game.cinPend.length && time >= game.cinPend[0].at) { const P = game.cinPend.shift(); game.cinBay = P.bay; cinderLate = true; spawnShots("torpedo", P.g); cinderLate = false; }
+  }
   if (game.burstQ) {   // GLITCH's burst: the next round, turned like the first if it was hacked
     const Q = game.burstQ; Q.t -= dt;
     if (game.dead || game.hacked > 0) game.burstQ = null;   // (a malfunction stops a burst too)
@@ -11982,7 +11986,9 @@ function shoot(i) {
   if (A && A.primary && i === 0 && !(game.anim && game.anim.seq !== "primary"))
     game.anim = { seq: "primary", t: Math.max(0, cueTime(A.primary, b === 0 ? "left" : "right")) };
   if (A && A.fireAnim && A.fireAnim[w] && !game.dash2) game.anim = { seq: A.fireAnim[w][b % A.fireAnim[w].length], t: 0 };   // CINDER's recoil
-  if (Wp.both) for (const g of guns) spawnShots(w, g); else spawnShots(w, guns[b]);
+  if (w === "torpedo" && S.id === "cinder" && GUNS3.cinder.torpedo === guns) {   // CINDER in 3D: its hatch opens now, the missile is let go a moment later
+    const bay = guns[b][0] > 0 ? "R" : "L"; cinderFired(game, bay); (game.cinPend || (game.cinPend = [])).push({ at: time + cinderGo(), g: guns[b], bay });
+  } else if (Wp.both) for (const g of guns) spawnShots(w, g); else spawnShots(w, guns[b]);
   if (Wp.burst) game.burstQ = { w, g: guns[b], guns: Wp.alt ? guns : null, n: b, left: Wp.burst - 1, t: Wp.gap, rot: spawnShots.rot };   // (alt: LABYRINTH's arms take turns)   // GLITCH: the rest of the burst
   audio.shot(w);
 }
@@ -12045,7 +12051,7 @@ function spawnShots(w, g, rot) {
     if (!Wp.rear && !Wp.broadside && !Wp.mines && !wild) dv = aimShot(dv, x, y, z0, sv, Wp);   // (bent onto a target just off the nose — AIM)
     const iv = Wp.carry ? [game.vx, q3s ? game.vz3 || 0 : 0, game.vy] : inherit(dv);   // (the ship's own drift: all of it along the shot, little of it sideways — AIM.side; carry: all of it, so it leaves straight out ahead as seen from the ship)
     game.muzT = time; game.muzW = w; if (w === "sinker") game.sinkT = time;   // (the moment and the weapon: BALLAST's bumper lights up)
-    if (w === "torpedo") cinderFired(game, g && g[0] > 0 ? "R" : "L");   // CINDER: that bay's hatch flips up
+    if (w === "torpedo" && !cinderLate) cinderFired(game, g && g[0] > 0 ? "R" : "L", cinderGo());   // CINDER: that bay's hatch already open (its launch only seen as it is let go)
     shots.push({ w, x, y, vx: iv[0] + dv[0] * sv, vy: iv[2] + dv[2] * sv, z3: z0, vz3: iv[1] + dv[1] * sv, life: 0, pow, ix: Wp.colors ? shots.length % Wp.colors.length : undefined, side: Wp.splay && g ? Math.sign(g[0]) : undefined, bay: w === "torpedo" ? game.cinBay : undefined });
     if (q3s && g && Math.abs(g[0]) > 0.05 && !Wp.splay && !Wp.aimAt) spread3(shots[shots.length - 1], x - game.x, y - game.y, z0 - (game.z3 || 0), dv);   // (side guns: the pair closes in with distance)
   }
@@ -16476,22 +16482,28 @@ function drawTorpedo(s) {
   ctx.fillStyle = "#d0402a"; ctx.fillRect(-L * 0.28, L * 0.1, L * 0.56, L * 0.12);
   ctx.restore();
 }
-// ---------- CINDER's bumper launcher (3D: the package's insert and two-stage missile) ----------
-// Each accepted torpedo flips up one bumper hatch, left then right, and the missile leaves from that bay. The package's
-// timeline starts with the hatch opening and ejects the missile at 0.295 s; the game's torpedo is fired the moment the
-// button is pressed, so the hatch clip is run fast to open (the missile already leaving), held, then closes as in the
-// package (its 0.665-0.92 s). Its missile: whole, the booster cut loose 0.315 s out (the package: 0.61 - 0.295), the
-// upper stage lit 0.12 s later; the spent booster tumbles away and fades out (the package: 1.96-2.41 s from the hatch)
-const CINDER_LAUNCH = { open: 0.1, hold: 0.36, close: 0.62, reload: 0.7, sep: 0.315, ign: 0.435, fade: [1.665, 2.115] };
-function cinderFired(V, bay) { V.cinBay = bay; (V.cinT || (V.cinT = {}))[bay] = time; }
-// the hatches' pose for the lib (opt.launch): seconds into each hatch's 0.92 s clip, and whether its bay holds a missile
+// ---------- CINDER's launch bays (3D: the combat rig's hatches and its fitted two-stage missile) ----------
+// Each accepted torpedo opens one bumper hatch, left then right. The package's timeline (its seconds, `clip`): the hatch
+// fully open at 0.215; the missile slides out along the bay's rail 0.295-0.61 (with the ship, wherever it turns); at
+// 0.61 it is let go into the world, the spent booster cut loose to tumble away; the hatch closes 0.665-0.92; the upper
+// stage lights at 0.73; the booster fades out 1.96-2.41. k: the whole timeline run faster (0.6: let go 0.37 s after the
+// press, so the torpedo still answers the button quickly) — the game's own torpedo (its flight, aim, blast, damage) is
+// fired at the moment of letting go. A launch only seen once it is let go (the other ship's, the computer's, or flying
+// flat) starts there, its hatch already open
+const CINDER_LAUNCH = { k: 0.6, open: 0.215, eject: 0.295, go: 0.61, close: 0.92, ignite: 0.73, fade: [1.96, 2.41], reseat: 1.25 };
+const cinderGo = () => CINDER_LAUNCH.go * CINDER_LAUNCH.k;   // (real seconds from the press to letting go)
+let cinderLate = false;   // (spawnShots: this torpedo is a missile let go from its bay, its hatch opened at the press)
+function cinderFired(V, bay, back = 0) { V.cinBay = bay; (V.cinT || (V.cinT = {}))[bay] = time - back; }
+// the bays' pose for the lib (opt.launch): seconds into each hatch's clip; whether its bay holds a missile; how far out
+// along its rail the missile has slid
 function cinderLaunch(V) {
   const C = CINDER_LAUNCH, out = {};
-  for (const id of ["cindermissile", "cinderstage2", "cinderbooster"]) view3d.lib.ready(id);   // (its missile: loaded with it)
+  for (const id of ["cinderstage2", "cinderbooster"]) view3d.lib.ready(id);   // (its missile: loaded with it)
   for (const b of ["L", "R"]) {
-    const a = V.cinT && V.cinT[b] != null ? time - V.cinT[b] : 99;
-    out[b] = a < C.open ? 0.215 * a / C.open : a < C.hold ? 0.215 + (0.665 - 0.215) * (a - C.open) / (C.hold - C.open) : a < C.close ? 0.665 + (0.92 - 0.665) * (a - C.hold) / (C.close - C.hold) : 0;
-    out["load" + b] = a >= C.reload;
+    const a = V.cinT && V.cinT[b] != null ? (time - V.cinT[b]) / C.k : 99;   // (the package's seconds)
+    out[b] = a < C.close ? a : 0;
+    out["slide" + b] = a < C.go ? clamp((a - C.eject) / (C.go - C.eject), 0, 1) : 0;
+    out["load" + b] = a < C.go || a >= C.reseat;
   }
   return out;
 }
@@ -16499,23 +16511,23 @@ const cinderJunk = [];   // the spent boosters: { x, y, z, vx, vy, vz, t, a, spi
 // the missile in 3D, where the torpedo flies, pointing the way it goes (tipped into or out of the depth); false: 2D
 function drawMissile3d(s) {
   if (!view3d.on || BOT || view3d.state !== "ready") return false;
-  const L = view3d.lib, C = CINDER_LAUNCH, two = s.life >= C.sep, id = two ? "cinderstage2" : "cindermissile";
-  if (!L.ready("cindermissile") || !L.ready("cinderstage2") || !L.ready("cinderbooster")) return false;
+  const L = view3d.lib, C = CINDER_LAUNCH, two = true, id = "cinderstage2", ign = (C.ignite - C.go) * C.k;   // (let go: the upper stage, its booster cut loose)
+  if (!L.ready("cinderstage2") || !L.ready("cinderbooster")) return false;
   const sp = Math.hypot(s.vx, s.vy) || 1, q = (v) => Math.round(v * 40) / 40;
   const ang = q(Math.atan2(s.vx, -s.vy)), pitch = q(clamp(Math.atan2((s.vz3 || 0), sp), -1.3, 1.3)), size = shipSize(), p = toScreen(s.x, s.y);
   if (two && !s.sepd) {   // the booster cut loose: on with a little of the missile's speed, drifting off, tumbling
     s.sepd = true; const side = Math.random() < 0.5 ? -1 : 1;
     cinderJunk.push({ x: s.x, y: s.y, z: s.z3 || 0, vx: s.vx * 0.45 - s.vy / sp * side * U * 0.18, vy: s.vy * 0.45 + s.vx / sp * side * U * 0.18, vz: (s.vz3 || 0) * 0.45,
-      t: C.sep, a: ang, spin: side * (2 + Math.random() * 2), r: 0, rs: (Math.random() - 0.5) * 9, p: pitch, ps: 3 + Math.random() * 4 });
+      t: 0, a: ang, spin: side * (2 + Math.random() * 2), r: 0, rs: (Math.random() - 0.5) * 9, p: pitch, ps: 3 + Math.random() * 4 });
   }
   ctx.save(); ctx.translate(p.x, p.y);
-  if (!two || s.life > C.ign) {   // the booster's burn, then the upper stage's flame: a glow behind it
-    const k = two ? clamp((s.life - C.ign) / 0.12, 0, 1) : clamp(s.life / 0.06, 0, 1), back = size * (two ? 0.09 : 0.11), bx = -Math.sin(ang) * back, by = Math.cos(ang) * back, g = ctx.createRadialGradient(bx, by, 0, bx, by, size * 0.16);
+  if (s.life > ign) {   // the upper stage's flame: a glow behind it
+    const k = clamp((s.life - ign) / 0.12, 0, 1), back = size * 0.09, bx = -Math.sin(ang) * back, by = Math.cos(ang) * back, g = ctx.createRadialGradient(bx, by, 0, bx, by, size * 0.16);
     g.addColorStop(0, `rgba(255,190,90,${0.55 * k})`); g.addColorStop(1, "rgba(255,110,30,0)");
     ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(bx, by, size * 0.16, 0, TAU); ctx.fill(); ctx.restore();
   }
   ctx.rotate(ang); ctx.scale(size, size);
-  try { L.draw(ctx, id, ang, 0, pitch, two ? { ignite: q(clamp(s.life - C.ign, 0, 0.12)) } : undefined); } catch (e) { noteIssue("3D missile: " + (e && e.message || e)); }
+  try { L.draw(ctx, id, ang, 0, pitch, two ? { ignite: q(clamp((s.life - ign) / C.k, 0, 0.12)) } : undefined); } catch (e) { noteIssue("3D missile: " + (e && e.message || e)); }
   ctx.restore(); return true;
 }
 // the spent boosters, tumbling as they drift off, fading out
@@ -16524,11 +16536,12 @@ function drawCinderJunk() {
   const dt = frameDt || 0.016, C = CINDER_LAUNCH, L = view3d.lib, size = shipSize();
   for (let k = cinderJunk.length - 1; k >= 0; k--) {
     const j = cinderJunk[k]; j.t += dt;
-    if (j.t > C.fade[1] || !view3d.on || BOT) { cinderJunk.splice(k, 1); continue; }
+    const f0 = (C.fade[0] - C.go) * C.k, f1 = (C.fade[1] - C.go) * C.k;   // (its fade: from letting go)
+    if (j.t > f1 || !view3d.on || BOT) { cinderJunk.splice(k, 1); continue; }
     const drag = Math.exp(-dt * 0.8); j.vx *= drag; j.vy *= drag; j.vz *= drag;
     j.x = wrapX(j.x + j.vx * dt); j.y = wrapY(j.y + j.vy * dt); j.z = clamp(j.z + j.vz / U * dt, -TILT3.far, TILT3.near);
     j.a += j.spin * dt; j.r += j.rs * dt; j.p += j.ps * dt;
-    const k3 = depthScale(j.z), p = toScreen(j.x, j.y), fade = 1 - clamp((j.t - C.fade[0]) / (C.fade[1] - C.fade[0]), 0, 1);
+    const k3 = depthScale(j.z), p = toScreen(j.x, j.y), fade = 1 - clamp((j.t - f0) / (f1 - f0), 0, 1);
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(j.a); ctx.scale(size * k3, size * k3); ctx.globalAlpha *= fade * depthFade(j.z);
     try { L.draw(ctx, "cinderbooster", j.a, j.r, j.p); } catch (e) { noteIssue("3D booster: " + (e && e.message || e)); }
     ctx.restore();
@@ -20743,7 +20756,7 @@ function duelLink(event, data) {
     const S = shipById(m.s), a0 = S && S.anim && S.anim.shotArt && S.anim.shotArt[m.w];
     const art = a0 && a0.files && m.ix != null ? { ...a0, file: a0.files[m.ix] } : a0;   // CANTOR: each bolt its groove's colour
     enemy.muzT = time; enemy.muzW = m.w; if (m.w === "sinker") enemy.sinkT = time;
-    if (m.w === "torpedo") cinderFired(enemy, enemy.cinBay === "L" ? "R" : "L");
+    if (m.w === "torpedo") cinderFired(enemy, enemy.cinBay === "L" ? "R" : "L", cinderGo());
     duel.shots.push({ w: m.w, bay: m.w === "torpedo" ? enemy.cinBay : undefined, x: m.x * WW, y: m.y * WH, vx: m.vx * WW, vy: m.vy * WH, life: 0, nid: m.id, sub: m.sb === 1, lvl: m.v || 0, ix: m.ix, sz: m.z, ch: m.c, z3: m.d3 || 0, vz3: (m.dv || 0) * U,
       art: art ? { src: framePath(S.anim.dir, art.file), d: art.size, spin: art.spin || 0, frames: art.frames && art.frames.map((f) => framePath(S.anim.dir, f)) } : null });
     if (duel.shots.length < 60) audio.shot(m.w, enemy.ship, enemy);

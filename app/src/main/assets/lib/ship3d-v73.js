@@ -47,17 +47,16 @@ export const SHIP_MODELS = {
   // out along +x — drawn once pointing up, then laid along each oar (corsairOars3d); and the ghost ship's teal one
   corsairoar: { file: "models/corsair-oar.glb", fwd: "+x", len: 1, unit: 1, origin: true, pad: 2.6, strip: ["Corsair_Oarlock"] },
   corsairoarh: { file: "models/corsair-oar-haunted.glb", fwd: "+x", len: 1, unit: 1, origin: true, pad: 2.6, strip: ["Corsair_Oarlock"] },
-  // CINDER: the bumper launcher package seated in its front bumper (in its file's units: the bumper face's middle, the
-  // insert's size; cut: the hull opened away round each launch bay, so the bays show) — two flip-up hatches over two
-  // stowed two-stage missiles; opt.launch: { L, R: seconds into that hatch's clip, or null; loadL, loadR: a missile in it }
-  cinder: { file: "models/cinder.glb", fwd: "-z", len: 0.98, upright: 1,
-    launcher: { file: "models/cinder-bumper.glb", missile: "models/cinder-missile.glb", at: [0, 0.935, -0.17], scale: 0.95,
-      cut: [[[-0.203, 0.6, -0.229], [-0.077, 0.975, -0.111]], [[0.077, 0.6, -0.229], [0.203, 0.975, -0.111]]] } },
-  // its missile flying (the same package): whole, then the upper stage alone with its engine lit (opt.ignite: seconds
-  // into its ignition clip), and the spent booster tumbling away — its own units, 0.49 ship-lengths each
-  cindermissile: { file: "models/cinder-missile.glb", fwd: "-z", len: 0.25, unit: 0.49, origin: true, pad: 1.6 },
-  cinderstage2: { file: "models/cinder-missile.glb", fwd: "-z", len: 0.25, unit: 0.49, origin: true, pad: 1.6, strip: ["Cinder_Stage1_Booster"], ignite: true },
-  cinderbooster: { file: "models/cinder-missile.glb", fwd: "-z", len: 0.25, unit: 0.49, origin: true, pad: 1.6, strip: ["Cinder_Stage2"] },
+  // CINDER: its complete combat rig (the package's hull, its two motor pods on swivels, carriages and CV axles, the two
+  // bumper hatches cut from its own bumper) — cinderRig: opt.dash { side: "L"|"R", ms } plays that slip's clip;
+  // opt.launch { L, R: seconds into that hatch's clip; loadL/R: a missile seated in the bay; slideL/R: 0..1 of its way out
+  // along the bay's rail, stow socket to clear socket }
+  cinder: { file: "models/cinder-rig.glb", fwd: "-z", len: 0.98, upright: 1, cinderRig: true, strip: ["Cinder_Missile_Demo_Only"] },
+  // its missile flying (the package's fitted missile, in the ship's file frame and scale): whole, then the upper stage
+  // alone with its engine lit (opt.ignite: seconds into its ignition clip), and the spent booster tumbling away
+  cindermissile: { file: "models/cinder-missile.glb", fwd: "-z", len: 0.98, upright: 1, unit: 0.5157, origin: true, pad: 1.6 },
+  cinderstage2: { file: "models/cinder-missile.glb", fwd: "-z", len: 0.98, upright: 1, unit: 0.5157, origin: true, pad: 1.6, strip: ["Cinder_Stage1_Booster"], ignite: true },
+  cinderbooster: { file: "models/cinder-missile.glb", fwd: "-z", len: 0.98, upright: 1, unit: 0.5157, origin: true, pad: 1.6, strip: ["Cinder_Stage2"] },
   lyth: { file: "models/lyth.glb", fwd: "-z", len: 1.03, fit: "max", split: 0.37 },
   lariat: { file: "models/lariat.glb", fwd: "+z", len: 1.03, upright: -1,
     drum: { c: [-0.205, -0.13], r: 0.128, x: [-0.13, 0.13], fl: 0.175, hide: 0.18 },   // (its cable drum, round the file's x: makeDrum)
@@ -468,37 +467,20 @@ function setBeacon(E, c) {
   });
   const k = c && BEACON[c]; B.light.intensity = k ? E.M.beacon.power : 0; if (k) B.light.color.setRGB(...k);
 }
-// CINDER's bumper launcher (`launcher`): the hull cut open round its two bays (fragments inside `cut` boxes, the file's
-// units, thrown away), the insert laid in its bumper (glTF -z forward, +y up: turned to the file's +y forward, +z up),
-// its two hatch clips ready to be sampled, and a stowed missile at each bay's eject socket
-function makeLauncher(E, M, g) {
-  const L = M.launcher, boxes = L.cut.flat().map((v) => new THREE.Vector3(...v));
-  g.scene.traverse((o) => {
-    if (!o.isMesh) return;
-    const uM = { value: o.matrix.clone() }, m = o.material = o.material.clone();
-    m.onBeforeCompile = (sh) => {
-      sh.uniforms.uCutB = { value: boxes }; sh.uniforms.uToFileC = uM;
-      sh.vertexShader = "uniform mat4 uToFileC;\nvarying vec3 vFileC;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\nvFileC = (uToFileC * vec4(transformed, 1.0)).xyz;");
-      sh.fragmentShader = "uniform vec3 uCutB[4];\nvarying vec3 vFileC;\n" + sh.fragmentShader.replace("void main() {", "void main() {\n  for (int i = 0; i < 2; i++) { if (all(greaterThan(vFileC, uCutB[i * 2])) && all(lessThan(vFileC, uCutB[i * 2 + 1]))) discard; }");
-    };
-    m.customProgramCacheKey = () => "launcher-cut";
-  });
-  const ld = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  ld.load(L.file, (b) => {
-    const demo = b.scene.getObjectByName("Cinder_Demo_Only"); if (demo) demo.removeFromParent();
-    const rails = []; b.scene.traverse((o) => { if (/installation rail/i.test(o.name || "")) rails.push(o); }); rails.forEach((o) => o.removeFromParent());   // (its fitting rails: inside the hull, out of sight)
-    const ins = new THREE.Group(); ins.add(b.scene); b.scene.rotation.x = Math.PI / 2; ins.position.set(...L.at); ins.scale.setScalar(L.scale);
-    g.scene.add(ins); ins.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
-    const mx = new THREE.AnimationMixer(b.scene), act = {};
-    for (const s of ["L", "R"]) { const c = b.animations.find((a) => a.name === "Cinder_Hatch_" + s + "_Fire"); if (c) { act[s] = mx.clipAction(c); act[s].play(); act[s].paused = true; } }
-    E.launch = { mx, act, stow: {} };
-    ld.load(L.missile, (m) => {
-      for (const s of ["L", "R"]) {
-        const at = b.scene.getObjectByName("Cinder_Eject_" + s); if (!at) continue;
-        const c = m.scene.clone(true); at.add(c); c.traverse((o) => { if (o.isMesh) o.frustumCulled = false; }); E.launch.stow[s] = c;
-      }
-      delete poseCache[E.id];
-    });
+// CINDER's combat rig (`cinderRig`): its clips ready to be sampled (each slip's clip, each hatch's), and a fitted
+// missile seated at each bay's stow socket
+function makeCinderRig(E, g) {
+  const mx = new THREE.AnimationMixer(g.scene), act = {};
+  for (const n of ["Magic_Dash_L", "Magic_Dash_R", "Hatch_L_Fire", "Hatch_R_Fire"]) {
+    const c = g.animations.find((a) => a.name === "Cinder_" + n); if (c) { act[n] = mx.clipAction(c); act[n].play(); act[n].paused = true; }
+  }
+  E.launch = { mx, act, stow: {}, path: {} };
+  new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load("models/cinder-missile.glb", (m) => {
+    for (const s of ["L", "R"]) {
+      const at = g.scene.getObjectByName("Cinder_Missile_Stow_" + s), to = g.scene.getObjectByName("Cinder_Missile_Clear_" + s); if (!at) continue;
+      const c = m.scene.clone(true); at.add(c); c.traverse((o) => { if (o.isMesh) o.frustumCulled = false; }); E.launch.stow[s] = c;
+      E.launch.path[s] = to ? to.position.clone().sub(at.position) : new THREE.Vector3(0, 0.346, 0);
+    }
     delete poseCache[E.id];
   });
 }
@@ -855,7 +837,7 @@ function want(id) {
       if (M.huskRig) huskLib.then((F) => { try { if (F) { E.hk = F.bindHusk3D(g, THREE.AnimationMixer); E.hk.applyPose({}); } } catch (err) { console.warn("husk rig", err); } });
       if (M.skarnRig) skarnLib.then((F) => { try { if (F) E.sk = F.bindSkarn3D(g.scene); } catch (err) { console.warn("skarn rig", err); } });
       if (M.rivetRig) rivetLib.then((F) => { try { if (F) E.rv = F.bindRivetMechanics(THREE, g); } catch (err) { console.warn("rivet rig", err); } });
-      if (M.launcher) makeLauncher(E, M, g);
+      if (M.cinderRig) makeCinderRig(E, g);
       if (M.ignite) { const c = g.animations.find((a) => a.name === "Cinder_Stage2_Ignite"); if (c) { const mx = new THREE.AnimationMixer(g.scene), a = mx.clipAction(c); a.play(); a.paused = true; E.ign = { mx, a, dur: c.duration }; } }
       if (M.wingRig) {   // (BALLAST's white doubled wing, the wing rig package merged in: its two panels part 30° each — opt.tow.wing3, 0..1 of its opening)
         const c = g.animations.find((a) => a.name === "Ballast_Wing_Open");
@@ -1003,7 +985,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 72,   // (index.html checks it; the file's name carries it too — lib/ship3d-v73.js — so the app never mixes a new
+  version: 73,   // (index.html checks it; the file's name carries it too — lib/ship3d-vNN.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -1025,7 +1007,7 @@ export const Ship3D = {
     const M = SHIP_MODELS[id], pad = M.pad || PAD, L = (M.len || 1) * pad;   // (pad: a bigger picture round it, for parts that move far out)
     const part = E.spin && opt ? opt.part || "" : "", sp = E.spin && opt ? opt.spin || 0 : 0;
     const pp = E.parts && opt && opt.parts ? opt.parts.map((q) => Math.round(q.x * 500) + "," + Math.round(q.z * 500) + "," + Math.round(q.a * 200)).join(";") : "";
-    let pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.vex ? "|V" + (opt && opt.vex && opt.vex.age != null ? Math.round(opt.vex.age / 15) + opt.vex.brood : "-") : "") + (E.xel && opt && opt.xel ? "|X" + Math.round(opt.xel.finTime * 50) + "," + Math.round(opt.xel.sternTime * 50) + "," + Math.round(opt.xel.swimMix * 30) + "," + Math.round(opt.xel.rearCharge * 30) + "," + (opt.xel.crystalAge != null ? Math.round(opt.xel.crystalAge * 40) : "-") : "") + (E.bloom && opt && opt.bloom ? "|B" + Math.round(opt.bloom.flow * 50) + "," + Math.round(opt.bloom.side * 30) + "," + Math.round(opt.bloom.phase * 90) + "," + Math.round(opt.bloom.filamentTime * 40) : "") + (E.bumper && opt && opt.bumper ? "|b" + opt.bumper.c + Math.round(opt.bumper.k * 30) : "") + (E.drum && opt ? "|d" + Math.round((opt.drum || 0) * 40) + (opt.clawOut ? "c" : "") : "") + (E.paddles && opt && opt.paddles ? "|p" + opt.paddles.map((a) => Math.round(a * 100)).join(",") : "") + (E.wheel && opt ? "|w" + Math.round((opt.wheel || 0) * 60) + "," + Math.round((opt.glow || 0) * 20) + "," + Math.round((opt.flaps || 0) * 40) : "") + (E.vt && opt && opt.vault ? "|v" + ["door", "weapon"].map((k) => opt.vault[k] ? opt.vault[k].clip + Math.round(opt.vault[k].elapsedMs / 15) : "-").join(",") : "") + (E.pf && opt && opt.puff ? "|f" + opt.puff.clip + Math.round((opt.puff.ms || 0) / 20) : "") + (E.gl && opt && opt.glitch ? "|g" + opt.glitch.clip + Math.round(opt.glitch.ms / 20) : "") + (E.hk && opt && opt.husk ? "|h" + ["tank", "arm", "left", "right"].map((k) => opt.husk[k] ? opt.husk[k].clip + Math.round(opt.husk[k].elapsedMs / 20) : "-").join(",") : "") + (E.sk && opt && opt.skarn ? "|k" + [opt.skarn.open, ...opt.skarn.armor, opt.skarn.kick / 17, opt.skarn.flash, opt.skarn.primaryFlash].map((v) => Math.round((v || 0) * 30)).join(",") + (opt.skarn.siege ? "s" : "") + opt.skarn.stored : "") + (E.rv && opt && opt.rivet ? "|v" + (opt.rivet.kind || "-") + (opt.rivet.mode || 0) + "," + (opt.rivet.kind ? Math.round(Math.min(opt.rivet.age || 0, 460) / 12) : 0) : "") + (E.fw && opt && opt.prep != null ? "|f" + Math.round(opt.prep * 30) : "") + (E.fc && opt && opt.parts ? "|c" + opt.parts.map((v) => Math.round(v * 40)).join(",") : "") + (E.beacon && opt && opt.beacon ? "|b" + opt.beacon : "") + (E.jaws && opt && opt.jaw != null ? "|j" + Math.round(opt.jaw) : "") + (E.drillRotor && opt && opt.drill ? "|r" + Math.round(((opt.drill % 6.2832) + 6.2832) % 6.2832 / 6.2832 * 48) % 48 : "") + (E.launch && opt && opt.launch ? "|c" + ["L", "R"].map((k) => Math.round((opt.launch[k] || 0) * 50) + (opt.launch["load" + k] === false ? "x" : "")).join(",") : "") + (E.ign && opt && opt.ignite != null ? "|g" + Math.round(opt.ignite * 100) : "") + (E.bal && opt && opt.tow ? "|t" + Math.round((opt.tow.wing3 || 0) * 40) + "," + Math.round((opt.tow.ext || 0) * 60) + "," + (opt.tow.mine != null ? Math.round(opt.tow.mine / 15) : "-") : "") + (E.prop && opt && opt.prop ? "|p" + Math.round((opt.prop.p || 0) * 60) + "," + Math.round(((opt.prop.rot || 0) % (Math.PI / 2)) / (Math.PI / 2) * 10) % 10 : "") + (E.fiter && opt && opt.cannon ? "|i" + Math.round((opt.cannon.open || 0) * 40) : "") + (E.slide && opt ? "|s" + Math.round((opt.slide || 0) * 20) : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) + (opt.cannon ? "," + ["ring", "kick", "open", "glow"].map((k) => Math.round((opt.cannon[k] || 0) * 40)).join(",") + (opt.cannon.ball === false ? "x" : "") : "") : "");   // (a new picture only when it has turned a quarter of a degree)
+    let pk = Math.round(ang * 200) + "|" + Math.round(roll * 200) + "|" + Math.round(pitch * 200) + part + "|" + Math.round(sp * 200) + "|" + pp + (opt && opt.lights ? "|L" + opt.lights.map((q) => q.color + Math.round(q.z * 100) + "," + Math.round(q.i * 10)).join(",") : "") + (E.cloud && opt && opt.cloud ? "|C" + Math.round((opt.cloud.t || 0) * 60) + "," + Math.round((opt.cloud.power || 0) * 20) + "," + Math.round((opt.cloud.boost || 0) * 20) + "," + Math.round((opt.cloud.flash || 0) * 20) : "") + (E.halves && opt && opt.half ? "|H" + opt.half : "") + (E.ghost && opt && opt.ghost ? "|G" + Math.round(opt.ghost * 50) + "," + Math.round((opt.t || 0) * 30) : "") + (E.fan ? "|" + ((opt && opt.open) || []).map((a) => Math.round(a * 100)).join(",") : "") + (E.turns && opt && opt.turns ? "|" + opt.turns.map((a) => Math.round(a * 200)).join(",") : "") + (E.bands && opt && opt.bands ? "|" + opt.bands.map((b) => b.c + Math.round(b.lo * 100)).join(",") : "") + (E.vex ? "|V" + (opt && opt.vex && opt.vex.age != null ? Math.round(opt.vex.age / 15) + opt.vex.brood : "-") : "") + (E.xel && opt && opt.xel ? "|X" + Math.round(opt.xel.finTime * 50) + "," + Math.round(opt.xel.sternTime * 50) + "," + Math.round(opt.xel.swimMix * 30) + "," + Math.round(opt.xel.rearCharge * 30) + "," + (opt.xel.crystalAge != null ? Math.round(opt.xel.crystalAge * 40) : "-") : "") + (E.bloom && opt && opt.bloom ? "|B" + Math.round(opt.bloom.flow * 50) + "," + Math.round(opt.bloom.side * 30) + "," + Math.round(opt.bloom.phase * 90) + "," + Math.round(opt.bloom.filamentTime * 40) : "") + (E.bumper && opt && opt.bumper ? "|b" + opt.bumper.c + Math.round(opt.bumper.k * 30) : "") + (E.drum && opt ? "|d" + Math.round((opt.drum || 0) * 40) + (opt.clawOut ? "c" : "") : "") + (E.paddles && opt && opt.paddles ? "|p" + opt.paddles.map((a) => Math.round(a * 100)).join(",") : "") + (E.wheel && opt ? "|w" + Math.round((opt.wheel || 0) * 60) + "," + Math.round((opt.glow || 0) * 20) + "," + Math.round((opt.flaps || 0) * 40) : "") + (E.vt && opt && opt.vault ? "|v" + ["door", "weapon"].map((k) => opt.vault[k] ? opt.vault[k].clip + Math.round(opt.vault[k].elapsedMs / 15) : "-").join(",") : "") + (E.pf && opt && opt.puff ? "|f" + opt.puff.clip + Math.round((opt.puff.ms || 0) / 20) : "") + (E.gl && opt && opt.glitch ? "|g" + opt.glitch.clip + Math.round(opt.glitch.ms / 20) : "") + (E.hk && opt && opt.husk ? "|h" + ["tank", "arm", "left", "right"].map((k) => opt.husk[k] ? opt.husk[k].clip + Math.round(opt.husk[k].elapsedMs / 20) : "-").join(",") : "") + (E.sk && opt && opt.skarn ? "|k" + [opt.skarn.open, ...opt.skarn.armor, opt.skarn.kick / 17, opt.skarn.flash, opt.skarn.primaryFlash].map((v) => Math.round((v || 0) * 30)).join(",") + (opt.skarn.siege ? "s" : "") + opt.skarn.stored : "") + (E.rv && opt && opt.rivet ? "|v" + (opt.rivet.kind || "-") + (opt.rivet.mode || 0) + "," + (opt.rivet.kind ? Math.round(Math.min(opt.rivet.age || 0, 460) / 12) : 0) : "") + (E.fw && opt && opt.prep != null ? "|f" + Math.round(opt.prep * 30) : "") + (E.fc && opt && opt.parts ? "|c" + opt.parts.map((v) => Math.round(v * 40)).join(",") : "") + (E.beacon && opt && opt.beacon ? "|b" + opt.beacon : "") + (E.jaws && opt && opt.jaw != null ? "|j" + Math.round(opt.jaw) : "") + (E.drillRotor && opt && opt.drill ? "|r" + Math.round(((opt.drill % 6.2832) + 6.2832) % 6.2832 / 6.2832 * 48) % 48 : "") + (E.launch && opt && opt.launch ? "|c" + ["L", "R"].map((k) => Math.round((opt.launch[k] || 0) * 50) + "," + Math.round((opt.launch["slide" + k] || 0) * 40) + (opt.launch["load" + k] === false ? "x" : "")).join(",") : "") + (E.launch && opt && opt.dash ? "|d" + opt.dash.side + Math.round(opt.dash.ms / 15) : "") + (E.ign && opt && opt.ignite != null ? "|g" + Math.round(opt.ignite * 100) : "") + (E.bal && opt && opt.tow ? "|t" + Math.round((opt.tow.wing3 || 0) * 40) + "," + Math.round((opt.tow.ext || 0) * 60) + "," + (opt.tow.mine != null ? Math.round(opt.tow.mine / 15) : "-") : "") + (E.prop && opt && opt.prop ? "|p" + Math.round((opt.prop.p || 0) * 60) + "," + Math.round(((opt.prop.rot || 0) % (Math.PI / 2)) / (Math.PI / 2) * 10) % 10 : "") + (E.fiter && opt && opt.cannon ? "|i" + Math.round((opt.cannon.open || 0) * 40) : "") + (E.slide && opt ? "|s" + Math.round((opt.slide || 0) * 20) : "") + (E.gears && opt ? "|g" + Math.round((opt.gears || 0) * 60) + "," + Math.round((opt.recoil || 0) * 20) + (opt.cannon ? "," + ["ring", "kick", "open", "glow"].map((k) => Math.round((opt.cannon[k] || 0) * 40)).join(",") + (opt.cannon.ball === false ? "x" : "") : "") : "");   // (a new picture only when it has turned a quarter of a degree)
     // opt.lights: up to 3 coloured lights inside the ship ({ x, y, z } in the fitted model's units, before it is tilted;
     // color; i: how bright) — MIRAGE's light running up its prism
     if (!lamps) { lamps = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xffffff, 0, 1.2, 1.6); scene.add(L); return L; }); }
@@ -1054,9 +1036,13 @@ export const Ship3D = {
     if (E.fc) E.fc.setProgress(opt && opt.parts ? opt.parts : [1, 1, 1, 1]);   // (its creature: each part's way in)
     if (E.jaws) { const a = ((opt && opt.jaw != null ? opt.jaw : 46) * Math.PI) / 180; if (E.jaws[0]) E.jaws[0].rotation.z = a; if (E.jaws[1]) E.jaws[1].rotation.z = -a; }   // (LARIAT's claw: its jaws spread or shut)
     if (E.drillRotor) E.drillRotor.quaternion.setFromAxisAngle(ZAX, opt && opt.drill ? opt.drill : 0);   // (BORER's drill turned)
-    if (E.launch) {   // (CINDER: each hatch where its clip has it, closed when at rest; each bay's missile in or gone)
-      const Lo = (opt && opt.launch) || {};
-      for (const s of ["L", "R"]) { const a = E.launch.act[s]; if (a) a.time = Math.max(0, Math.min(a.getClip().duration, Lo[s] || 0)); if (E.launch.stow[s]) E.launch.stow[s].visible = Lo["load" + s] !== false; }
+    if (E.launch) {   // (CINDER: each hatch where its clip has it, shut at rest; each bay's missile in, on its way out or gone; the slip's clip, or both pods at rest)
+      const Lo = (opt && opt.launch) || {}, D = opt && opt.dash, A = E.launch.act;
+      for (const s of ["L", "R"]) {
+        const a = A["Hatch_" + s + "_Fire"]; if (a) a.time = Math.max(0, Math.min(a.getClip().duration, Lo[s] || 0));
+        const m = E.launch.stow[s]; if (m) { m.visible = Lo["load" + s] !== false; m.position.copy(E.launch.path[s]).multiplyScalar(Lo["slide" + s] || 0); }
+        const d = A["Magic_Dash_" + s]; if (d) { const on = D ? D.side === s : s === "L"; d.enabled = on; if (on) { d.setEffectiveWeight(1); d.time = D ? Math.max(0, Math.min(d.getClip().duration, D.ms / 1000)) : 0; } }
+      }
       E.launch.mx.update(0);
     }
     if (E.ign) { E.ign.a.time = Math.max(0, Math.min(E.ign.dur, (opt && opt.ignite) || 0)); E.ign.mx.update(0); }
