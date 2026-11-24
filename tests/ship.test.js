@@ -477,9 +477,12 @@ ok("SKARN: the mouth stays open 4.5 s, sucks shots in, and each catch refills; X
   const X = SHIPS.find((s) => s.id === "xeltar").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships/xeltar");
   assert.strictEqual(X.swim.length, 3); for (const f of X.swim.flat()) assert(fs.existsSync(path.join(dir, f)), f);
 });
-ok("DRAKON's magic: split once a life, then a big blast", () => {
+ok("DRAKON's magic: split once a life, then a big blast — a ninth of space, armed after 5 s, a third to itself; both bars flash, a siren, on the map", () => {
   const S = SHIPS.find((s) => s.id === "drakon"); assert.strictEqual(S.magic, "split"); assert(S.anim.seam);
-  const M = MAGIC.split; assert(M.blast >= 3 && M.dmg > M.edge && M.edge > 0);
+  const M = MAGIC.split; assert(M.dmg > M.edge && M.edge > 0 && M.arm === 5 && Math.abs(M.self - 1 / 3) < 1e-9 && Math.abs(M.zone - 1 / 9) < 1e-9);
+  assert(html.includes("function bombZone() { return Math.sqrt(WW * WH * MAGIC.split.zone / Math.PI); }"));
+  assert(/game\.bomb\.t < M\.arm\) \{ audio\.nope\(\)/.test(html) && /damageShip\(Math\.round\(\(M\.edge \+ \(M\.dmg - M\.edge\) \* f\) \* M\.self\)\)/.test(html));
+  assert(/alarm = bombAlarm\(\)/.test(html) && /DRAKON's bomb: where it is/.test(html) && /the police siren/.test(html));
 });
 ok("every LYTH drawing and sound is in art/ships/lyth/", () => {
   const A = SHIPS.find((s) => s.id === "lyth").anim, dir = path.join(__dirname, "../app/src/main/assets/art/ships", A.dir);
