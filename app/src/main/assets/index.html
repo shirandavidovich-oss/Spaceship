@@ -4594,7 +4594,7 @@ if (view3d.on && !BOT) view3dSet(true);
 // the 3D model is drawn for this ship now (no 2D frames instead)
 function use3d(S, o) {
   if (!view3d.on || BOT || view3d.state !== "ready" || o.icon || o.zombie || (o.half && S.id !== "drakon") || (o.haunt && S.id !== "corsair")) return false;   // (CORSAIR's ghost ship: the same model, haunted: drawCorsairGhost)
-  if (S.magic === "inflate" && o.vt && puffStOf(o.vt) && (puffStOf(o.vt).st !== "flat" || puffStOf(o.vt).t < 0.72) && !view3d.lib.ready("puffbig")) return false;   // (PUFF puffed up or crumpled: its 3D shell, once loaded)
+  if (S.magic === "inflate" && o.vt && puffStOf(o.vt) && puffStOf(o.vt).st !== "flat" && !view3d.lib.ready("puffbig")) return false;   // (PUFF puffed up or crumpled: its 3D shell, once loaded)
   if (S.id === "palisade" && o.anim && o.anim.seq === "roof") return false;
   // (PALISADE setting its wall: the roof plates slide and the arms rise — its 2D frames)   // (BORER's drill turning — boring into the star, or held drilling: its 2D drawing; the model is one piece, its drill cannot turn)   // (GLITCH's shutters moving — the hack pulse, the V shield, the slip: its 2D drawing; the model's panels cannot move)   // (PUFF puffed up: its 2D drawing; the model is the slim one)
   const L = view3d.lib; return L.has(S.id) && L.ready(S.id);
@@ -4920,24 +4920,18 @@ function draw3dShipModel(S, o, ang, bank) {
     try { ok = drawLyth3d(L, S, o, ang, roll3, pitch3); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); }
     ctx.restore(); return ok;
   }
-  if (S.id === "puff") {   // PUFF (lib: puffbig, the smooth-deflation package): compact, its own model; puffing up (1.5 s), held, burst
-    // and collapsing (0.9 s), then its folds pulling back in to its compact self (0.72 s) — the compact model fading out as
-    // the first lobes swell (406–524 ms) and back in as the folds draw in (292–642 ms of that). Puffing up again before the
-    // folds are in starts from them (Reinflate), the compact model fading out at once
+  if (S.id === "puff") {   // PUFF (lib: puffbig): compact, its own model; puffing up (1.5 s, once), held, burst and collapsing
+    // (0.9 s) — the compact model fading out as the first lobes swell (406–524 ms) and back in over the last of the collapse
+    // (560–860 ms), so it is its compact self again without swelling a second time
     const V = o.vt === game || o.vt === enemy ? o.vt : null, P = V ? puffStOf(V) : null, big = L.ready("puffbig");   // (asked for: loaded early)
-    const rec = P && P.st === "flat" && P.t < 0.72;
-    if (P && P.st === "up" && V.pfPrev !== "up") { V.pfRe = V.pfPrev === "flat" && V.pfRec; V.pfW0 = V.pfW || 0; }
-    if (V) { V.pfPrev = P ? P.st : null; V.pfRec = rec; }
-    if (P && big && (P.st !== "flat" || rec)) {
+    if (P && big && P.st !== "flat") {
       const ms = P.t * 1000;
-      const pose = P.st === "up" ? { clip: V.pfRe ? "Reinflate" : "Inflate", ms } : P.st === "full" ? { clip: "Inflate", ms: 1500 } : P.st === "down" ? { clip: "BurstCollapse", ms } : { clip: "CompactRecovery", ms };
-      const w = P.st === "up" ? (V.pfRe ? V.pfW0 * (1 - smoothStep(clamp(ms / 160, 0, 1))) : 1 - smoothStep(clamp((ms - 406) / 118, 0, 1))) : P.st === "flat" ? smoothStep(clamp((ms - 292) / 350, 0, 1)) : 0;
-      V.pfW = w;
-      if (w < 0.99) { try { ok = L.draw(ctx, "puffbig", ang, roll3, pitch3, { puff: pose }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); } }
+      const pose = P.st === "up" ? { clip: "Inflate", ms } : P.st === "full" ? { clip: "Inflate", ms: 1500 } : { clip: "BurstCollapse", ms };
+      const w = P.st === "up" ? 1 - smoothStep(clamp((ms - 406) / 118, 0, 1)) : P.st === "down" ? smoothStep(clamp((ms - 560) / 300, 0, 1)) : 0;
+      if (w < 0.99) { ctx.save(); ctx.globalAlpha *= P.st === "down" ? 1 - w : 1; try { ok = L.draw(ctx, "puffbig", ang, roll3, pitch3, { puff: pose }); } catch (e) { view3d.state = "fail"; noteIssue("3D ship: " + (e && e.message || e)); } ctx.restore(); }
       if (w > 0.01) { ctx.save(); ctx.globalAlpha *= w; try { ok = L.draw(ctx, S.id, ang, roll3, pitch3) || ok; } catch (e) {} ctx.restore(); }
       ctx.restore(); return ok;
     }
-    if (V) V.pfW = 1;
   }
   if (S.id === "glitch") {   // GLITCH: the rebuilt model's shutters (lib: glitchRig), on the 2D reference clock as glitchPicture plays it:
     // the hack pulse's shutters twice as fast, the V shield at its own speed, the slip's counter-slide twice as fast
