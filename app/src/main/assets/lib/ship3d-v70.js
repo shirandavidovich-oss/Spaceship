@@ -60,7 +60,7 @@ export const SHIP_MODELS = {
   // faces closed and the pipe ends capped — the front piece the big canopy, the back one the twin exhausts
   drakon: { file: "models/drakon-split.glb", fwd: "+x", len: 0.95, pieces: { front: "Drakon_Cockpit", back: "Drakon_TwinExhaust" },
     beacon: { material: "Rift coupling indicators", at: "Drakon_TwinExhaust_SeamFX", out: [0.08, 0.04, 0.06], reach: 0.6, power: 0.5 } },   // (its broken pipes' warning light: makeBeacon; out: just outside the pipe cluster, file units)
-  vault: { file: "models/vault-lock.glb", fwd: "-z", upright: 1, len: 0.87, pad: 2.0, vaultRig: true, strip: ["Vault_PreviewStar"] },   // (the VAULT dual-lock package: its lock face up, as the 2D drawing's — each face's six bolts, wheel and two flaps, its firing pins and piston, opt.vault; the cube 0.94 ship-lengths across)
+  vault: { file: "models/vault-lock.glb", fwd: "-z", upright: 1, len: 0.94, pad: 2.0, scale3: [1, 1.08, 0.752], vaultRig: true, strip: ["Vault_PreviewStar"] },   // (the VAULT dual-lock package: its lock face up, as the 2D drawing's — each face's six bolts, wheel and two flaps, its firing pins and piston, opt.vault; the cube 0.94 ship-lengths across)
   orian: { file: "models/orian.glb", fwd: "-x", len: 0.9, fan: { back: -0.055, hinge: [0, -0.085, -0.07], normal: [0, 0.94, -0.34], cuts: [-46, -15, 15, 46], round: [144, 72, 0, -72, -144], cone: 9, narrow: 0.45, shorten: 0.72 } },   // (shut: narrower across, and shorter — the sheath of the 2D drawing)
   vanta: { file: "models/vanta.glb", fwd: "-x", len: 0.98, erase: true },   // (its painted ribbon wiped: the game's own liquid goes in the chamber)
   mirage: { file: "models/mirage.glb", fwd: "-x", len: 1.0 },
@@ -139,7 +139,7 @@ function store(id, key, res = PX) {
 }
 // fit a loaded model: centred, nose to -z (the screen's up), top to +y, 1 long
 function fit(obj, M) {
-  obj.removeFromParent(); obj.position.set(0, 0, 0); obj.rotation.set(M.upright ? -Math.PI / 2 * M.upright : 0, 0, 0); obj.updateMatrixWorld(true);   // (upright: a model standing up, facing +z (1) or -z (-1): laid down, its face up)
+  obj.removeFromParent(); obj.position.set(0, 0, 0); obj.rotation.set(M.upright ? -Math.PI / 2 * M.upright : 0, 0, 0); if (M.scale3) obj.scale.set(...M.scale3); obj.updateMatrixWorld(true);   // (scale3: stretched along its own file axes — VAULT made a true cube)   // (upright: a model standing up, facing +z (1) or -z (-1): laid down, its face up)
   const box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
   const along = M.fit === "max" ? Math.max(s.x, s.z) : M.fwd[1] === "x" ? s.x : s.z;   // (fit "max": its widest way across, for a ship wider than it is long)
   const inner = new THREE.Group(); if (!M.origin) obj.position.sub(c); inner.add(obj);   // (origin: kept where its file has it)
@@ -939,7 +939,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 69,   // (index.html checks it; the file's name carries it too — lib/ship3d-v69.js — so the app never mixes a new
+  version: 70,   // (index.html checks it; the file's name carries it too — lib/ship3d-v70.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
