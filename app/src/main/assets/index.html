@@ -1365,7 +1365,7 @@ const WEAPONS = {
   phase:   { name: "טיפת מעבר",  dmg: 20, speed: 1.5, life: 3.0, cool: 1.2,  ammo: 3,  refill: 3.5, r: 0.06, color: "#caff38",
              phase: true, boost: 42, transit: 0.315, warn: 0.21, swell: 2.2, grow: 3.0, thin: 0.45 },
   thread:  { name: "חוט אור",   dmg: 75, speed: 0,   life: 0,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#48aef6", thread: true,
-             lay: 0.15, seal: 2.47, arm: 2.7, expire: 5.14, wide: 0.14 },   // (dmg: three times its first 25; wide: the armed beam's width, ship-lengths; laid for 2.32 s — twice its first 1.16 s, so twice as long — then the same warning and armed time)
+             lay: 0.15, seal: 2.47, arm: 2.7, expire: 12.46, wide: 0.14 },   // (dmg: three times its first 25; wide: the armed beam's width, ship-lengths; laid for 2.32 s — twice its first 1.16 s, so twice as long; armed for 9.76 s — four times its first 2.44 s)
   // ZORIAN's spiked ball: on a chain `len` ship-lengths long from the stern; it trails and swings with the ship.
   //   A press swings it once round the ship in `swing` seconds: `dmg` to a ship in its way (once a swing).
   //   Just trailing, it still hurts on a fast knock (`bump` damage if it moves faster than `fast` screens a second)

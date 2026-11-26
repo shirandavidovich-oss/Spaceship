@@ -316,11 +316,11 @@ ok("KRAAL: the longer button 2 is held, the farther the bolts meet (up to a limi
   assert(crossReach(W2, 0.4) < crossReach(W2, 0.8) && crossReach(W2, 0.8) < crossReach(W2, 1.2), "farther the longer it is held");
   assert.strictEqual(SHIPS.find((s) => s.id === "kraal").magic, "hammer"); assert(MAGIC.hammer.dmg > 0 && MAGIC.hammer.speed > 2);
 });
-ok("ZORIAN (zorian-layout.json): the bolt at 75 ms; the thread lays 150-2,470 ms (twice as long), warns, arms at 2,700, gone at 5,140", () => {
+ok("ZORIAN (zorian-layout.json): the bolt at 75 ms; the thread lays 150-2,470 ms (twice as long), warns, arms at 2,700, gone at 12,460 (armed four times as long)", () => {
   const S = SHIPS.find((s) => s.id === "zorian"), A = S.anim, W2 = WEAPONS.thread, px = (v) => Math.round(v / A.size * 512 + 256);
   assert.strictEqual(seqLength(A.primary), 265); assert.strictEqual(cueTime(A.primary, "left"), 75);
   assert.strictEqual(threadPhase(W2, 0.1), "charge"); assert.strictEqual(threadPhase(W2, 0.5), "lay"); assert.strictEqual(threadPhase(W2, 2.4), "lay"); assert.strictEqual(threadPhase(W2, 2.6), "warning");
-  assert.strictEqual(threadPhase(W2, 3), "armed"); assert.strictEqual(threadPhase(W2, 5.15), null);
+  assert.strictEqual(threadPhase(W2, 3), "armed"); assert.strictEqual(threadPhase(W2, 12), "armed"); assert.strictEqual(threadPhase(W2, 12.5), null);
   assert.strictEqual(px(gunsOf(S, "needle")[0][1]), 63); assert.strictEqual(px(gunsOf(S, "thread")[0][1]), 441);
   // a target moving across a piece of thread in one step is caught (swept), a target beside it is not
   assert.strictEqual(segDistance({ x: -5, y: 0 }, { x: 5, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 }), 0);
