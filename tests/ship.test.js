@@ -565,6 +565,9 @@ ok("TALUS forges its boulder: grows in steps to 55 px, fragments fly in, it leav
   assert.strictEqual(talusForge(0).radius, 0); assert.strictEqual(talusForge(1430).radius, 55); assert.ok(talusForge(600).radius > 15 && talusForge(600).radius < 32);
   assert.strictEqual(talusForge(0).chips.length, 20); assert.ok(talusForge(470).thump > 0.9); assert.strictEqual(WEAPONS.boulder.forge, 1.43);
 });
+ok("the aim lock (RESET held): 8 s at most, then a minute to recharge, a ring round the button", () => {
+  assert(/const LOCK3 = \{ rate: 2\.4, hold: 0\.5, max: 8, charge: 60 \};/.test(html) && /\(game\.lockCharge \|\| 0\) > 0\) \{ audio\.nope\(\)/.test(html) && /the aim lock's ring, as a weapon button's/.test(html));
+});
 ok("a ship (or a shot) behind the star's layer is hidden by the star: the star's disc cut out of it as it is drawn", () => {
   assert(/function bodyClipOut\(z\)/.test(html) && /const myClip = !game\.dead && bodyClipOut\(game\.z3\);/.test(html) && /function drawEnemy\(\) \{ const c = bodyClipOut\(enemy\.z3\);/.test(html) && /function drawShotsBehindBody\(pass\)/.test(html));
 });

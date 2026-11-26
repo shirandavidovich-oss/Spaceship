@@ -5230,12 +5230,14 @@ function levelTap() { game.level3 = true; game.lock3 = false; audio.pop(); buzz(
 // straight at the enemy — through the depth too — and keeps following it as it moves, so the gas flies the ship to it by the
 // shortest way. Only where it points: the gas stays the pilot's. Off with a tap on RESET (which levels it), or when a stick
 // steers, the enemy is gone or my ship is lost. rate: rad a second at most; hold: s held for it ----
-const LOCK3 = { rate: 2.4, hold: 0.5 };
+// max: s it holds at most each time; charge: s to recharge after it ends (a ring round RESET fills meanwhile, as a
+// weapon button's does; while it is on, a red ring runs down its time left)
+const LOCK3 = { rate: 2.4, hold: 0.5, max: 8, charge: 60 };
 let levelPress = null;
 function lockTarget() { return enemy.on && enemy.warp < 0.5 && !enemyDocked() ? enemy : null; }
 function lockTap() {
-  if (!levelShown() || !lockTarget()) { audio.nope(); buzz(25); return; }
-  game.lock3 = true; game.level3 = false;
+  if (!levelShown() || !lockTarget() || (game.lockCharge || 0) > 0) { audio.nope(); buzz(25); return; }   // (still recharging: not yet)
+  game.lock3 = true; game.lock3T = 0; game.level3 = false;
   audio.tone(660, 0.08, "square", 0.04, 0.5); audio.tone(990, 0.12, "square", 0.04, 0.5, 0.09); buzz(40);   // (a double beep: locked)
 }
 // the orientation pointing my nose at the enemy (level: no roll), in its 3D place — wrapped the shortest way, depth too
@@ -5255,6 +5257,14 @@ function drawLevelButton() {
   if (img) ctx.drawImage(img, b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
   else { ctx.fillStyle = "rgba(200,204,208,0.9)"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); }
   ctx.restore();
+  {   // the aim lock's ring, as a weapon button's: on — red, running down its time left; recharging — filling up; ready — full
+    const on = !!game.lock3, ch = game.lockCharge || 0, k = on ? 1 - (game.lock3T || 0) / LOCK3.max : ch > 0 ? 1 - ch / LOCK3.charge : 1;
+    ctx.save(); ctx.lineCap = "round"; ctx.lineWidth = Math.max(3, b.r * 0.09);
+    ctx.strokeStyle = "rgba(10,14,30,0.55)"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 1.06, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = on ? "#ff3b5c" : ch > 0 ? "rgba(255,59,92,0.55)" : "#ff3b5c";
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 1.06, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(k, 0, 1)); ctx.stroke();
+    ctx.restore();
+  }
   // in its window: the orientation pyramid, turned as my ship is (3D; or drawn, until that is ready)
   const G = { x: b.x + (RESET_WIN.x - 0.5) * 2 * b.r, y: b.y + (RESET_WIN.y - 0.5) * 2 * b.r, r: RESET_WIN.r * 2 * b.r };
   let done = false;
@@ -5274,6 +5284,10 @@ function levelStep(q, step, target) {
 }
 function updateTilt3(dt) {
   if (BOT) { botDepth(dt); return; }
+  if ((game.lockCharge || 0) > 0) game.lockCharge = Math.max(0, game.lockCharge - dt);   // (the aim lock recharging)
+  if (game.lock3) { game.lock3T = (game.lock3T || 0) + dt; if (game.lock3T >= LOCK3.max) { game.lock3 = false; audio.tone(990, 0.1, "square", 0.04, 0.5); audio.tone(560, 0.16, "square", 0.04, 0.5, 0.1); } }   // (it holds LOCK3.max s at most)
+  if (game.lockWas && !game.lock3) game.lockCharge = LOCK3.charge;   // (it just ended, however: a minute to recharge)
+  game.lockWas = !!game.lock3;
   if (!view3d.on) { game.p3 = game.z3 = game.vz3 = game.r3 = 0; game.q3 = null; return; }
   // (anything else that turned the ship — a new life, a magic — since last time: start again from its angles)
   const E = game.q3e;
