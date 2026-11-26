@@ -1364,8 +1364,8 @@ const WEAPONS = {
              swell: 0.9, grow: 2.4, thin: 0.4 },
   phase:   { name: "טיפת מעבר",  dmg: 20, speed: 1.5, life: 3.0, cool: 1.2,  ammo: 3,  refill: 3.5, r: 0.06, color: "#caff38",
              phase: true, boost: 42, transit: 0.315, warn: 0.21, swell: 2.2, grow: 3.0, thin: 0.45 },
-  thread:  { name: "חוט אור",   dmg: 25, speed: 0,   life: 0,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#48aef6", thread: true,
-             lay: 0.15, seal: 1.31, arm: 1.54, expire: 3.98 },
+  thread:  { name: "חוט אור",   dmg: 75, speed: 0,   life: 0,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#48aef6", thread: true,
+             lay: 0.15, seal: 1.31, arm: 1.54, expire: 3.98, wide: 0.14 },   // (dmg: three times its first 25; wide: the armed beam's width, ship-lengths)
   // ZORIAN's spiked ball: on a chain `len` ship-lengths long from the stern; it trails and swings with the ship.
   //   A press swings it once round the ship in `swing` seconds: `dmg` to a ship in its way (once a swing).
   //   Just trailing, it still hurts on a fast knock (`bump` damage if it moves faster than `fast` screens a second)
@@ -10722,10 +10722,11 @@ function updateThread(dt) {
     T.armed = true;
     if (T.paths.some((q) => q.length > 1)) audio.sfx(S.sfx, "thread_arm");
   }
-  // armed: an enemy crossing it (from where it was to where it is now) is hit, once
+  // armed: an enemy touching or crossing it (from where it was to where it is now) is hit, once — at any depth in 3D:
+  // the thread is a wall through all of space's layers, so flying above or below it does not get past
   const now = { x: enemy.x, y: enemy.y };
   if (ph === "armed" && !T.hit && enemy.on && enemy.warp < 0.5 && T.ePrev) {
-    const from = { x: now.x - wrapDelta(now.x - T.ePrev.x, WW), y: now.y - wrapDelta(now.y - T.ePrev.y, WH) }, rad = shipSize() * 0.3 + 4 * k;
+    const from = { x: now.x - wrapDelta(now.x - T.ePrev.x, WW), y: now.y - wrapDelta(now.y - T.ePrev.y, WH) }, rad = shipSize() * (0.42 * Math.max(1, enemyScale()) + (Wp.wide || 0) / 2);
     for (const q of T.paths) for (let i = 1; i < q.length && !T.hit; i++) {
       const c = q[i - 1], d = q[i], ox = wrapDelta(c.x - now.x, WW) + now.x - c.x, oy = wrapDelta(c.y - now.y, WH) + now.y - c.y;   // the piece nearest the enemy
       if (segDistance(from, now, { x: c.x + ox, y: c.y + oy }, { x: d.x + ox, y: d.y + oy }) <= rad) {
@@ -10738,24 +10739,31 @@ function updateThread(dt) {
   }
   T.ePrev = enemy.on ? now : null;
 }
-// the thread: laying = a dashed blue line; warning = blinking; armed = a bright cyan thread with a white core
+// the thread, drawn like ZORIAN's own blue thruster beam: a thick band of its flame blue, both long edges lit, a white-hot
+// core down the middle (three lines), and bands of heat sliding along it. Laying: thinner and dimmer, its edges dashed;
+// the warning: blinking; armed: full width (Wp.wide), fading out at the end
 function drawThread(T) {
   if (!T) return;
   const Wp = WEAPONS[T.w], ph = threadPhase(Wp, T.t);
   if (!ph || ph === "charge") return;
-  const armed = ph === "armed", warn = ph === "warning", k = shipSize() * 1.2 / 512;
+  const armed = ph === "armed", warn = ph === "warning", size = shipSize(), flame = shipById("zorian").flame;
   const gain = armed ? Math.min(1, (Wp.expire - T.t) / 0.39) : warn ? 0.47 + 0.34 * Math.sin(T.t * 38) : 0.53;
+  const Wd = size * (Wp.wide || 0.14) * (armed ? 1 : 0.62);
   ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round";
   for (const q of T.paths) {
     if (q.length < 2) continue;
     const pts = q.map((v) => toScreen(v.x, v.y));
-    const line = (w, c, a, dash) => {
-      ctx.strokeStyle = c; ctx.globalAlpha = Math.max(0, a); ctx.lineWidth = Math.max(w * 0.45, w * k * 1.8); ctx.setLineDash(dash ? [9, 9] : []);
+    const line = (w, c, a, op, dash, off) => {
+      ctx.globalCompositeOperation = op || "source-over"; ctx.strokeStyle = c; ctx.globalAlpha = Math.max(0, Math.min(1, a)); ctx.lineWidth = Math.max(1, w);
+      ctx.setLineDash(dash || []); ctx.lineDashOffset = off || 0;
       ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
     };
-    line(armed ? 13 : 8, "#217bff", gain * 0.38);
-    line(armed ? 4 : 2.4, armed ? "#92f8ff" : "#48aef6", gain * 0.95, !armed);
-    if (armed) line(1.5, "#e4ffff", gain * 0.92);
+    line(Wd * 2.2, flame, gain * 0.16, "lighter"); line(Wd * 1.5, flame, gain * 0.22, "lighter");   // (its glow)
+    line(Wd, "#e4ffff", gain * 0.95, "source-over", armed ? null : [Wd * 0.9, Wd * 0.7]);   // (the two lit edges: the band's rim...)
+    line(Wd * 0.72, mixHex(flame, "#1d4fd8", 0.25), gain * 0.95);   // (...left showing either side of its deep blue body)
+    line(Wd * 0.45, flame, gain * 0.7, "lighter");
+    line(Wd * 0.2, "#ffffff", gain * 0.95, "lighter");   // (the white-hot core)
+    if (armed) line(Wd, "#ffffff", gain * 0.45, "lighter", [Wd * 0.18, Wd * 3.2], -time * size * 2.4);   // (heat bands sliding along it)
   }
   ctx.restore();
 }
