@@ -1365,7 +1365,7 @@ const WEAPONS = {
   phase:   { name: "טיפת מעבר",  dmg: 20, speed: 1.5, life: 3.0, cool: 1.2,  ammo: 3,  refill: 3.5, r: 0.06, color: "#caff38",
              phase: true, boost: 42, transit: 0.315, warn: 0.21, swell: 2.2, grow: 3.0, thin: 0.45 },
   thread:  { name: "חוט אור",   dmg: 75, speed: 0,   life: 0,   cool: 0.2,  ammo: 1,  refill: 0.1, r: 0,    color: "#48aef6", thread: true,
-             lay: 0.15, seal: 1.31, arm: 1.54, expire: 3.98, wide: 0.14 },   // (dmg: three times its first 25; wide: the armed beam's width, ship-lengths)
+             lay: 0.15, seal: 2.47, arm: 2.7, expire: 5.14, wide: 0.14 },   // (dmg: three times its first 25; wide: the armed beam's width, ship-lengths; laid for 2.32 s — twice its first 1.16 s, so twice as long — then the same warning and armed time)
   // ZORIAN's spiked ball: on a chain `len` ship-lengths long from the stern; it trails and swings with the ship.
   //   A press swings it once round the ship in `swing` seconds: `dmg` to a ship in its way (once a swing).
   //   Just trailing, it still hurts on a fast knock (`bump` damage if it moves faster than `fast` screens a second)
@@ -10714,7 +10714,7 @@ function updateThread(dt) {
     let path = T.paths[T.paths.length - 1];
     const p = layPoint(game, S), last = path[path.length - 1], d = last ? Math.hypot(p.x - last.x, p.y - last.y) : 0;
     if (last && d > 105 * k) { path = []; T.paths.push(path); }   // jumped or wrapped: a new piece
-    if ((!path.length || d >= 3 * k) && path.length < 256) { path.push(p); T.dirty = true; }
+    if ((!path.length || d >= 3 * k) && path.length < 512) { path.push(p); T.dirty = true; }
   }
   T.sendT = (T.sendT || 0) - dt;
   if ((ph === "lay" && T.sendT <= 0) || (was === "lay" && ph !== "lay")) T.sendT = 0.25, duelSend({ t: "th", w: T.w, at: T.t, p: T.paths.map((q) => q.map((v) => [+(v.x / WW).toFixed(5), +(v.y / WH).toFixed(5)])) });
