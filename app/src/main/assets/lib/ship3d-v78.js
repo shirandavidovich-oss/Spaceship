@@ -995,7 +995,7 @@ function gauge(ctx, q, x, y, r) {
 
 export const Ship3D = {
   gauge,
-  version: 77,   // (index.html checks it; the file's name carries it too — lib/ship3d-vNN.js — so the app never mixes a new
+  version: 78,   // (index.html checks it; the file's name carries it too — lib/ship3d-vNN.js — so the app never mixes a new
                 // game with an old copy of this file it saved earlier: change the name with every change here)
   chase,
   chaseReset() { if (C) C.first = true; },
@@ -1005,6 +1005,18 @@ export const Ship3D = {
   // is `len` ship-lengths on screen)
   parts(id) { const E = want(id); return E && E.state === "ready" && E.parts ? { len: SHIP_MODELS[id].len || 1, list: E.parts.map((B) => ({ cx: B.cx, cz: B.cz, w: B.w, h: B.h })) } : null; },
   ready(id) { const E = want(id); return !!E && E.state === "ready"; },
+  // a point (and a direction) in model `id`'s own file (its glTF scene's units and axes) in the ship's 3D frame —
+  // [x right, up, back] in ship-lengths, as NOZZLES3 — and how far the point is from the model's nearest vertex (ship-
+  // lengths): measuring a package's sockets against the model really loaded
+  fromFile(id, p, d) {
+    const E = want(id); if (!E || E.state !== "ready" || !E.raw) return null;
+    const len = SHIP_MODELS[id].len || 1; E.obj.updateMatrixWorld(true);
+    const m = E.raw.matrixWorld, v = new THREE.Vector3(...p).applyMatrix4(m), w = d ? new THREE.Vector3(...d).transformDirection(m) : null;
+    let near = Infinity; const a = new THREE.Vector3();
+    E.raw.traverse((o) => { if (!o.isMesh || !o.geometry.attributes.position) return; const P = o.geometry.attributes.position, mw = o.matrixWorld;
+      for (let i = 0; i < P.count; i += 2) { a.fromBufferAttribute(P, i).applyMatrix4(mw); const q = a.distanceToSquared(v); if (q < near) near = q; } });
+    return { at: [v.x * len, v.y * len, v.z * len], way: w ? [w.x, w.y, w.z] : null, near: Math.sqrt(near) * len };
+  },
   preload(ids) { for (const id of ids) want(id); },
   _reset(id) { const E = models[id]; delete poseCache[id]; if (E && E.raw) E.obj = fit(E.raw, SHIP_MODELS[id]); },
   // draw ship `id` into the 2D context, whose origin is the ship's middle and whose units are the 2D drawing's (the

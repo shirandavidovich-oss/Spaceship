@@ -15,7 +15,7 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; }   /* (its exact size is set in resize()) */
 </style>
-<!-- the 3D view (lib/ship3d-v77.js, three.js): loaded only once it is turned on -->
+<!-- the 3D view (lib/ship3d-v78.js, three.js): loaded only once it is turned on -->
 <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js" } }</script>
 </head>
 <body>
@@ -2346,10 +2346,14 @@ function starMineCheck(gap, busy, M) { return busy ? "occupied" : !(gap >= 0) ||
 // ---- the levels: what gets better each level (lvl 1 = the first) ----
 //   dmg: its damage (x)   armor: your damage to it is divided by this   aim: how far off its aim can be (radians)
 //   react: seconds between new aiming decisions   special: seconds between heavy-weapon uses   magic: seconds between magics
+// BOT_EASE: every level made easier by about half (asked for: level 1 was still too hard) — the computer's weapons hit
+// softer (dmg), its ship takes more (armor), it aims worse and reacts slower, and uses its specials and magic less often
+const BOT_EASE = { dmg: 0.6, armor: 0.8, aim: 1.5, react: 1.5, use: 1.5 };
 function levelStats(lvl) {
-  const n = Math.max(0, lvl - 1);
-  return { dmg: Math.min(1.8, 0.65 + 0.12 * n), armor: Math.min(2.2, 1 + 0.12 * n), aim: Math.max(0.05, 0.3 - 0.03 * n),
-    react: Math.max(0.1, 0.45 - 0.04 * n), special: Math.max(1.2, 4.5 - 0.4 * n), magic: Math.max(2.5, 10 - 0.9 * n) };
+  const n = Math.max(0, lvl - 1), E = BOT_EASE;
+  return { dmg: Math.min(1.8, 0.65 + 0.12 * n) * E.dmg, armor: Math.min(2.2, 1 + 0.12 * n) * E.armor, aim: Math.max(0.05, 0.3 - 0.03 * n) * E.aim,
+    react: Math.max(0.1, 0.45 - 0.04 * n) * E.react, special: Math.max(1.2, 4.5 - 0.4 * n) * E.use, magic: Math.max(2.5, 10 - 0.9 * n) * E.use,
+    zSpeed: Math.min(3, 1 + 0.15 * n) };   // (zSpeed: how fast it moves through the depth, layers a second)
 }
 // ---- GIMBAL's quarter gate: a disk that turns an enemy shot a quarter round, clockwise ----
 // px, py: where the shot was, from the gate's middle; dx, dy: how far it moved this step; r: the gate's radius.
@@ -4591,10 +4595,10 @@ window.setBotTest = (m) => { botTest = m; };
 // the hangar's "🪐 body" chip: the body in the middle chosen by hand (an index into BODIES; null: a new one at random
 // each round). Tapping it goes on to the next body at once (and the computer's copy with it: "bd"); past the last, back
 // to random
-// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v77.js: SHIP_MODELS) rendered by three.js
+// ---- the 3D view (stage 1): the same game, its ships with a 3D model (lib/ship3d-v78.js: SHIP_MODELS) rendered by three.js
 // from the same top-down view, banking as they turn; everything else stays as it is. Loaded only once turned on (in
 // the test hangar for now); saved. Off (or while loading, or with no WebGL): the 2D drawings ----
-const SHIP3D_VER = 77, SHIP3D_FILE = "./lib/ship3d-v77.js";
+const SHIP3D_VER = 78, SHIP3D_FILE = "./lib/ship3d-v78.js";
 const view3d = { on: LS.getItem("view3d") === "1", state: "off" };
 function view3dSet(on) {
   view3d.on = on; LS.setItem("view3d", on ? "1" : "0");
@@ -4629,6 +4633,8 @@ function draw3dShip(S, o, ang, bank) {
 }
 // ---- the engines in 3D, at the model's own engine mouths (NOZZLES3: [x, up, back, radius, style, way] in ship-lengths,
 // the ship's own frame: x right, up out of its top, back toward its tail; way: the way it blows, if not straight back;
+// THUL, NIMBUS, LARIAT, BALLAST, COURIER's two main pipes, FRANKENSTEIN and HUSK: the exhaust-placement package's sockets,
+// measured on these models (Ship3D.fromFile turns them into this frame; each sat on the loaded model's surface);
 // else its 2D nozzles). Each mouth is a disc (or a slot: rect) facing back: seen from behind it is painted on (a dark
 // rim, its inside glowing the engine's colour, white-hot under full thrust) and the thrust comes toward you — a glow and
 // sparks of fire flying out at you; seen from the side its flame streams back, turned with the ship; seen from the front
@@ -4637,7 +4643,7 @@ function draw3dShip(S, o, ang, bank) {
 // (BORER: a round thruster in its flat back, a swirling vortex of colours), light (GIMBAL: no flame — a burst of light
 // when the gas comes on, then waves of light) ----
 const NOZZLES3 = {
-  nimbus: (o) => (o.vt || o).boost4 ? [[0.005, 0.07, 0.46, 0.034, "paper"]] : [[-0.07, 0.04, 0.46, 0.03], [0.075, 0.04, 0.46, 0.03], [0, -0.005, 0.46, 0.03]],   // (boosting: only its fourth, high engine, a long yellow flame shedding burning scraps)
+  nimbus: (o) => (o.vt || o).boost4 ? [[-0.001, 0.06, 0.471, 0.034, "paper"]] : [[-0.107, 0.013, 0.439, 0.03], [0.091, 0.027, 0.474, 0.03], [-0.003, -0.041, 0.472, 0.03]],   // (boosting: only its fourth, high engine, a long yellow flame shedding burning scraps)
   vanta: [[-0.1, -0.035, 0.48, 0.034], [0.1, -0.035, 0.48, 0.034]],   // (the model has only blue lines there: its two mouths painted on)
   orian: (o) => [[0, -0.07, o.anim && o.anim.seq === "secondary" ? 0.06 : 0.34, 0.05]],   // (out of the folded sheath's end; the fan open: out of the pod)
   drakon: [[-0.18, -0.13, 0.43, 0.05, { rect: [0.062, 0.022] }], [-0.012, -0.14, 0.43, 0.05, { rect: [0.062, 0.022] }]],
@@ -4645,16 +4651,18 @@ const NOZZLES3 = {
   cinder: [[-0.32, 0.054, 0.47, 0.05, "camo"], [0.33, 0.054, 0.47, 0.05, "camo"]],
   borer: [[0, -0.01, 0.41, 0.1, "vortex"]],
   gimbal: [[-0.024, 0.02, 0.416, 0.013, "light"], [0.024, 0.02, 0.416, 0.013, "light"], [-0.024, -0.024, 0.416, 0.013, "light"], [0.024, -0.024, 0.416, 0.013, "light"]],
-  lariat: [[-0.14, 0.14, 0.44, 0.045], [0.11, 0.13, 0.4, 0.036]],
+  lariat: [[-0.094, 0.134, 0.499, 0.045, null, [0, 0.37, 0.93]], [0.114, 0.143, 0.443, 0.036, null, [0, 0.38, 0.92]]],   // (both canted with its tail)
   flipper: [[-0.195, 0, 0.52, 0.04, "norim"], [0.195, 0, 0.52, 0.04, "norim"]],   // (out of its two pipes; no rim painted on)
   brass: (o) => THUL_ENGINES.slice(0, (o.vt || o).boost4 ? 4 : 2),   // THUL: two engines; tapped twice, all four (thulBoost)
   bloom: [[0, -0.02, 0.1, 0.12, "glow"]],   // (no engine: a soft glow at its back)
-  courier: [[-0.2, 0.04, 0.39, 0.04], [-0.104, 0.05, 0.37, 0.03], [0.1, 0.03, 0.41, 0.022]],   // (three pipes, three sizes)
-  frankenstein: [[-0.11, -0.036, 0.41, 0.014], [0.1, -0.036, 0.41, 0.014]],
+  courier: [[-0.187, 0.036, 0.403, 0.04], [-0.104, 0.05, 0.37, 0.03], [0.106, 0.032, 0.401, 0.022]],   // (three pipes, three sizes)
+  frankenstein: [[-0.04, 0.008, 0.491, 0.014], [0.04, 0.008, 0.491, 0.014]],   // (the tips of its split tail)
+  ballast: [[0.032, 0.103, 0.349, 0.05, "norim"], [-0.07, 0.103, 0.354, 0.05, "norim"]],   // (its two teal outlets above the rear hull)
+  husk: [[-0.229, 0.021, 0.514, 0.05, "norim"], [0.155, 0.037, 0.51, 0.05, "norim"]],   // (the pods at the ends of its horseshoe)
   reprise: (o) => repriseNozzles(o),   // (under its three tall buildings: they move with them as it rebuilds)
 };
 // THUL's four engines (its tail): the big left one and the low middle one push; the right one and the high middle one join in the boost
-const THUL_ENGINES = [[-0.26, 0.01, 0.38, 0.05], [0.07, -0.044, 0.4, 0.05], [0.28, -0.04, 0.2, 0.055], [0, 0.08, 0.14, 0.036]];
+const THUL_ENGINES = [[-0.214, -0.01, 0.423, 0.05], [0.089, -0.061, 0.411, 0.05], [0.28, -0.04, 0.2, 0.055], [0, 0.08, 0.14, 0.036]];
 // REPRISE's engines: at the foot of each of its three tall buildings, wherever that building is now, blowing the way its foot faces
 function repriseNozzles(o) {
   const L = view3d.lib, S = shipById("reprise"), PT = L && L.parts && L.parts("reprise"); if (!PT) return [];
@@ -5265,7 +5273,8 @@ function levelStep(q, step, target) {
   return { q: Q3.norm([q[0] * a + t2[0] * b, q[1] * a + t2[1] * b, q[2] * a + t2[2] * b, q[3] * a + t2[3] * b]), done: k >= 1 };
 }
 function updateTilt3(dt) {
-  if (!view3d.on || BOT) { game.p3 = game.z3 = game.vz3 = game.r3 = 0; game.q3 = null; return; }
+  if (BOT) { botDepth(dt); return; }
+  if (!view3d.on) { game.p3 = game.z3 = game.vz3 = game.r3 = 0; game.q3 = null; return; }
   // (anything else that turned the ship — a new life, a magic — since last time: start again from its angles)
   const E = game.q3e;
   if (!game.q3 || !E || Math.abs(wrapAngle(E[0] - game.ang)) > 1e-6 || Math.abs(E[1] - (game.p3 || 0)) > 1e-6 || Math.abs(E[2] - (game.r3 || 0)) > 1e-6) game.q3 = Q3.fromAngles(game.ang, game.p3 || 0, game.r3 || 0);
@@ -12171,6 +12180,10 @@ function inherit(dv) {
 }
 // a shot leaving within AIM.cone of the enemy (or a training target) is bent onto where it will be when the shot arrives
 function aimShot(dv, x, y, z0, sv, Wp) {
+  if (BOT && enemy.on && !Wp.homing && !Wp.gravity) {   // the computer: its shot tipped to reach the player's depth as it gets there
+    const d = Math.hypot(wrapDelta(enemy.x - x, WW), wrapDelta(enemy.y - y, WH)) || 1, up = clamp(((enemy.z3 || 0) - z0) * U / d, -0.6, 0.6), L = Math.hypot(dv[0], dv[2]) || 1;
+    return [dv[0], up * L, dv[2]];
+  }
   if (BOT || Wp.homing || Wp.gravity) return dv;
   const T = enemy.on && enemy.warp < 0.5 && !enemyAloft() && !enemyDocked() ? enemy : null; if (!T) return dv;
   const L = Math.hypot(dv[0], dv[2]) || 1, ux = dv[0] / L, uy = dv[2] / L;
@@ -21441,6 +21454,22 @@ function botLost() {
   if (!botAI.left.length) { game.dead = 1e9; try { parent.botEvent({ t: "out" }); } catch (e) {} }   // stays out until the next level
 }
 function botNextShip() { if (botShipWant) tryShip(botShipWant); else if (botAI.left.length) tryShip(botAI.left[Math.floor(Math.random() * botAI.left.length)]); }
+// the computer's ship in the depth (3D): not stuck on one layer — it goes after the player's depth, lagging, wandering
+// a little above and below it, its nose tipping the way it climbs or dives. (Its shots are aimed at the player's
+// depth: aimShot.) Its phone sends z3 and p3 like any other player's
+function botDepth(dt) {
+  game.r3 = 0; game.q3 = null;
+  if (game.dead || game.stage !== "fly") { game.z3 = game.vz3 = game.p3 = 0; return; }
+  const T = TILT3, sd = botAI.zSeed || (botAI.zSeed = 1 + Math.random() * 9);
+  if (enemy.on && (enemy.z3 || enemy.p3 || enemy.r3)) botAI.saw3d = time;   // (the player flying in 3D: seen moving in the depth lately)
+  const in3d = botAI.saw3d != null && time - botAI.saw3d < 10;   // (else, a player in the flat view: it stays on the one layer)
+  const wander = in3d ? 1.1 * Math.sin(time * 0.31 + sd) + 0.7 * Math.sin(time * 0.13 + sd * 2.3) : 0;   // (layers: off the player's depth)
+  const goal = clamp((enemy.on ? enemy.z3 || 0 : 0) + wander, -T.far * 0.7, T.near * 0.7), z = game.z3 || 0;
+  const want = clamp((goal - z) * 1.2, -botLevel().zSpeed, botLevel().zSpeed), v = (game.vz3 || 0) / U;
+  const nv = v + clamp(want - v, -2 * dt, 2 * dt);
+  game.vz3 = nv * U; game.z3 = z + nv * dt;
+  game.p3 = clamp(-nv * 0.3, -0.45, 0.45);
+}
 // the automatic player: steers like a thumb on the joystick, and presses the same keys a person would on a computer
 function botThink(dt) {
   if (botStill()) return;   // the hangar asked it to keep still, or to keep out
