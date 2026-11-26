@@ -5471,6 +5471,31 @@ function depthLayers() {
   const z = game.z3 || 0, T = TILT3, L = T.layers || 3, front = z >= 0, per = (front ? T.near : T.far) / L;
   return { front, n: Math.min(L, Math.ceil(Math.abs(z) / per - 0.02)), color: front ? "#4fa8ff" : "#ff4d5e" };
 }
+// a ship deeper than the body (z3 < 0: behind its layer): drawn with the body's disc cut out of it, so nothing of it —
+// its hull, its flames, what it carries or tows — shows over the body. The disc is the body as drawn now (growing into
+// a new one, the old one's too; LABYRINTH's dead star round it). Returns true when it clipped (ctx.restore() after)
+function bodyDisc() {
+  if (!view3d.on || BOT || chaseOn() || qDeath || vaultBusy() || testNoStar() || starGone()) return null;
+  const k = ease(cosmos.morph); let R = planetR() * (0.2 + 0.8 * k);
+  if (cosmos.prev !== null && cosmos.morph < 1) R = Math.max(R, U * BODIES[cosmos.prev].r * (1 - k));
+  if (maze && typeof sfTotal === "function") R = Math.max(R, planetR() * 1.04);
+  return { c: toScreen(WW / 2, WH / 2), R };
+}
+// the shots, in a pass: those deeper than the body drawn with its disc cut out (hidden behind it), the rest as they are
+function drawShotsBehindBody(pass) {
+  for (const L of [shots, duel.shots, eshots]) {
+    const deep = L.filter((s) => (s.z3 || 0) < -0.05), rest = deep.length ? L.filter((s) => !((s.z3 || 0) < -0.05)) : L;
+    if (deep.length) { const c = bodyClipOut(-1); drawShots(deep, pass); if (c) ctx.restore(); }
+    drawShots(rest, pass);
+    if (L === shots && rest !== L && pass !== "behind") drawCinderJunk();   // (drawShots only does it for the whole list)
+  }
+}
+function bodyClipOut(z) {
+  if (!((z || 0) < -0.05)) return false;
+  const D = bodyDisc(); if (!D) return false;
+  ctx.save(); ctx.beginPath(); ctx.rect(-1e6, -1e6, 2e6, 2e6); ctx.arc(D.c.x, D.c.y, D.R, 0, TAU); ctx.clip("evenodd");
+  return true;
+}
 function coverBehind() {
   if (!view3d.on || BOT || chaseOn()) return;
   for (const V of [game, enemy]) {
@@ -5479,7 +5504,7 @@ function coverBehind() {
     if (V === game && game.dead) continue;
     const p = V === game ? zoomed(shipScreen()) : toScreen(enemy.x, enemy.y), r = shipSize() * game.zoom * depthScale(V.z3) * 0.75;
     ctx.save(); ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.clip();
-    drawPlanet(); drawStation();
+    drawStation();   // (the station; the body itself is cut out of the ship as it is drawn: bodyClipOut)
     ctx.restore();
   }
 }
@@ -19383,7 +19408,8 @@ function draw() {
     const swapping = trade.stage === "swapping" && !trade.fleet;
     drawCrate();
     drawKitFx("behind");
-    drawSonics(); drawRaiders(); drawEnemy(); drawPractice(); drawTraining("behind"); drawParts("behind"); drawShots(shots, "behind"); drawShots(duel.shots, "behind"); drawShots(eshots, "behind"); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawHuskCreature(); drawParasites(); drawLightFx(); drawGhosts(); drawCorsairAim();
+    drawSonics(); drawRaiders(); drawEnemy(); drawPractice(); drawTraining("behind"); drawParts("behind"); drawShotsBehindBody("behind"); drawComets(); drawPinballs(); drawOrbitMines(); drawSnakes(); drawVaultFx(); drawHuskCreature(); drawParasites(); drawLightFx(); drawGhosts(); drawCorsairAim();
+    const myClip = !game.dead && bodyClipOut(game.z3);   // (my ship behind the body: hidden by it, all that goes with it)
     if (!game.dead) {
       drawTail(game.tail, S);
       const r = swapping ? { x: 0, y: 0, a: 0 } : rattle(S);
@@ -19437,10 +19463,9 @@ function draw() {
         ctx.beginPath(); ctx.arc(p.x, p.y, shipSize() * (1.2 - game.arriveT * 0.6), 0, TAU); ctx.fill(); ctx.restore();
       }
     }
+    if (myClip) ctx.restore();
     coverBehind();   // (flying in 3D: a ship behind the body or the station, hidden by it where they overlap)
-    drawShots(shots, "front"); drawRcs();
-    drawShots(duel.shots, "front");
-    drawShots(eshots, "front");
+    drawShotsBehindBody("front"); drawRcs();
     drawPlasers();
     drawStorms();
     drawThread(game.thread); drawThread(duel.thread);
@@ -19712,7 +19737,8 @@ function drawBodyLabel() {
 }
 
 // the enemy: drawn like any ship, with a red ring under it; off screen, a red arrow at the edge points to it
-function drawEnemy() {
+function drawEnemy() { const c = bodyClipOut(enemy.z3); try { drawEnemyShip(); } finally { if (c) ctx.restore(); } }   // (behind the body: hidden by it)
+function drawEnemyShip() {
   if (!enemy.on || enemyDocked()) return;   // (docked: inside the station)
   const E = shipById(enemy.ship), p = toScreen(enemy.x, enemy.y), size = shipSize();
   const z = zoomed(p), m = size * 0.6 * game.zoom;

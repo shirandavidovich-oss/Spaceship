@@ -565,6 +565,9 @@ ok("TALUS forges its boulder: grows in steps to 55 px, fragments fly in, it leav
   assert.strictEqual(talusForge(0).radius, 0); assert.strictEqual(talusForge(1430).radius, 55); assert.ok(talusForge(600).radius > 15 && talusForge(600).radius < 32);
   assert.strictEqual(talusForge(0).chips.length, 20); assert.ok(talusForge(470).thump > 0.9); assert.strictEqual(WEAPONS.boulder.forge, 1.43);
 });
+ok("a ship (or a shot) behind the star's layer is hidden by the star: the star's disc cut out of it as it is drawn", () => {
+  assert(/function bodyClipOut\(z\)/.test(html) && /const myClip = !game\.dead && bodyClipOut\(game\.z3\);/.test(html) && /function drawEnemy\(\) \{ const c = bodyClipOut\(enemy\.z3\);/.test(html) && /function drawShotsBehindBody\(pass\)/.test(html));
+});
 ok("the computer gets stronger every level, within limits", () => {
   const a = levelStats(1), b = levelStats(2), z = levelStats(50);
   assert(b.dmg > a.dmg && b.armor > a.armor && b.aim < a.aim && b.special < a.special && b.magic < a.magic);
@@ -1062,7 +1065,7 @@ ok("a control button with my ship behind it fades to 10%; the sound dials beside
   assert(/function padSee\(key, list, fn\)/.test(html) && /under \? 0\.1 : 1/.test(html) && /return walletBox\(\)\.dials;/.test(html) && /side = 1\.5 \* Math\.max/.test(html) && /if \(hit3dButton\(e\.clientX, e\.clientY\)\) \{ view3dTap\(\); return; \}/.test(html));
   for (const f of ["art/ui/btn-camera.webp", "art/ui/btn-2d3d.webp"]) assert(fs.existsSync(require("path").join(__dirname, "../app/src/main/assets", f)), f);
 });
-ok("flying in 3D: attitude jets — gas puffs from the ship's edges while it yaws, tilts or rolls, each with a psss", () => assert(/const RCS = \{ every: 0\.13/.test(html) && /function rcsHiss\(vol\)/.test(html) && /updateTilt3\(dt\); updateRcs\(dt\);/.test(html) && /drawShots\(shots, "front"\); drawRcs\(\);/.test(html)));
+ok("flying in 3D: attitude jets — gas puffs from the ship's edges while it yaws, tilts or rolls, each with a psss", () => assert(/const RCS = \{ every: 0\.13/.test(html) && /function rcsHiss\(vol\)/.test(html) && /updateTilt3\(dt\); updateRcs\(dt\);/.test(html) && /drawShotsBehindBody\("front"\); drawRcs\(\);/.test(html)));
 ok("flying in 3D: fire button 1 locks to one motion (tilt or roll) by the way the thumb first goes, until it is back in the middle", () => assert(/if \(s3\.still\) T\.axis = null; else if \(!T\.axis\) T\.axis = Math\.abs\(dx\) > Math\.abs\(dy\) \? "roll" : "tilt";/.test(html)));
 ok("flying in 3D: the turns are round the ship's own axes (a quaternion), and its angles come back out exactly as three.js turns the model", () => {
   const i = html.indexOf("const Q3 = {"), j = html.indexOf("function updateTilt3(dt) {");
